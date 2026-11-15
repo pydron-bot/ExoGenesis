@@ -59,7 +59,8 @@ export class Provinces {
 
   constructor(scene: THREE.Scene, globe: THREE.Mesh, labelLayer: HTMLElement) {
     this.list = makeSeeds();
-    const pos = globe.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const geo = globe.geometry.index ? globe.geometry.toNonIndexed() : globe.geometry;
+    const pos = geo.getAttribute('position') as THREE.BufferAttribute;
     const triCount = pos.count / 3;
     const owner = new Int16Array(triCount);
     const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), m = new THREE.Vector3();

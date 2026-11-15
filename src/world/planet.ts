@@ -5,6 +5,7 @@
  * the system is placed relative to it.
  */
 import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { REGION_HALF } from '../sim/types';
 import { fbm3, lerp, smoothstep } from './noise';
 
@@ -84,8 +85,8 @@ export function terrainColor(h: number, flora: number, out: THREE.Color) {
 }
 
 /** Low-poly globe; the part under the landing region is sunk so the detailed patch covers it. */
-export function buildGlobe(): THREE.Mesh {
-  const geo = new THREE.IcosahedronGeometry(1, 64);
+export function buildGlobe(look: 'flat' | 'smooth' = 'flat'): THREE.Mesh {
+  let geo: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, 64);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const col = new Float32Array(pos.count * 3);
   const d = new THREE.Vector3();
@@ -112,10 +113,16 @@ export function buildGlobe(): THREE.Mesh {
     pos.setXYZ(i, d.x * (R + Math.max(0, h)), d.y * (R + Math.max(0, h)), d.z * (R + Math.max(0, h)));
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (look === 'smooth') {
+    // weld the icosphere's duplicated corners so normals average across triangles
+    geo.deleteAttribute('normal');
+    geo.deleteAttribute('uv');
+    geo = mergeVertices(geo, 1e-3);
+  }
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(
     geo,
-    new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95, metalness: 0 }),
+    new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: look === 'flat', roughness: 0.95, metalness: 0 }),
   );
   mesh.name = 'home-globe';
   return mesh;

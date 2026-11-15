@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
+import { makeGroundTextures } from './terrainTex';
 import {
   E, HALF, N, R, U, floraAt, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, worldToRegion,
 } from './planet';
@@ -18,24 +19,31 @@ const metal = (c: string, extra: Partial<THREE.MeshStandardMaterialParameters> =
 const glow = (c: THREE.ColorRepresentation, i = 2.2) =>
   new THREE.MeshStandardMaterial({ color: '#000000', emissive: c, emissiveIntensity: i, flatShading: true });
 
-function buildPatch(): THREE.Mesh {
-  const n = (HALF * 2) / STEP;
+export type Look = 'flat' | 'smooth';
+
+const ROCK = new THREE.Color('#6a5a50');
+
+function buildPatch(look: Look): THREE.Mesh {
+  const step = look === 'smooth' ? 1.5 : STEP;
+  const n = Math.round((HALF * 2) / step);
   const cols = n + 3; // +1 skirt ring on each side
   const pos: number[] = [];
   const col: number[] = [];
+  const uv: number[] = [];
   const idx: number[] = [];
   const v = new THREE.Vector3(), d = new THREE.Vector3(), c = new THREE.Color();
   for (let j = -1; j <= n + 1; j++) {
     for (let i = -1; i <= n + 1; i++) {
       const skirt = i < 0 || j < 0 || i > n || j > n;
-      const x = -HALF + Math.min(n, Math.max(0, i)) * STEP;
-      const z = -HALF + Math.min(n, Math.max(0, j)) * STEP;
+      const x = -HALF + Math.min(n, Math.max(0, i)) * step;
+      const z = -HALF + Math.min(n, Math.max(0, j)) * step;
       const raw = regionHeightRaw(x, z);
       regionDir(x, z, d);
       v.copy(d).multiplyScalar(R + Math.max(0, raw) - (skirt ? 10 : 0));
       pos.push(v.x, v.y, v.z);
       terrainColor(raw, floraAt(d), c);
       col.push(c.r, c.g, c.b);
+      uv.push(x / 22, z / 22); // one texture tile per 22 units (~220 m)
     }
   }
   for (let j = 0; j < cols - 1; j++) {
@@ -48,13 +56,40 @@ function buildPatch(): THREE.Mesh {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx);
-  geo = geo.toNonIndexed();
-  geo.computeVertexNormals();
+  let mat: THREE.Material;
+  if (look === 'smooth') {
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.computeVertexNormals();
+    // steep ground shows bare rock
+    const nrm = geo.getAttribute('normal') as THREE.BufferAttribute;
+    const colAttr = geo.getAttribute('color') as THREE.BufferAttribute;
+    const p = geo.getAttribute('position') as THREE.BufferAttribute;
+    const up = new THREE.Vector3(), nn = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      up.fromBufferAttribute(p, i).normalize();
+      nn.fromBufferAttribute(nrm, i);
+      const w = smoothstep(0.06, 0.2, 1 - nn.dot(up));
+      if (w <= 0) continue;
+      c.setRGB(colAttr.getX(i), colAttr.getY(i), colAttr.getZ(i)).lerp(ROCK, w * 0.8);
+      colAttr.setXYZ(i, c.r, c.g, c.b);
+    }
+    const tex = groundTextures();
+    mat = new THREE.MeshStandardMaterial({
+      vertexColors: true, map: tex.map, normalMap: tex.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.95,
+    });
+  } else {
+    geo = geo.toNonIndexed();
+    geo.computeVertexNormals();
+    mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92 });
+  }
   geo.computeBoundingSphere();
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92 }));
+  const m = new THREE.Mesh(geo, mat);
   m.name = 'region-patch';
   return m;
 }
+
+let _tex: ReturnType<typeof makeGroundTextures> | null = null;
+export const groundTextures = () => (_tex ??= makeGroundTextures());
 
 /** Ribbon draped over the terrain from a to b (used for order vectors). */
 class Ribbon {
@@ -263,8 +298,8 @@ export class RegionView {
   private marker: THREE.Sprite;
   private raycaster = new THREE.Raycaster();
 
-  constructor(scene: THREE.Scene) {
-    this.patch = buildPatch();
+  constructor(scene: THREE.Scene, look: Look = 'flat') {
+    this.patch = buildPatch(look);
     scene.add(this.patch);
     scene.add(this.details);
 

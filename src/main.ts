@@ -8,7 +8,7 @@ import { SOL_SECONDS, TICK_HZ, type SimState } from './sim/types';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, buildGlobe, R, U } from './world/planet';
 import { Provinces } from './world/provinces';
-import { RegionView } from './world/region';
+import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 
 const params = new URLSearchParams(location.search);
@@ -16,6 +16,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
+const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.75 : 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -29,11 +30,16 @@ const fog = new THREE.Fog('#8fb0ad', 400, 1200);
 scene.fog = fog;
 
 const system = new SolarSystem(scene, $('labels'));
-const globe = buildGlobe();
+const globe = buildGlobe(look);
+if (look === 'smooth') {
+  // match the globe to the textured landing patch as seen from a distance
+  const m = groundTextures().mean;
+  (globe.material as THREE.MeshStandardMaterial).color.setRGB(m, m * 0.98, m * 0.96);
+}
 scene.add(globe);
 const provinces = new Provinces(scene, globe, $('labels'));
 scene.add(buildAtmosphere(R * 1.07, '#8fd6ff', 1.25));
-const region = new RegionView(scene);
+const region = new RegionView(scene, look);
 const cam = new ZoomCamera(camera);
 
 // ---------- HUD ----------
@@ -102,6 +108,14 @@ $('b-load').onclick = async () => {
   } catch (err) {
     log(`Load failed: ${(err as Error).message}`, 'bad');
   }
+};
+
+const lookBtn = $<HTMLButtonElement>('b-look');
+lookBtn.textContent = look === 'smooth' ? 'Look: Smooth' : 'Look: Flat';
+lookBtn.onclick = () => {
+  const u = new URL(location.href);
+  u.searchParams.set('look', look === 'smooth' ? 'flat' : 'smooth');
+  location.href = u.toString();
 };
 
 const help = $('help');
