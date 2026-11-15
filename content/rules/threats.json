@@ -1,0 +1,11 @@
+{
+  "graceSeconds": 300,
+  "waveInterval": 110,
+  "waveJitter": 25,
+  "startSize": 3,
+  "growth": 1.75,
+  "maxSize": 40,
+  "bruteEvery": 8,
+  "nightBoost": 1.3,
+  "sightRange": 55
+}

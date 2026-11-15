@@ -1,0 +1,13 @@
+{
+  "name": "Mining Depot",
+  "description": "Mines alloys from the nearest deposit in range while powered.",
+  "role": "depot",
+  "buildable": true,
+  "cost": 60,
+  "hp": 300,
+  "powerMW": -2,
+  "buildSeconds": 14,
+  "clearance": 10,
+  "range": 30,
+  "mineRate": 1.2
+}

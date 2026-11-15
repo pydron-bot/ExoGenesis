@@ -1,6 +1,10 @@
 {
   "name": "Solar Array",
+  "description": "Power that follows the sun: full at noon, almost nothing at night.",
+  "role": "solar",
+  "buildable": true,
   "cost": 40,
+  "hp": 150,
   "powerMW": 6,
   "buildSeconds": 8,
   "clearance": 9

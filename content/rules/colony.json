@@ -1,9 +1,18 @@
 {
-  "startAlloys": 120,
+  "startAlloys": 200,
   "alloyTrickle": 0.4,
   "droneSpeed": 9,
   "droneIdleDrawMW": 0.3,
   "droneBusyDrawMW": 0.6,
+  "droneHp": 120,
+  "droneCost": 70,
+  "droneBuildSeconds": 20,
+  "maxDrones": 4,
+  "repairRate": 25,
+  "buildRadius": 30,
   "cryoDrawMW": 4,
-  "solSeconds": 240
+  "cryoLossPerMW": 0.12,
+  "cryoRecover": 0.25,
+  "nightSolar": 0.08,
+  "solSeconds": 360
 }

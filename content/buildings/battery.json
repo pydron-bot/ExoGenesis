@@ -1,0 +1,12 @@
+{
+  "name": "Battery Bank",
+  "description": "Stores surplus power by day and covers shortfalls at night.",
+  "role": "battery",
+  "buildable": true,
+  "cost": 50,
+  "hp": 200,
+  "powerMW": 0,
+  "buildSeconds": 10,
+  "clearance": 7,
+  "storage": 600
+}

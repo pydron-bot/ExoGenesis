@@ -1,0 +1,14 @@
+{
+  "name": "Defense Turret",
+  "description": "Shoots hostile fauna in range while powered.",
+  "role": "turret",
+  "buildable": true,
+  "cost": 70,
+  "hp": 700,
+  "powerMW": -1.5,
+  "buildSeconds": 10,
+  "clearance": 7,
+  "fireRange": 28,
+  "damage": 20,
+  "cooldown": 0.5
+}

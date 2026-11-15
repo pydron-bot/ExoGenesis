@@ -1,0 +1,11 @@
+{
+  "name": "Radar",
+  "description": "Early warning of approaching packs and the minimap.",
+  "role": "radar",
+  "buildable": true,
+  "cost": 90,
+  "hp": 250,
+  "powerMW": -3,
+  "buildSeconds": 16,
+  "clearance": 9
+}

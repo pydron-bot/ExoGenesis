@@ -7,7 +7,7 @@
  * knob that does nothing.
  */
 import { REGION_HALF } from '../sim/types';
-import { choice, grid, int, list, num, ref, str, type Infer, type Shape } from './schema';
+import { bool, choice, grid, int, list, num, ref, str, type Infer, type Shape } from './schema';
 
 export const unitShape = {
   name: str({ label: 'Name' }),
@@ -26,13 +26,28 @@ export const unitShape = {
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar'] as const;
+export type BuildingRole = (typeof BUILDING_ROLES)[number];
+
 export const buildingShape = {
   name: str({ label: 'Name' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
+  role: choice(BUILDING_ROLES, {
+    label: 'Role',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap.',
+  }),
+  buildable: bool({ label: 'In build menu', default: true }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
-  powerMW: num({ label: 'Power generation', min: -100, max: 100, step: 0.1, unit: 'MW', help: 'Negative = draws power.' }),
+  hp: int({ label: 'Hit points', min: 1, max: 100000 }),
+  powerMW: num({ label: 'Power', min: -100, max: 100, step: 0.1, unit: 'MW', help: 'Positive generates (solar: at noon), negative draws.' }),
   buildSeconds: num({ label: 'Build time', min: 0, max: 600, step: 0.5, unit: 's' }),
-  clearance: num({ label: 'Clearance', min: 0, max: 60, step: 0.5, unit: 'u', help: 'Nothing new may be placed closer than this.' }),
+  clearance: num({ label: 'Clearance', min: 0, max: 60, step: 0.5, unit: 'u', help: 'Nothing new may be placed closer than this. Half of it is the building\'s body radius.' }),
+  range: num({ label: 'Range', min: 0, max: 400, unit: 'u', optional: true, help: 'core: build radius · depot: how far it reaches for a deposit.' }),
+  fireRange: num({ label: 'Firing range', min: 0, max: 400, unit: 'u', optional: true, help: 'Any building with a firing range, damage and cooldown shoots hostiles while powered (turrets; the Core\'s point defense).' }),
+  damage: num({ label: 'Damage per shot', min: 0, max: 10000, optional: true }),
+  cooldown: num({ label: 'Fire cooldown', min: 0.05, max: 30, step: 0.05, unit: 's', optional: true }),
+  mineRate: num({ label: 'Mining rate', min: 0, max: 100, step: 0.05, unit: 'alloys/s', optional: true, help: 'Depots, while powered.' }),
+  storage: num({ label: 'Storage', min: 0, max: 100000, unit: 'MJ', optional: true, help: 'Batteries. 1 MJ = 1 MW for 1 s.' }),
   model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model. (The Command Core\'s is fixed: the landing cinematic animates it.)' }),
 } satisfies Shape;
 export type BuildingDef = Infer<typeof buildingShape>;
@@ -43,10 +58,32 @@ export const colonyRulesShape = {
   droneSpeed: num({ label: 'Worker drone speed', min: 0.5, max: 60, step: 0.5, unit: 'u/s' }),
   droneIdleDrawMW: num({ label: 'Drone draw (idle)', min: 0, max: 50, step: 0.05, unit: 'MW' }),
   droneBusyDrawMW: num({ label: 'Drone draw (working)', min: 0, max: 50, step: 0.05, unit: 'MW' }),
+  droneHp: int({ label: 'Drone hit points', min: 1, max: 10000 }),
+  droneCost: int({ label: 'Drone cost', min: 0, max: 10000, unit: 'alloys', help: 'Fabricated at the Command Core.' }),
+  droneBuildSeconds: num({ label: 'Drone fabrication time', min: 0, max: 600, unit: 's' }),
+  maxDrones: int({ label: 'Max drones', min: 1, max: 20 }),
+  repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', help: 'Per drone.' }),
+  buildRadius: num({ label: 'Build radius', min: 5, max: 240, unit: 'u', help: 'New buildings must be this close to a finished one (or the Core\'s Range).' }),
   cryoDrawMW: num({ label: 'Cryo bank draw', min: 0, max: 100, step: 0.1, unit: 'MW' }),
+  cryoLossPerMW: num({ label: 'Cryo loss per MW short', min: 0, max: 10, step: 0.01, unit: '%/s', help: 'How fast integrity falls per MW the bank is short.' }),
+  cryoRecover: num({ label: 'Cryo recovery', min: 0, max: 10, step: 0.01, unit: '%/s', help: 'When fully powered.' }),
+  nightSolar: num({ label: 'Solar output at night', min: 0, max: 1, step: 0.01, help: 'Fraction of noon output (starlight, moons).' }),
   solSeconds: num({ label: 'Length of a sol', min: 10, max: 7200, unit: 's', help: 'Real seconds per game day.' }),
 } satisfies Shape;
 export type ColonyRules = Infer<typeof colonyRulesShape>;
+
+export const threatRulesShape = {
+  graceSeconds: num({ label: 'Grace period', min: 0, max: 7200, unit: 's', help: 'No attacks before this.' }),
+  waveInterval: num({ label: 'Time between packs', min: 10, max: 3600, unit: 's' }),
+  waveJitter: num({ label: 'Interval jitter', min: 0, max: 600, unit: 's', help: '± random spread.' }),
+  startSize: int({ label: 'First pack size', min: 0, max: 200 }),
+  growth: num({ label: 'Growth per pack', min: 0, max: 50, step: 0.5 }),
+  maxSize: int({ label: 'Largest pack', min: 0, max: 300 }),
+  bruteEvery: int({ label: 'Brute every', min: 0, max: 100, help: 'Every Nth attacker is a Brute (0 = never).' }),
+  nightBoost: num({ label: 'Night pack size', min: 0, max: 5, step: 0.05, help: 'Multiplier for packs that arrive at night.' }),
+  sightRange: num({ label: 'Sight without radar', min: 0, max: 240, unit: 'u', help: 'Packs show up (and warn) only this close to a building unless a radar is powered.' }),
+} satisfies Shape;
+export type ThreatRules = Infer<typeof threatRulesShape>;
 
 export const ASSET_KINDS = ['model', 'image', 'audio'] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
@@ -86,6 +123,19 @@ export const herdShape = {
 } satisfies Shape;
 export type HerdDef = Infer<typeof herdShape>;
 
+export const depositShape = {
+  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  alloys: int({ label: 'Alloys', min: 1, max: 1000000 }),
+} satisfies Shape;
+export type DepositDef = Infer<typeof depositShape>;
+
+export const spawnShape = {
+  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+} satisfies Shape;
+export type SpawnDef = Infer<typeof spawnShape>;
+
 export const regionShape = {
   name: str({ label: 'Name' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
@@ -94,6 +144,8 @@ export const regionShape = {
   height: grid(REGION_CELLS, REGION_CELLS, -600, 600, { label: 'Height sculpt', optional: true, help: 'Added to the generated terrain, in tenths of a unit.' }),
   flora: grid(REGION_CELLS, REGION_CELLS, -100, 100, { label: 'Flora paint', optional: true, help: '−100 clears plants, +100 doubles them and makes the ground lush.' }),
   herds: list(herdShape, { label: 'Grazer herds', max: 60 }),
+  deposits: list(depositShape, { label: 'Alloy deposits', max: 60 }),
+  spawns: list(spawnShape, { label: 'Predator spawns', max: 20 }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 
@@ -115,6 +167,7 @@ export const COLLECTIONS = {
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
+  threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
 } satisfies Record<string, Collection>;
 
 export type CollectionName = keyof typeof COLLECTIONS;

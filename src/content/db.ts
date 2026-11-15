@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type RegionDef, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type RegionDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -11,6 +11,7 @@ export interface ContentDb {
   regions: Record<string, RegionDef>;
   assets: Record<string, AssetDef>;
   colony: ColonyRules;
+  threats: ThreatRules;
 }
 
 export interface FileIssue extends Issue {
@@ -46,6 +47,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     regions: recs.regions,
     assets: recs.assets,
     colony: recs.colony.colony,
+    threats: recs.threats.threats,
   } as unknown as ContentDb;
   issues.push(...crossIssues(db0));
   return { db: db0, issues };
@@ -81,6 +83,16 @@ function crossIssues(db: ContentDb): FileIssue[] {
   };
   modelRef('units', db.units);
   modelRef('buildings', db.buildings);
+  // each role's game logic needs its numbers
+  const NEEDS: Record<string, string[]> = { core: ['range'], depot: ['range', 'mineRate'], battery: ['storage'], turret: ['fireRange', 'damage', 'cooldown'] };
+  for (const [id, b] of Object.entries(db.buildings)) {
+    if (!b || typeof b !== 'object') continue;
+    for (const f of NEEDS[b.role] ?? []) {
+      if ((b as unknown as Record<string, unknown>)[f] === undefined) out.push({ path: `buildings/${id}.json`, field: f, msg: `a ${b.role} needs this` });
+    }
+    if (b.role === 'core' && id !== 'core') out.push({ path: `buildings/${id}.json`, field: 'role', msg: 'only the Command Core (core.json) can have the core role' });
+  }
+  if (db.buildings.core && db.buildings.core.role !== 'core') out.push({ path: 'buildings/core.json', field: 'role', msg: 'must be core' });
   if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });
   for (const [id, a] of Object.entries(db.assets)) {
     if (!a || typeof a.file !== 'string' || !(a.kind in ASSET_EXT)) continue;

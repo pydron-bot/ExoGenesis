@@ -1,8 +1,15 @@
 {
   "name": "Command Core",
-  "description": "The landed probe. Lose it and the colony is lost.",
+  "description": "The landed probe. Holds the cryo bank. Lose it and the colony is lost.",
+  "role": "core",
+  "buildable": false,
   "cost": 0,
+  "hp": 2000,
   "powerMW": 2,
   "buildSeconds": 0,
-  "clearance": 16
+  "clearance": 16,
+  "range": 45,
+  "fireRange": 20,
+  "damage": 6,
+  "cooldown": 0.8
 }
