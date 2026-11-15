@@ -329,9 +329,9 @@ export class RegionView {
     // fade detail out as we leave the surface
     this.details.visible = dist < 1800;
     const borderMat = this.border.material as THREE.LineBasicMaterial;
-    borderMat.opacity = lerp(0.25, 0.9, smoothstep(150, 900, dist)) * (1 - smoothstep(6000, 20000, dist));
+    borderMat.opacity = lerp(0.25, 0.9, smoothstep(150, 1500, dist)) * (1 - smoothstep(12000, 40000, dist));
     this.border.visible = borderMat.opacity > 0.01;
-    const mk = smoothstep(250, 900, dist) * (1 - smoothstep(9000, 26000, dist));
+    const mk = smoothstep(400, 2500, dist) * (1 - smoothstep(60000, 200000, dist));
     this.marker.visible = mk > 0.01;
     (this.marker.material as THREE.SpriteMaterial).opacity = mk;
     this.marker.scale.setScalar(dist * 0.035);

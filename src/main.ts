@@ -7,6 +7,7 @@ import { SimClient } from './sim/client';
 import { SOL_SECONDS, TICK_HZ, type SimState } from './sim/types';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, buildGlobe, R, U } from './world/planet';
+import { Provinces } from './world/provinces';
 import { RegionView } from './world/region';
 import { SolarSystem } from './world/system';
 
@@ -23,12 +24,14 @@ renderer.toneMappingExposure = 1.05;
 $('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.2, 2e6);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.2, 1.2e7);
 const fog = new THREE.Fog('#8fb0ad', 400, 1200);
 scene.fog = fog;
 
 const system = new SolarSystem(scene, $('labels'));
-scene.add(buildGlobe());
+const globe = buildGlobe();
+scene.add(globe);
+const provinces = new Provinces(scene, globe, $('labels'));
 scene.add(buildAtmosphere(R * 1.07, '#8fd6ff', 1.25));
 const region = new RegionView(scene);
 const cam = new ZoomCamera(camera);
@@ -148,7 +151,9 @@ function updateHud(dt: number) {
     el.clock.textContent = `SOL ${sol} · ${String(Math.floor(dayMin / 60)).padStart(2, '0')}:${String(dayMin % 60).padStart(2, '0')}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;
   }
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
-  el.alt.textContent = `ALT ${fmtAlt(cam.altitude())}`;
+  el.alt.textContent = cam.a > 0.5 && cam.b < 0.5
+    ? `${provinces.landCount} REGIONS · ALT ${fmtAlt(cam.altitude())}`
+    : `ALT ${fmtAlt(cam.altitude())}`;
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   el.fps.textContent = `${fpsShown.toFixed(0)} fps · ${renderer.info.render.calls} draws`;
@@ -174,6 +179,7 @@ function frame(now: number) {
 
   system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, innerHeight);
   cam.update(dt, system.starPos);
+  provinces.update(camera, cam.dist, innerWidth, innerHeight);
 
   // sky: day/night at the landing site, fading to space as we climb
   const sunUp = system.starPos.clone().normalize().dot(U);

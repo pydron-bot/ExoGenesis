@@ -15,8 +15,12 @@ Built with Three.js + TypeScript + Vite. Design: [docs/DESIGN.md](docs/DESIGN.md
 - **Save / Load** to IndexedDB (this browser only).
 - **The landing:** Command Core, one worker drone, 160 grazing creatures that scatter from
   the drone, a cryo bank losing power until you build a solar array.
-- **System:** star, four planets (temperate inner world, home, ringed gas giant with two moons,
-  outer ice world), home moon, 1,800-rock instanced asteroid belt, orbit rings, labels.
+- **Home planet:** radius 3,000 units (~30 km at game scale) carved into 89 fixed land regions —
+  the held landing region (Touchdown), four tutorial regions around it, and larger regions across
+  the rest of the globe. Borders, fills and labels fade in from orbit.
+- **System:** star; 9 planets (Cinder, Ash, Verdance — temperate, Home, Dunmore, Thalassa and
+  Halcyon gas giants, Nereid ice giant, Rime — frozen); 12 moons; main asteroid belt and an outer
+  icy belt (instanced); two comets on eccentric orbits; orbit paths, markers and labels.
 
 ## Controls
 

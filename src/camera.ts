@@ -11,12 +11,12 @@ import { smoothstep, lerp } from './world/noise';
 import { E, HALF, R, U, regionHeight, regionToWorld, worldToRegion } from './world/planet';
 
 export const MIN_DIST = 14;
-export const MAX_DIST = 160000;
+export const MAX_DIST = 1.6e6;
 
 export const VIEWS = {
   surface: { dist: 75, pitch: 0.85 },
-  planet: { dist: 2400, pitch: 0.9 },
-  system: { dist: 95000, pitch: 0.75 },
+  planet: { dist: 9500, pitch: 0.9 },
+  system: { dist: 1.05e6, pitch: 0.75 },
 } as const;
 export type ViewName = keyof typeof VIEWS;
 
@@ -74,12 +74,13 @@ export class ZoomCamera {
     this.pitch = lerp(this.pitch, this.targetPitch, k);
 
     const d = this.dist;
-    this.a = smoothstep(140, 1500, d);
-    this.b = smoothstep(5000, 45000, d);
+    this.a = smoothstep(150, 5000, d);
+    this.b = smoothstep(25000, 320000, d);
 
     // focus point
     const ground = regionToWorld(this.fx, this.fz, 0);
-    this.focus.copy(ground).lerp(new THREE.Vector3(), this.a).lerp(starPos, this.b);
+    // stay anchored over the base while climbing; only drift partway toward the planet centre
+    this.focus.copy(ground).lerp(new THREE.Vector3(), this.a * 0.45).lerp(starPos, this.b);
 
     // frame
     const up = new THREE.Vector3().copy(U).lerp(Y, this.b).normalize();
@@ -110,7 +111,7 @@ export class ZoomCamera {
     cam.up.copy(up);
     cam.lookAt(this.focus);
     cam.near = THREE.MathUtils.clamp(d * 0.01, 0.2, 200);
-    cam.far = 2e6;
+    cam.far = 1.2e7;
     cam.updateProjectionMatrix();
   }
 

@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { REGION_HALF } from '../sim/types';
 import { fbm3, lerp, smoothstep } from './noise';
 
-export const R = 600;
+export const R = 3000;
 export const HALF = REGION_HALF;
 
 /** Region frame: U = up at the landing site, E/N = tangent axes (sim x/z). */
@@ -23,13 +23,15 @@ export function regionDir(x: number, z: number, out = new THREE.Vector3()) {
 }
 
 export function globeHeight(d: THREE.Vector3): number {
-  let h = fbm3(d.x * 2.4 + 3.1, d.y * 2.4, d.z * 2.4 - 1.7, 5, 7) * 75;
-  h += smoothstep(0.86, 0.995, d.dot(U)) * 42; // keep the landing site on dry land
+  let h = fbm3(d.x * 2.1 + 3.1, d.y * 2.1, d.z * 2.1 - 1.7, 6, 7) * 90;
+  // keep the landing site (and the tutorial regions around it) on dry land
+  const ang = Math.acos(Math.min(1, d.dot(U)));
+  h += (1 - smoothstep(0.04, 0.26, ang)) * 40;
   return h;
 }
 
 export function floraAt(d: THREE.Vector3): number {
-  return fbm3(d.x * 9 + 11, d.y * 9, d.z * 9, 3, 33);
+  return fbm3(d.x * 14 + 11, d.y * 14, d.z * 14, 3, 33);
 }
 
 function regionBase(x: number, z: number): number {
@@ -83,7 +85,7 @@ export function terrainColor(h: number, flora: number, out: THREE.Color) {
 
 /** Low-poly globe; the part under the landing region is sunk so the detailed patch covers it. */
 export function buildGlobe(): THREE.Mesh {
-  const geo = new THREE.IcosahedronGeometry(1, 44);
+  const geo = new THREE.IcosahedronGeometry(1, 64);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const col = new Float32Array(pos.count * 3);
   const d = new THREE.Vector3();
@@ -92,14 +94,14 @@ export function buildGlobe(): THREE.Mesh {
     d.fromBufferAttribute(pos, i).normalize();
     let h = globeHeight(d);
     const cu = d.dot(U);
-    if (cu > 0.8) {
+    if (cu > 0.95) {
       const x = (R * d.dot(E)) / cu, z = (R * d.dot(N)) / cu;
       const inner = Math.max(Math.abs(x), Math.abs(z));
       if (inner < HALF + 2) {
         // follow the detailed patch; sink only well inside it so coarse triangles that
         // straddle the border don't open a trench along the patch edge
         terrainColor(regionHeightRaw(x, z), floraAt(d), color);
-        h = Math.max(0, regionHeightRaw(x, z)) - (inner < HALF - 20 ? 14 : 1.5);
+        h = Math.max(0, regionHeightRaw(x, z)) - (inner < HALF - 60 ? 14 : 1.5);
         col.set([color.r, color.g, color.b], i * 3);
         pos.setXYZ(i, d.x * (R + h), d.y * (R + h), d.z * (R + h));
         continue;

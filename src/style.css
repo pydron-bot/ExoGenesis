@@ -17,9 +17,13 @@ html, body {
 #app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .label {
-  position: absolute; transform: translate(-50%, -140%); white-space: nowrap;
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -140%); white-space: nowrap;
   font-size: 11px; letter-spacing: 0.08em; color: var(--cyan); text-shadow: 0 0 6px #000, 0 0 2px #000;
 }
+.label.moon { font-size: 10px; color: #9fd3dd; }
+.label.comet { font-size: 10px; color: #c8f0ff; }
+.label.province { color: var(--amber); font-size: 10px; }
+.label.province.held { color: var(--cyan); }
 .label small { color: var(--text); opacity: 0.7; display: block; text-align: center; font-size: 10px; }
 
 #hud { position: fixed; inset: 0; pointer-events: none; }
