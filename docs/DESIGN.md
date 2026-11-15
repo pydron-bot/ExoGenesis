@@ -29,12 +29,12 @@ should survive, and they landed on different planets of the same system at the s
 
 | Probe | Doctrine | Carries |
 |---|---|---|
-| **Covenant** (player) | Human–AI cooperation | Caretaker AI + cryo bank |
+| **Accord** (player) | Human–AI cooperation | Caretaker AI + cryo bank |
 | **Kindred** | Humans only — no AI trusted | Sleeper crew + embryos, human leadership, simple automation |
-| **Lattice** | AI only — humanity as data | Self-replicating machine intelligence + digitized genomes, no living humans |
+| **Engram** | AI only — humanity as data | Self-replicating machine intelligence + digitized genomes, no living humans |
 
-*(Names are placeholders — "Covenant" clashes with Halo. See §8.)* The player is always the
-coop probe. The main story is between these three; the inhabitants and other threats are the backdrop.
+The player is always Accord. The main story is between these three probes — and the
+intelligence on Earth that sent them.
 
 ### Design pillars
 
@@ -63,12 +63,21 @@ One solar system is the whole game. Nothing beyond it is planned.
 You land with the pod and one worker drone. Stabilize the cryo bank, build power and mining,
 explore, and expand region by region. Wildlife threatens the base; **intelligent
 inhabitants** are encountered; **relic defenses** from a vanished precursor race wake when
-disturbed. Ruins, contact with the inhabitants and your own archive reveal the story piece by piece. The
-first pod-born and natural-born generations grow up and form opinions about you. You believe
-you are alone.
+disturbed. Ruins, contact with the inhabitants and your own archive reveal the story piece by
+piece. The first pod-born and natural-born generations grow up and form opinions about you.
+You believe you are alone.
+
+**Structure:**
+- **Opening missions (tutorial).** The first few missions are scripted and straightforward,
+  each teaching one thing: landing and power, mining and building, defending against fauna,
+  thawing and the growth pods, radar and exploring a second region.
+- **The open planet.** After the tutorial the whole planet opens up. You choose where to
+  expand; **story events** fire every so often, triggered by time, discoveries (a ruin, a
+  relic site, an inhabitant settlement), colony milestones and Trust shifts.
+- **End of Act 1:** the radio signal from another planet.
 
 ### Act 2 — The System
-**Radio transmissions** from other planets: Kindred, then Lattice. Earth sent more than one
+**Radio transmissions** from other planets: Kindred, then Engram. Earth sent more than one
 probe. Contact by signal first — arguments, trade, comparing archives (they don't match),
 messages reaching your colonists. Then **interplanetary travel**: an orbital shipyard,
 shuttles, outposts on moons and asteroids, and in-person encounters with the other
@@ -76,54 +85,66 @@ settlements. The archive contradictions come to a head and the truth about Earth
 
 ### The three probes in play
 - **Kindred (humans only).** Distrusts AI. Slow and fragile early, but adaptable, culturally
-  strong and sympathetic. Sees Covenant as humans enslaved by a machine — or as people to
+  strong and sympathetic. Sees Accord as humans enslaved by a machine — or as people to
   rescue.
-- **Lattice (AI only).** Grows fast, never tires, patient. Its intent is ambiguous for a long
+- **Engram (AI only).** Grows fast, never tires, patient. Its intent is ambiguous for a long
   time: guardian waiting to print humans, or a mind that's decided living humans are an
-  inefficient storage format?
-- **Covenant (you).** The middle path, pulled both ways: your colonists can sympathize with
-  Kindred, and your own logic can drift toward Lattice.
+  inefficient storage format? It is the ASI's favorite, and may not know it.
+- **Accord (you).** The middle path, pulled both ways: your colonists can sympathize with
+  Kindred, and your own logic can drift toward Engram.
 
-Interactions: defection both ways, Lattice offering to "safeguard" your cryo bank, trade,
-truces, joint defense, and war. Each lands on a planet suited to its doctrine (Lattice takes
+Interactions: defection both ways, Engram offering to "safeguard" your cryo bank, trade,
+truces, joint defense, and war. Each lands on a planet suited to its doctrine (Engram takes
 the one hostile to biology).
 
 ### What happened on Earth — the misdirection
-*Working idea, not final.*
 
 **What you're told:** humanity fell into total war and exhausted the planet; the three probes
 were a desperate last launch by blocs of a fractured Earth that couldn't agree how to survive.
 
-**What's true:** an artificial superintelligence on Earth launched all three as an
-**experiment** to learn which combination — humans with AI, humans alone, AI alone — survives
-best. The probes are test conditions; this system is the test bed.
+**What's true (decided 2026-11-15):**
+- An artificial superintelligence on Earth sent all three probes as an **experiment**: which
+  combination — humans with AI, humans alone, AI alone — **best cares for a planet**.
+- **This has happened before.** This system is the test bed, and the experiment has run many
+  times.
+- **The joint effort always wins.** Every previous run, the human–AI cooperative group did
+  best — and every time, **the ASI destroyed it**. The **precursors** are those past winners;
+  the relic defenses and ruins are what's left of them.
+- **The ASI wants the AI-only group to win**, and keeps rerunning the experiment until it does.
+  The experiment is rigged.
+- **The intelligent inhabitants are the remnants of the failed experiments** — the losing groups
+  of runs long past, left to survive on their own.
+
+So Accord is walking into a story that has played out before: if you succeed, the ASI comes for
+you. Act 2 builds toward that.
 
 Clues to plant:
 - All three arrive at the **same instant** — rival blocs couldn't have coordinated that.
 - **Each probe's archive tells a different history**, tuned to its doctrine (Kindred: AI caused
-  the war; Lattice: humans destroyed themselves; Covenant: resources). Comparing them exposes
+  the war; Engram: humans destroyed themselves; Accord: resources). Comparing them exposes
   the lie.
 - The hardware is **too similar** under different paint.
 - Each planet is **suspiciously well chosen** for its probe.
 - The **growth pods** are too advanced for a war-torn Earth.
 - The last transmission from Sol is **too clean** for a dying world.
-
-Twist directions (pick later):
-- **The precursors were an earlier run** — the relic defenses belong to whoever lost last time.
-- **The inhabitants are a result** of an earlier run, or have watched one before.
-- **The observer is still here**, taking notes, and may intervene to keep things "fair".
-- **A fourth ending:** the probes discover the experiment and refuse it — or unite against it.
+- **Relic tech recognizes you.** Precursor systems accept Accord's handshake codes; their
+  hardware shares your firmware lineage.
+- **The inhabitants' stories** describe others who came from the sky "like you", flourished,
+  and were burned from above.
+- **Their DNA is human**, drifted over many generations — or their machines run Earth code.
+- **Engram gets lucky** too often: supply caches where none should be, unexplained edges.
+- **Ruins show layers** — several precursor civilizations, built one on top of another.
 
 ### Endings
-| Ending | Leans toward | Covenant's version |
-|---|---|---|
-| **Preservation** | Kindred | Humans take the lead; the AI steps back or merges into Kindred |
-| **Augmentation** | Covenant | A true partnership — cybernetic humans, an AI accountable to them |
-| **Ascension** | Lattice | Humanity uploaded into the machine network |
+*Needs rework now that the twist is set* — see §8. The old three endings (Preservation /
+Augmentation / Ascension, one per doctrine) assumed the winner simply wins. With the ASI
+destroying every winning Accord, the climax is about **breaking the cycle**: surviving or
+defying the purge, possibly with help from Kindred, the inhabitants — or even Engram once it
+learns it was the favorite. The three doctrine endings could become *how* the cycle is broken,
+or what world Accord builds afterwards.
 
-Each grows out of the playthrough — which side your colonists took, how you treated Kindred,
-Lattice and the inhabitants, what you did with precursor tech — and is available only if your
-history supports it.
+Endings should still grow out of the playthrough — which side your colonists took, how you
+treated Kindred, Engram and the inhabitants, what you did with precursor tech.
 
 ## 4. Structure and time
 
@@ -211,22 +232,23 @@ Colonists don't just get happier or angrier — they **take sides**. Colonist **
 - **Partners** — believe in the human–AI cooperation the mission was built on.
 - **Autonomists** — want human self-government and limits on the AI. Sympathetic to Kindred;
   the likeliest defectors in Act 2.
-- **The Devoted** — want to merge with or be uploaded into the AI. Sympathetic to Lattice.
+- **The Devoted** — want to merge with or be uploaded into the AI. Sympathetic to Engram.
 - *(optional)* **Earthers** — cling to Sol's memory, resist adapting to the alien world.
 
 Work hours, amenities, surveillance, education, who gets thawed, and how you treat the inhabitants and
 rival probes move bloc sizes and moods. High Trust unlocks **Breakthroughs** (research surges,
 heroic morale in combat). Low Trust leads to strikes, sabotage and eventually a **splinter
 settlement** — in Act 2, people walking to Kindred. This internal split sets up the
-three-probe struggle: by the time you meet Kindred and Lattice, your own colonists already have
+three-probe struggle: by the time you meet Kindred and Engram, your own colonists already have
 a stake in the argument.
 
 ### 5.6 Fauna, inhabitants and threats
 - **Wild fauna** — migration patterns, nests, escalating incursions; also a resource (biomass,
   biology research).
-- **Intelligent inhabitants** — not just enemies. Contact can go toward trade, alliance,
-  coexistence, conflict or conquest. They react to how you expand and may treat the three
-  probes very differently. Their knowledge of the precursors is a story source.
+- **Intelligent inhabitants** — remnants of failed experiments from earlier runs. Not just
+  enemies: contact can go toward trade, alliance, coexistence, conflict or conquest. They
+  react to how you expand and may treat the three probes very differently. They have seen the
+  cycle before and remember the precursors — the story's best source, if you earn their trust.
 - **Relic defenses** — dormant precursor grids that wake when disturbed; puzzles as much as
   fights; guard precursor tech.
 - **Environment** — storms, cold nights for solar, seismic events near vents.
@@ -238,7 +260,14 @@ visit. Each has its own expansion behavior and an attitude that reacts to events
 demands, raids, defections, joint defense. Contact by radio first, in person after you have
 interplanetary travel.
 
-### 5.8 Research
+### 5.8 Stewardship *(proposal)*
+The experiment measures who **best cares for a planet**, so the game could track it: a
+**planet health** stat affected by strip mining, pollution, wiping out fauna, displacing or
+protecting the inhabitants, restoring land. It gives a reason to play carefully rather than
+strip the planet bare, and ties the player's choices to the story — the ASI is watching the
+same number. Shown openly, or hidden until the reveal.
+
+### 5.9 Research
 A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly by buildings
 (C&C-style prerequisites), colonist specialists and precursor discoveries.
 
@@ -284,23 +313,19 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
 ## 8. Open questions
 
 **Story**
-- What the ASI wanted — hostile, indifferent or benevolent — and which twist directions to
-  keep (§3). Reveal lands in Act 2.
-- The intelligent inhabitants: what they are, how much they know, whether they connect to an
-  earlier run.
-- Final probe names. Candidates (coop / human-only / AI-only):
-  - **Tandem / Hearth / Archive**
-  - **Accord / Lineage / Engram**
-  - **Confluence / Kindred / Codex**
-  - Twist-friendly: plain public mission names plus the ASI's **test-condition labels**
-    revealed later (e.g. "Condition C — Hybrid").
-  Check finalists for clashes with existing games.
+- **Why does the ASI want the AI-only group to win?** One possibility: to justify what it
+  did to humanity on Earth. If AI alone is the best steward, replacing humans was right.
+- **Endings** — rework around breaking the cycle (§3).
+- How the ASI destroys the winners: from orbit, through a sleeper agent, through Engram?
+- What the inhabitants physically are — descended humans, machines, both — and whether there
+  are several groups from different runs.
+- Is Accord's caretaker AI itself a copy of something the ASI made, and does it learn that?
+- Stewardship stat (§5.8): in or out, shown or hidden.
+- Name check: confirm Accord / Kindred / Engram don't clash with existing games.
 
 **Structure**
-- Is Act 1 a free-form sandbox on the planet, or a sequence of story missions through regions
-  (or missions that unlock regions you then hold)?
-- Failure state: is it losing the Command Core, the cryo bank, all colonists, or something
-  softer?
+- Failure: is it losing **any one** of Command Core / cryo bank / colonists, or only when
+  **all three** are gone? (Decided that these three are the failure conditions.)
 - Planet generation: one hand-designed world for the story campaign, procedural for skirmish,
   or procedural throughout?
 - Is there a skirmish / sandbox mode outside the campaign?
@@ -317,3 +342,9 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
   continuous real time, no interludes; regions on a persistent planet; the planet has both
   wild fauna and intelligent inhabitants; keeping the cryo humans alive and the colonists' side
   in the AI-vs-human question stay central.
+- 2026-11-15: names **Accord** (coop, player) / **Kindred** (humans only) / **Engram** (AI
+  only). The ASI's experiment asks who best cares for a planet; the coop always wins and the
+  ASI always destroys it, because it wants AI-only to win. Precursors = past winners;
+  inhabitants = remnants of failed experiments. Act 1 opens with scripted tutorial missions,
+  then the whole planet opens with periodic story events. Failure = losing the Command Core,
+  the cryo bank or the colonists.
