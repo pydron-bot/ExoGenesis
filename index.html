@@ -10,6 +10,7 @@
   <body>
     <div id="app"></div>
     <div id="labels"></div>
+    <canvas id="sk-overlay"></canvas>
     <div id="hud">
       <div id="top">
         <div id="brand">EXO GENESIS <span>// ACCORD CARETAKER · M0</span></div>
@@ -24,6 +25,7 @@
         <div id="layer">SURFACE</div>
         <div id="alt">ALT 0 km</div>
         <div id="fps"></div>
+        <div id="sk-simms"></div>
       </div>
       <div id="log"></div>
       <div id="bar">
@@ -46,8 +48,38 @@
         </div>
         <div class="grp">
           <button id="b-look" title="Switch terrain style (reloads; save first)">Look</button>
+          <button id="b-skirmish" title="Skirmish proof of concept: hundreds of units, touch selection">⚔ Skirmish</button>
         </div>
       </div>
+      <div id="sk-top">
+        <span class="r" id="sk-army">▲ army</span>
+        <span class="r" id="sk-hostile">✖ hostile</span>
+        <span class="r" id="sk-core">⬢ core</span>
+        <span class="r" id="sk-wavestat">WAVE 0</span>
+        <span class="r dim" id="sk-score"></span>
+      </div>
+      <div id="sk-sel" class="none">NOTHING SELECTED</div>
+      <div id="sk-bar">
+        <div class="grp" aria-label="Selection">
+          <button id="sk-paint" title="Paint-select: swipe over units">✎ Paint</button>
+          <button id="sk-all" title="Select whole army">All</button>
+          <button id="sk-g1" class="cg" title="Tap: recall · double-tap: recall + centre · hold: assign (Ctrl+1)">1</button>
+          <button id="sk-g2" class="cg" title="Tap: recall · double-tap: recall + centre · hold: assign (Ctrl+2)">2</button>
+          <button id="sk-g3" class="cg" title="Tap: recall · double-tap: recall + centre · hold: assign (Ctrl+3)">3</button>
+          <button id="sk-g4" class="cg" title="Tap: recall · double-tap: recall + centre · hold: assign (Ctrl+4)">4</button>
+          <button id="sk-stop" title="Stop (X)">■</button>
+          <button id="sk-clear" title="Deselect (Esc)">✕</button>
+        </div>
+        <div class="grp">
+          <button id="sk-pause" title="Pause (Space)">❚❚</button>
+          <button id="sk-play" class="on">▶</button>
+          <button id="sk-fast">⏩</button>
+          <button id="sk-wave" title="Spawn a 150-strong wave now">+Wave</button>
+          <button id="sk-units" title="Army size (restarts)">Army</button>
+          <button id="sk-landing" title="Back to the landing demo">Landing</button>
+        </div>
+      </div>
+      <div id="sk-help">Tap unit: select · hold or double-tap: all of that type on screen · ✎ Paint, then swipe over units · tap ground: move/attack · drag from a selected unit: aim order · hold 1–4: save group, tap: recall</div>
       <div id="help">Drag from the drone to send it · tap the drone, then tap ground · drag to pan · pinch / wheel to zoom · two fingers or right-drag to rotate</div>
     </div>
     <script type="module" src="/src/main.ts"></script>

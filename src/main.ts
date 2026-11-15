@@ -10,6 +10,7 @@ import { buildAtmosphere, buildGlobe, R, U } from './world/planet';
 import { Provinces } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
+import { startSkirmish } from './skirmish/mode';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -17,6 +18,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
 const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
+const skirmishMode = params.get('mode') === 'skirmish';
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.75 : 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -58,7 +60,7 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
   setTimeout(() => el.remove(), 10500);
 }
 
-const sim = new SimClient(log);
+const sim = new SimClient(log, !skirmishMode);
 const ui: UiState = { selected: true, buildMode: false, drag: null, ghost: null };
 
 const buildBtn = $<HTMLButtonElement>('b-build');
@@ -120,9 +122,16 @@ lookBtn.onclick = () => {
   location.href = u.toString();
 };
 
+const skirmish = skirmishMode ? startSkirmish({ scene, renderer, cam, region, log, params }) : null;
+$('b-skirmish').onclick = () => {
+  const u = new URL(location.href);
+  u.searchParams.set('mode', 'skirmish');
+  location.href = u.toString();
+};
+
 const help = $('help');
 let helped = false;
-new Input(renderer.domElement, cam, region, ui, {
+if (!skirmish) new Input(renderer.domElement, cam, region, ui, {
   move: (x, z) => sim.command({ type: 'move', x, z }),
   build: (x, z) => sim.command({ type: 'build', kind: 'solar', x, z }),
   setBuildMode,
@@ -154,7 +163,7 @@ function fmtAlt(u: number) {
 let fpsAcc = 0, fpsN = 0, fpsShown = 0;
 function updateHud(dt: number) {
   const s = sim.cur;
-  if (s) {
+  if (s && !skirmish) {
     const ok = s.gen >= s.draw;
     el.energy.innerHTML = `⚡ <b>${s.gen.toFixed(1)}</b> / ${s.draw.toFixed(1)} MW`;
     el.energy.className = `r ${ok ? '' : 'warn'}`;
@@ -208,7 +217,11 @@ function frame(now: number) {
   fog.near = air > 0.01 ? cam.dist * 2.2 : 1e9;
   fog.far = air > 0.01 ? lerp(cam.dist * 9, cam.dist * 60, 1 - air) : 1e9 + 1;
 
-  if (sim.prev && sim.cur) {
+  if (skirmish) {
+    region.updateOverlay(cam.dist, t);
+    skirmish.update(now, dt);
+    if (!ready && skirmish.ready) { ready = true; exo.ready = true; }
+  } else if (sim.prev && sim.cur) {
     region.update(sim.prev, sim.cur, sim.alpha(now), t, ui, cam.dist, 1 - cam.a);
     if (!ready) { ready = true; exo.ready = true; }
   }
@@ -225,6 +238,7 @@ const exo = {
   scene,
   cam,
   sim,
+  skirmish,
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
   droneScreen: () => {
     const v = region.droneWorld.clone().project(camera);

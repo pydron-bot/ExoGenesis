@@ -22,6 +22,20 @@ Built with Three.js + TypeScript + Vite. Design: [docs/DESIGN.md](docs/DESIGN.md
   Halcyon gas giants, Nereid ice giant, Rime — frozen); 12 moons; main asteroid belt and an outer
   icy belt (instanced); two comets on eccentric orbits; orbit paths, markers and labels.
 
+## Skirmish proof of concept (`?mode=skirmish`, or the ⚔ Skirmish button)
+
+Hundreds of units vs escalating fauna waves, to test mobile RTS performance and touch selection.
+
+- **Sim:** structure-of-arrays units in the worker, Dijkstra flow fields on a 2-unit nav grid
+  (water and steep slopes blocked), spatial-hash separation and targeting, splash damage.
+  ~3 ms/tick at the 1,500-unit cap on hive1.
+- **Render:** one instanced draw per unit type + glow layer, pooled tracers and bursts; ~40 draws total.
+- **Selection on touch:** tap a unit · hold or double-tap → every unit of that type on screen ·
+  ✎ Paint then swipe over units · control groups 1–4 (hold to save, tap to recall, double-tap to
+  recall + centre) · tap ground to attack-move · drag from a selected unit to aim. Desktop also has
+  box-select (left-drag) and right-drag pan.
+- `?units=` (army size, also the Army button) and `?wave=` (base wave size). `node tools/skirmish-smoke.mjs`.
+
 ## Controls
 
 | | Touch | Mouse / keyboard |

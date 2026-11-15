@@ -92,7 +92,7 @@ let _tex: ReturnType<typeof makeGroundTextures> | null = null;
 export const groundTextures = () => (_tex ??= makeGroundTextures());
 
 /** Ribbon draped over the terrain from a to b (used for order vectors). */
-class Ribbon {
+export class Ribbon {
   readonly mesh: THREE.Mesh;
   private segs = 32;
   private geo = new THREE.BufferGeometry();
@@ -348,6 +348,27 @@ export class RegionView {
     scene.add(this.marker);
   }
 
+  /** Region border, orbit marker and core beacon — everything that isn't sim-driven. */
+  updateOverlay(dist: number, t: number) {
+    // fade detail out as we leave the surface
+    this.details.visible = dist < 1800;
+    const borderMat = this.border.material as THREE.LineBasicMaterial;
+    borderMat.opacity = lerp(0.25, 0.9, smoothstep(150, 1500, dist)) * (1 - smoothstep(12000, 40000, dist));
+    this.border.visible = borderMat.opacity > 0.01;
+    const mk = smoothstep(400, 2500, dist) * (1 - smoothstep(60000, 200000, dist));
+    this.marker.visible = mk > 0.01;
+    (this.marker.material as THREE.SpriteMaterial).opacity = mk;
+    this.marker.scale.setScalar(dist * 0.035);
+    const beacon = this.core.getObjectByName('beacon') as THREE.Mesh;
+    (beacon.material as THREE.MeshStandardMaterial).emissiveIntensity = 2 + Math.max(0, Math.sin(t * 4)) * 4;
+  }
+
+  /** Skirmish mode: keep terrain + core, hide the landing demo's drone and grazers. */
+  hideLandingEntities() {
+    for (const o of [this.drone, this.faunaMesh, this.selRing, this.targetRing, this.ghost, this.orderRibbon.mesh, this.targetRibbon.mesh]) o.visible = false;
+    this.details.remove(this.drone, this.faunaMesh, this.selRing, this.targetRing, this.ghost);
+  }
+
   /** Ground point under a screen position (NDC), or null. */
   pick(ndc: THREE.Vector2, camera: THREE.Camera): { x: number; z: number } | null {
     this.raycaster.setFromCamera(ndc, camera);
@@ -361,16 +382,8 @@ export class RegionView {
   update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: {
     selected: boolean; drag: { x: number; z: number } | null; ghost: { x: number; z: number } | null;
   }, dist: number, surface: number) {
-    // fade detail out as we leave the surface
-    this.details.visible = dist < 1800;
-    const borderMat = this.border.material as THREE.LineBasicMaterial;
-    borderMat.opacity = lerp(0.25, 0.9, smoothstep(150, 1500, dist)) * (1 - smoothstep(12000, 40000, dist));
-    this.border.visible = borderMat.opacity > 0.01;
-    const mk = smoothstep(400, 2500, dist) * (1 - smoothstep(60000, 200000, dist));
-    this.marker.visible = mk > 0.01;
-    (this.marker.material as THREE.SpriteMaterial).opacity = mk;
-    this.marker.scale.setScalar(dist * 0.035);
     void surface;
+    this.updateOverlay(dist, t);
 
     // drone (interpolated)
     const a = prev.drone, b = cur.drone;
@@ -401,10 +414,6 @@ export class RegionView {
 
     this.ghost.visible = !!ui.ghost;
     if (ui.ghost) orient(this.ghost, ui.ghost.x, ui.ghost.z, 0, 0);
-
-    // core beacon blink
-    const beacon = this.core.getObjectByName('beacon') as THREE.Mesh;
-    (beacon.material as THREE.MeshStandardMaterial).emissiveIntensity = 2 + Math.max(0, Math.sin(t * 4)) * 4;
 
     this.syncBuildings(cur.buildings, t);
 

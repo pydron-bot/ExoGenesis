@@ -10,8 +10,11 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad') => void) {
-    this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad') => void, enabled = true) {
+    // disabled (skirmish mode): a stub that never produces snapshots
+    this.worker = enabled
+      ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
+      : ({ postMessage() {}, onmessage: null } as unknown as Worker);
     this.worker.onmessage = (e: MessageEvent<FromWorker>) => {
       const m = e.data;
       if (m.type === 'snap') {
