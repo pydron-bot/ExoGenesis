@@ -8,13 +8,8 @@ export const TICK_MS = 1000 / TICK_HZ;
 /** Half-width of the landing region, in world units (~1 unit = 10 m). */
 export const REGION_HALF = 120;
 
-export const SOLAR_COST = 40;
-export const SOLAR_MW = 6;
-export const CORE_MW = 2;
-export const CRYO_DRAW_MW = 4;
-export const BUILD_SECONDS = 8;
-/** Real seconds per game day (the compressed clock). */
-export const SOL_SECONDS = 240;
+// Balance numbers (costs, power, build times, sol length...) live in /content;
+// see src/content/defs.ts.
 
 export type BuildingKind = 'core' | 'solar';
 

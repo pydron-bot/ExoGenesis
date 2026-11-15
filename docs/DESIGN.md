@@ -298,6 +298,39 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
 - Assets built procedurally in Blender (scripted), exported as glTF; small texture budget.
 - Audio via WebAudio synthesis plus a small set of samples.
 
+### 6.4 Content and tools
+
+Exo Genesis is built data-first so Derek and Claude can both shape it: Derek through desktop
+editors, Claude by editing the same files directly. Decided 2026-11-15: tools are Exo Genesis
+only (no general engine), desktop-first, trigger lists before node graphs, hand-authored
+campaign regions, assets a mix of hand-made, scripted-Blender and generated.
+
+- **Content lives in `content/`** as JSON, one record per file (`content/units/rover.json`),
+  so diffs stay small. Every collection has a schema in `src/content/defs.ts` that drives the
+  TypeScript types, validation and the editor form. Only fields the game actually reads get a
+  schema entry.
+- **The game reads content, not constants.** `src/content/index.ts` bundles it; invalid content
+  stops the game with a readable error list instead of misbehaving. `npm run content:check`
+  validates everything, and `npm run build` runs it first.
+- **Editor** at `http://hive1:5176/editor.html` (dev server only, never shipped). Saves go
+  straight to `content/` through a dev-server API (`devtools/content-server.ts`), are
+  conflict-checked against the file on disk, and live-reload any open game tab. A Commit button
+  commits `content/` to the local repo; pushing stays with Claude at session wrap.
+- **Binary assets** (models, audio, textures) go in the repo while small; switch to Git LFS if
+  audio grows past a few hundred MB.
+
+| Tool | Edits | Lands with |
+|---|---|---|
+| Data layer + schema forms | Units, buildings, colony rules | ✅ 2026-11-15 |
+| Asset browser | Models, textures, audio; previews; which unit/building uses what | M1 |
+| Map / region editor | Terrain, resources, spawns, fauna herds, relic sites per hand-authored region | M1 (one region), M3 (the planet) |
+| Mission + trigger designer | "When X, do Y" trigger lists, objectives, win/lose | M4 tutorial missions |
+| Story + dialogue editor | Colonists, Trust beats, radio messages, story events | M2 → M4 |
+| Cinematic timeline | Camera keys, events, captions; landing sequence ported as the test | M4 |
+| Interface tweaker | HUD theme and layout values (not a WYSIWYG builder) | Late M4 |
+
+Rule: each tool is built when the milestone in progress needs it, not ahead of the game.
+
 ## 7. Milestones
 
 | # | Goal | Contents | Exit test |
@@ -326,8 +359,7 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
 **Structure**
 - Failure: is it losing **any one** of Command Core / cryo bank / colonists, or only when
   **all three** are gone? (Decided that these three are the failure conditions.)
-- Planet generation: one hand-designed world for the story campaign, procedural for skirmish,
-  or procedural throughout?
+- Skirmish maps: hand-authored, procedural, or both? (Campaign regions are decided: hand-authored.)
 - Is there a skirmish / sandbox mode outside the campaign?
 
 **Mechanics**
@@ -348,6 +380,7 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
   inhabitants = remnants of failed experiments. Act 1 opens with scripted tutorial missions,
   then the whole planet opens with periodic story events. Failure = losing the Command Core,
   the cryo bank or the colonists.
+- 2026-11-15: campaign regions are **hand-authored** (map editor). Tooling plan in §6.4.
 
 ## 9. Proof-of-concept results (2026-11-15)
 

@@ -56,4 +56,13 @@ npm run dev        # http://localhost:5176 (on hive1: systemd user unit exo-dev.
 npm run build
 node tools/smoke.mjs   # end-to-end input + save/load test (Playwright)
 node tools/shot.mjs    # headless screenshots of each zoom level → shots/
+npm run content:check  # validate content/ against src/content/defs.ts
+node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 ```
+
+## Content and the editor
+
+Game numbers live in `content/` as JSON (units, buildings, colony rules), not in code.
+Edit them at **http://hive1:5176/editor.html** (dev server only): saves write straight into
+`content/`, open game tabs reload with the new values, and the Commit button commits
+`content/` to the local repo. Schemas are in `src/content/defs.ts`; see DESIGN.md §6.4.

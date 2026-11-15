@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { placeMatrix, regionPoint } from '../world/heightGrid';
-import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, UT, type SkSnapshot } from './types';
+import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, type SkSnapshot } from './types';
 
 function merge(parts: THREE.BufferGeometry[]) {
   const g = mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)).map((p) => { p.deleteAttribute('uv'); return p; }))!;
@@ -141,7 +141,7 @@ export class ArmyView {
         dh = Math.atan2(Math.sin(dh), Math.cos(dh));
         h = a[o + 2] + dh * alpha;
       }
-      const scale = t === UT.Brute ? 2.1 : t === UT.Swarmer ? 0.9 : 1;
+      const scale = DEFS[t].scale;
       placeMatrix(x, z, h, 0, scale, this.m);
       const i = counts[t]++;
       this.bodies[t].setMatrixAt(i, this.m);

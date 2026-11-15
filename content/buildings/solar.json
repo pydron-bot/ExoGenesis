@@ -1,0 +1,7 @@
+{
+  "name": "Solar Array",
+  "cost": 40,
+  "powerMW": 6,
+  "buildSeconds": 8,
+  "clearance": 9
+}

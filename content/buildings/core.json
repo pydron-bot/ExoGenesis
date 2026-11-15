@@ -1,0 +1,8 @@
+{
+  "name": "Command Core",
+  "description": "The landed probe. Lose it and the colony is lost.",
+  "cost": 0,
+  "powerMW": 2,
+  "buildSeconds": 0,
+  "clearance": 16
+}

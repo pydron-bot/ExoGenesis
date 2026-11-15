@@ -1,0 +1,13 @@
+{
+  "name": "Brute",
+  "faction": "fauna",
+  "description": "Heavy melee beast.",
+  "hp": 300,
+  "speed": 3.2,
+  "range": 2.4,
+  "damage": 24,
+  "cooldown": 1.4,
+  "radius": 1.5,
+  "aggro": 16,
+  "modelScale": 2.1
+}

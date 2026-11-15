@@ -1,0 +1,11 @@
+{
+  "startAlloys": 120,
+  "alloyTrickle": 0.4,
+  "droneSpeed": 9,
+  "droneIdleDrawMW": 0.3,
+  "droneBusyDrawMW": 0.6,
+  "cryoDrawMW": 4,
+  "solSeconds": 240,
+  "herds": 7,
+  "grazers": 160
+}

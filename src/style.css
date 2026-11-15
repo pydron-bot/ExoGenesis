@@ -134,3 +134,8 @@ body.cine #bar, body.cine #res, body.cine #help, body.cine #log { display: none;
   pointer-events: auto; margin-top: 14px; font: inherit; font-size: 11px; letter-spacing: 0.16em;
   background: rgba(5,10,16,.55); color: var(--cyan); border: 1px solid rgba(95,243,255,.35); border-radius: 4px; padding: 6px 14px;
 }
+
+#content-issues {
+  position: fixed; inset: 0; z-index: 100; margin: 0; padding: 24px; overflow: auto;
+  background: #05080d; color: #ff8a7a; font: 13px/1.5 ui-monospace, monospace; white-space: pre-wrap;
+}

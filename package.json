@@ -9,10 +9,11 @@
   },
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc --noEmit && vite build",
+    "build": "node tools/content-check.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
-    "shot": "node tools/shot.mjs"
+    "shot": "node tools/shot.mjs",
+    "content:check": "node tools/content-check.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

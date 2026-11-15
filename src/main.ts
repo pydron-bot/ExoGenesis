@@ -4,7 +4,8 @@ import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input, type UiState } from './input';
 import { getSave, putSave } from './save';
 import { SimClient } from './sim/client';
-import { SOL_SECONDS, TICK_HZ, type SimState } from './sim/types';
+import { TICK_HZ, type SimState } from './sim/types';
+import { content, contentIssues } from './content';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, buildGlobe, R, U } from './world/planet';
 import { Provinces } from './world/provinces';
@@ -15,6 +16,17 @@ import { Landing } from './landing';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+if (contentIssues.length) {
+  // Bad content: say exactly what's wrong instead of starting a half-broken game.
+  const el = document.createElement('pre');
+  el.id = 'content-issues';
+  el.textContent = `Content errors — fix these in the editor (/editor.html) or in /content:\n\n${contentIssues
+    .map((i) => `${i.path}${i.field ? ` · ${i.field}` : ''}: ${i.msg}`)
+    .join('\n')}`;
+  document.body.appendChild(el);
+  throw new Error(`content: ${contentIssues.length} issue(s)`);
+}
 
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
@@ -97,6 +109,7 @@ $('cine-skip').onclick = () => landing?.skip();
 addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
 
 const buildBtn = $<HTMLButtonElement>('b-build');
+buildBtn.querySelector('small')!.textContent = `${content.buildings.solar.cost}◆`;
 function setBuildMode(on: boolean) {
   ui.buildMode = on;
   ui.ghost = null;
@@ -205,6 +218,7 @@ function updateHud(dt: number) {
     el.cryo.innerHTML = `❄ <b>${s.cryo.toFixed(1)}%</b>`;
     el.cryo.className = `r ${s.cryo < 30 ? 'bad' : s.cryo < 100 && !ok ? 'warn' : ''}`;
     const secs = s.tick / TICK_HZ;
+    const SOL_SECONDS = content.colony.solSeconds;
     const sol = Math.floor(secs / SOL_SECONDS) + 1;
     const dayMin = Math.floor(((secs % SOL_SECONDS) / SOL_SECONDS) * 1440 + 360) % 1440;
     el.clock.textContent = `SOL ${sol} · ${String(Math.floor(dayMin / 60)).padStart(2, '0')}:${String(dayMin % 60).padStart(2, '0')}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;

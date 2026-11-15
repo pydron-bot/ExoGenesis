@@ -1,0 +1,14 @@
+{
+  "name": "Tank",
+  "faction": "accord",
+  "description": "Slow, long-range, splash damage.",
+  "hp": 170,
+  "speed": 4.2,
+  "range": 22,
+  "damage": 26,
+  "cooldown": 1.6,
+  "splash": 3,
+  "radius": 1.3,
+  "aggro": 26,
+  "modelScale": 1
+}

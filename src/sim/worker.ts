@@ -2,14 +2,19 @@
  * The simulation. Runs at a fixed tick in a Web Worker and is the single owner
  * of game state; the main thread only renders snapshots and sends commands.
  */
+import { content } from '../content';
 import {
-  BUILD_SECONDS, CORE_MW, CRYO_DRAW_MW, REGION_HALF, SOLAR_COST, SOLAR_MW, TICK_HZ, TICK_MS,
+  REGION_HALF, TICK_HZ, TICK_MS,
   type FromWorker, type SimState, type Snapshot, type ToWorker,
 } from './types';
 
+const RULES = content.colony;
+const CORE = content.buildings.core;
+const SOLAR = content.buildings.solar;
+
 const ctx = self as unknown as Worker;
 const DT = 1 / TICK_HZ;
-const DRONE_SPEED = 9;
+const DRONE_SPEED = RULES.droneSpeed;
 const WALK = 2.2;
 const RUN = 7.5;
 const FLEE_R = 14;
@@ -39,13 +44,13 @@ function event(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
 
 function newGame(seed: number) {
   s = {
-    version: 1, seed, rng: seed, tick: 0, nextId: 2, alloys: 120, cryo: 100, cryoWarn: 100,
+    version: 1, seed, rng: seed, tick: 0, nextId: 2, alloys: RULES.startAlloys, cryo: 100, cryoWarn: 100,
     drone: { x: 0, z: -14, heading: Math.PI, task: { kind: 'idle' } },
     buildings: [{ id: 1, kind: 'core', x: 0, z: 0, progress: 1 }],
     herds: [], fauna: [], phase: 'descent', panic: 0,
   };
-  for (let h = 0; h < 7; h++) s.herds.push(randomHerdSpot());
-  for (let i = 0; i < 160; i++) {
+  for (let h = 0; h < RULES.herds; h++) s.herds.push(randomHerdSpot());
+  for (let i = 0; i < RULES.grazers && s.herds.length; i++) {
     const herd = i % s.herds.length;
     const c = s.herds[herd];
     const x = clamp(c.x + (rnd() - 0.5) * 30, -LIMIT, LIMIT);
@@ -63,9 +68,12 @@ function randomHerdSpot() {
 }
 
 function energy() {
-  let gen = CORE_MW;
-  for (const b of s.buildings) if (b.kind === 'solar' && b.progress >= 1) gen += SOLAR_MW;
-  const draw = CRYO_DRAW_MW + (s.drone.task.kind === 'idle' ? 0.3 : 0.6);
+  let gen = 0, draw = RULES.cryoDrawMW + (s.drone.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW);
+  for (const b of s.buildings) {
+    if (b.progress < 1) continue;
+    const p = content.buildings[b.kind].powerMW;
+    if (p >= 0) gen += p; else draw -= p;
+  }
   return { gen, draw };
 }
 
@@ -99,10 +107,11 @@ function stepDrone() {
       approach(d, d.x + (site.x - d.x) * k, d.z + (site.z - d.z) * k, DRONE_SPEED, 7);
     } else {
       d.heading += 1.5 * DT; // circle-scan while building
-      site.progress = Math.min(1, site.progress + DT / BUILD_SECONDS);
+      const secs = content.buildings[site.kind].buildSeconds;
+      site.progress = secs > 0 ? Math.min(1, site.progress + DT / secs) : 1;
       if (site.progress >= 1) {
         d.task = { kind: 'idle' };
-        event(`Solar array online · +${SOLAR_MW} MW`);
+        event(`${SOLAR.name} online · +${SOLAR.powerMW} MW`);
       }
     }
   }
@@ -151,7 +160,7 @@ function stepFauna() {
 
 function stepEconomy() {
   const { gen, draw } = energy();
-  s.alloys += 0.4 * DT;
+  s.alloys += RULES.alloyTrickle * DT;
   if (gen >= draw) {
     s.cryo = Math.min(100, s.cryo + 0.25 * DT);
     if (s.cryo >= 100) s.cryoWarn = 100;
@@ -222,16 +231,16 @@ function handle(msg: ToWorker) {
       if (c.type === 'move') {
         s.drone.task = { kind: 'move', x, z };
       } else if (c.type === 'build') {
-        if (s.alloys < SOLAR_COST) { event(`Not enough alloys (${SOLAR_COST} needed)`, 'warn'); return; }
-        if (s.buildings.some((b) => Math.hypot(b.x - x, b.z - z) < (b.kind === 'core' ? 16 : 9))) {
+        if (s.alloys < SOLAR.cost) { event(`Not enough alloys (${SOLAR.cost} needed)`, 'warn'); return; }
+        if (s.buildings.some((b) => Math.hypot(b.x - x, b.z - z) < (b.kind === 'core' ? CORE.clearance : SOLAR.clearance))) {
           event('Site blocked', 'warn');
           return;
         }
-        s.alloys -= SOLAR_COST;
+        s.alloys -= SOLAR.cost;
         const id = s.nextId++;
         s.buildings.push({ id, kind: 'solar', x, z, progress: 0 });
         s.drone.task = { kind: 'build', siteId: id };
-        event('Solar array queued · drone en route');
+        event(`${SOLAR.name} queued · drone en route`);
       }
       return;
     }

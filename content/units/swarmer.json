@@ -1,0 +1,13 @@
+{
+  "name": "Swarmer",
+  "faction": "fauna",
+  "description": "Small pack biter.",
+  "hp": 40,
+  "speed": 6.5,
+  "range": 1.6,
+  "damage": 6,
+  "cooldown": 0.6,
+  "radius": 0.7,
+  "aggro": 16,
+  "modelScale": 0.9
+}

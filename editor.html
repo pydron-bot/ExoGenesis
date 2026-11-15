@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Exo Genesis Editor</title>
+  </head>
+  <body>
+    <header id="top">
+      <div id="brand">EXO GENESIS <span>// EDITOR</span></div>
+      <div id="git">
+        <span id="git-status">…</span>
+        <input id="commit-msg" placeholder="Describe your changes (e.g. buff tank range)" maxlength="200" />
+        <button id="commit" disabled>Commit</button>
+      </div>
+      <a id="open-game" href="/?intro=0" target="exo-game">Open game ↗</a>
+    </header>
+    <nav id="side"></nav>
+    <main id="main">
+      <div id="empty">Pick something on the left. Changes save to <code>content/</code> in the repo; the game reloads with them.</div>
+    </main>
+    <aside id="aside"></aside>
+    <div id="toast"></div>
+    <script type="module" src="/src/editor/main.ts"></script>
+  </body>
+</html>

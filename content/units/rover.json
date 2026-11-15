@@ -1,0 +1,13 @@
+{
+  "name": "Rover",
+  "faction": "accord",
+  "description": "Fast light skirmisher.",
+  "hp": 60,
+  "speed": 7.5,
+  "range": 14,
+  "damage": 6,
+  "cooldown": 0.5,
+  "radius": 0.9,
+  "aggro": 18,
+  "modelScale": 1
+}

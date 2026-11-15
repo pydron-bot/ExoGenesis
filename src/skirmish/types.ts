@@ -1,4 +1,8 @@
 /** Skirmish proof of concept: data contract between the worker sim and the renderer. */
+import { content } from '../content';
+
+/** Skirmish roster, indexed by UT. Stats come from content/units/*.json. */
+const ROSTER = ['rover', 'tank', 'swarmer', 'brute'] as const;
 
 export const SK_TICK_HZ = 10;
 export const SK_TICK_MS = 1000 / SK_TICK_HZ;
@@ -13,9 +17,9 @@ export const FX_STRIDE = 5;
 export const FX = { ROVER_SHOT: 0, TANK_SHOT: 1, BITE: 2, DIE_SMALL: 3, DIE_BIG: 4, CORE_HIT: 5 } as const;
 
 export const UT = { Rover: 0, Tank: 1, Swarmer: 2, Brute: 3 } as const;
-export const TYPE_NAMES = ['Rover', 'Tank', 'Swarmer', 'Brute'];
+export const TYPE_NAMES = ROSTER.map((id) => content.units[id].name);
 
-export interface UnitDef {
+export interface SkUnitDef {
   team: 0 | 1;
   hp: number;
   speed: number;
@@ -25,14 +29,16 @@ export interface UnitDef {
   radius: number;
   splash?: number;
   aggro: number;
+  scale: number;
 }
 
-export const DEFS: UnitDef[] = [
-  { team: 0, hp: 60, speed: 7.5, range: 14, dmg: 6, cooldown: 0.5, radius: 0.9, aggro: 18 },
-  { team: 0, hp: 170, speed: 4.2, range: 22, dmg: 26, cooldown: 1.6, radius: 1.3, splash: 3, aggro: 26 },
-  { team: 1, hp: 40, speed: 6.5, range: 1.6, dmg: 6, cooldown: 0.6, radius: 0.7, aggro: 16 },
-  { team: 1, hp: 300, speed: 3.2, range: 2.4, dmg: 24, cooldown: 1.4, radius: 1.5, aggro: 16 },
-];
+export const DEFS: SkUnitDef[] = ROSTER.map((id) => {
+  const u = content.units[id];
+  return {
+    team: u.faction === 'accord' ? 0 : 1, hp: u.hp, speed: u.speed, range: u.range, dmg: u.damage,
+    cooldown: u.cooldown, radius: u.radius, splash: u.splash || undefined, aggro: u.aggro, scale: u.modelScale,
+  };
+});
 
 export type SkToWorker =
   | { type: 'move'; slots: number[]; x: number; z: number }
