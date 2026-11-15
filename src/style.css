@@ -74,8 +74,10 @@ html, body {
 #help.gone { opacity: 0; }
 @media (max-width: 640px) {
   html, body { font-size: 12px; }
-  #top { right: 112px; }
-  #tele { min-width: 96px; padding: 4px 8px; }
+  #top { right: 124px; }
+  #tele { min-width: 0; max-width: 116px; padding: 4px 8px; }
+  #layer { font-size: 11px; }
+  #alt, #fps { font-size: 10px; }
   #hud button { padding: 8px 8px; min-width: 36px; }
   #help { display: none; }
   #log { bottom: calc(110px + env(safe-area-inset-bottom)); }

@@ -38,7 +38,9 @@ if (look === 'smooth') {
 }
 scene.add(globe);
 const provinces = new Provinces(scene, globe, $('labels'));
-scene.add(buildAtmosphere(R * 1.07, '#8fd6ff', 1.25));
+// atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
+const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
+scene.add(atmosphere);
 const region = new RegionView(scene, look);
 const cam = new ZoomCamera(camera);
 
@@ -165,12 +167,12 @@ function updateHud(dt: number) {
     el.clock.textContent = `SOL ${sol} · ${String(Math.floor(dayMin / 60)).padStart(2, '0')}:${String(dayMin % 60).padStart(2, '0')}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;
   }
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
-  el.alt.textContent = cam.a > 0.5 && cam.b < 0.5
+  el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
     ? `${provinces.landCount} REGIONS · ALT ${fmtAlt(cam.altitude())}`
     : `ALT ${fmtAlt(cam.altitude())}`;
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
-  el.fps.textContent = `${fpsShown.toFixed(0)} fps · ${renderer.info.render.calls} draws`;
+  el.fps.textContent = innerWidth < 640 ? `${fpsShown.toFixed(0)} fps` : `${fpsShown.toFixed(0)} fps · ${renderer.info.render.calls} draws`;
   document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
     const v = b.dataset.view;
     b.classList.toggle('on', (v === 'system' && cam.b > 0.5) || (v === 'planet' && cam.a > 0.5 && cam.b <= 0.5) || (v === 'surface' && cam.a <= 0.5));
@@ -193,6 +195,8 @@ function frame(now: number) {
 
   system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, innerHeight);
   cam.update(dt, system.starPos);
+  (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = 1.25 * smoothstep(300, 1400, cam.altitude());
+  atmosphere.visible = cam.altitude() > 300;
   provinces.update(camera, cam.dist, innerWidth, innerHeight);
 
   // sky: day/night at the landing site, fading to space as we climb

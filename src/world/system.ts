@@ -342,6 +342,8 @@ export class SolarSystem {
         b.tail.position.copy(b.pos);
         b.tail.lookAt(v.copy(b.pos).multiplyScalar(2).sub(this.starPos)); // point away from the star
         b.tail.scale.set(len * 0.08, len * 0.08, len);
+        b.tail.visible = sys > 0.05;
+        (b.tail.material as THREE.MeshBasicMaterial).opacity = 0.25 * smoothstep(0.05, 0.4, sys);
       }
     }
 
