@@ -3,12 +3,15 @@
  *
  * Schema-driven: every collection in src/content/defs.ts gets a list and a form
  * for free. Saves are conflict-checked against the file on disk; commits go to
- * the local git repo (content/ only).
+ * the local git repo (content/ and public/media/ only).
  */
 import './editor.css';
 import { COLLECTIONS, ID_RE, locate, pathOf, type Collection, type CollectionName } from '../content/defs';
 import { blank, validate, type Field, type IdIndex, type Issue } from '../content/schema';
 import { MapEditor } from './map';
+import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, uploadFiles, type AssetHost, type MediaInfo, type Usage } from './assets';
+import { BUILTINS } from '../assets/builtin';
+import type { AssetDef } from '../content/defs';
 
 interface FileRec { path: string; hash: string; data: unknown; parseError?: string }
 interface Current {
@@ -35,7 +38,23 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEle
 const files = new Map<string, FileRec>();
 let cur: Current | null = null;
 let mapEd: MapEditor | null = null;
+let assetPanel: AssetPanel | null = null;
+let viewHandle: { dispose(): void } | null = null;
+/** What the main pane shows when no record is open. */
+let view: 'none' | 'library' | { builtin: string } = 'none';
+const media = new Map<string, MediaInfo>();
 const isMap = () => cur?.coll === 'regions';
+
+/** Tear down whatever owns the main pane (map, viewers) before showing something else. */
+function teardown() {
+  mapEd?.dispose();
+  mapEd = null;
+  assetPanel?.dispose();
+  assetPanel = null;
+  viewHandle?.dispose();
+  viewHandle = null;
+  $('main').classList.remove('map-mode');
+}
 
 // ---------- API ----------
 class ApiError extends Error {
@@ -43,10 +62,11 @@ class ApiError extends Error {
 }
 async function api<T = Record<string, unknown>>(method: string, url: string, body?: unknown): Promise<T> {
   if (method !== 'GET') busy++;
+  const raw = body instanceof Blob;
   const r = await fetch(url, {
     method,
-    headers: body ? { 'content-type': 'application/json', 'x-exo-editor': '1' } : { 'x-exo-editor': '1' },
-    body: body ? JSON.stringify(body) : undefined,
+    headers: { 'x-exo-editor': '1', ...(body ? { 'content-type': raw ? 'application/octet-stream' : 'application/json' } : {}) },
+    body: raw ? body : body ? JSON.stringify(body) : undefined,
   }).finally(() => { if (method !== 'GET') busy--; });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new ApiError(r.status, data.error ?? r.statusText, data);
@@ -113,6 +133,9 @@ async function loadAll() {
     files.set(path, { path, hash: f.hash, data, parseError });
   }
   for (const p of [...files.keys()]) if (!seen.has(p)) files.delete(p);
+  const m = await api<{ path: string; hash: string; bytes: number }[]>('GET', '/__content/media');
+  media.clear();
+  for (const x of m) media.set(x.path, { hash: x.hash, bytes: x.bytes });
 }
 
 // ---------- sidebar ----------
@@ -133,9 +156,14 @@ function renderSide() {
         side.append(item(name, name, c.label, pathOf(name, name)));
         continue;
       }
-      const head = h('div', { cls: 'coll' }, h('span', { textContent: c.label }));
-      const add = h('button', { cls: 'mini', textContent: '+ New', title: `New ${c.label.toLowerCase().replace(/s$/, '')}` });
-      add.onclick = () => newRecord(name);
+      if (name === 'assets') {
+        const lib = h('button', { cls: view === 'library' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Library' }), h('small', { textContent: `${recordsOf('assets').length + BUILTINS.length}` }));
+        lib.onclick = () => showLibrary();
+        side.append(lib);
+      }
+      const head = h('div', { cls: 'coll' }, h('span', { textContent: name === 'assets' ? 'Files' : c.label }));
+      const add = h('button', { cls: 'mini', textContent: name === 'assets' ? '+ Upload' : '+ New', title: name === 'assets' ? 'Add model, image or audio files' : `New ${c.label.toLowerCase().replace(/s$/, '')}` });
+      add.onclick = name === 'assets' ? () => void pickFiles(ACCEPT_ALL, true).then(addFiles) : () => newRecord(name);
       head.append(add);
       side.append(head);
       for (const r of recordsOf(name)) side.append(item(name, r.id, titleOf(name, r.id, r.rec.data), r.path));
@@ -160,8 +188,8 @@ function confirmDiscard() {
 
 function open(name: CollectionName, id: string, force = false) {
   if (!force && !confirmDiscard()) return;
-  mapEd?.dispose();
-  mapEd = null;
+  teardown();
+  view = 'none';
   const path = pathOf(name, id);
   const rec = files.get(path);
   if (!rec) { toast(`${path} not found`, true); return; }
@@ -207,7 +235,9 @@ export function control(d: Record<string, unknown>, key: string, f: Field, onCha
     }
     case 'choice':
     case 'ref': {
-      const opts = f.kind === 'choice' ? [...f.values] : [...(idIndex()[f.to] ?? [])].sort();
+      let opts = f.kind === 'choice' ? [...f.values] : [...(idIndex()[f.to] ?? [])].sort();
+      // model fields only offer model assets
+      if (f.kind === 'ref' && f.to === 'assets') opts = opts.filter((id) => (files.get(pathOf('assets', id))?.data as AssetDef | undefined)?.kind === 'model');
       const el = h('select');
       if (f.optional || !opts.includes(d[key] as string)) el.append(h('option', { value: '', textContent: '—' }));
       for (const o of opts) el.append(h('option', { value: o, textContent: o }));
@@ -268,9 +298,21 @@ function renderForm() {
     );
     form.append(row);
   }
+  let panel: HTMLElement | null = null;
+  if (cur.coll === 'assets') {
+    assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
+    panel = assetPanel.root;
+    // the file and kind are managed by upload / Replace file
+    (form.querySelector('.row[data-key=file] input') as HTMLInputElement).readOnly = true;
+    (form.querySelector('.row[data-key=kind] select') as HTMLSelectElement).disabled = true;
+    if ((cur.draft as unknown as AssetDef).kind !== 'model') {
+      for (const k of ['scale', 'yaw', 'lift']) form.querySelector(`.row[data-key=${k}]`)?.remove();
+    }
+  }
   main.replaceChildren(
     h('div', { cls: 'head' }, h('div', {}, title, h('div', { cls: 'path', textContent: `content/${cur.path}` })), actions),
     h('div', { cls: 'stale', id: 'stale', textContent: 'This file changed on disk while you were editing. Saving will ask before overwriting.' }),
+    ...(panel ? [panel] : []),
     form,
   );
   changed();
@@ -298,6 +340,7 @@ function changed() {
   document.title = `${isDirty ? '● ' : ''}Exo Genesis Editor`;
   document.querySelector('#side .item.on')?.classList.toggle('dirty', isDirty);
 
+  assetPanel?.update(cur.draft as unknown as AssetDef);
   if (isMap()) {
     $('main').querySelector('.map-issues')?.remove();
     if (iss.length) $('main').querySelector('.head')!.after(h('div', { cls: 'map-issues', textContent: iss.map((i) => `${i.field}: ${i.msg}`).join(' · ') }));
@@ -351,14 +394,18 @@ async function doSave() {
 
 async function doDelete() {
   if (!cur) return;
-  if (!confirm(`Delete content/${cur.path}? (Recoverable from git until you commit.)`)) return;
+  const asset = cur.coll === 'assets' ? (cur.saved as unknown as AssetDef) : null;
+  const users = asset ? usedBy(cur.id) : [];
+  const what = asset ? `content/${cur.path} and public/media/${asset.kind}/${asset.file}` : `content/${cur.path}`;
+  const warn = users.length ? `\n\nStill used by ${users.map((u) => u.name).join(', ')}: they'll show a content error until you change their Model.` : '';
+  if (!confirm(`Delete ${what}? (Recoverable from git until you commit.)${warn}`)) return;
   try {
     await api('DELETE', '/__content/file', { path: cur.path, baseHash: cur.baseHash });
     files.delete(cur.path);
-    toast(`Deleted content/${cur.path}`);
-    mapEd?.dispose();
-    mapEd = null;
-    $('main').classList.remove('map-mode');
+    const mp = asset ? `${asset.kind}/${asset.file}` : '';
+    if (asset && media.has(mp)) await api('DELETE', '/__content/media', { path: mp, baseHash: media.get(mp)!.hash });
+    toast(`Deleted ${what}`);
+    teardown();
     cur = null;
     $('main').replaceChildren(h('div', { id: 'empty', textContent: 'Deleted.' }));
     $('aside').replaceChildren();
@@ -435,10 +482,87 @@ async function poll() {
       }
       changed();
     }
+    if (view === 'library' && !cur && signature() !== librarySig) {
+      renderLibrary($('main'), $('aside'), assetHost);
+      librarySig = signature();
+    }
     renderSide();
     await refreshGit();
   } catch { /* dev server restarting */ }
 }
+
+// ---------- assets ----------
+function usedBy(assetId: string): Usage[] {
+  const out: Usage[] = [];
+  for (const c of ['units', 'buildings'] as const) {
+    for (const r of recordsOf(c)) {
+      const d = r.rec.data as { model?: string } | null;
+      if (d?.model === assetId) out.push({ coll: c, id: r.id, name: titleOf(c, r.id, d) });
+    }
+  }
+  return out;
+}
+
+const assetHost: AssetHost = {
+  records: () => recordsOf('assets').filter((r) => r.rec.data && !r.rec.parseError).map((r) => ({ id: r.id, data: r.rec.data as AssetDef })),
+  media: () => media,
+  usedBy,
+  builtinUse(b) {
+    if (!b.usedBy) return {};
+    const rec = files.get(pathOf(b.usedBy.coll, b.usedBy.id));
+    if (!rec?.data) return {};
+    const d = rec.data as { model?: string };
+    return { user: { ...b.usedBy, name: titleOf(b.usedBy.coll, b.usedBy.id, d) }, replacedBy: d.model };
+  },
+  openRecord: (c, id) => open(c, id),
+  openBuiltin: (id) => showBuiltin(id),
+  api,
+  toast,
+  refresh: async () => { await loadAll(); renderSide(); await refreshGit(); },
+};
+
+function showLibrary(force = false) {
+  if (!force && !confirmDiscard()) return;
+  teardown();
+  cur = null;
+  view = 'library';
+  history.replaceState(null, '', '#library');
+  renderLibrary($('main'), $('aside'), assetHost);
+  librarySig = signature();
+  renderSide();
+}
+
+function showBuiltin(id: string) {
+  if (!confirmDiscard()) return;
+  teardown();
+  cur = null;
+  view = { builtin: id };
+  history.replaceState(null, '', `#builtin/${id}`);
+  viewHandle = renderBuiltin($('main'), $('aside'), assetHost, id);
+  renderSide();
+}
+
+async function addFiles(list: File[]) {
+  if (!list.length) return;
+  const made = await uploadFiles(assetHost, list);
+  if (made.length === 1) open('assets', made[0], true);
+  else if (made.length) showLibrary(true);
+}
+
+/** Changes when anything the library shows changes (so polling only redraws when needed). */
+let librarySig = '';
+const signature = () => [...files.values()].map((f) => f.hash).join() + [...media.values()].map((m) => m.hash).join();
+
+// drop files anywhere to add them
+addEventListener('dragover', (e) => { if (e.dataTransfer?.types.includes('Files')) { e.preventDefault(); document.body.classList.add('dropping'); } });
+addEventListener('dragleave', (e) => { if (!e.relatedTarget) document.body.classList.remove('dropping'); });
+addEventListener('drop', (e) => {
+  document.body.classList.remove('dropping');
+  if (!e.dataTransfer?.files.length) return;
+  e.preventDefault();
+  if (!confirmDiscard()) return;
+  void addFiles([...e.dataTransfer.files]);
+});
 
 // ---------- boot ----------
 $('commit').onclick = () => void doCommit();
@@ -451,9 +575,17 @@ addEventListener('beforeunload', (e) => { if (dirty()) e.preventDefault(); });
 await loadAll();
 renderSide();
 await refreshGit();
-const at = locate(decodeURIComponent(location.hash.slice(1)));
-if (at) open(at.coll, at.id);
+/** Show whatever the URL hash names (#units/rover.json, #library, #builtin/tank). */
+function routeTo(hash: string) {
+  const route = decodeURIComponent(hash.slice(1));
+  const at = locate(route);
+  if (at) open(at.coll, at.id);
+  else if (route === 'library') showLibrary();
+  else if (route.startsWith('builtin/')) showBuiltin(route.slice(8));
+}
+routeTo(location.hash);
+addEventListener('hashchange', () => routeTo(location.hash));
 setInterval(() => void poll(), 4000);
 
 declare global { interface Window { __editor: unknown } }
-window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, files, dirty };
+window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, get assetPanel() { return assetPanel; }, files, media, dirty };

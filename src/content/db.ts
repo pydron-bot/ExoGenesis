@@ -2,13 +2,14 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { COLLECTIONS, locate, type BuildingDef, type CollectionName, type ColonyRules, type RegionDef, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type RegionDef, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
   units: Record<string, UnitDef>;
   buildings: Record<string, BuildingDef>;
   regions: Record<string, RegionDef>;
+  assets: Record<string, AssetDef>;
   colony: ColonyRules;
 }
 
@@ -39,13 +40,15 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     if (c.kind === 'single' && !(name in recs[name])) issues.push({ path: c.path, field: '', msg: 'file missing' });
   }
 
-  const db = {
+  const db0 = {
     units: recs.units,
     buildings: recs.buildings,
     regions: recs.regions,
+    assets: recs.assets,
     colony: recs.colony.colony,
   } as unknown as ContentDb;
-  return { db, issues };
+  issues.push(...crossIssues(db0));
+  return { db: db0, issues };
 }
 
 /** Records the game code refers to by id. Missing ones are reported as issues. */
@@ -62,6 +65,27 @@ export function requiredIssues(db: ContentDb): FileIssue[] {
     for (const id of list) {
       if (!have[id]) out.push({ path: `${COLLECTIONS[coll].path}/${id}.json`, field: '', msg: 'the game needs this record' });
     }
+  }
+  return out;
+}
+
+/** Rules that span records: model refs must be models, files must match their kind. */
+function crossIssues(db: ContentDb): FileIssue[] {
+  const out: FileIssue[] = [];
+  const modelRef = (coll: 'units' | 'buildings', recs: Record<string, { model?: string }>) => {
+    for (const [id, r] of Object.entries(recs)) {
+      if (!r || typeof r !== 'object' || !r.model) continue;
+      const a = db.assets[r.model];
+      if (a && a.kind !== 'model') out.push({ path: `${COLLECTIONS[coll].path}/${id}.json`, field: 'model', msg: `"${r.model}" is ${a.kind === 'image' ? 'an image' : 'audio'}, not a model` });
+    }
+  };
+  modelRef('units', db.units);
+  modelRef('buildings', db.buildings);
+  if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });
+  for (const [id, a] of Object.entries(db.assets)) {
+    if (!a || typeof a.file !== 'string' || !(a.kind in ASSET_EXT)) continue;
+    const ext = a.file.split('.').pop()?.toLowerCase() ?? '';
+    if (!ASSET_EXT[a.kind].includes(ext)) out.push({ path: `assets/${id}.json`, field: 'file', msg: `.${ext} isn't a ${a.kind} file (${ASSET_EXT[a.kind].join(', ')})` });
   }
   return out;
 }

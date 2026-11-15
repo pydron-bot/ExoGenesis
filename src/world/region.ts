@@ -220,7 +220,7 @@ export function buildDrone(): THREE.Group {
   return g;
 }
 
-function buildSolar(): THREE.Group {
+export function buildSolar(): THREE.Group {
   const g = new THREE.Group();
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 2, 6), metal('#5d656d'));
   post.position.y = 1;
@@ -238,7 +238,7 @@ function buildSolar(): THREE.Group {
   return g;
 }
 
-function buildScaffold(): THREE.Group {
+export function buildScaffold(): THREE.Group {
   const g = new THREE.Group();
   const frame = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(8.4, 3, 3.6)),
@@ -255,7 +255,7 @@ function buildScaffold(): THREE.Group {
   return g;
 }
 
-function buildCreature(): THREE.BufferGeometry {
+export function buildCreature(): THREE.BufferGeometry {
   // low-poly six-legged grazer, merged into one geometry for instancing
   const parts: THREE.BufferGeometry[] = [];
   const body = new THREE.IcosahedronGeometry(0.7, 0);
@@ -355,10 +355,7 @@ export class RegionView {
     this.details.add(this.selRing, this.targetRing, this.orderRibbon.mesh, this.targetRibbon.mesh);
     (this.targetRibbon.mesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
 
-    this.ghost = buildSolar();
-    this.ghost.traverse((o) => {
-      if (o instanceof THREE.Mesh) o.material = new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.35, depthWrite: false });
-    });
+    this.ghost = this.makeGhost();
     this.ghost.visible = false;
     this.details.add(this.ghost);
 
@@ -467,6 +464,43 @@ export class RegionView {
     this.faunaMesh.instanceMatrix.needsUpdate = true;
   }
 
+  private models: { solar?: THREE.Object3D } = {};
+
+  /** Swap a building's built-in model for an asset model (null = back to built-in). */
+  setBuildingModel(kind: 'solar', obj: THREE.Object3D | null) {
+    if (obj) this.models[kind] = obj; else delete this.models[kind];
+    const vis = this.ghost.visible;
+    this.details.remove(this.ghost);
+    this.ghost = this.makeGhost();
+    this.ghost.visible = vis;
+    this.details.add(this.ghost);
+    for (const e of this.buildings.values()) {
+      if (e.kind !== kind || !e.done) continue;
+      const next = this.solarModel();
+      next.position.copy(e.obj.position);
+      next.quaternion.copy(e.obj.quaternion);
+      this.details.remove(e.obj);
+      this.details.add(next);
+      e.obj = next;
+    }
+  }
+
+  private solarModel(): THREE.Group {
+    const m = this.models.solar;
+    if (!m) return buildSolar();
+    const g = new THREE.Group();
+    g.add(m.clone(true));
+    return g;
+  }
+
+  private makeGhost(): THREE.Group {
+    const g = this.solarModel();
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.material = new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.35, depthWrite: false });
+    });
+    return g;
+  }
+
   private syncBuildings(list: Building[], t: number) {
     const seen = new Set<number>();
     for (const b of list) {
@@ -477,7 +511,7 @@ export class RegionView {
       if (!entry || entry.done !== done) {
         if (entry) this.details.remove(entry.obj);
         else this.flora?.clear(b.x, b.z, 6.5);
-        const obj = done ? buildSolar() : buildScaffold();
+        const obj = done ? this.solarModel() : buildScaffold();
         orient(obj, b.x, b.z, 0, 0);
         this.details.add(obj);
         entry = { kind: 'solar', done, obj };

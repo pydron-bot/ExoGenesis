@@ -321,13 +321,21 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   herds and flora seed/density. The landing pad and Command Core stay at the origin (the landing
   cinematic depends on them); sculpting fades out over the last 14 u so the patch meets the globe.
   The game currently loads `touchdown`.
-- **Binary assets** (models, audio, textures) go in the repo while small; switch to Git LFS if
-  audio grows past a few hundred MB.
+- **Assets** are a file in `public/media/<model|image|audio>/<id>.<ext>` plus a record in
+  `content/assets/<id>.json` (name, source, credit, notes; models also import scale / rotation /
+  lift, applied by `src/assets/models.ts` in both editor and game). Models are .glb, front +Z, Y
+  up, 1 u ≈ 10 m. A unit's or building's `model` field swaps its built-in mesh (units are flattened
+  to one instanced mesh; animation is dropped). Wired today: skirmish units and the Solar Array;
+  the Command Core stays procedural (the landing animates it). Images and audio are stored and
+  previewed but nothing in the game plays or shows them yet. The 15 built-in procedural models are
+  listed in the library and can be exported to .glb as Blender starting points.
+- **Binary assets** go in the repo while small; switch to Git LFS if audio grows past a few
+  hundred MB.
 
 | Tool | Edits | Lands with |
 |---|---|---|
 | Data layer + schema forms | Units, buildings, colony rules | ✅ 2026-11-15 |
-| Asset browser | Models, textures, audio; previews; which unit/building uses what | M1 |
+| Asset browser | Library of files + built-in procedural models; previews (3D, image, audio); upload/replace; import fit; used-by; Model field on units/buildings ✅ 2026-11-15 | M1 |
 | Map / region editor | Terrain sculpt, flora paint, grazer herds ✅ 2026-11-15; resources, spawns, relic sites as their systems land | M1 (one region), M3 (the planet) |
 | Mission + trigger designer | "When X, do Y" trigger lists, objectives, win/lose | M4 tutorial missions |
 | Story + dialogue editor | Colonists, Trust beats, radio messages, story events | M2 → M4 |

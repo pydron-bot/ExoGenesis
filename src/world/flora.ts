@@ -19,7 +19,7 @@ import { E, HALF, N, floraPaintAt, regionDir, regionFlora, regionHeightRaw, regi
 
 type Rng = () => number;
 
-function mulberry(seed: number): Rng {
+export function mulberry(seed: number): Rng {
   let a = seed | 0;
   return () => {
     a = (a + 0x6d2b79f5) | 0;
@@ -35,7 +35,7 @@ const pick = <T>(r: Rng, xs: readonly T[]) => xs[Math.floor(r() * xs.length)];
 // ---------- geometry builder ----------
 
 /** Accumulates triangles with per-vertex colour and glow. */
-class Mesher {
+export class Mesher {
   pos: number[] = [];
   col: number[] = [];
   glow: number[] = [];
@@ -188,7 +188,7 @@ const GLOW_HUES = [0.5, 0.53, 0.83, 0.92, 0.3, 0.12] as const;
 
 interface Palette { base: THREE.Color; tip: THREE.Color; glow: THREE.Color }
 
-function palette(r: Rng): Palette {
+export function palette(r: Rng): Palette {
   const h = pick(r, STEM_HUES) + range(r, -0.03, 0.03);
   const base = new THREE.Color().setHSL(h, range(r, 0.25, 0.5), range(r, 0.14, 0.24));
   const tip = new THREE.Color().setHSL(h + range(r, -0.08, 0.08), range(r, 0.35, 0.6), range(r, 0.32, 0.5));
@@ -202,7 +202,7 @@ const mix = (a: THREE.Color, b: THREE.Color, t: number) => a.clone().lerp(b, t);
 // Sizes are in world units (~10 m); the core is ~17 tall, a grazer ~1.5.
 
 type Habitat = { lush: number; bare: number; high: number };
-interface Archetype {
+export interface Archetype {
   name: string;
   /** Large plants use the coarse placement grid; small ones the fine grid. */
   big: boolean;
@@ -211,7 +211,7 @@ interface Archetype {
   build: (r: Rng, pal: Palette, m: Mesher) => void;
 }
 
-const ARCHETYPES: Archetype[] = [
+export const ARCHETYPES: Archetype[] = [
   {
     name: 'spire', big: true, habitat: { lush: 1, bare: 0.08, high: 0 },
     build(r, pal, m) {
@@ -364,7 +364,7 @@ export const floraUniforms = {
   uGlow: { value: 0.2 },
 };
 
-function floraMaterial(flat: boolean): THREE.MeshStandardMaterial {
+export function floraMaterial(flat: boolean): THREE.MeshStandardMaterial {
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true, flatShading: flat, roughness: 0.78, metalness: 0, side: THREE.DoubleSide,
   });

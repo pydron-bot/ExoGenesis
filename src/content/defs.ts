@@ -7,7 +7,7 @@
  * knob that does nothing.
  */
 import { REGION_HALF } from '../sim/types';
-import { choice, grid, int, list, num, str, type Infer, type Shape } from './schema';
+import { choice, grid, int, list, num, ref, str, type Infer, type Shape } from './schema';
 
 export const unitShape = {
   name: str({ label: 'Name' }),
@@ -21,7 +21,8 @@ export const unitShape = {
   splash: num({ label: 'Splash radius', min: 0, max: 50, step: 0.1, unit: 'u', optional: true, help: 'Units inside take half damage.' }),
   radius: num({ label: 'Body radius', min: 0.1, max: 20, step: 0.1, unit: 'u', help: 'Collision and selection size.' }),
   aggro: num({ label: 'Aggro radius', min: 0, max: 200, unit: 'u', help: 'How far it notices enemies on its own.' }),
-  modelScale: num({ label: 'Model scale', min: 0.1, max: 10, step: 0.05, default: 1 }),
+  model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model.' }),
+  modelScale: num({ label: 'Model scale', min: 0.1, max: 10, step: 0.05, default: 1, help: 'Gameplay size, on top of the asset\'s own scale.' }),
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
@@ -32,6 +33,7 @@ export const buildingShape = {
   powerMW: num({ label: 'Power generation', min: -100, max: 100, step: 0.1, unit: 'MW', help: 'Negative = draws power.' }),
   buildSeconds: num({ label: 'Build time', min: 0, max: 600, step: 0.5, unit: 's' }),
   clearance: num({ label: 'Clearance', min: 0, max: 60, step: 0.5, unit: 'u', help: 'Nothing new may be placed closer than this.' }),
+  model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model. (The Command Core\'s is fixed: the landing cinematic animates it.)' }),
 } satisfies Shape;
 export type BuildingDef = Infer<typeof buildingShape>;
 
@@ -45,6 +47,30 @@ export const colonyRulesShape = {
   solSeconds: num({ label: 'Length of a sol', min: 10, max: 7200, unit: 's', help: 'Real seconds per game day.' }),
 } satisfies Shape;
 export type ColonyRules = Infer<typeof colonyRulesShape>;
+
+export const ASSET_KINDS = ['model', 'image', 'audio'] as const;
+export type AssetKind = (typeof ASSET_KINDS)[number];
+/** Allowed file extensions per kind (lowercase, no dot). */
+export const ASSET_EXT: Record<AssetKind, readonly string[]> = {
+  model: ['glb'],
+  image: ['png', 'jpg', 'jpeg', 'webp'],
+  audio: ['ogg', 'mp3', 'wav'],
+};
+/** Where an asset's file lives, relative to the site root (public/ in the repo). */
+export const mediaUrl = (a: { kind: string; file: string }) => `/media/${a.kind}/${a.file}`;
+
+export const assetShape = {
+  name: str({ label: 'Name' }),
+  kind: choice(ASSET_KINDS, { label: 'Kind' }),
+  file: str({ label: 'File', help: 'In public/media/<kind>/. Use Replace file to change it.' }),
+  source: choice(['blender', 'hand-made', 'generated', 'other'], { label: 'Source', default: 'other' }),
+  credit: str({ label: 'Credit / licence', optional: true, help: 'Who made it, which tool or site, and its licence.' }),
+  notes: str({ label: 'Notes', multiline: true, optional: true }),
+  scale: num({ label: 'Import scale', min: 0.0001, max: 1000, step: 0.01, default: 1, help: 'Models: file units → world units (1 u ≈ 10 m). Use Fit to match a built-in.' }),
+  yaw: num({ label: 'Import rotation', min: -180, max: 180, step: 5, unit: '°', default: 0, help: 'Models: turn so the front faces +Z (the way units drive).' }),
+  lift: num({ label: 'Import lift', min: -50, max: 50, step: 0.05, unit: 'u', default: 0, help: 'Models: raise or sink so it sits on the ground.' }),
+} satisfies Shape;
+export type AssetDef = Infer<typeof assetShape>;
 
 /** Region paint grids: one sample every REGION_STEP units across the whole region. */
 export const REGION_STEP = 2;
@@ -86,6 +112,7 @@ export interface Collection {
 export const COLLECTIONS = {
   units: { path: 'units', kind: 'many', shape: unitShape, label: 'Units', title: 'name', group: 'Game data' },
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
+  assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
 } satisfies Record<string, Collection>;

@@ -27,6 +27,11 @@ for (const [p, t] of Object.entries(texts)) {
 }
 const { db, issues: found } = m.buildDb(files);
 issues.push(...found, ...m.requiredIssues(db));
+for (const [id, a] of Object.entries(db.assets ?? {})) {
+  if (!a?.kind || !a?.file) continue;
+  const f = path.join(root, 'public/media', a.kind, a.file);
+  if (!(await fs.stat(f).then(() => true, () => false))) issues.push({ path: `assets/${id}.json`, field: 'file', msg: `public/media/${a.kind}/${a.file} is missing` });
+}
 for (const i of issues) console.log(`FAIL  ${i.path}${i.field ? ` · ${i.field}` : ''}: ${i.msg}`);
 console.log(issues.length ? `${issues.length} problem(s) in ${Object.keys(texts).length} files` : `OK  ${Object.keys(texts).length} content files valid`);
 process.exit(issues.length ? 1 : 0);

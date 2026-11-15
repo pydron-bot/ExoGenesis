@@ -5,8 +5,11 @@
  *   GET    /__content/file?path=…        → { path, text, hash }
  *   PUT    /__content/file               { path, text, baseHash } → { hash }
  *   DELETE /__content/file               { path, baseHash }
+ *   GET    /__content/media              → [{ path, bytes, hash }]   (public/media/<kind>/<file>)
+ *   PUT    /__content/media?path=…&baseHash=…   raw file bytes → { hash, bytes }
+ *   DELETE /__content/media              { path, baseHash }
  *   GET    /__content/git                → { changes: [{ status, path }] }
- *   POST   /__content/commit             { message } → { commit }
+ *   POST   /__content/commit             { message } → { commit }   (content/ + public/media/)
  *
  * Writes are conflict-checked: `baseHash` must match the file on disk (null =
  * "create; must not exist"), so the editor can never silently overwrite a change
@@ -19,12 +22,17 @@ import type { IncomingMessage } from 'node:http';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { Plugin } from 'vite';
+import { ASSET_EXT, type AssetKind } from '../src/content/defs';
 
 const run = promisify(execFile);
 const MAX_BYTES = 1 << 20;
 const PATH_RE = /^[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)*\.json$/;
 
-const hashOf = (text: string) => createHash('sha1').update(text).digest('hex');
+const MAX_MEDIA = 64 << 20;
+const MEDIA_RE = /^(model|image|audio)\/[a-z0-9][a-z0-9_-]*\.([a-z0-9]+)$/;
+const TRACKED = ['content', 'public/media'];
+
+const hashOf = (data: string | Buffer) => createHash('sha1').update(data).digest('hex');
 
 class HttpError extends Error {
   constructor(public status: number, msg: string, public extra: Record<string, unknown> = {}) { super(msg); }
@@ -33,6 +41,29 @@ class HttpError extends Error {
 export function contentServer(): Plugin {
   let root = '';
   let dir = '';
+  let media = '';
+  const hashCache = new Map<string, string>();
+
+  const resolveMedia = (rel: unknown) => {
+    const m = typeof rel === 'string' ? rel.match(MEDIA_RE) : null;
+    if (!m || !ASSET_EXT[m[1] as AssetKind].includes(m[2])) throw new HttpError(400, `bad media path: ${String(rel)}`);
+    const abs = path.resolve(media, rel as string);
+    if (!abs.startsWith(media + path.sep)) throw new HttpError(400, 'path escapes public/media/');
+    return abs;
+  };
+  const readBufOrNull = async (abs: string) => {
+    try { return await fs.readFile(abs); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw e; }
+  };
+  async function rawBody(req: IncomingMessage): Promise<Buffer> {
+    let n = 0;
+    const chunks: Buffer[] = [];
+    for await (const c of req) {
+      n += (c as Buffer).length;
+      if (n > MAX_MEDIA) throw new HttpError(413, `files are limited to ${MAX_MEDIA >> 20} MB`);
+      chunks.push(c as Buffer);
+    }
+    return Buffer.concat(chunks);
+  }
 
   const resolve = (rel: unknown) => {
     if (typeof rel !== 'string' || !PATH_RE.test(rel)) throw new HttpError(400, `bad path: ${String(rel)}`);
@@ -110,21 +141,62 @@ export function contentServer(): Plugin {
         await fs.unlink(abs);
         return { ok: true };
       }
+      case 'GET /__content/media': {
+        const out: { path: string; bytes: number; hash: string }[] = [];
+        for (const kind of Object.keys(ASSET_EXT)) {
+          const d = path.join(media, kind);
+          const names = await fs.readdir(d).catch(() => [] as string[]);
+          for (const name of names.sort()) {
+            const rel = `${kind}/${name}`;
+            if (!MEDIA_RE.test(rel)) continue;
+            const st = await fs.stat(path.join(d, name));
+            const key = `${rel}|${st.mtimeMs}|${st.size}`;
+            let hash = hashCache.get(key);
+            if (!hash) { hash = hashOf(await fs.readFile(path.join(d, name))); hashCache.set(key, hash); }
+            out.push({ path: rel, bytes: st.size, hash });
+          }
+        }
+        return out;
+      }
+      case 'PUT /__content/media': {
+        const rel = url.searchParams.get('path');
+        const abs = resolveMedia(rel);
+        const baseHash = url.searchParams.get('baseHash') || null;
+        const buf = await rawBody(req);
+        if (!buf.length) throw new HttpError(400, 'empty file');
+        const cur = await readBufOrNull(abs);
+        const curHash = cur === null ? null : hashOf(cur);
+        if (curHash !== baseHash) throw new HttpError(409, cur === null ? 'file was deleted' : baseHash ? 'file changed on disk' : 'file already exists', { hash: curHash });
+        await fs.mkdir(path.dirname(abs), { recursive: true });
+        const tmp = `${abs}.${process.pid}.tmp`;
+        await fs.writeFile(tmp, buf);
+        await fs.rename(tmp, abs);
+        return { path: rel, hash: hashOf(buf), bytes: buf.length };
+      }
+      case 'DELETE /__content/media': {
+        const b = await body(req);
+        const abs = resolveMedia(b.path);
+        const cur = await readBufOrNull(abs);
+        if (cur === null) throw new HttpError(404, 'no such file');
+        if (hashOf(cur) !== b.baseHash) throw new HttpError(409, 'file changed on disk', { hash: hashOf(cur) });
+        await fs.unlink(abs);
+        return { ok: true };
+      }
       case 'GET /__content/git': {
-        const { stdout } = await git('status', '--porcelain=v1', '--untracked-files=all', '--', 'content');
+        const { stdout } = await git('status', '--porcelain=v1', '--untracked-files=all', '--', ...TRACKED);
         const changes = stdout.split('\n').filter(Boolean).map((l) => ({ status: l.slice(0, 2).trim(), path: l.slice(3).replace(/^content\//, '') }));
-        const { stdout: last } = await git('log', '-1', '--format=%h %s (%cr)', '--', 'content');
+        const { stdout: last } = await git('log', '-1', '--format=%h %s (%cr)', '--', ...TRACKED);
         return { changes, last: last.trim() };
       }
       case 'POST /__content/commit': {
         const b = await body(req);
         const msg = typeof b.message === 'string' ? b.message.trim() : '';
         if (!msg) throw new HttpError(400, 'commit message required');
-        await git('add', '-A', '--', 'content');
-        const { stdout: staged } = await git('diff', '--cached', '--name-only', '--', 'content');
+        await git('add', '-A', '--', ...TRACKED);
+        const { stdout: staged } = await git('diff', '--cached', '--name-only', '--', ...TRACKED);
         if (!staged.trim()) throw new HttpError(400, 'nothing to commit');
-        // Pathspec commit: only content/ goes in, whatever else is staged stays put.
-        await git('commit', '-m', `Content: ${msg}\n\nSaved from the Exo Genesis editor.`, '--', 'content');
+        // Pathspec commit: only content/ and media go in, whatever else is staged stays put.
+        await git('commit', '-m', `Content: ${msg}\n\nSaved from the Exo Genesis editor.`, '--', ...TRACKED);
         const { stdout: head } = await git('log', '-1', '--format=%h');
         return { commit: head.trim(), files: staged.trim().split('\n').length };
       }
@@ -138,6 +210,7 @@ export function contentServer(): Plugin {
     configResolved(c) {
       root = c.root;
       dir = path.join(root, 'content');
+      media = path.join(root, 'public', 'media');
     },
     configureServer(server) {
       server.middlewares.use('/__content', (req, res) => {

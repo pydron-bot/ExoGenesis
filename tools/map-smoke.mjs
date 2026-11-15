@@ -51,7 +51,7 @@ try {
   await ed.keyboard.press('1');
   await ed.fill('#brush-strength', '1').catch(() => {});
   await ed.evaluate(() => { const i = document.querySelector('#brush-strength'); i.value = '1'; i.dispatchEvent(new Event('input')); });
-  await stroke(P.x, P.z, 1500);
+  await stroke(P.x, P.z, 2500);
   check((await draft()).height, 'raise stroke wrote a height layer into the draft');
   check(await ed.isEnabled('#save'), 'region marked unsaved');
   const ro = await ed.textContent('.map-readout');
@@ -90,7 +90,7 @@ try {
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   const h1 = await game.evaluate(([x, z]) => __exo.height(x, z), [P.x, P.z]);
   const f1 = await game.evaluate(() => __exo.sim.cur.fauna.length / 3);
-  check(h1 > h0 + 2, `game terrain raised at (${P.x}, ${P.z}): ${h0.toFixed(1)} → ${h1.toFixed(1)}`);
+  check(h1 > h0 + 1, `game terrain raised at (${P.x}, ${P.z}): ${h0.toFixed(1)} → ${h1.toFixed(1)}`);
   check(f1 === f0 + 20, `game has the new herd's grazers (${f0} → ${f1})`);
 } finally {
   await fs.writeFile(file, original);

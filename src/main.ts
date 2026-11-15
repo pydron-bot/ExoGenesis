@@ -13,6 +13,7 @@ import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 import { startSkirmish } from './skirmish/mode';
 import { Landing } from './landing';
+import { loadModel } from './assets/models';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -113,6 +114,15 @@ if (!skirmishMode) {
 }
 $('cine-skip').onclick = () => landing?.skip();
 addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
+
+// asset models assigned in content replace built-in building models once loaded
+const solarModel = content.buildings.solar.model;
+if (solarModel && content.assets[solarModel]) {
+  loadModel(content.assets[solarModel]).then(
+    (m) => region.setBuildingModel('solar', m),
+    (e) => console.warn('solar model failed to load; keeping the built-in', e),
+  );
+}
 
 const buildBtn = $<HTMLButtonElement>('b-build');
 buildBtn.querySelector('small')!.textContent = `${content.buildings.solar.cost}◆`;

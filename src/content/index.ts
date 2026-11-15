@@ -16,7 +16,7 @@ const built = buildDb(files);
 export const content = built.db;
 export const contentIssues: FileIssue[] = [...built.issues, ...requiredIssues(built.db)];
 
-export type { UnitDef, BuildingDef, ColonyRules, RegionDef, HerdDef } from './defs';
+export type { UnitDef, BuildingDef, ColonyRules, RegionDef, HerdDef, AssetDef } from './defs';
 
 // Dev: a content edit reloads the game, but stops here so the update isn't
 // broadcast as a full reload to every open page (the editor keeps its state).

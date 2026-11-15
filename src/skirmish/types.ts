@@ -1,5 +1,5 @@
 /** Skirmish proof of concept: data contract between the worker sim and the renderer. */
-import { content } from '../content';
+import { content, type AssetDef } from '../content';
 
 /** Skirmish roster, indexed by UT. Stats come from content/units/*.json. */
 const ROSTER = ['rover', 'tank', 'swarmer', 'brute'] as const;
@@ -30,6 +30,8 @@ export interface SkUnitDef {
   splash?: number;
   aggro: number;
   scale: number;
+  /** Asset model replacing the built-in mesh, if any. */
+  model?: AssetDef;
 }
 
 export const DEFS: SkUnitDef[] = ROSTER.map((id) => {
@@ -37,6 +39,7 @@ export const DEFS: SkUnitDef[] = ROSTER.map((id) => {
   return {
     team: u.faction === 'accord' ? 0 : 1, hp: u.hp, speed: u.speed, range: u.range, dmg: u.damage,
     cooldown: u.cooldown, radius: u.radius, splash: u.splash || undefined, aggro: u.aggro, scale: u.modelScale,
+    model: u.model ? content.assets[u.model] : undefined,
   };
 });
 

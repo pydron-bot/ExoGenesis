@@ -59,12 +59,15 @@ node tools/shot.mjs    # headless screenshots of each zoom level → shots/
 npm run content:check  # validate content/ against src/content/defs.ts
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 node tools/map-smoke.mjs     # map editor → game end-to-end (restores the region afterwards)
+node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores content/ + public/media/)
 ```
 
 ## Content and the editor
 
 Game numbers and maps live in `content/` as JSON (units, buildings, regions, colony rules), not in code.
 Open a region (Maps → Touchdown) to sculpt terrain, paint flora and place grazer herds.
+Assets → Library lists every model (files and the built-in procedural ones); drop .glb, image or
+audio files onto the editor to add them, then pick a model in a unit's or building's Model field.
 Edit them at **http://hive1:5176/editor.html** (dev server only): saves write straight into
 `content/`, open game tabs reload with the new values, and the Commit button commits
 `content/` to the local repo. Schemas are in `src/content/defs.ts`; see DESIGN.md §6.4.
