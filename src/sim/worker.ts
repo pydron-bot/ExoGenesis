@@ -42,7 +42,7 @@ function newGame(seed: number) {
     version: 1, seed, rng: seed, tick: 0, nextId: 2, alloys: 120, cryo: 100, cryoWarn: 100,
     drone: { x: 0, z: -14, heading: Math.PI, task: { kind: 'idle' } },
     buildings: [{ id: 1, kind: 'core', x: 0, z: 0, progress: 1 }],
-    herds: [], fauna: [],
+    herds: [], fauna: [], phase: 'descent', panic: 0,
   };
   for (let h = 0; h < 7; h++) s.herds.push(randomHerdSpot());
   for (let i = 0; i < 160; i++) {
@@ -108,8 +108,12 @@ function stepDrone() {
   }
 }
 
+const PANIC_R = 115;
+
 function stepFauna() {
   const d = s.drone;
+  const panic = (s.panic ?? 0) > 0;
+  if (panic) s.panic!--;
   if (rnd() < 0.004) {
     const h = Math.floor(rnd() * s.herds.length);
     s.herds[h] = randomHerdSpot();
@@ -118,7 +122,13 @@ function stepFauna() {
     let tx = f.tx, tz = f.tz, sp = WALK;
     const ddx = f.x - d.x, ddz = f.z - d.z;
     const dd = Math.hypot(ddx, ddz);
-    if (dd < FLEE_R && dd > 1e-3) {
+    const rc0 = Math.hypot(f.x, f.z);
+    if (panic && rc0 < PANIC_R && rc0 > 1e-3) {
+      // engine noise: bolt away from the landing site
+      tx = f.x + (f.x / rc0) * 30;
+      tz = f.z + (f.z / rc0) * 30;
+      sp = RUN;
+    } else if (deployed() && dd < FLEE_R && dd > 1e-3) {
       tx = f.x + (ddx / dd) * 20;
       tz = f.z + (ddz / dd) * 20;
       sp = RUN;
@@ -156,11 +166,28 @@ function stepEconomy() {
   }
 }
 
+const deployed = () => (s.phase ?? 'deployed') === 'deployed';
+
 function step() {
   s.tick++;
-  stepDrone();
+  if (deployed()) stepDrone();
   stepFauna();
-  stepEconomy();
+  if (deployed()) stepEconomy();
+}
+
+function landing(stage: 'burn' | 'touchdown' | 'deploy') {
+  if (deployed()) return;
+  if (stage === 'burn') {
+    s.panic = Math.max(s.panic ?? 0, 16 * TICK_HZ);
+  } else if (stage === 'touchdown' && s.phase === 'descent') {
+    s.phase = 'landed';
+    s.panic = Math.max(s.panic ?? 0, 10 * TICK_HZ);
+    event('Touchdown. Cryo bank on reserve power — 2.3 MW deficit.', 'warn');
+  } else if (stage === 'deploy') {
+    if (s.phase === 'descent') landing('touchdown');
+    s.phase = 'deployed';
+    event('Worker drone deployed. Build a solar array to stabilize the cryo bank.');
+  }
 }
 
 function snapshot() {
@@ -178,6 +205,7 @@ function snapshot() {
   const snap: Snapshot = {
     type: 'snap', tick: s.tick,
     drone: { x: d.x, z: d.z, heading: d.heading, tx, tz, moving: t.kind !== 'idle', building: t.kind === 'build' },
+    deployed: deployed(),
     fauna: fa, buildings: s.buildings.map((b) => ({ ...b })),
     alloys: s.alloys, cryo: s.cryo, gen, draw,
   };
@@ -188,6 +216,8 @@ function handle(msg: ToWorker) {
   switch (msg.type) {
     case 'cmd': {
       const c = msg.cmd;
+      if (c.type === 'landing') { landing(c.stage); snapshot(); return; }
+      if (!deployed()) return;
       const x = clamp(c.x, -LIMIT, LIMIT), z = clamp(c.z, -LIMIT, LIMIT);
       if (c.type === 'move') {
         s.drone.task = { kind: 'move', x, z };
@@ -214,6 +244,8 @@ function handle(msg: ToWorker) {
     case 'load':
       if (msg.state?.version !== 1) { event('Save is from an incompatible version', 'bad'); return; }
       s = msg.state;
+      // a save made mid-landing resumes on the ground
+      if (!deployed()) { s.phase = 'deployed'; s.panic = 0; }
       snapshot();
       event('Save restored');
       return;
@@ -228,8 +260,6 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => handle(e.data);
 
 newGame(1337);
 snapshot();
-event('Touchdown. Cryo bank on reserve power — 2.3 MW deficit.', 'warn');
-event('Build a solar array to stabilize the cryo bank.');
 
 let last = performance.now();
 let acc = 0;

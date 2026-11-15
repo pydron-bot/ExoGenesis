@@ -37,6 +37,13 @@ export class ZoomCamera {
   readonly focus = new THREE.Vector3();
   readonly fwd = new THREE.Vector3();
   readonly right = new THREE.Vector3();
+  /** Cinematic hooks (landing sequence): look at this point instead, with weight 0..1. */
+  readonly focusOverride = new THREE.Vector3();
+  overrideW = 0;
+  /** Cinematic: honour `pitch` exactly instead of tilting to top-down as we climb. */
+  freePitch = false;
+  /** Camera shake amplitude in world units; decays on its own. */
+  shake = 0;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
@@ -81,6 +88,7 @@ export class ZoomCamera {
     const ground = regionToWorld(this.fx, this.fz, 0);
     // stay anchored over the base while climbing; only drift partway toward the planet centre
     this.focus.copy(ground).lerp(new THREE.Vector3(), this.a * 0.45).lerp(starPos, this.b);
+    if (this.overrideW > 0) this.focus.lerp(this.focusOverride, this.overrideW);
 
     // frame
     const up = new THREE.Vector3().copy(U).lerp(Y, this.b).normalize();
@@ -91,8 +99,11 @@ export class ZoomCamera {
     this.right.copy(ef).multiplyScalar(cy).addScaledVector(nf, -sy);
 
     // over the planet, tilt toward looking straight down at the landing site
-    let p = lerp(this.pitch, Math.max(this.pitch, 1.2), this.a);
-    p = lerp(p, Math.max(this.pitch, 0.6), this.b);
+    let p = this.pitch;
+    if (!this.freePitch) {
+      p = lerp(this.pitch, Math.max(this.pitch, 1.2), this.a);
+      p = lerp(p, Math.max(this.pitch, 0.6), this.b);
+    }
     const dir = new THREE.Vector3().copy(up).multiplyScalar(Math.sin(p)).addScaledVector(this.fwd, -Math.cos(p));
 
     const cam = this.camera;
@@ -110,6 +121,11 @@ export class ZoomCamera {
     }
     cam.up.copy(up);
     cam.lookAt(this.focus);
+    if (this.shake > 0.01) {
+      const s = this.shake;
+      cam.position.addScaledVector(this.right, (Math.random() - 0.5) * s).addScaledVector(up, (Math.random() - 0.5) * s);
+      this.shake *= Math.exp(-dt * 5);
+    } else this.shake = 0;
     cam.near = THREE.MathUtils.clamp(d * 0.01, 0.2, 200);
     cam.far = 1.2e7;
     cam.updateProjectionMatrix();

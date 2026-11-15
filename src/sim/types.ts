@@ -62,11 +62,21 @@ export interface SimState {
   buildings: Building[];
   herds: { x: number; z: number }[];
   fauna: Creature[];
+  /**
+   * Landing sequence: 'descent' until touchdown, 'landed' until the drone is
+   * out, then 'deployed'. Absent in older saves (= deployed).
+   */
+  phase?: 'descent' | 'landed' | 'deployed';
+  /** Ticks of engine-noise panic left: grazers near the core bolt. */
+  panic?: number;
 }
+
+export type LandingStage = 'burn' | 'touchdown' | 'deploy';
 
 export type Command =
   | { type: 'move'; x: number; z: number }
-  | { type: 'build'; kind: 'solar'; x: number; z: number };
+  | { type: 'build'; kind: 'solar'; x: number; z: number }
+  | { type: 'landing'; stage: LandingStage };
 
 export type ToWorker =
   | { type: 'cmd'; cmd: Command }
@@ -79,6 +89,8 @@ export interface Snapshot {
   type: 'snap';
   tick: number;
   drone: { x: number; z: number; heading: number; tx: number; tz: number; moving: boolean; building: boolean };
+  /** False until the landing sequence has put the drone on the ground. */
+  deployed: boolean;
   /** x, z, heading per creature. */
   fauna: Float32Array;
   buildings: Building[];

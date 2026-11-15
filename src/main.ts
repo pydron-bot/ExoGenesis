@@ -11,6 +11,7 @@ import { Provinces } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 import { startSkirmish } from './skirmish/mode';
+import { Landing } from './landing';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -43,14 +44,18 @@ const provinces = new Provinces(scene, globe, $('labels'));
 // atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
 const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
 scene.add(atmosphere);
-const region = new RegionView(scene, look);
+const floraParam = params.get('flora');
+const region = new RegionView(scene, look, skirmishMode || floraParam === 'off' ? null : Number(floraParam ?? 1) || 1);
 const cam = new ZoomCamera(camera);
 
 // ---------- HUD ----------
 const hud = $('hud');
 if (params.get('ui') === '0') hud.classList.add('hidden');
 const logEl = $('log');
+const heldLog: [string, 'info' | 'warn' | 'bad'][] = [];
 function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
+  // the landing cinematic hides the log; keep events for when it ends
+  if (landing) { heldLog.push([text, level]); return; }
   const el = document.createElement('div');
   el.className = `ev ${level === 'info' ? '' : level}`;
   el.textContent = text;
@@ -62,6 +67,34 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
 
 const sim = new SimClient(log, !skirmishMode);
 const ui: UiState = { selected: true, buildMode: false, drag: null, ghost: null };
+
+// ---------- landing cinematic ----------
+const cineEl = $('cine');
+let landing: Landing | null = null;
+if (!skirmishMode) {
+  if (params.get('intro') === '0' || params.get('view')) {
+    sim.command({ type: 'landing', stage: 'deploy' });
+  } else {
+    ui.selected = false;
+    document.body.classList.add('cine');
+    landing = new Landing(scene, region, cam, {
+      stage: (s) => sim.command({ type: 'landing', stage: s }),
+      caption: (title, sub) => {
+        $('cine-title').textContent = title;
+        $('cine-sub').textContent = sub;
+      },
+      done: () => {
+        document.body.classList.remove('cine');
+        cineEl.classList.add('gone');
+        ui.selected = true;
+        landing = null;
+        for (const [text, level] of heldLog.splice(0)) log(text, level);
+      },
+    });
+  }
+}
+$('cine-skip').onclick = () => landing?.skip();
+addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
 
 const buildBtn = $<HTMLButtonElement>('b-build');
 function setBuildMode(on: boolean) {
@@ -105,6 +138,7 @@ $('b-load').onclick = async () => {
   try {
     const file = await getSave<SaveFile>('slot1');
     if (!file) { log('No save in this browser yet', 'warn'); return; }
+    landing?.skip();
     sim.load(file.sim);
     Object.assign(cam, { yaw: file.camera.yaw, fx: file.camera.fx, fz: file.camera.fz });
     cam.targetDist = file.camera.dist;
@@ -211,7 +245,8 @@ function frame(now: number) {
   // sky: day/night at the landing site, fading to space as we climb
   const sunUp = system.starPos.clone().normalize().dot(U);
   bg.copy(skyNight).lerp(skyDay, smoothstep(-0.15, 0.25, sunUp));
-  const air = 1 - smoothstep(90, 420, cam.dist);
+  // cam.dist alone undercounts during the landing chase (close to the probe, high above the ground)
+  const air = 1 - smoothstep(90, 420, Math.max(cam.dist, cam.altitude() * 0.8));
   scene.background = bg.clone().lerp(space, 1 - air);
   fog.color.copy(bg);
   fog.near = air > 0.01 ? cam.dist * 2.2 : 1e9;
@@ -222,6 +257,9 @@ function frame(now: number) {
     skirmish.update(now, dt);
     if (!ready && skirmish.ready) { ready = true; exo.ready = true; }
   } else if (sim.prev && sim.cur) {
+    const day = smoothstep(-0.15, 0.25, sunUp);
+    landing?.update(dt, day);
+    region.flora?.update(t, 1 - smoothstep(-0.2, 0.15, sunUp));
     region.update(sim.prev, sim.cur, sim.alpha(now), t, ui, cam.dist, 1 - cam.a);
     if (!ready) { ready = true; exo.ready = true; }
   }
@@ -239,6 +277,8 @@ const exo = {
   cam,
   sim,
   skirmish,
+  region,
+  get landing() { return landing; },
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
   droneScreen: () => {
     const v = region.droneWorld.clone().project(camera);

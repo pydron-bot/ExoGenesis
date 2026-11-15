@@ -17,7 +17,7 @@ let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 const sim = () => page.evaluate(() => ({ drone: __exo.sim.cur.drone, buildings: __exo.sim.cur.buildings, tick: __exo.sim.cur.tick, alloys: __exo.sim.cur.alloys }));
 
-await page.goto(url);
+await page.goto(`${url}?intro=0`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
 await page.waitForTimeout(1500);
 

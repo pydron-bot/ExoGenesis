@@ -362,3 +362,12 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
 - **Follow-ups:** startup is slow (height grid, globe, provinces and textures all built on the main
   thread at load — move to the worker / cache / build lazily); "Command Core destroyed" event repeats
   every 5 s after the core falls; no game-over/restart flow in skirmish.
+- **Flora + landing (2026-11-15):** procedural alien flora (`src/world/flora.ts`): six archetypes
+  (spire, parasol, fan, tube clump, spore bulbs, crystal) randomised per seed into ~8 species, scattered
+  by the ground's flora field / altitude / slope, instanced (~3,200 plants, ~400k tris), wind sway and
+  night bioluminescence; `?flora=<seed>` rerolls, `?flora=off` disables; buildings clear plants. Visual only
+  for now — deterministic so the sim can later read it as biomass. Opening cinematic (`src/landing.ts`,
+  ~27 s, Skip/Esc, `?intro=0`): entry from ~26 km with plasma wake → full-throttle retro burn with dust →
+  touchdown → six shell petals fold out → petals dissolve into the core → drone bay opens and the drone
+  flies to its post. Sim has a landing phase (drone and economy wait for deploy; grazers bolt from the
+  engine noise). Needs a real-phone check for fps with flora on.

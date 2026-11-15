@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
+import { Flora } from './flora';
 import {
   E, HALF, N, R, U, floraAt, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, worldToRegion,
 } from './planet';
@@ -126,7 +127,7 @@ export class Ribbon {
   }
 }
 
-function orient(obj: THREE.Object3D, x: number, z: number, heading: number, lift: number) {
+export function orient(obj: THREE.Object3D, x: number, z: number, heading: number, lift: number) {
   regionToWorld(x, z, lift, obj.position);
   const up = regionDir(x, z);
   const fwd = new THREE.Vector3().copy(E).multiplyScalar(Math.sin(heading)).addScaledVector(N, Math.cos(heading));
@@ -135,7 +136,7 @@ function orient(obj: THREE.Object3D, x: number, z: number, heading: number, lift
   obj.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd));
 }
 
-function buildCore(): THREE.Group {
+export function buildCore(): THREE.Group {
   const g = new THREE.Group();
   const hull = metal('#9aa4ad');
   const dark = metal('#3a4048');
@@ -143,12 +144,17 @@ function buildCore(): THREE.Group {
   base.position.y = 0.8;
   const body = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 5.2, 7, 8), hull);
   body.position.y = 5;
+  body.rotation.y = Math.PI / 8; // a flat face toward -z for the drone hatch
   const cap = new THREE.Mesh(new THREE.ConeGeometry(4.2, 4, 8), hull);
   cap.position.y = 10.5;
+  cap.rotation.y = Math.PI / 8;
   const ring = new THREE.Mesh(new THREE.TorusGeometry(4.8, 0.35, 6, 24), glow(CYAN, 3));
+  ring.name = 'ring';
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 4;
-  const ring2 = ring.clone();
+  const ring2 = new THREE.Mesh(ring.geometry, glow(CYAN, 3));
+  ring2.name = 'ring';
+  ring2.rotation.x = Math.PI / 2;
   ring2.position.y = 6.4;
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 5, 5), dark);
   mast.position.y = 14.5;
@@ -156,6 +162,24 @@ function buildCore(): THREE.Group {
   tip.position.y = 17;
   tip.name = 'beacon';
   g.add(base, body, cap, ring, ring2, mast, tip);
+  // drone hatch on the -z face: dark bay with a lit lintel, door hinged at the bottom (folds out into a ramp)
+  const apo = (y: number) => (5.2 - (y - 1.5) / 7) * Math.cos(Math.PI / 8);
+  const bay = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.85, 0.1), new THREE.MeshStandardMaterial({ color: '#07090c', roughness: 1, flatShading: true }));
+  bay.position.set(0, 2.62, -apo(2.62) - 0.02);
+  bay.rotation.x = 0.142;
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.12, 0.12), glow(AMBER, 2.5));
+  lintel.position.set(0, 3.42, -apo(3.42) - 0.08);
+  lintel.name = 'lintel';
+  const hatch = new THREE.Group();
+  hatch.name = 'hatch';
+  hatch.position.set(0, 1.68, -apo(1.68) - 0.1);
+  hatch.rotation.x = 0.142;
+  const door = new THREE.Mesh(new THREE.BoxGeometry(2.45, 1.95, 0.16), metal('#b4bcc4'));
+  door.position.set(0, 0.975, -0.08);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.05), glow(CYAN, 2));
+  stripe.position.set(0, 1.45, -0.18);
+  hatch.add(door, stripe);
+  g.add(bay, lintel, hatch);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 6, 0.8), dark);
@@ -169,6 +193,7 @@ function buildCore(): THREE.Group {
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
     const pod = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.6, 3, 8), glow('#7ff7ff', 1.4));
+    pod.name = 'pod';
     pod.position.set(Math.cos(a) * 5.6, 2.4, Math.sin(a) * 5.6);
     pod.rotation.z = Math.PI / 2;
     pod.rotation.y = -a;
@@ -177,7 +202,7 @@ function buildCore(): THREE.Group {
   return g;
 }
 
-function buildDrone(): THREE.Group {
+export function buildDrone(): THREE.Group {
   const g = new THREE.Group();
   const shell = metal('#d7dde2');
   const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 2.0), shell);
@@ -286,7 +311,10 @@ export class RegionView {
   readonly drone: THREE.Group;
   readonly droneWorld = new THREE.Vector3();
   droneLocal = { x: 0, z: 0 };
-  private core: THREE.Group;
+  /** While true, the landing cinematic owns the drone's transform. */
+  droneHeld = false;
+  readonly flora: Flora | null;
+  readonly core: THREE.Group;
   private faunaMesh: THREE.InstancedMesh;
   private buildings = new Map<number, { kind: 'solar'; done: boolean; obj: THREE.Group }>();
   private orderRibbon = new Ribbon(CYAN, 0.45);
@@ -298,7 +326,7 @@ export class RegionView {
   private marker: THREE.Sprite;
   private raycaster = new THREE.Raycaster();
 
-  constructor(scene: THREE.Scene, look: Look = 'flat') {
+  constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1) {
     this.patch = buildPatch(look);
     scene.add(this.patch);
     scene.add(this.details);
@@ -309,6 +337,9 @@ export class RegionView {
 
     this.drone = buildDrone();
     this.details.add(this.drone);
+
+    this.flora = floraSeed === null ? null : new Flora({ seed: floraSeed, flat: look === 'flat' });
+    if (this.flora) this.details.add(this.flora.group);
 
     this.faunaMesh = new THREE.InstancedMesh(buildCreature(), new THREE.MeshStandardMaterial({
       color: '#c78a5a', roughness: 0.8, flatShading: true, emissive: '#3a1a10', emissiveIntensity: 0.4,
@@ -366,6 +397,7 @@ export class RegionView {
   /** Skirmish mode: keep terrain + core, hide the landing demo's drone and grazers. */
   hideLandingEntities() {
     for (const o of [this.drone, this.faunaMesh, this.selRing, this.targetRing, this.ghost, this.orderRibbon.mesh, this.targetRibbon.mesh]) o.visible = false;
+    if (this.flora) this.flora.group.visible = false;
     this.details.remove(this.drone, this.faunaMesh, this.selRing, this.targetRing, this.ghost);
   }
 
@@ -391,7 +423,7 @@ export class RegionView {
     let dh = b.heading - a.heading;
     dh = Math.atan2(Math.sin(dh), Math.cos(dh));
     const bob = Math.sin(t * 3) * 0.15;
-    orient(this.drone, x, z, a.heading + dh * alpha, 2.4 + bob);
+    if (!this.droneHeld) orient(this.drone, x, z, a.heading + dh * alpha, 2.4 + bob);
     this.droneWorld.copy(this.drone.position);
     this.droneLocal = { x, z };
 
@@ -444,6 +476,7 @@ export class RegionView {
       let entry = this.buildings.get(b.id);
       if (!entry || entry.done !== done) {
         if (entry) this.details.remove(entry.obj);
+        else this.flora?.clear(b.x, b.z, 6.5);
         const obj = done ? buildSolar() : buildScaffold();
         orient(obj, b.x, b.z, 0, 0);
         this.details.add(obj);

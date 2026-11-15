@@ -120,3 +120,17 @@ body.skirmish #log { bottom: calc(160px + env(safe-area-inset-bottom)); }
   body.skirmish #sk-help { display: none; }
   #hud button.cg { min-width: 34px; }
 }
+
+/* landing cinematic */
+#cine { display: none; }
+body.cine #cine {
+  display: block; position: absolute; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  text-align: center; pointer-events: none; width: min(92vw, 520px);
+}
+body.cine #bar, body.cine #res, body.cine #help, body.cine #log { display: none; }
+#cine-title { font-size: 15px; letter-spacing: 0.32em; color: var(--cyan); text-shadow: 0 0 10px rgba(95,243,255,.6), 0 0 2px #000; }
+#cine-sub { margin-top: 6px; font-size: 11px; letter-spacing: 0.12em; color: #d7e6ea; opacity: 0.85; text-shadow: 0 0 4px #000; }
+#cine-skip {
+  pointer-events: auto; margin-top: 14px; font: inherit; font-size: 11px; letter-spacing: 0.16em;
+  background: rgba(5,10,16,.55); color: var(--cyan); border: 1px solid rgba(95,243,255,.35); border-radius: 4px; padding: 6px 14px;
+}
