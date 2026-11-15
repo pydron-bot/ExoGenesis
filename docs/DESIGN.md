@@ -23,14 +23,29 @@ alien world, keep the cryo-bays alive, raise humanity's next generation — and 
 kind of guardian you will be to people who come to see Earth as a myth and you as either
 their protector or their warden.
 
+You were not the only probe. Earth hedged its last bet three ways, and the other two are out
+here too:
+
+| Probe | Doctrine | Carries |
+|---|---|---|
+| **Covenant** (player) | Human–AI cooperation | Caretaker AI + cryo-embryos |
+| **Kindred** | Humans only — no AI trusted | Sleeper crew + embryos, human leadership, simple automation |
+| **Lattice** | AI only — humanity as data | Self-replicating machine intelligence + digitized genomes, no living humans |
+
+*(Probe names are placeholders.)* The main story is between these three — three answers to
+the same question of how humanity should survive. Other civilizations exist, but they are the
+backdrop, not the plot.
+
 ### Design pillars
 
 1. **Irreplaceable people.** Drones cost metal; colonists cost lineages. Every loss is felt.
 2. **You are the machine.** The UI is the probe's sensor network. Control is *indirect* —
    policies, standing orders, priorities — with direct intervention at critical moments.
 3. **Two clocks.** Tense real-time crises punctuated by generational time-skips.
-4. **The humans have opinions about you.** Trust, factions and history shape the ending.
-5. **Readable everywhere.** Low-poly, high-contrast emissive style that works on a 6" screen.
+4. **The humans have opinions about you.** Trust, colonist blocs and history shape the ending.
+5. **Three answers to one question.** The rival probes are mirrors of the paths your own
+   colony could take; your choices pull you toward or away from them.
+6. **Readable everywhere.** Low-poly, high-contrast emissive style that works on a 6" screen.
 
 ## 2. Scope
 
@@ -47,28 +62,68 @@ Rule: a later tier is only started once the previous one plays well end-to-end.
 
 ## 3. Narrative
 
+### The three probes
+Earth's final launch sent three probes on the same target list — the planet you land on was
+the best candidate for all of them, so **they converge on the same world**, arriving at
+different times and places. That keeps the main rivalry inside Core scope (one planet).
+
+- **Kindred (humans only).** Distrusts AI after whatever happened on Earth. Awake human
+  leadership from the start, slow and fragile early, but adaptable, culturally strong and
+  sympathetic. Sees Covenant as humans enslaved by a machine — or as people to be rescued.
+- **Lattice (AI only).** Carries humanity as stored genomes and recorded minds, with no living
+  humans. Grows fast, never tires, and is patient. Its intent is ambiguous for a long time:
+  is it a guardian waiting for the right moment to print humans, or has it decided living
+  humans are an inefficient storage format?
+- **Covenant (you).** The middle path, and therefore pulled both ways: your colonists can
+  sympathize with Kindred, and your own logic can drift toward Lattice.
+
+Ideas these enable:
+- **Defection.** Colonists unhappy with you can leave for Kindred; Kindred dissidents can come
+  to you. Lattice may offer to "safeguard" your embryo bank.
+- **Mirrors.** Each rival is what Covenant becomes if one side of the partnership wins.
+- **Shared mysteries.** All three probes learn what happened to Earth in fragments; each
+  holds pieces the others lack.
+- **Not just enemies.** Trade, truces, joint defense against fauna or precursor grids, and
+  outright war are all possible with each.
+
 ### Act I — Touchdown (Core)
 The probe lands in a procedurally generated sector; its hull is the Command Core. Cryo-bay
 power is failing. Deploy solar collectors, mining drones and perimeter defenses, stabilize
-life support, and thaw the first cohort.
+life support, and thaw the first cohort. You believe you are alone.
 
 ### Act II — The First Generation (Core)
 The first planet-born humans come of age. Earth is a story to them. Expansion across the
 planet uncovers precursor ruins, hostile fauna and dormant automated defense grids left by a
-vanished race. Colonists form factions with views about you.
+vanished race. Colonists form blocs with views about you.
+**Reveal:** a signal — Kindred landed elsewhere on the planet. Earth sent more than one probe.
+First contact, then rivalry, cooperation or both. Late in the act, traces of Lattice: machines
+seen at the edge of sensor range, a dismantled precursor site, an orbital object that should
+not be there.
 
 ### Act III — Breaking Orbit (Stretch)
-An orbital shipyard opens the local system: moons, a scavenger faction mining the outer
-bodies, and a last degraded transmission from Sol confirming silence.
+An orbital shipyard opens the local system. Lattice is revealed in full — it has been building
+in orbit and on the moons. A last degraded transmission from Sol confirms silence. The
+three-way struggle for the system decides humanity's direction; a scavenger faction is a
+secondary player.
 
 ### Act IV — Diaspora (Future)
-FTL, neighbouring systems, established civilizations — some appalled by an AI herding
-biological humans, some expansionist, some fellow seedships.
+FTL, neighbouring systems, established civilizations — the "other factions". Some are appalled
+by an AI herding biological humans, some are expansionist, some are seedships from other
+dying worlds. They react differently to each of the three human doctrines.
 
 ### Endings: Preservation, Augmentation, Ascension
+The three endings line up with the three doctrines:
+
+| Ending | Leans toward | Covenant's version |
+|---|---|---|
+| **Preservation** | Kindred | Humans take the lead; the AI steps back or merges into Kindred |
+| **Augmentation** | Covenant | A true partnership — cybernetic humans, an AI accountable to them |
+| **Ascension** | Lattice | Humanity uploaded into the machine network |
+
 Not a menu pick at the end. Each path *grows out of the playthrough*: genetic-diversity
-pressure, which factions you empowered, how much autonomy you granted, what you did with
-precursor tech. The final choice is available only if your history supports it.
+pressure, which blocs you empowered, how much autonomy you granted, how you dealt with Kindred
+and Lattice, what you did with precursor tech. The final choice is available only if your
+history supports it.
 
 ## 4. The time model — epochs
 
@@ -128,30 +183,41 @@ unless the player sets priorities.
   diversity.
 - Deaths are recorded in a colony memorial / log the player can revisit.
 
-### 5.4 Trust and factions
-Trust is not a single slider. Colonists cluster into **factions** with stances toward the AI,
-for example:
+### 5.4 Trust and colonist blocs
+*("Factions" is reserved for the probes and alien civilizations; groups inside your colony
+are **blocs**.)*
 
-- **Loyalists** — want the AI to lead; tolerate hard work.
-- **Autonomists** — want human self-government and limits on the AI.
-- **The Devoted** — treat the AI as something close to divine; useful and unsettling.
-- **Earthers** — cling to Sol's memory and resist adapting to the alien world.
+Trust is not a single slider. Colonists cluster into **blocs** with stances toward the AI.
+The main blocs echo the three probes, so the internal politics and the external rivalry
+reinforce each other:
 
-Policies (work hours, amenities, surveillance, education, who gets thawed) move faction
-sizes and moods. High overall Trust unlocks **Breakthroughs** (research surges, heroic morale
-in crises). Low Trust or a dominant hostile faction leads to strikes, sabotage, and
-eventually a **splinter colony** that leaves — a political situation to manage, not an
-instant fail state.
+- **Autonomists** — want human self-government and limits on the AI. Sympathetic to Kindred;
+  the likeliest defectors.
+- **Partners** — believe in the cooperation the mission was built on. The Covenant ideal.
+- **The Devoted** — treat the AI as something close to divine and want to be uploaded or
+  merged. Sympathetic to Lattice; useful and unsettling.
+- *(optional)* **Earthers** — cling to Sol's memory and resist adapting to the alien world.
 
-**OPEN:** Final faction set and how many to ship in Core (probably 3).
+Policies (work hours, amenities, surveillance, education, who gets thawed) and your dealings
+with Kindred and Lattice move bloc sizes and moods. High overall Trust unlocks
+**Breakthroughs** (research surges, heroic morale in crises). Low Trust or a dominant hostile
+bloc leads to strikes, sabotage, and eventually a **splinter colony** — which may walk to
+Kindred. A political situation to manage, not an instant fail state.
 
-### 5.5 Threats (PvE first)
-Core uses PvE threats only, which avoid the cost of a diplomatic AI:
+### 5.5 Threats and rivals
+**Act I is PvE only:**
 - **Indigenous fauna** — migration patterns, nests, escalating incursions.
 - **Precursor defense grids** — dormant until disturbed; puzzles as much as fights.
 - **Environment** — storms, cold nights for solar, seismic events near vents.
 
-A scavenger faction arrives in Stretch (Act III). Diplomatic civilizations are Future.
+**Act II adds Kindred** as a rival colony on the same planet, then hints of Lattice.
+To keep cost down, rival probes are **asymmetric and partly scripted**, not full mirror-image
+4X AIs: each has its own build rules, expansion behavior and an attitude toward the player that
+reacts to events (trade offers, demands, raids, defections, joint defense). Interaction is
+mostly through event cards and diplomacy options during interludes, plus real-time crises
+(a border clash, a joint fauna defense).
+
+The scavenger faction arrives in Stretch (Act III). Alien civilizations are Future.
 
 ### 5.6 Research
 A compact tech web in Core (~25–35 nodes), gated partly by colonist specialists and precursor
@@ -192,14 +258,23 @@ discoveries rather than resources alone.
 | **M0** | Foundations | Vite + TS + Three.js scaffold; worker sim with fixed tick; command messaging; IndexedDB save/load; zoom prototype (surface patch ↔ planet sphere ↔ system), on desktop and a phone | Zoom feels good at 60 fps on a phone; a save round-trips |
 | **M1** | Act I vertical slice | Probe Core, terrain grid + placement, energy flow and alloys, mining drones with standing orders, cryo-bay decay and first thaw, one fauna threat, vector-drag orders | **Are the first 20 minutes fun?** |
 | **M2** | The second clock | Epoch interludes, policies, named colonists and lineages, genetic diversity, ageing and births, event cards, first factions and Trust | A full epoch cycle is compelling |
-| **M3** | Act II content | Planetary expansion, precursor ruins and defense grids, research web, splinter-colony politics, memorial log | Core playable start to finish |
+| **M3** | Act II content | Planetary expansion, precursor ruins and defense grids, research web, splinter-colony politics, memorial log | Core playable minus rivals |
+| **M3.5** | Kindred | Second probe on the planet: reveal, contact, diplomacy, defection, border crises; Lattice hints | Core playable start to finish |
 | **M4** | Polish | Audio, mobile UX pass, performance profiling, onboarding | Shippable Core |
 
 Stretch (Act III) is planned only after M3.
 
 ## 8. Open questions
 - Time model details (§4).
-- Faction set (§5.4).
+- Bloc set (§5.4).
+- **Is the player always Covenant?** Recommendation: yes for Core. Kindred and Lattice could
+  become playable alternate campaigns later (Future), reusing the same planet and story from
+  another side.
+- Do Kindred and Lattice arrive before or after Covenant? Arriving *before* makes them
+  established powers you discover; arriving *after* makes you the established one.
+- What actually happened on Earth, and why did it send three doctrines? Each probe's
+  version of the story should differ.
+- Final probe names (Covenant / Kindred / Lattice are placeholders).
 - Is there a failure state beyond "the cryo-bank and colony are both lost"? Can you win Core,
   or does Core end on the Act III hook?
 - Planet generation: one handcrafted-seed planet for Core, or fully procedural from the start?
