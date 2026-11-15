@@ -348,3 +348,17 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
   inhabitants = remnants of failed experiments. Act 1 opens with scripted tutorial missions,
   then the whole planet opens with periodic story events. Failure = losing the Command Core,
   the cryo bank or the colonists.
+
+## 9. Proof-of-concept results (2026-11-15)
+
+- **M0 tech demo:** continuous zoom surface ↔ orbit ↔ system, worker sim, IndexedDB saves — 60 fps on
+  Derek's iPhone. Home planet R=3000 with 89 fixed regions; 9-planet system.
+- **Terrain look:** `?look=smooth` (smooth shading + procedural ground textures) preferred over flat
+  low-poly up close. Open: globe detail/texturing so the landing patch doesn't show as a square from
+  mid-altitude (terrain LOD).
+- **Skirmish (`?mode=skirmish`):** ~1,000 hostiles on screen at **60 fps on iPhone**; sim
+  27.6 ms/tick on the phone at ~1,000 units (budget 100 ms at 10 Hz), ~3 ms on hive1.
+  All touch selection methods felt good (tap, hold/double-tap all-of-type, paint, control groups).
+- **Follow-ups:** startup is slow (height grid, globe, provinces and textures all built on the main
+  thread at load — move to the worker / cache / build lazily); "Command Core destroyed" event repeats
+  every 5 s after the core falls; no game-over/restart flow in skirmish.
