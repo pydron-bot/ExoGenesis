@@ -9,6 +9,7 @@ import {
 } from './types';
 
 const RULES = content.colony;
+const REGION = content.regions.touchdown;
 const CORE = content.buildings.core;
 const SOLAR = content.buildings.solar;
 
@@ -49,22 +50,27 @@ function newGame(seed: number) {
     buildings: [{ id: 1, kind: 'core', x: 0, z: 0, progress: 1 }],
     herds: [], fauna: [], phase: 'descent', panic: 0,
   };
-  for (let h = 0; h < RULES.herds; h++) s.herds.push(randomHerdSpot());
-  for (let i = 0; i < RULES.grazers && s.herds.length; i++) {
-    const herd = i % s.herds.length;
-    const c = s.herds[herd];
-    const x = clamp(c.x + (rnd() - 0.5) * 30, -LIMIT, LIMIT);
-    const z = clamp(c.z + (rnd() - 0.5) * 30, -LIMIT, LIMIT);
-    s.fauna.push({ x, z, heading: rnd() * Math.PI * 2, tx: x, tz: z, herd });
-  }
+  // herds come from the region map (content/regions/touchdown.json)
+  REGION.herds.forEach((hd, herd) => {
+    s.herds.push({ x: hd.x, z: hd.z });
+    for (let i = 0; i < hd.grazers; i++) {
+      const x = clamp(hd.x + (rnd() - 0.5) * 30, -LIMIT, LIMIT);
+      const z = clamp(hd.z + (rnd() - 0.5) * 30, -LIMIT, LIMIT);
+      s.fauna.push({ x, z, heading: rnd() * Math.PI * 2, tx: x, tz: z, herd });
+    }
+  });
 }
 
-function randomHerdSpot() {
-  for (;;) {
-    const x = (rnd() * 2 - 1) * (LIMIT - 15);
-    const z = (rnd() * 2 - 1) * (LIMIT - 15);
-    if (Math.hypot(x, z) > 50) return { x, z };
+/** A new grazing spot for herd `h`: somewhere within its roam radius of its home on the map. */
+function herdSpot(h: number) {
+  const home = REGION.herds[h] ?? { x: s.herds[h].x, z: s.herds[h].z, roam: 60 };
+  if (home.roam <= 0) return { x: home.x, z: home.z };
+  for (let tries = 0; tries < 20; tries++) {
+    const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * home.roam;
+    const x = home.x + Math.cos(a) * r, z = home.z + Math.sin(a) * r;
+    if (Math.abs(x) < LIMIT - 15 && Math.abs(z) < LIMIT - 15 && Math.hypot(x, z) > 50) return { x, z };
   }
+  return { x: home.x, z: home.z };
 }
 
 function energy() {
@@ -123,9 +129,9 @@ function stepFauna() {
   const d = s.drone;
   const panic = (s.panic ?? 0) > 0;
   if (panic) s.panic!--;
-  if (rnd() < 0.004) {
+  if (s.herds.length && rnd() < 0.004) {
     const h = Math.floor(rnd() * s.herds.length);
-    s.herds[h] = randomHerdSpot();
+    s.herds[h] = herdSpot(h);
   }
   for (const f of s.fauna) {
     let tx = f.tx, tz = f.tz, sp = WALK;

@@ -2,12 +2,13 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { COLLECTIONS, locate, type BuildingDef, type CollectionName, type ColonyRules, type UnitDef } from './defs';
+import { COLLECTIONS, locate, type BuildingDef, type CollectionName, type ColonyRules, type RegionDef, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
   units: Record<string, UnitDef>;
   buildings: Record<string, BuildingDef>;
+  regions: Record<string, RegionDef>;
   colony: ColonyRules;
 }
 
@@ -41,6 +42,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
   const db = {
     units: recs.units,
     buildings: recs.buildings,
+    regions: recs.regions,
     colony: recs.colony.colony,
   } as unknown as ContentDb;
   return { db, issues };
@@ -50,6 +52,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
 export const REQUIRED: Partial<Record<CollectionName, string[]>> = {
   units: ['rover', 'tank', 'swarmer', 'brute'],
   buildings: ['core', 'solar'],
+  regions: ['touchdown'],
 };
 
 export function requiredIssues(db: ContentDb): FileIssue[] {

@@ -8,6 +8,7 @@
 import './editor.css';
 import { COLLECTIONS, ID_RE, locate, pathOf, type Collection, type CollectionName } from '../content/defs';
 import { blank, validate, type Field, type IdIndex, type Issue } from '../content/schema';
+import { MapEditor } from './map';
 
 interface FileRec { path: string; hash: string; data: unknown; parseError?: string }
 interface Current {
@@ -33,6 +34,8 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEle
 
 const files = new Map<string, FileRec>();
 let cur: Current | null = null;
+let mapEd: MapEditor | null = null;
+const isMap = () => cur?.coll === 'regions';
 
 // ---------- API ----------
 class ApiError extends Error {
@@ -157,6 +160,8 @@ function confirmDiscard() {
 
 function open(name: CollectionName, id: string, force = false) {
   if (!force && !confirmDiscard()) return;
+  mapEd?.dispose();
+  mapEd = null;
   const path = pathOf(name, id);
   const rec = files.get(path);
   if (!rec) { toast(`${path} not found`, true); return; }
@@ -177,9 +182,9 @@ function fmt(v: unknown) {
   return v === undefined || v === '' ? '—' : typeof v === 'string' ? `"${v}"` : String(v);
 }
 
-function control(key: string, f: Field): HTMLElement {
-  const d = cur!.draft;
-  const set = (v: unknown) => { if (v === undefined) delete d[key]; else d[key] = v; changed(); };
+/** Input widget for one schema field of `d`; calls `onChange` after every edit. */
+export function control(d: Record<string, unknown>, key: string, f: Field, onChange: () => void): HTMLElement {
+  const set = (v: unknown) => { if (v === undefined) delete d[key]; else d[key] = v; onChange(); };
   switch (f.kind) {
     case 'num': {
       const el = h('input', { type: 'number', value: d[key] === undefined ? '' : String(d[key]) });
@@ -215,6 +220,9 @@ function control(key: string, f: Field): HTMLElement {
       el.oninput = () => set(el.value);
       return el;
     }
+    case 'grid':
+    case 'list':
+      return h('span', { cls: 'note', textContent: 'Edited in the map view' });
   }
 }
 
@@ -235,13 +243,26 @@ function renderForm() {
     del.onclick = () => void doDelete();
     actions.append(dup, del);
   }
+  main.classList.toggle('map-mode', isMap());
+  if (isMap()) {
+    const host = h('div', { cls: 'map-host' });
+    main.replaceChildren(
+      h('div', { cls: 'head' }, h('div', {}, title, h('div', { cls: 'path', textContent: `content/${cur.path}` })), actions),
+      h('div', { cls: 'stale', id: 'stale', textContent: 'This file changed on disk while you were editing. Saving will ask before overwriting.' }),
+      host,
+    );
+    const at = cur;
+    mapEd = new MapEditor(host, $('aside'), { draft: at.draft, changed, control });
+    changed();
+    return;
+  }
   const form = h('div', { cls: 'form' });
   for (const [key, f] of Object.entries(c.shape)) {
     const row = h('label', { cls: 'row' });
     row.dataset.key = key;
     row.append(
       h('span', { cls: 'lbl', textContent: f.label ?? key }, f.optional ? h('small', { textContent: ' optional' }) : null),
-      h('span', { cls: 'ctl' }, control(key, f), f.kind === 'num' && f.unit ? h('span', { cls: 'unit', textContent: f.unit }) : null, h('span', { cls: 'was' })),
+      h('span', { cls: 'ctl' }, control(cur.draft, key, f, changed), f.kind === 'num' && f.unit ? h('span', { cls: 'unit', textContent: f.unit }) : null, h('span', { cls: 'was' })),
       h('span', { cls: 'help', textContent: f.help ?? '' }),
       h('span', { cls: 'issue' }),
     );
@@ -277,6 +298,11 @@ function changed() {
   document.title = `${isDirty ? '● ' : ''}Exo Genesis Editor`;
   document.querySelector('#side .item.on')?.classList.toggle('dirty', isDirty);
 
+  if (isMap()) {
+    $('main').querySelector('.map-issues')?.remove();
+    if (iss.length) $('main').querySelector('.head')!.after(h('div', { cls: 'map-issues', textContent: iss.map((i) => `${i.field}: ${i.msg}`).join(' · ') }));
+    return;
+  }
   // aside: problems + the exact JSON that will be written
   const extra = iss.filter((i) => !(i.field in shape));
   $('aside').replaceChildren(
@@ -330,6 +356,9 @@ async function doDelete() {
     await api('DELETE', '/__content/file', { path: cur.path, baseHash: cur.baseHash });
     files.delete(cur.path);
     toast(`Deleted content/${cur.path}`);
+    mapEd?.dispose();
+    mapEd = null;
+    $('main').classList.remove('map-mode');
     cur = null;
     $('main').replaceChildren(h('div', { id: 'empty', textContent: 'Deleted.' }));
     $('aside').replaceChildren();
@@ -427,4 +456,4 @@ if (at) open(at.coll, at.id);
 setInterval(() => void poll(), 4000);
 
 declare global { interface Window { __editor: unknown } }
-window.__editor = { get cur() { return cur; }, files, dirty };
+window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, files, dirty };

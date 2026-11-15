@@ -51,8 +51,23 @@ export interface ColorField extends Base<string> {
   default?: string;
 }
 
-export type Field = NumField | StrField | BoolField | ChoiceField | RefField | ColorField;
-export type Shape = Record<string, Field>;
+/** A 2D grid of whole numbers, stored as one run-length-encoded string per row (see grid.ts). */
+export interface GridField extends Base<string[]> {
+  kind: 'grid';
+  cols: number;
+  rows: number;
+  min: number;
+  max: number;
+}
+/** A list of small records (e.g. herds on a map). */
+export interface ListField<S extends Shape = Shape> extends Base<Infer<S>[]> {
+  kind: 'list';
+  of: S;
+  max?: number;
+}
+
+export type Field = NumField | StrField | BoolField | ChoiceField | RefField | ColorField | GridField | ListField;
+export type Shape = { [k: string]: Field };
 
 type ValueOf<F> = F extends Base<infer T> ? T : never;
 type OptKeys<S extends Shape> = { [K in keyof S]: S[K] extends { optional: true } ? K : never }[keyof S];
@@ -68,6 +83,11 @@ export const bool = <O extends Opts<BoolField>>(o: O = {} as O) => ({ kind: 'boo
 export const color = <O extends Opts<ColorField>>(o: O = {} as O) => ({ kind: 'color', ...o }) as ColorField & O;
 export const ref = <O extends Omit<Opts<RefField>, 'to'>>(to: string, o: O = {} as O) =>
   ({ kind: 'ref', to, ...o }) as RefField & O;
+export const grid = <O extends Omit<Opts<GridField>, 'cols' | 'rows' | 'min' | 'max'>>(
+  cols: number, rows: number, min: number, max: number, o: O = {} as O,
+) => ({ kind: 'grid', cols, rows, min, max, ...o }) as GridField & O;
+export const list = <S extends Shape, O extends Omit<Opts<ListField<S>>, 'of'>>(of: S, o: O = {} as O) =>
+  ({ kind: 'list', of, ...o }) as ListField<S> & O;
 export const choice = <const V extends string, O extends Omit<Opts<ChoiceField<V>>, 'values'>>(
   values: readonly V[],
   o: O = {} as O,
@@ -76,6 +96,24 @@ export const choice = <const V extends string, O extends Omit<Opts<ChoiceField<V
 export interface Issue {
   field: string;
   msg: string;
+}
+
+function gridIssue(f: GridField, v: unknown): string | null {
+  if (!Array.isArray(v) || v.length !== f.rows) return `must be ${f.rows} rows`;
+  for (let r = 0; r < v.length; r++) {
+    const row = v[r];
+    if (typeof row !== 'string') return `row ${r} must be text`;
+    let n = 0;
+    for (const tok of row.split(' ')) {
+      const m = tok.match(/^(-?\d+)(?:\*(\d+))?$/);
+      if (!m) return `row ${r}: bad value "${tok}"`;
+      const val = Number(m[1]);
+      if (val < f.min || val > f.max) return `row ${r}: ${val} outside ${f.min}..${f.max}`;
+      n += m[2] ? Number(m[2]) : 1;
+    }
+    if (n !== f.cols) return `row ${r} has ${n} values, needs ${f.cols}`;
+  }
+  return null;
 }
 
 /** Ids of every record in every collection, for `ref` checks. */
@@ -118,6 +156,18 @@ export function validate(shape: Shape, data: unknown, ids?: IdIndex): Issue[] {
         if (typeof v !== 'string') out.push({ field: k, msg: 'must be an id' });
         else if (ids && !ids[f.to]?.has(v)) out.push({ field: k, msg: `no ${f.to} with id "${v}"` });
         break;
+      case 'grid': {
+        const err = gridIssue(f, v);
+        if (err) out.push({ field: k, msg: err });
+        break;
+      }
+      case 'list':
+        if (!Array.isArray(v)) { out.push({ field: k, msg: 'must be a list' }); break; }
+        if (f.max !== undefined && v.length > f.max) out.push({ field: k, msg: `at most ${f.max} entries` });
+        v.forEach((item, n) => {
+          for (const i of validate(f.of, item, ids)) out.push({ field: `${k}[${n}]${i.field ? `.${i.field}` : ''}`, msg: i.msg });
+        });
+        break;
     }
   }
   for (const k of Object.keys(rec)) {
@@ -138,6 +188,8 @@ export function blank(shape: Shape): Record<string, unknown> {
       case 'choice': o[k] = f.default ?? f.values[0]; break;
       case 'color': o[k] = f.default ?? '#ffffff'; break;
       case 'ref': o[k] = ''; break;
+      case 'grid': break;
+      case 'list': o[k] = []; break;
     }
   }
   return o;

@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import type { ZoomCamera } from './camera';
 import type { LandingStage } from './sim/types';
 import { lerp, smoothstep } from './world/noise';
-import { R, floraAt, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, U } from './world/planet';
+import { R, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, U } from './world/planet';
 import { buildCore, orient, type RegionView } from './world/region';
 
 // ---------- timeline (seconds) ----------
@@ -398,7 +398,7 @@ export class Landing {
     this.light.position.set(0, -2, 0);
     this.probe.add(this.light);
 
-    const dc = terrainColor(regionHeightRaw(0, 0), floraAt(regionDir(0, 0)), new THREE.Color());
+    const dc = terrainColor(regionHeightRaw(0, 0), regionFlora(0, 0), new THREE.Color());
     this.dust = new Dust(dc.lerp(new THREE.Color('#c9b49a'), 0.35));
 
     scene.add(this.probe, this.dust.mesh);

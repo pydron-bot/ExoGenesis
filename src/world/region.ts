@@ -8,7 +8,7 @@ import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
 import { Flora } from './flora';
 import {
-  E, HALF, N, R, U, floraAt, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, worldToRegion,
+  E, HALF, N, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, worldToRegion,
 } from './planet';
 
 const STEP = 2;
@@ -42,7 +42,7 @@ function buildPatch(look: Look): THREE.Mesh {
       regionDir(x, z, d);
       v.copy(d).multiplyScalar(R + Math.max(0, raw) - (skirt ? 10 : 0));
       pos.push(v.x, v.y, v.z);
-      terrainColor(raw, floraAt(d), c);
+      terrainColor(raw, regionFlora(x, z), c);
       col.push(c.r, c.g, c.b);
       uv.push(x / 22, z / 22); // one texture tile per 22 units (~220 m)
     }
@@ -326,7 +326,7 @@ export class RegionView {
   private marker: THREE.Sprite;
   private raycaster = new THREE.Raycaster();
 
-  constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1) {
+  constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1) {
     this.patch = buildPatch(look);
     scene.add(this.patch);
     scene.add(this.details);
@@ -338,7 +338,7 @@ export class RegionView {
     this.drone = buildDrone();
     this.details.add(this.drone);
 
-    this.flora = floraSeed === null ? null : new Flora({ seed: floraSeed, flat: look === 'flat' });
+    this.flora = floraSeed === null ? null : new Flora({ seed: floraSeed, flat: look === 'flat', density: floraDensity });
     if (this.flora) this.details.add(this.flora.group);
 
     this.faunaMesh = new THREE.InstancedMesh(buildCreature(), new THREE.MeshStandardMaterial({

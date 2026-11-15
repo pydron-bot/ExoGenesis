@@ -6,7 +6,8 @@
  * Only add a field once the game actually reads it, so the editor never shows a
  * knob that does nothing.
  */
-import { choice, int, num, str, type Infer, type Shape } from './schema';
+import { REGION_HALF } from '../sim/types';
+import { choice, grid, int, list, num, str, type Infer, type Shape } from './schema';
 
 export const unitShape = {
   name: str({ label: 'Name' }),
@@ -42,10 +43,33 @@ export const colonyRulesShape = {
   droneBusyDrawMW: num({ label: 'Drone draw (working)', min: 0, max: 50, step: 0.05, unit: 'MW' }),
   cryoDrawMW: num({ label: 'Cryo bank draw', min: 0, max: 100, step: 0.1, unit: 'MW' }),
   solSeconds: num({ label: 'Length of a sol', min: 10, max: 7200, unit: 's', help: 'Real seconds per game day.' }),
-  herds: int({ label: 'Grazer herds', min: 0, max: 50 }),
-  grazers: int({ label: 'Grazers', min: 0, max: 2000 }),
 } satisfies Shape;
 export type ColonyRules = Infer<typeof colonyRulesShape>;
+
+/** Region paint grids: one sample every REGION_STEP units across the whole region. */
+export const REGION_STEP = 2;
+export const REGION_CELLS = (REGION_HALF * 2) / REGION_STEP + 1; // 121
+/** Height grid values are tenths of a world unit. */
+export const HEIGHT_SCALE = 0.1;
+
+export const herdShape = {
+  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  grazers: int({ label: 'Grazers', min: 0, max: 400 }),
+  roam: num({ label: 'Roam radius', min: 0, max: 240, unit: 'u', help: 'How far the herd may wander from here. 0 = stays put.' }),
+} satisfies Shape;
+export type HerdDef = Infer<typeof herdShape>;
+
+export const regionShape = {
+  name: str({ label: 'Name' }),
+  description: str({ label: 'Description', multiline: true, optional: true }),
+  floraSeed: int({ label: 'Flora seed', min: 1, max: 999999, help: 'Picks the plant species. ?flora=<seed> in the URL overrides it.' }),
+  floraDensity: num({ label: 'Flora density', min: 0, max: 3, step: 0.05, default: 1, help: 'Multiplies the number of plants everywhere.' }),
+  height: grid(REGION_CELLS, REGION_CELLS, -600, 600, { label: 'Height sculpt', optional: true, help: 'Added to the generated terrain, in tenths of a unit.' }),
+  flora: grid(REGION_CELLS, REGION_CELLS, -100, 100, { label: 'Flora paint', optional: true, help: '−100 clears plants, +100 doubles them and makes the ground lush.' }),
+  herds: list(herdShape, { label: 'Grazer herds', max: 60 }),
+} satisfies Shape;
+export type RegionDef = Infer<typeof regionShape>;
 
 export interface Collection {
   /** Folder under /content, or a single file for a singleton. */
@@ -62,6 +86,7 @@ export interface Collection {
 export const COLLECTIONS = {
   units: { path: 'units', kind: 'many', shape: unitShape, label: 'Units', title: 'name', group: 'Game data' },
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
+  regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
 } satisfies Record<string, Collection>;
 

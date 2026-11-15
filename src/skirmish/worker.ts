@@ -4,7 +4,8 @@
  * waves of fauna heading for the Command Core. Runs at a fixed tick in a Web
  * Worker; state is structure-of-arrays so it stays fast at 1000+ units.
  */
-import { HALF } from '../world/planet';
+import { HALF, setRegionTerrain } from '../world/planet';
+import { content } from '../content';
 import { GRID_N, rawGrid } from '../world/heightGrid';
 import {
   DEFS, FX, FX_STRIDE, MAX_UNITS, SK_TICK_HZ, SK_TICK_MS, STRIDE, UT,
@@ -12,6 +13,7 @@ import {
 } from './types';
 
 const ctx = self as unknown as Worker;
+setRegionTerrain(content.regions.touchdown);
 const DT = 1 / SK_TICK_HZ;
 
 // ---------- navigation grid ----------

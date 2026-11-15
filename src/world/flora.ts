@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm3, smoothstep } from './noise';
-import { E, HALF, N, floraAt, regionDir, regionHeightRaw, regionToWorld } from './planet';
+import { E, HALF, N, floraPaintAt, regionDir, regionFlora, regionHeightRaw, regionToWorld } from './planet';
 
 type Rng = () => number;
 
@@ -474,7 +474,7 @@ export class Flora {
         const h = regionHeightRaw(x, z);
         if (h < 2.5) continue;
         const slope = Math.hypot(regionHeightRaw(x + 1, z) - regionHeightRaw(x - 1, z), regionHeightRaw(x, z + 1) - regionHeightRaw(x, z - 1)) / 2;
-        const fl = floraAt(regionDir(x, z));
+        const fl = regionFlora(x, z);
         const lush = smoothstep(0, 0.18, fl) * (1 - smoothstep(28, 37, h));
         const high = smoothstep(32, 38, h);
         const bare = Math.max(0, 1 - lush - high);
@@ -490,7 +490,8 @@ export class Flora {
           total += v;
           return v;
         });
-        const p = Math.min(0.95, total * base * density * near);
+        const paint = Math.min(2, Math.max(0, 1 + floraPaintAt(x, z)));
+        const p = Math.min(0.95, total * base * density * near * paint);
         if (r() > p) continue;
         let k = r() * total, si = 0;
         for (; si < w.length - 1; si++) { k -= w[si]; if (k <= 0) break; }

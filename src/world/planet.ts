@@ -7,6 +7,8 @@
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { REGION_HALF } from '../sim/types';
+import { HEIGHT_SCALE, REGION_CELLS, REGION_STEP } from '../content/defs';
+import { decodeGrid } from '../content/grid';
 import { fbm3, lerp, smoothstep } from './noise';
 
 export const R = 3000;
@@ -35,19 +37,71 @@ export function floraAt(d: THREE.Vector3): number {
   return fbm3(d.x * 14 + 11, d.y * 14, d.z * 14, 3, 33);
 }
 
-function regionBase(x: number, z: number): number {
+/** Generated terrain before any hand sculpting. */
+export function regionProcBase(x: number, z: number): number {
   const h = globeHeight(regionDir(x, z, _d));
   const edge = Math.min(HALF - Math.abs(x), HALF - Math.abs(z));
   return h + fbm3(x * 0.045, 1.3, z * 0.045, 3, 21) * 10 * smoothstep(0, 26, edge);
 }
 
+// ---------- hand-authored layers (content/regions/<id>.json) ----------
+/** Sculpted height offset (units) and flora paint (-1..1), REGION_CELLS² samples, row-major [z][x]. */
+let hOff: Float32Array | null = null;
+let fPaint: Float32Array | null = null;
 let coreH: number | null = null;
+
+/** Load a region's painted layers. Call before anything samples the terrain. */
+export function setRegionTerrain(t: { height?: string[]; flora?: string[] }) {
+  const n = REGION_CELLS;
+  setRegionLayers(
+    t.height ? Float32Array.from(decodeGrid(t.height, n, n), (v) => v * HEIGHT_SCALE) : null,
+    t.flora ? Float32Array.from(decodeGrid(t.flora, n, n), (v) => v / 100) : null,
+  );
+}
+
+/** Editor: share live arrays with the terrain functions. */
+export function setRegionLayers(height: Float32Array | null, flora: Float32Array | null) {
+  hOff = height;
+  fPaint = flora;
+  coreH = null;
+}
+
+/** Bilinear sample of a region grid at region coords. */
+export function sampleLayer(g: Float32Array, x: number, z: number): number {
+  const n = REGION_CELLS;
+  const fx = Math.min(n - 1.0001, Math.max(0, (x + HALF) / REGION_STEP));
+  const fz = Math.min(n - 1.0001, Math.max(0, (z + HALF) / REGION_STEP));
+  const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
+  const a = g[j * n + i], b = g[j * n + i + 1], c = g[(j + 1) * n + i], d = g[(j + 1) * n + i + 1];
+  return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz;
+}
+
+/** Sculpting fades out over the last few units so the patch still meets the globe. */
+export const SCULPT_FADE = 14;
+export const sculptFade = (x: number, z: number) => smoothstep(0, SCULPT_FADE, Math.min(HALF - Math.abs(x), HALF - Math.abs(z)));
+/** 0 on the flat landing pad, 1 outside it. */
+export const PAD_INNER = 13, PAD_OUTER = 28;
+export const padBlend = (x: number, z: number) => smoothstep(PAD_INNER, PAD_OUTER, Math.hypot(x, z));
+/** Pad height from the pre-pad terrain at the origin. */
+export const padHeight = (base0: number) => Math.max(1.5, base0);
+
+function regionBase(x: number, z: number): number {
+  return regionProcBase(x, z) + (hOff ? sampleLayer(hOff, x, z) * sculptFade(x, z) : 0);
+}
 
 /** Raw (may be below sea level) height for region coords; flattened pad around the core. */
 export function regionHeightRaw(x: number, z: number): number {
-  coreH ??= Math.max(1.5, regionBase(0, 0));
-  return lerp(coreH, regionBase(x, z), smoothstep(13, 28, Math.hypot(x, z)));
+  coreH ??= padHeight(regionBase(0, 0));
+  return lerp(coreH, regionBase(x, z), padBlend(x, z));
 }
+
+/** Painted flora, -1 (cleared) .. 1 (doubled). */
+export const floraPaintAt = (x: number, z: number) => (fPaint ? sampleLayer(fPaint, x, z) : 0);
+/** How far painting shifts the flora field (lushness / ground tint). */
+export const FLORA_PAINT_SHIFT = 0.3;
+const _fd = new THREE.Vector3();
+/** Flora field inside the region, including paint. */
+export const regionFlora = (x: number, z: number) => floraAt(regionDir(x, z, _fd)) + floraPaintAt(x, z) * FLORA_PAINT_SHIFT;
 
 export const regionHeight = (x: number, z: number) => Math.max(0, regionHeightRaw(x, z));
 
@@ -101,7 +155,7 @@ export function buildGlobe(look: 'flat' | 'smooth' = 'flat'): THREE.Mesh {
       if (inner < HALF + 2) {
         // follow the detailed patch; sink only well inside it so coarse triangles that
         // straddle the border don't open a trench along the patch edge
-        terrainColor(regionHeightRaw(x, z), floraAt(d), color);
+        terrainColor(regionHeightRaw(x, z), regionFlora(x, z), color);
         h = Math.max(0, regionHeightRaw(x, z)) - (inner < HALF - 60 ? 14 : 1.5);
         col.set([color.r, color.g, color.b], i * 3);
         pos.setXYZ(i, d.x * (R + h), d.y * (R + h), d.z * (R + h));

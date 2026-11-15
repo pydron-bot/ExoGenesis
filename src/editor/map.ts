@@ -1,0 +1,657 @@
+/**
+ * Region map editor: sculpt terrain, paint flora, place grazer herds.
+ *
+ * Heights use the same functions as the game (world/planet.ts), so the view
+ * matches what loads in game, minus the planet's curvature (~2 u drop at the
+ * region edge). Region x → three x, region z → three −z, so the map isn't
+ * mirrored relative to the game.
+ */
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { HEIGHT_SCALE, REGION_CELLS as NC, REGION_STEP, herdShape, regionShape, type HerdDef } from '../content/defs';
+import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
+import type { Field } from '../content/schema';
+import { REGION_HALF as HALF } from '../sim/types';
+import {
+  FLORA_PAINT_SHIFT, PAD_OUTER, SCULPT_FADE, floraAt, padBlend, padHeight, regionDir, regionProcBase, sculptFade, terrainColor,
+} from '../world/planet';
+
+export interface MapHost {
+  draft: Record<string, unknown>;
+  /** The draft changed (dirty state, title, buttons). */
+  changed(): void;
+  control(d: Record<string, unknown>, key: string, f: Field, onChange: () => void): HTMLElement;
+}
+
+type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd';
+const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
+  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd to select it, drag to move it' },
+  { id: 'raise', label: 'Raise', key: '1', tip: 'Raise ground (Shift: lower)' },
+  { id: 'lower', label: 'Lower', key: '2', tip: 'Lower ground (Shift: raise)' },
+  { id: 'smooth', label: 'Smooth', key: '3', tip: 'Even out bumps' },
+  { id: 'flatten', label: 'Flatten', key: '4', tip: 'Level to the height where the stroke started' },
+  { id: 'flora+', label: 'Flora +', key: '5', tip: 'More plants, lusher ground (Shift: clear)' },
+  { id: 'flora-', label: 'Flora −', key: '6', tip: 'Fewer plants, barer ground (Shift: add)' },
+  { id: 'herd', label: 'Add herd', key: 'H', tip: 'Click the ground to place a grazer herd' },
+];
+
+const MAX_OFF = 60; // units, matches the schema's ±600 tenths
+const N2 = NC * NC;
+const CENTER = ((NC - 1) / 2) * NC + (NC - 1) / 2;
+const nodeX = (i: number) => -HALF + (i % NC) * REGION_STEP;
+const nodeZ = (i: number) => -HALF + Math.floor(i / NC) * REGION_STEP;
+
+// one renderer for the editor's lifetime (WebGL contexts are scarce); camera survives reopening
+let renderer: THREE.WebGLRenderer | null = null;
+const camState = { pos: new THREE.Vector3(0, 190, -170), target: new THREE.Vector3(0, 0, 0) };
+const prefs = { tool: 'raise' as Tool, radius: 12, strength: 0.5, showPaint: true };
+
+// generated terrain never changes; compute it once
+let proc: Float32Array | null = null, fade: Float32Array, pad: Float32Array, floraBase: Float32Array;
+function precompute() {
+  if (proc) return;
+  proc = new Float32Array(N2); fade = new Float32Array(N2); pad = new Float32Array(N2); floraBase = new Float32Array(N2);
+  for (let i = 0; i < N2; i++) {
+    const x = nodeX(i), z = nodeZ(i);
+    proc[i] = regionProcBase(x, z);
+    fade[i] = sculptFade(x, z);
+    pad[i] = padBlend(x, z);
+    floraBase[i] = floraAt(regionDir(x, z));
+  }
+}
+
+interface Snap { off: Float32Array; paint: Float32Array; herds: string }
+
+export class MapEditor {
+  private scene = new THREE.Scene();
+  private camera: THREE.PerspectiveCamera;
+  private controls: OrbitControls;
+  private canvasWrap: HTMLElement;
+  private readout: HTMLElement;
+  private terrain: THREE.Mesh;
+  private geo = new THREE.BufferGeometry();
+  private hgt = new Float32Array(N2); // displayed (final) height per node
+  private off: Float32Array;
+  private paint: Float32Array;
+  private herds: HerdDef[];
+  private herdGroup = new THREE.Group();
+  private cursor: THREE.LineLoop;
+  private selected = -1;
+  private undo: Snap[] = [];
+  private redo: Snap[] = [];
+  private raf = 0;
+  private ro: ResizeObserver;
+  private ray = new THREE.Raycaster();
+  private ndc = new THREE.Vector2();
+  private hover: { x: number; z: number } | null = null;
+  private stroke: { tool: Tool; target: number; last: number } | null = null;
+  private dragHerd = -1;
+  private shift = false;
+  private disposed = false;
+  private asideEls: { tools: HTMLElement; herds: HTMLElement; herd: HTMLElement } = null!;
+
+  constructor(main: HTMLElement, private aside: HTMLElement, private host: MapHost) {
+    precompute();
+    const d = host.draft;
+    this.off = Float32Array.from(decodeGrid(d.height as string[] | undefined, NC, NC), (v) => v * HEIGHT_SCALE);
+    this.paint = Float32Array.from(decodeGrid(d.flora as string[] | undefined, NC, NC), (v) => v / 100);
+    this.herds = Array.isArray(d.herds) ? (d.herds as HerdDef[]) : (d.herds = []) as HerdDef[];
+
+    renderer ??= new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.canvasWrap = document.createElement('div');
+    this.canvasWrap.className = 'map-wrap';
+    this.canvasWrap.append(renderer.domElement);
+    this.readout = document.createElement('div');
+    this.readout.className = 'map-readout';
+    this.canvasWrap.append(this.readout);
+    main.append(this.canvasWrap);
+
+    this.camera = new THREE.PerspectiveCamera(50, 1, 1, 3000);
+    this.camera.position.copy(camState.pos);
+    this.controls = new OrbitControls(this.camera, renderer.domElement);
+    this.controls.target.copy(camState.target);
+    this.controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+    this.controls.zoomToCursor = true;
+    this.controls.maxPolarAngle = Math.PI * 0.49;
+    this.controls.minDistance = 15;
+    this.controls.maxDistance = 900;
+    this.controls.update();
+
+    this.scene.background = new THREE.Color('#0a1018');
+    this.scene.add(new THREE.HemisphereLight('#cfe6ff', '#3a2a20', 1.1));
+    const sun = new THREE.DirectionalLight('#fff1dc', 2.2);
+    sun.position.set(-120, 200, 80);
+    this.scene.add(sun);
+
+    // terrain: one vertex per grid node, flat shaded like the game's flat look
+    const pos = new Float32Array(N2 * 3), col = new Float32Array(N2 * 3);
+    this.geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const idx: number[] = [];
+    for (let j = 0; j < NC - 1; j++) for (let i = 0; i < NC - 1; i++) {
+      const a = j * NC + i, b = a + 1, c = a + NC, e = c + 1;
+      idx.push(a, b, c, b, e, c); // counter-clockwise from above (x right, region z → −three z)
+    }
+    this.geo.setIndex(idx);
+    this.terrain = new THREE.Mesh(this.geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }));
+    this.scene.add(this.terrain);
+    this.rebuild(0, N2);
+
+    // sea level
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), new THREE.MeshBasicMaterial({ color: '#2a7a9a', transparent: true, opacity: 0.18, depthWrite: false }));
+    sea.rotation.x = -Math.PI / 2;
+    sea.position.y = 0.05;
+    this.scene.add(sea);
+
+    // fixed references: landing pad, sculpt fade border, region edge
+    this.scene.add(this.flatRing(PAD_OUTER, '#ffb547', 0.9), this.squareLine(HALF - SCULPT_FADE, '#5d7a96', true), this.squareLine(HALF, '#3fd6ff', false));
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 6, 6), new THREE.MeshStandardMaterial({ color: '#c9d6e2', emissive: '#1d6a80', flatShading: true }));
+    core.position.y = this.hgt[CENTER] + 3;
+    core.name = 'core';
+    this.scene.add(core);
+
+    this.cursor = new THREE.LineLoop(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(65 * 3), 3)), new THREE.LineBasicMaterial({ color: '#ffffff', depthTest: false, transparent: true }));
+    this.cursor.renderOrder = 10;
+    this.cursor.frustumCulled = false;
+    this.scene.add(this.cursor, this.herdGroup);
+    this.drawHerds();
+
+    this.buildAside();
+    this.bindInput();
+    this.ro = new ResizeObserver(() => this.resize());
+    this.ro.observe(this.canvasWrap);
+    this.resize();
+    const loop = () => { if (this.disposed) return; this.raf = requestAnimationFrame(loop); this.frame(); };
+    loop();
+  }
+
+  dispose() {
+    this.disposed = true;
+    cancelAnimationFrame(this.raf);
+    this.ro.disconnect();
+    camState.pos.copy(this.camera.position);
+    camState.target.copy(this.controls.target);
+    this.controls.dispose();
+    removeEventListener('keydown', this.onKey);
+    removeEventListener('keyup', this.onKeyUp);
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) mat.forEach((x) => x.dispose()); else mat?.dispose();
+    });
+    renderer?.domElement.remove();
+  }
+
+  // ---------- terrain ----------
+  private coreH() {
+    return padHeight(proc![CENTER] + this.off[CENTER] * fade[CENTER]);
+  }
+
+  /** Recompute heights and colours for nodes [from, to). */
+  private rebuild(from: number, to: number, nodes?: Iterable<number>) {
+    const pos = this.geo.getAttribute('position') as THREE.BufferAttribute;
+    const col = this.geo.getAttribute('color') as THREE.BufferAttribute;
+    const ch = this.coreH();
+    const c = new THREE.Color(), tint = new THREE.Color();
+    const one = (i: number) => {
+      const base = proc![i] + this.off[i] * fade[i];
+      const raw = ch + (base - ch) * pad[i];
+      this.hgt[i] = Math.max(0, raw);
+      pos.setXYZ(i, nodeX(i), this.hgt[i], -nodeZ(i));
+      const p = this.paint[i];
+      terrainColor(raw, floraBase[i] + p * FLORA_PAINT_SHIFT, c);
+      if (prefs.showPaint && p !== 0) c.lerp(tint.set(p > 0 ? '#3cff9a' : '#ff4fa3'), Math.min(0.6, Math.abs(p) * 0.6));
+      col.setXYZ(i, c.r, c.g, c.b);
+    };
+    if (nodes) for (const i of nodes) one(i);
+    else for (let i = from; i < to; i++) one(i);
+    pos.needsUpdate = true;
+    col.needsUpdate = true;
+  }
+
+  /** Height of the displayed terrain at region coords (bilinear over nodes). */
+  private heightAt(x: number, z: number) {
+    const fx = Math.min(NC - 1.0001, Math.max(0, (x + HALF) / REGION_STEP));
+    const fz = Math.min(NC - 1.0001, Math.max(0, (z + HALF) / REGION_STEP));
+    const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, g = this.hgt;
+    const a = g[j * NC + i], b = g[j * NC + i + 1], c = g[(j + 1) * NC + i], d = g[(j + 1) * NC + i + 1];
+    return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz;
+  }
+
+  private nodesNear(x: number, z: number, r: number): number[] {
+    const out: number[] = [];
+    const i0 = Math.max(0, Math.floor((x - r + HALF) / REGION_STEP)), i1 = Math.min(NC - 1, Math.ceil((x + r + HALF) / REGION_STEP));
+    const j0 = Math.max(0, Math.floor((z - r + HALF) / REGION_STEP)), j1 = Math.min(NC - 1, Math.ceil((z + r + HALF) / REGION_STEP));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) out.push(j * NC + i);
+    return out;
+  }
+
+  private applyBrush(dt: number) {
+    const s = this.stroke, h = this.hover;
+    if (!s || !h) return;
+    const r = prefs.radius, k = prefs.strength;
+    const nodes = this.nodesNear(h.x, h.z, r);
+    let tool = s.tool;
+    if (this.shift) tool = ({ raise: 'lower', lower: 'raise', 'flora+': 'flora-', 'flora-': 'flora+' } as Partial<Record<Tool, Tool>>)[tool] ?? tool;
+    const touched: number[] = [];
+    const ch0 = this.coreH();
+    for (const i of nodes) {
+      const d = Math.hypot(nodeX(i) - h.x, nodeZ(i) - h.z);
+      if (d > r) continue;
+      const w = 1 - smooth01(d / r);
+      const pre = proc![i] + this.off[i] * fade[i]; // pre-pad height
+      switch (tool) {
+        case 'raise': this.off[i] += 10 * k * w * dt; break;
+        case 'lower': this.off[i] -= 10 * k * w * dt; break;
+        case 'flatten': this.off[i] += (s.target - pre) * Math.min(1, 6 * k * w * dt); break;
+        case 'smooth': {
+          let sum = 0, n = 0;
+          for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const ii = (i % NC) + di, jj = Math.floor(i / NC) + dj;
+            if (ii < 0 || jj < 0 || ii >= NC || jj >= NC) continue;
+            const q = jj * NC + ii;
+            sum += proc![q] + this.off[q] * fade[q];
+            n++;
+          }
+          this.off[i] += (sum / n - pre) * Math.min(1, 8 * k * w * dt);
+          break;
+        }
+        case 'flora+': this.paint[i] = Math.min(1, this.paint[i] + 1.5 * k * w * dt); break;
+        case 'flora-': this.paint[i] = Math.max(-1, this.paint[i] - 1.5 * k * w * dt); break;
+      }
+      this.off[i] = Math.max(-MAX_OFF, Math.min(MAX_OFF, this.off[i]));
+      touched.push(i);
+    }
+    // a change at the core moves the whole landing pad
+    if (this.coreH() !== ch0) this.rebuild(0, 0, this.nodesNear(0, 0, PAD_OUTER + 2));
+    this.rebuild(0, 0, touched);
+  }
+
+  private commitLayers() {
+    const d = this.host.draft;
+    const hRows = encodeGrid(this.off.map((v) => v / HEIGHT_SCALE), NC, NC);
+    const fRows = encodeGrid(this.paint.map((v) => v * 100), NC, NC);
+    if (isEmptyGrid(this.off.map((v) => v / HEIGHT_SCALE))) delete d.height; else d.height = hRows;
+    if (isEmptyGrid(this.paint.map((v) => v * 100))) delete d.flora; else d.flora = fRows;
+    this.geo.computeBoundingSphere();
+    this.geo.computeBoundingBox();
+    this.updateCore();
+    this.drawHerds();
+    this.host.changed();
+  }
+
+  private updateCore() {
+    const core = this.scene.getObjectByName('core');
+    if (core) core.position.y = this.hgt[CENTER] + 3;
+  }
+
+  // ---------- undo ----------
+  private snap(): Snap {
+    return { off: this.off.slice(), paint: this.paint.slice(), herds: JSON.stringify(this.herds) };
+  }
+  private pushUndo() {
+    this.undo.push(this.snap());
+    if (this.undo.length > 60) this.undo.shift();
+    this.redo.length = 0;
+  }
+  private restore(s: Snap) {
+    this.off.set(s.off);
+    this.paint.set(s.paint);
+    this.herds.splice(0, this.herds.length, ...JSON.parse(s.herds));
+    if (this.selected >= this.herds.length) this.selected = -1;
+    this.rebuild(0, N2);
+    this.commitLayers();
+    this.renderHerdList();
+  }
+  undoStep() { const s = this.undo.pop(); if (s) { this.redo.push(this.snap()); this.restore(s); } }
+  redoStep() { const s = this.redo.pop(); if (s) { this.undo.push(this.snap()); this.restore(s); } }
+
+  // ---------- herds ----------
+  private drawHerds() {
+    for (const o of [...this.herdGroup.children]) {
+      this.herdGroup.remove(o);
+      o.traverse((m) => { (m as THREE.Mesh).geometry?.dispose(); ((m as THREE.Mesh).material as THREE.Material | undefined)?.dispose(); });
+    }
+    this.herds.forEach((hd, n) => {
+      const sel = n === this.selected;
+      const g = new THREE.Group();
+      g.userData.herd = n;
+      const y = this.heightAt(hd.x, hd.z);
+      const size = 2 + Math.sqrt(hd.grazers) * 0.6;
+      const puck = new THREE.Mesh(new THREE.CylinderGeometry(size, size, 1.2, 16), new THREE.MeshStandardMaterial({ color: sel ? '#ffe08a' : '#c99a4a', emissive: sel ? '#6a4a00' : '#2a1a00' }));
+      puck.position.set(hd.x, y + 0.8, -hd.z);
+      puck.userData.herd = n;
+      const pole = new THREE.Mesh(new THREE.ConeGeometry(1.1, 6, 8), puck.material);
+      pole.position.set(hd.x, y + 4.5, -hd.z);
+      pole.userData.herd = n;
+      g.add(puck, pole);
+      if (hd.roam > 0) g.add(this.terrainRing(hd.x, hd.z, hd.roam, sel ? '#ffe08a' : '#f0cf8a', sel ? 0.95 : 0.6));
+      this.herdGroup.add(g);
+    });
+  }
+
+  private pickHerd(): number {
+    const hits = this.ray.intersectObjects(this.herdGroup.children, true);
+    for (const hit of hits) if (typeof hit.object.userData.herd === 'number') return hit.object.userData.herd;
+    return -1;
+  }
+
+  private selectHerd(n: number) {
+    this.selected = n;
+    this.drawHerds();
+    this.renderHerdList();
+  }
+
+  private addHerd(x: number, z: number) {
+    if (this.herds.length >= (regionShape.herds.max ?? 60)) return;
+    this.pushUndo();
+    this.herds.push({ x: round1(x), z: round1(z), grazers: 20, roam: 40 });
+    this.selected = this.herds.length - 1;
+    this.commitLayers();
+    this.renderHerdList();
+  }
+
+  private deleteHerd(n: number) {
+    if (n < 0 || n >= this.herds.length) return;
+    this.pushUndo();
+    this.herds.splice(n, 1);
+    this.selected = -1;
+    this.commitLayers();
+    this.renderHerdList();
+  }
+
+  // ---------- helpers for lines ----------
+  private terrainRing(cx: number, cz: number, r: number, color: string, opacity: number) {
+    const pts: THREE.Vector3[] = [];
+    for (let k = 0; k < 64; k++) {
+      const a = (k / 64) * Math.PI * 2;
+      const x = clampR(cx + Math.cos(a) * r), z = clampR(cz + Math.sin(a) * r);
+      pts.push(new THREE.Vector3(x, this.heightAt(x, z) + 0.6, -z));
+    }
+    const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
+    line.raycast = () => {};
+    return line;
+  }
+  private flatRing(r: number, color: string, opacity: number) {
+    const line = this.terrainRing(0, 0, r, color, opacity);
+    return line;
+  }
+  private squareLine(e: number, color: string, dashed: boolean) {
+    const pts: THREE.Vector3[] = [];
+    const n = 120;
+    const edge = (x: number, z: number) => pts.push(new THREE.Vector3(x, this.heightAt(x, z) + 0.5, -z));
+    for (let k = 0; k < n; k++) edge(-e + (2 * e * k) / n, -e);
+    for (let k = 0; k < n; k++) edge(e, -e + (2 * e * k) / n);
+    for (let k = 0; k < n; k++) edge(e - (2 * e * k) / n, e);
+    for (let k = 0; k < n; k++) edge(-e, e - (2 * e * k) / n);
+    const mat = dashed
+      ? new THREE.LineDashedMaterial({ color, dashSize: 3, gapSize: 3, transparent: true, opacity: 0.8 })
+      : new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8 });
+    const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), mat);
+    if (dashed) line.computeLineDistances();
+    line.raycast = () => {};
+    return line;
+  }
+
+  private updateCursor() {
+    const brush = prefs.tool !== 'select' && prefs.tool !== 'herd';
+    this.cursor.visible = !!this.hover && brush;
+    if (!this.hover || !brush) return;
+    const p = this.cursor.geometry.getAttribute('position') as THREE.BufferAttribute;
+    for (let k = 0; k <= 64; k++) {
+      const a = (k / 64) * Math.PI * 2;
+      const x = clampR(this.hover.x + Math.cos(a) * prefs.radius), z = clampR(this.hover.z + Math.sin(a) * prefs.radius);
+      p.setXYZ(k, x, this.heightAt(x, z) + 0.7, -z);
+    }
+    p.needsUpdate = true;
+    const minus = this.shift !== (prefs.tool === 'lower' || prefs.tool === 'flora-');
+    (this.cursor.material as THREE.LineBasicMaterial).color.set(prefs.tool.startsWith('flora') ? (minus ? '#ff4fa3' : '#3cff9a') : minus ? '#ffb547' : '#ffffff');
+  }
+
+  // ---------- input ----------
+  private toNdc(e: PointerEvent | MouseEvent) {
+    const r = renderer!.domElement.getBoundingClientRect();
+    this.ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    this.ray.setFromCamera(this.ndc, this.camera);
+  }
+  private groundHit(): { x: number; z: number } | null {
+    const hit = this.ray.intersectObject(this.terrain, false)[0];
+    if (!hit) return null;
+    return { x: hit.point.x, z: -hit.point.z };
+  }
+
+  private onKey = (e: KeyboardEvent) => {
+    this.shift = e.shiftKey;
+    const t = e.target as HTMLElement;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) this.redoStep(); else this.undoStep(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redoStep(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const tool = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
+    if (tool) { this.setTool(tool.id); return; }
+    if (e.key === '[') this.setRadius(prefs.radius / 1.2);
+    else if (e.key === ']') this.setRadius(prefs.radius * 1.2);
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected >= 0) { e.preventDefault(); this.deleteHerd(this.selected); }
+    else if (e.key === 'Escape') this.selectHerd(-1);
+    else if (e.key.toLowerCase() === 'f') this.frameAll();
+  };
+  private onKeyUp = (e: KeyboardEvent) => { this.shift = e.shiftKey; };
+
+  private bindInput() {
+    const el = renderer!.domElement;
+    el.oncontextmenu = (e) => e.preventDefault();
+    el.onpointermove = (e) => {
+      this.shift = e.shiftKey;
+      this.toNdc(e);
+      this.hover = this.groundHit();
+      if (this.dragHerd >= 0 && this.hover) {
+        const hd = this.herds[this.dragHerd];
+        hd.x = round1(clampR(this.hover.x)); hd.z = round1(clampR(this.hover.z));
+        this.drawHerds();
+      }
+      this.updateReadout();
+    };
+    el.onpointerleave = () => { this.hover = null; this.updateReadout(); };
+    el.onpointerdown = (e) => {
+      if (e.button !== 0) return;
+      this.toNdc(e);
+      this.hover = this.groundHit();
+      const tool = prefs.tool;
+      if (tool === 'select' || tool === 'herd') {
+        const n = this.pickHerd();
+        if (n >= 0) {
+          this.pushUndo();
+          this.dragHerd = n;
+          this.selectHerd(n);
+          el.setPointerCapture(e.pointerId);
+          return;
+        }
+        if (tool === 'herd' && this.hover) this.addHerd(this.hover.x, this.hover.z);
+        else this.selectHerd(-1);
+        return;
+      }
+      if (!this.hover) return;
+      this.pushUndo();
+      const i = nearestNode(this.hover.x, this.hover.z);
+      this.stroke = { tool, target: proc![i] + this.off[i] * fade[i], last: performance.now() };
+      el.setPointerCapture(e.pointerId);
+    };
+    el.onpointerup = (e) => {
+      if (this.dragHerd >= 0) {
+        this.dragHerd = -1;
+        this.commitLayers();
+        this.renderHerdList();
+      }
+      if (this.stroke) {
+        this.stroke = null;
+        this.commitLayers();
+      }
+      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    };
+    addEventListener('keydown', this.onKey);
+    addEventListener('keyup', this.onKeyUp);
+  }
+
+  private frame() {
+    if (this.stroke) {
+      const now = performance.now();
+      this.applyBrush(Math.min(0.05, (now - this.stroke.last) / 1000));
+      this.stroke.last = now;
+    }
+    this.updateCursor();
+    this.controls.update();
+    renderer!.render(this.scene, this.camera);
+  }
+
+  private resize() {
+    const w = this.canvasWrap.clientWidth, h = this.canvasWrap.clientHeight;
+    if (!w || !h) return;
+    renderer!.setSize(w, h);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+
+  private frameAll() {
+    this.controls.target.set(0, 0, 0);
+    this.camera.position.set(0, 190, -170);
+  }
+
+  private updateReadout() {
+    const h = this.hover;
+    if (!h) { this.readout.textContent = ''; return; }
+    const i = nearestNode(h.x, h.z);
+    const sculpt = this.off[i] * fade[i];
+    this.readout.textContent =
+      `x ${h.x.toFixed(1)}  z ${h.z.toFixed(1)}  ·  height ${this.heightAt(h.x, h.z).toFixed(1)} u` +
+      `  ·  sculpt ${sculpt >= 0 ? '+' : ''}${sculpt.toFixed(1)}  ·  flora ${Math.round(this.paint[i] * 100)}%` +
+      (pad[i] < 1 ? '  ·  landing pad' : '') + (fade[i] < 1 ? '  ·  edge fade' : '');
+  }
+
+  /** Test hook: client coordinates of a region point. */
+  screenOf(x: number, z: number) {
+    const v = new THREE.Vector3(x, this.heightAt(x, z), -z).project(this.camera);
+    const r = renderer!.domElement.getBoundingClientRect();
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+  }
+  get herdCount() { return this.herds.length; }
+
+  // ---------- side panel ----------
+  private setTool(t: Tool) {
+    prefs.tool = t;
+    for (const b of this.asideEls.tools.querySelectorAll<HTMLButtonElement>('button')) b.classList.toggle('on', b.dataset.tool === t);
+    this.updateCursor();
+  }
+  private setRadius(r: number) {
+    prefs.radius = Math.max(2, Math.min(60, r));
+    const inp = this.aside.querySelector<HTMLInputElement>('#brush-radius');
+    if (inp) { inp.value = String(prefs.radius); inp.nextElementSibling!.textContent = `${prefs.radius.toFixed(0)} u`; }
+  }
+
+  private buildAside() {
+    const a = this.aside;
+    a.replaceChildren();
+    const sec = (title: string) => { const g = el('div', 'group', title); a.append(g); return g; };
+
+    sec('Tools');
+    const tools = el('div', 'tools');
+    for (const t of TOOLS) {
+      const b = el('button', '', '') as HTMLButtonElement;
+      b.dataset.tool = t.id;
+      b.title = t.tip;
+      b.append(t.label, el('kbd', '', t.key));
+      b.onclick = () => this.setTool(t.id);
+      tools.append(b);
+    }
+    a.append(tools);
+    const slider = (id: string, label: string, min: number, max: number, step: number, val: number, fmt: (v: number) => string, set: (v: number) => void) => {
+      const row = el('label', 'slider');
+      const inp = document.createElement('input');
+      Object.assign(inp, { type: 'range', id, min: String(min), max: String(max), step: String(step), value: String(val) });
+      const out = el('span', 'unit', fmt(val));
+      inp.oninput = () => { set(Number(inp.value)); out.textContent = fmt(Number(inp.value)); };
+      row.append(el('span', 'lbl', label), inp, out);
+      a.append(row);
+    };
+    slider('brush-radius', 'Brush size', 2, 60, 1, prefs.radius, (v) => `${v.toFixed(0)} u`, (v) => (prefs.radius = v));
+    slider('brush-strength', 'Strength', 0.05, 1, 0.05, prefs.strength, (v) => `${Math.round(v * 100)}%`, (v) => (prefs.strength = v));
+    const paintToggle = el('label', 'check');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = prefs.showPaint;
+    cb.onchange = () => { prefs.showPaint = cb.checked; this.rebuild(0, N2); };
+    paintToggle.append(cb, ' Show flora paint (green more, pink less)');
+    a.append(paintToggle);
+    this.asideEls = { tools, herds: el('div', 'herd-list'), herd: el('div', 'herd-form') };
+    this.setTool(prefs.tool);
+
+    sec('Region');
+    const d = this.host.draft;
+    for (const key of ['name', 'description', 'floraSeed', 'floraDensity'] as const) {
+      const f = regionShape[key];
+      const row = el('label', 'mini-row');
+      row.append(el('span', 'lbl', f.label ?? key), this.host.control(d, key, f, () => this.host.changed()));
+      if (f.help) row.append(el('span', 'help', f.help));
+      a.append(row);
+    }
+
+    sec('Grazer herds');
+    a.append(this.asideEls.herds, this.asideEls.herd);
+    this.renderHerdList();
+
+    sec('Layers');
+    const clr = (label: string, fn: () => void) => { const b = el('button', '', label) as HTMLButtonElement; b.onclick = fn; return b; };
+    a.append(el('div', 'actions-col',
+      clr('Clear all sculpting', () => { if (confirm('Reset the terrain to the generated shape? (Undo with Ctrl+Z)')) { this.pushUndo(); this.off.fill(0); this.rebuild(0, N2); this.commitLayers(); } }),
+      clr('Clear all flora paint', () => { if (confirm('Remove all flora paint? (Undo with Ctrl+Z)')) { this.pushUndo(); this.paint.fill(0); this.rebuild(0, N2); this.commitLayers(); } }),
+    ));
+
+    sec('Controls');
+    a.append(el('div', 'help-block',
+      'Left drag: use tool · Right drag: orbit · Middle drag: pan · Wheel: zoom · [ ]: brush size · Shift: invert raise/lower and flora · Ctrl+Z / Ctrl+Shift+Z: undo / redo · F: frame region · Del: delete herd. ' +
+      'The amber ring is the landing pad (kept flat; sculpting its centre raises or lowers the whole pad). Sculpting fades out inside the dashed line so the region meets the planet.'));
+  }
+
+  private renderHerdList() {
+    const { herds: list, herd: form } = this.asideEls;
+    list.replaceChildren();
+    this.herds.forEach((hd, n) => {
+      const b = el('button', n === this.selected ? 'item on' : 'item', '') as HTMLButtonElement;
+      b.append(el('span', '', `Herd ${n + 1}`), el('small', '', `${hd.grazers} grazers · (${Math.round(hd.x)}, ${Math.round(hd.z)})`));
+      b.onclick = () => { this.selectHerd(n); this.controls.target.set(hd.x, this.heightAt(hd.x, hd.z), -hd.z); };
+      list.append(b);
+    });
+    const total = this.herds.reduce((s, hd) => s + hd.grazers, 0);
+    list.append(el('div', 'help', this.herds.length ? `${total} grazers in ${this.herds.length} herds. Add with H.` : 'No herds. Use Add herd (H) and click the ground.'));
+    form.replaceChildren();
+    const hd = this.herds[this.selected];
+    if (!hd) return;
+    form.append(el('div', 'sub', `Herd ${this.selected + 1}`));
+    for (const key of Object.keys(herdShape) as (keyof typeof herdShape)[]) {
+      const f = herdShape[key];
+      const row = el('label', 'mini-row');
+      row.append(el('span', 'lbl', f.label ?? key), this.host.control(hd as unknown as Record<string, unknown>, key, f, () => { this.drawHerds(); this.host.changed(); }));
+      if (f.help) row.append(el('span', 'help', f.help));
+      form.append(row);
+    }
+    const del = el('button', 'danger', 'Delete herd') as HTMLButtonElement;
+    del.onclick = () => this.deleteHerd(this.selected);
+    form.append(del);
+  }
+}
+
+function el(tag: string, cls: string, ...kids: (Node | string)[]) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  e.append(...kids);
+  return e;
+}
+const smooth01 = (t: number) => t * t * (3 - 2 * t);
+const round1 = (v: number) => Math.round(v * 10) / 10;
+const clampR = (v: number) => Math.max(-HALF, Math.min(HALF, v));
+function nearestNode(x: number, z: number) {
+  const i = Math.min(NC - 1, Math.max(0, Math.round((x + HALF) / REGION_STEP)));
+  const j = Math.min(NC - 1, Math.max(0, Math.round((z + HALF) / REGION_STEP)));
+  return j * NC + i;
+}

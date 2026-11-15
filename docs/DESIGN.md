@@ -316,6 +316,11 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   straight to `content/` through a dev-server API (`devtools/content-server.ts`), are
   conflict-checked against the file on disk, and live-reload any open game tab. A Commit button
   commits `content/` to the local repo; pushing stays with Claude at session wrap.
+- **Regions** are `content/regions/<id>.json`: a sculpt grid added to the generated terrain and a
+  flora paint grid (both 121×121, one sample per 2 u, one run-length-encoded row per line), plus
+  herds and flora seed/density. The landing pad and Command Core stay at the origin (the landing
+  cinematic depends on them); sculpting fades out over the last 14 u so the patch meets the globe.
+  The game currently loads `touchdown`.
 - **Binary assets** (models, audio, textures) go in the repo while small; switch to Git LFS if
   audio grows past a few hundred MB.
 
@@ -323,7 +328,7 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
 |---|---|---|
 | Data layer + schema forms | Units, buildings, colony rules | ✅ 2026-11-15 |
 | Asset browser | Models, textures, audio; previews; which unit/building uses what | M1 |
-| Map / region editor | Terrain, resources, spawns, fauna herds, relic sites per hand-authored region | M1 (one region), M3 (the planet) |
+| Map / region editor | Terrain sculpt, flora paint, grazer herds ✅ 2026-11-15; resources, spawns, relic sites as their systems land | M1 (one region), M3 (the planet) |
 | Mission + trigger designer | "When X, do Y" trigger lists, objectives, win/lose | M4 tutorial missions |
 | Story + dialogue editor | Colonists, Trust beats, radio messages, story events | M2 → M4 |
 | Cinematic timeline | Camera keys, events, captions; landing sequence ported as the test | M4 |

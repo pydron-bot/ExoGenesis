@@ -7,7 +7,7 @@ import { SimClient } from './sim/client';
 import { TICK_HZ, type SimState } from './sim/types';
 import { content, contentIssues } from './content';
 import { lerp, smoothstep } from './world/noise';
-import { buildAtmosphere, buildGlobe, R, U } from './world/planet';
+import { buildAtmosphere, buildGlobe, R, U, regionHeight, setRegionTerrain } from './world/planet';
 import { Provinces } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
@@ -27,6 +27,8 @@ if (contentIssues.length) {
   document.body.appendChild(el);
   throw new Error(`content: ${contentIssues.length} issue(s)`);
 }
+const regionDef = content.regions.touchdown;
+setRegionTerrain(regionDef);
 
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
@@ -57,7 +59,11 @@ const provinces = new Provinces(scene, globe, $('labels'));
 const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
 scene.add(atmosphere);
 const floraParam = params.get('flora');
-const region = new RegionView(scene, look, skirmishMode || floraParam === 'off' ? null : Number(floraParam ?? 1) || 1);
+const region = new RegionView(
+  scene, look,
+  skirmishMode || floraParam === 'off' ? null : Number(floraParam ?? regionDef.floraSeed) || regionDef.floraSeed,
+  regionDef.floraDensity,
+);
 const cam = new ZoomCamera(camera);
 
 // ---------- HUD ----------
@@ -299,5 +305,6 @@ const exo = {
     return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
   },
   capture: () => { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
+  height: regionHeight,
 };
 (window as unknown as { __exo: typeof exo }).__exo = exo;
