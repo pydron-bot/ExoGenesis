@@ -259,7 +259,7 @@ function frame(now: number) {
   } else if (sim.prev && sim.cur) {
     const day = smoothstep(-0.15, 0.25, sunUp);
     landing?.update(dt, day);
-    region.flora?.update(t, 1 - smoothstep(-0.2, 0.15, sunUp));
+    region.flora?.update(t, 1 - smoothstep(-0.2, 0.15, sunUp), camera);
     region.update(sim.prev, sim.cur, sim.alpha(now), t, ui, cam.dist, 1 - cam.a);
     if (!ready) { ready = true; exo.ready = true; }
   }

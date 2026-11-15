@@ -13,6 +13,7 @@
  * and a vertex-shader wind sway weighted by height.
  */
 import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm3, smoothstep } from './noise';
 import { E, HALF, N, floraAt, regionDir, regionHeightRaw, regionToWorld } from './planet';
 
@@ -127,27 +128,53 @@ class Mesher {
   }
 
   build(smooth: boolean): THREE.BufferGeometry {
-    const g = new THREE.BufferGeometry();
+    let g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
     g.setAttribute('aGlow', new THREE.Float32BufferAttribute(this.glow, 1));
-    g.computeVertexNormals();
     if (smooth) {
-      // soften: average normals of coincident vertices
-      const merged = new Map<string, THREE.Vector3>();
-      const p = g.getAttribute('position'), n = g.getAttribute('normal') as THREE.BufferAttribute;
-      const key = (i: number) => `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
-      for (let i = 0; i < p.count; i++) {
+      // crease-angle normals: average only faces within ~50° of each other, so a
+      // parasol's cap top and its gills (sharing rim vertices) keep separate normals
+      const p = this.pos;
+      const nTri = p.length / 9;
+      const fn = new Float32Array(nTri * 3);
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+      for (let t = 0; t < nTri; t++) {
+        a.fromArray(p, t * 9); b.fromArray(p, t * 9 + 3); c.fromArray(p, t * 9 + 6);
+        b.sub(a); c.sub(a);
+        const n = b.cross(c); // area-weighted
+        fn[t * 3] = n.x; fn[t * 3 + 1] = n.y; fn[t * 3 + 2] = n.z;
+      }
+      const groups = new Map<string, number[]>();
+      const key = (i: number) => `${p[i * 3].toFixed(3)},${p[i * 3 + 1].toFixed(3)},${p[i * 3 + 2].toFixed(3)}`;
+      const nv = p.length / 3;
+      for (let i = 0; i < nv; i++) {
         const k = key(i);
-        const v = merged.get(k) ?? new THREE.Vector3();
-        v.x += n.getX(i); v.y += n.getY(i); v.z += n.getZ(i);
-        merged.set(k, v);
+        const l = groups.get(k);
+        if (l) l.push(i); else groups.set(k, [i]);
       }
-      for (let i = 0; i < p.count; i++) {
-        const v = merged.get(key(i))!.clone().normalize();
-        n.setXYZ(i, v.x, v.y, v.z);
+      const nrm = new Float32Array(nv * 3);
+      const own = new THREE.Vector3(), other = new THREE.Vector3(), acc = new THREE.Vector3();
+      const COS = Math.cos((50 * Math.PI) / 180);
+      for (const list of groups.values()) {
+        for (const i of list) {
+          const ti = Math.floor(i / 3);
+          own.fromArray(fn, ti * 3).normalize();
+          acc.set(0, 0, 0);
+          for (const j of list) {
+            other.fromArray(fn, Math.floor(j / 3) * 3);
+            if (other.clone().normalize().dot(own) >= COS) acc.add(other);
+          }
+          if (acc.lengthSq() < 1e-12) acc.copy(own);
+          acc.normalize();
+          nrm[i * 3] = acc.x; nrm[i * 3 + 1] = acc.y; nrm[i * 3 + 2] = acc.z;
+        }
       }
+      g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     }
+    // flat look derives normals per pixel, so it needs none; either way, indexing
+    // lets the GPU share vertices between triangles (a third of the vertex work)
+    g = mergeVertices(g, 1e-4);
     g.computeBoundingSphere();
     return g;
   }
@@ -381,7 +408,25 @@ interface Variant {
   /** region x, z per instance, for clearing */
   xz: Float32Array;
   hidden: Uint8Array;
+  /** full-size instance matrices / colours; the mesh holds only the visible, compacted set */
+  base: Float32Array;
+  colors: Float32Array;
+  /** world-space bounding sphere per instance (x, y, z, r) */
+  sphere: Float32Array;
+  /** full density within this camera distance; thinned beyond */
+  full: number;
+  /** per-instance distance at which it drops out (full / sqrt(rand)) */
+  cut: Float32Array;
 }
+
+/**
+ * Distance thinning: inside FULL_* every plant draws; beyond, each plant has its
+ * own random cut-off so density falls off as (full / d)^2 — about constant
+ * plants per screen area — with no visible line. Plants shrink out over the last
+ * fifth of their range instead of popping.
+ */
+const FULL_SMALL = 140;
+const FULL_BIG = 520;
 
 export interface FloraOptions { seed: number; flat: boolean; density?: number }
 
@@ -491,11 +536,25 @@ export class Flora {
           mesh.setColorAt(i, tint.setRGB(l, l * (1 + p.tint * 0.04), l * (1 - p.tint * 0.04)));
           xz[i * 2] = p.x; xz[i * 2 + 1] = p.z;
         });
-        mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-        mesh.computeBoundingSphere();
+        const geoR = sp.geos[v].boundingSphere!;
+        const sphere = new Float32Array(list.length * 4);
+        const ctr = new THREE.Vector3();
+        list.forEach((p, i) => {
+          mesh.getMatrixAt(i, m4);
+          ctr.copy(geoR.center).applyMatrix4(m4);
+          sphere.set([ctr.x, ctr.y, ctr.z, geoR.radius * p.s * Math.max(1, p.sy)], i * 4);
+        });
+        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
+        mesh.frustumCulled = false; // culled per instance in update()
         this.group.add(mesh);
-        this.variants.push({ arch: sp.arch, species: si, mesh, xz, hidden: new Uint8Array(list.length) });
+        this.variants.push({
+          arch: sp.arch, species: si, mesh, xz, hidden: new Uint8Array(list.length),
+          base: (mesh.instanceMatrix.array as Float32Array).slice(),
+          colors: (mesh.instanceColor!.array as Float32Array).slice(),
+          sphere, full: sp.arch.big ? FULL_BIG : FULL_SMALL,
+          cut: Float32Array.from(list, () => (sp.arch.big ? FULL_BIG : FULL_SMALL) / Math.sqrt(Math.max(1e-4, r()))),
+        });
         this.count += list.length;
       }
     });
@@ -503,27 +562,71 @@ export class Flora {
 
   /** Remove plants within `r` of a region point (building footprint). Returns how many were cleared. */
   clear(x: number, z: number, r: number): number {
-    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
     let n = 0;
     for (const v of this.variants) {
-      let dirty = false;
       for (let i = 0; i < v.hidden.length; i++) {
         if (v.hidden[i]) continue;
-        if (Math.hypot(v.xz[i * 2] - x, v.xz[i * 2 + 1] - z) < r) {
-          v.mesh.setMatrixAt(i, zero);
-          v.hidden[i] = 1;
-          dirty = true;
-          n++;
-        }
+        if (Math.hypot(v.xz[i * 2] - x, v.xz[i * 2 + 1] - z) < r) { v.hidden[i] = 1; n++; }
       }
-      if (dirty) v.mesh.instanceMatrix.needsUpdate = true;
     }
+    if (n) this.dirty = true;
     return n;
   }
 
-  /** `night` 0..1 drives bioluminescence. */
-  update(t: number, night: number) {
+  private dirty = true;
+  private lastCam = new THREE.Vector3(Infinity, 0, 0);
+  private lastQuat = new THREE.Quaternion();
+  private frustum = new THREE.Frustum();
+  private pm = new THREE.Matrix4();
+  private sph = new THREE.Sphere();
+  /** Instances drawn last cull (for the debug hook). */
+  visible = 0;
+
+  /**
+   * `night` 0..1 drives bioluminescence. When the camera has moved, re-cull:
+   * drop instances outside the view or too far to matter (small plants shrink
+   * out over the last quarter of their range), and pack the rest to the front.
+   */
+  update(t: number, night: number, camera: THREE.Camera) {
     floraUniforms.uTime.value = t;
     floraUniforms.uGlow.value = 0.18 + night * 1.6;
+    if (!this.group.visible) return;
+    const cp = camera.position;
+    const moved = cp.distanceToSquared(this.lastCam) > 0.04 || 1 - Math.abs(camera.quaternion.dot(this.lastQuat)) > 1e-6;
+    if (!moved && !this.dirty) return;
+    this.lastCam.copy(cp);
+    this.lastQuat.copy(camera.quaternion);
+    this.dirty = false;
+    camera.updateMatrixWorld();
+    this.pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.pm);
+    let total = 0;
+    for (const v of this.variants) {
+      const out = v.mesh.instanceMatrix.array as Float32Array;
+      const oc = v.mesh.instanceColor!.array as Float32Array;
+      let n = 0;
+      for (let i = 0; i < v.hidden.length; i++) {
+        if (v.hidden[i]) continue;
+        const sx = v.sphere[i * 4], sy = v.sphere[i * 4 + 1], sz = v.sphere[i * 4 + 2];
+        const d = Math.sqrt((sx - cp.x) ** 2 + (sy - cp.y) ** 2 + (sz - cp.z) ** 2);
+        const cut = v.cut[i];
+        if (d > cut) continue;
+        this.sph.center.set(sx, sy, sz);
+        this.sph.radius = v.sphere[i * 4 + 3];
+        if (!this.frustum.intersectsSphere(this.sph)) continue;
+        const k = d > cut * 0.8 ? (cut - d) / (cut * 0.2) : 1;
+        const src = i * 16, dst = n * 16;
+        for (let c = 0; c < 12; c++) out[dst + c] = v.base[src + c] * (c % 4 === 3 ? 1 : k);
+        out[dst + 12] = v.base[src + 12]; out[dst + 13] = v.base[src + 13]; out[dst + 14] = v.base[src + 14]; out[dst + 15] = 1;
+        oc[n * 3] = v.colors[i * 3]; oc[n * 3 + 1] = v.colors[i * 3 + 1]; oc[n * 3 + 2] = v.colors[i * 3 + 2];
+        n++;
+      }
+      v.mesh.count = n;
+      v.mesh.visible = n > 0;
+      v.mesh.instanceMatrix.needsUpdate = true;
+      v.mesh.instanceColor!.needsUpdate = true;
+      total += n;
+    }
+    this.visible = total;
   }
 }
