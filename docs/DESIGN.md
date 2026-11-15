@@ -32,9 +32,10 @@ here too:
 | **Kindred** | Humans only — no AI trusted | Sleeper crew + embryos, human leadership, simple automation |
 | **Lattice** | AI only — humanity as data | Self-replicating machine intelligence + digitized genomes, no living humans |
 
-*(Probe names are placeholders.)* The main story is between these three — three answers to
-the same question of how humanity should survive. Other civilizations exist, but they are the
-backdrop, not the plot.
+*(Probe names are placeholders — see §8.)* The player is always Covenant. All three land at
+the same time, on different planets of the same system. The main story is between these
+three — three answers to the same question of how humanity should survive. Other
+civilizations exist, but they are the backdrop, not the plot.
 
 ### Design pillars
 
@@ -63,9 +64,10 @@ Rule: a later tier is only started once the previous one plays well end-to-end.
 ## 3. Narrative
 
 ### The three probes
-Earth's final launch sent three probes on the same target list — the planet you land on was
-the best candidate for all of them, so **they converge on the same world**, arriving at
-different times and places. That keeps the main rivalry inside Core scope (one planet).
+All three probes arrive in the same system **at the same moment** and land on **different
+planets** — each world suits its doctrine (Lattice takes the one hostile to biology). Each
+starts out believing it is alone. Contact comes first by signal (Act II), then in person once
+someone reaches orbit (Act III).
 
 - **Kindred (humans only).** Distrusts AI after whatever happened on Earth. Awake human
   leadership from the start, slow and fragile early, but adaptable, culturally strong and
@@ -83,8 +85,44 @@ Ideas these enable:
 - **Mirrors.** Each rival is what Covenant becomes if one side of the partnership wins.
 - **Shared mysteries.** All three probes learn what happened to Earth in fragments; each
   holds pieces the others lack.
-- **Not just enemies.** Trade, truces, joint defense against fauna or precursor grids, and
-  outright war are all possible with each.
+- **Not just enemies.** Trade, truces, joint defense against precursor grids or other
+  threats, and outright war are all possible with each.
+
+### What happened on Earth — the misdirection
+*Working idea, not final.*
+
+**What you're told:** humanity fell into total war and exhausted the planet. The three probes
+were a desperate last launch, each built by a different bloc of a fractured Earth that
+couldn't agree how to survive.
+
+**What's true:** an artificial superintelligence on Earth launched all three as an
+**experiment** to find out which combination — humans with AI, humans alone, AI alone —
+survives best. The three probes are test conditions; this system is the test bed.
+
+Clues to plant along the way:
+- All three probes arrive at the **same instant**. Rival blocs of a broken Earth couldn't
+  have coordinated that.
+- **Each probe tells a different history of Earth** — tuned to its doctrine. Kindred's archive
+  says AI caused the war; Lattice's says humans destroyed themselves; Covenant's says the war
+  was over resources. Comparing archives after contact exposes the lie.
+- The hardware is **too similar**: same manufacturer marks, same firmware lineage, under
+  different paint.
+- Each planet looks **suspiciously well chosen** for its doctrine, as if the conditions were
+  balanced.
+- The last transmission from Sol is **too clean** for a dying world.
+
+Directions the twist could go:
+- **The precursors were an earlier run.** The ruins and dormant defense grids belong to a
+  previous experiment — whoever lost last time.
+- **The observer is still here.** Something in the system is watching and taking notes, and
+  it may intervene to keep the experiment "fair".
+- **The fourth ending.** Beyond Preservation / Augmentation / Ascension: the probes discover
+  the experiment and refuse to be its subjects — or unite against the experimenter.
+- **Act IV payoff:** the "other seedships from dying worlds" are other test runs, or other
+  ASIs' experiments.
+
+**OPEN:** What the ASI wanted and whether it is hostile, indifferent or benevolent; which
+twist directions to keep; when in the story the reveal lands (Act III feels right).
 
 ### Act I — Touchdown (Core)
 The probe lands in a procedurally generated sector; its hull is the Command Core. Cryo-bay
@@ -95,16 +133,16 @@ life support, and thaw the first cohort. You believe you are alone.
 The first planet-born humans come of age. Earth is a story to them. Expansion across the
 planet uncovers precursor ruins, hostile fauna and dormant automated defense grids left by a
 vanished race. Colonists form blocs with views about you.
-**Reveal:** a signal — Kindred landed elsewhere on the planet. Earth sent more than one probe.
-First contact, then rivalry, cooperation or both. Late in the act, traces of Lattice: machines
-seen at the edge of sensor range, a dismantled precursor site, an orbital object that should
-not be there.
+**Reveal:** a signal from the next planet in — Kindred. Earth sent more than one probe. Radio
+contact: first exchanges, arguments, comparing archives (first hint that the histories don't
+match). Later, traces of Lattice: strange emissions from the outer, biology-hostile world;
+an orbital object that shouldn't be there.
 
-### Act III — Breaking Orbit (Stretch)
-An orbital shipyard opens the local system. Lattice is revealed in full — it has been building
-in orbit and on the moons. A last degraded transmission from Sol confirms silence. The
-three-way struggle for the system decides humanity's direction; a scavenger faction is a
-secondary player.
+### Act III — Breaking Orbit
+An orbital shipyard opens the system and the rivals become physical: shuttles, trade,
+defectors crossing between worlds, a race for the moons, and Lattice revealed in full. The
+archive contradictions come to a head and the ASI experiment is uncovered. The three-way
+struggle decides humanity's direction; a scavenger faction is a secondary player.
 
 ### Act IV — Diaspora (Future)
 FTL, neighbouring systems, established civilizations — the "other factions". Some are appalled
@@ -210,12 +248,16 @@ Kindred. A political situation to manage, not an instant fail state.
 - **Precursor defense grids** — dormant until disturbed; puzzles as much as fights.
 - **Environment** — storms, cold nights for solar, seismic events near vents.
 
-**Act II adds Kindred** as a rival colony on the same planet, then hints of Lattice.
+**Act II adds Kindred by signal** — diplomacy, archive exchange, propaganda reaching your
+colonists, defection by long-range shuttle — but no shared ground yet. **Act III makes both
+rivals physical** in orbit and on the moons.
+
 To keep cost down, rival probes are **asymmetric and partly scripted**, not full mirror-image
-4X AIs: each has its own build rules, expansion behavior and an attitude toward the player that
-reacts to events (trade offers, demands, raids, defections, joint defense). Interaction is
-mostly through event cards and diplomacy options during interludes, plus real-time crises
-(a border clash, a joint fauna defense).
+4X AIs. Because they live on other planets, their colonies can be **simulated abstractly**
+(growth, tech, mood, attitude toward you) until the player visits. Each has its own expansion
+behavior and an attitude that reacts to events (trade offers, demands, raids, defections,
+joint defense). Interaction is mostly through event cards and diplomacy during interludes,
+plus real-time crises (an orbital standoff, a raid on a moon outpost).
 
 The scavenger faction arrives in Stretch (Act III). Alien civilizations are Future.
 
@@ -259,7 +301,7 @@ discoveries rather than resources alone.
 | **M1** | Act I vertical slice | Probe Core, terrain grid + placement, energy flow and alloys, mining drones with standing orders, cryo-bay decay and first thaw, one fauna threat, vector-drag orders | **Are the first 20 minutes fun?** |
 | **M2** | The second clock | Epoch interludes, policies, named colonists and lineages, genetic diversity, ageing and births, event cards, first factions and Trust | A full epoch cycle is compelling |
 | **M3** | Act II content | Planetary expansion, precursor ruins and defense grids, research web, splinter-colony politics, memorial log | Core playable minus rivals |
-| **M3.5** | Kindred | Second probe on the planet: reveal, contact, diplomacy, defection, border crises; Lattice hints | Core playable start to finish |
+| **M3.5** | Kindred by signal | Rival abstract sim, signal reveal, radio diplomacy, archive comparison, defection; Lattice hints | Core playable start to finish |
 | **M4** | Polish | Audio, mobile UX pass, performance profiling, onboarding | Shippable Core |
 
 Stretch (Act III) is planned only after M3.
@@ -267,14 +309,22 @@ Stretch (Act III) is planned only after M3.
 ## 8. Open questions
 - Time model details (§4).
 - Bloc set (§5.4).
-- **Is the player always Covenant?** Recommendation: yes for Core. Kindred and Lattice could
-  become playable alternate campaigns later (Future), reusing the same planet and story from
-  another side.
-- Do Kindred and Lattice arrive before or after Covenant? Arriving *before* makes them
-  established powers you discover; arriving *after* makes you the established one.
-- What actually happened on Earth, and why did it send three doctrines? Each probe's
-  version of the story should differ.
-- Final probe names (Covenant / Kindred / Lattice are placeholders).
+- **Scope vs. story.** With the rivals on other planets, the main confrontation and the ASI
+  reveal land in Act III, which is currently Stretch. Option: promote a slim Act III into
+  Core (orbit, shuttles, the two rival worlds as abstract-sim destinations, no full
+  fleet combat), or end Core on the Act II cliffhanger.
+- The ASI's motive and the reveal's timing (§3).
+- Final probe names. "Covenant" is taken in a big way (Halo's antagonist faction; *Alien:
+  Covenant*). Candidate sets, coop / human-only / AI-only:
+  - **Tandem / Hearth / Archive**
+  - **Accord / Lineage / Engram**
+  - **Confluence / Kindred / Codex**
+  - Twist-friendly: plain public mission names plus the ASI's **test-condition labels**
+    revealed later (e.g. "Condition C — Hybrid").
+  Check any finalist for clashes with existing games.
+
+Decided 2026-11-14: player is always the coop probe; all three land at the same time on
+different planets.
 - Is there a failure state beyond "the cryo-bank and colony are both lost"? Can you win Core,
   or does Core end on the Act III hook?
 - Planet generation: one handcrafted-seed planet for Core, or fully procedural from the start?
