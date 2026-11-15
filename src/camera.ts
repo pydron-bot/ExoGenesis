@@ -1,0 +1,121 @@
+/**
+ * One continuous zoom from the landing site out to the whole solar system.
+ *
+ * Distance is eased in log space. Two blend factors drive everything else:
+ *   surf→planet (a): the focus point slides from the ground to the planet centre
+ *   planet→system (b): the focus slides on to the star and "up" swings from the
+ *                      landing site's normal to the ecliptic pole.
+ */
+import * as THREE from 'three';
+import { smoothstep, lerp } from './world/noise';
+import { E, HALF, R, U, regionHeight, regionToWorld, worldToRegion } from './world/planet';
+
+export const MIN_DIST = 14;
+export const MAX_DIST = 160000;
+
+export const VIEWS = {
+  surface: { dist: 75, pitch: 0.85 },
+  planet: { dist: 2400, pitch: 0.9 },
+  system: { dist: 95000, pitch: 0.75 },
+} as const;
+export type ViewName = keyof typeof VIEWS;
+
+const Y = new THREE.Vector3(0, 1, 0);
+
+export class ZoomCamera {
+  dist: number = VIEWS.surface.dist;
+  targetDist: number = VIEWS.surface.dist;
+  yaw = 0.4;
+  pitch: number = 0.85;
+  targetPitch: number = 0.85;
+  fx = 0;
+  fz = -8;
+  /** surface → planet blend */
+  a = 0;
+  /** planet → system blend */
+  b = 0;
+  readonly focus = new THREE.Vector3();
+  readonly fwd = new THREE.Vector3();
+  readonly right = new THREE.Vector3();
+
+  constructor(readonly camera: THREE.PerspectiveCamera) {}
+
+  zoomBy(f: number) {
+    this.targetDist = THREE.MathUtils.clamp(this.targetDist * f, MIN_DIST, MAX_DIST);
+  }
+
+  setView(v: ViewName, instant = false) {
+    this.targetDist = VIEWS[v].dist;
+    this.targetPitch = VIEWS[v].pitch;
+    if (instant) { this.dist = this.targetDist; this.pitch = this.targetPitch; }
+  }
+
+  rotate(dyaw: number, dpitch: number) {
+    this.yaw += dyaw;
+    this.targetPitch = THREE.MathUtils.clamp(this.targetPitch + dpitch, 0.3, 1.42);
+    this.pitch = this.targetPitch;
+  }
+
+  /** Pan the ground focus by a screen-space drag (pixels). */
+  pan(dx: number, dy: number, viewportH: number) {
+    const k = (this.dist * 1.1) / viewportH;
+    const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+    // in region coords: forward = (sin yaw, cos yaw), right = (cos yaw, -sin yaw)
+    this.fx += (-dx * cy + dy * sy / Math.max(0.4, Math.sin(this.pitch))) * k;
+    this.fz += (dx * sy + dy * cy / Math.max(0.4, Math.sin(this.pitch))) * k;
+    this.fx = THREE.MathUtils.clamp(this.fx, -HALF + 10, HALF - 10);
+    this.fz = THREE.MathUtils.clamp(this.fz, -HALF + 10, HALF - 10);
+  }
+
+  update(dt: number, starPos: THREE.Vector3) {
+    const k = 1 - Math.exp(-dt * 6);
+    this.dist = Math.exp(lerp(Math.log(this.dist), Math.log(this.targetDist), k));
+    if (Math.abs(this.dist - this.targetDist) / this.targetDist < 1e-4) this.dist = this.targetDist;
+    this.pitch = lerp(this.pitch, this.targetPitch, k);
+
+    const d = this.dist;
+    this.a = smoothstep(140, 1500, d);
+    this.b = smoothstep(5000, 45000, d);
+
+    // focus point
+    const ground = regionToWorld(this.fx, this.fz, 0);
+    this.focus.copy(ground).lerp(new THREE.Vector3(), this.a).lerp(starPos, this.b);
+
+    // frame
+    const up = new THREE.Vector3().copy(U).lerp(Y, this.b).normalize();
+    const ef = new THREE.Vector3().copy(E).addScaledVector(up, -E.dot(up)).normalize();
+    const nf = new THREE.Vector3().crossVectors(up, ef);
+    const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+    this.fwd.copy(ef).multiplyScalar(sy).addScaledVector(nf, cy);
+    this.right.copy(ef).multiplyScalar(cy).addScaledVector(nf, -sy);
+
+    // over the planet, tilt toward looking straight down at the landing site
+    let p = lerp(this.pitch, Math.max(this.pitch, 1.2), this.a);
+    p = lerp(p, Math.max(this.pitch, 0.6), this.b);
+    const dir = new THREE.Vector3().copy(up).multiplyScalar(Math.sin(p)).addScaledVector(this.fwd, -Math.cos(p));
+
+    const cam = this.camera;
+    cam.position.copy(this.focus).addScaledVector(dir, d);
+
+    // never dip below the terrain near the surface
+    if (this.a < 0.9) {
+      const loc = worldToRegion(cam.position);
+      if (Math.abs(loc.x) < HALF && Math.abs(loc.z) < HALF) {
+        const min = R + regionHeight(loc.x, loc.z) + 3;
+        if (cam.position.length() < min) cam.position.setLength(min);
+      } else if (cam.position.length() < R + 60) {
+        cam.position.setLength(R + 60);
+      }
+    }
+    cam.up.copy(up);
+    cam.lookAt(this.focus);
+    cam.near = THREE.MathUtils.clamp(d * 0.01, 0.2, 200);
+    cam.far = 2e6;
+    cam.updateProjectionMatrix();
+  }
+
+  /** Altitude above the home planet's surface, in world units. */
+  altitude() {
+    return Math.max(0, this.camera.position.length() - R);
+  }
+}

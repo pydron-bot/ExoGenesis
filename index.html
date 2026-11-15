@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#05080d" />
+    <title>Exo Genesis</title>
+    <meta name="description" content="Exo Genesis tech demo: zoom from a landing site to the whole solar system." />
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="labels"></div>
+    <div id="hud">
+      <div id="top">
+        <div id="brand">EXO GENESIS <span>// ACCORD CARETAKER · M0</span></div>
+        <div id="res">
+          <span class="r" id="r-energy" title="Energy generation / draw">⚡ <b>0</b> / 0 MW</span>
+          <span class="r" id="r-alloys" title="Alloys">◆ <b>0</b></span>
+          <span class="r" id="r-cryo" title="Cryo bank integrity">❄ <b>100%</b></span>
+          <span class="r" id="r-clock">SOL 1 · 06:00</span>
+        </div>
+      </div>
+      <div id="tele">
+        <div id="layer">SURFACE</div>
+        <div id="alt">ALT 0 km</div>
+        <div id="fps"></div>
+      </div>
+      <div id="log"></div>
+      <div id="bar">
+        <div class="grp">
+          <button id="b-build" title="Build solar array (B)">☀ Solar <small>40◆</small></button>
+        </div>
+        <div class="grp">
+          <button id="b-pause" title="Pause (Space)">❚❚</button>
+          <button id="b-play" class="on" title="Play">▶</button>
+          <button id="b-fast" title="Fast forward">⏩</button>
+        </div>
+        <div class="grp">
+          <button data-view="surface" title="Surface (1)">Surface</button>
+          <button data-view="planet" title="Planet (2)">Planet</button>
+          <button data-view="system" title="System (3)">System</button>
+        </div>
+        <div class="grp">
+          <button id="b-save" title="Save to this browser">Save</button>
+          <button id="b-load" title="Load from this browser">Load</button>
+        </div>
+      </div>
+      <div id="help">Drag from the drone to send it · tap the drone, then tap ground · drag to pan · pinch / wheel to zoom · two fingers or right-drag to rotate</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
