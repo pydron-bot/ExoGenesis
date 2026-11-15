@@ -20,7 +20,7 @@
 
 Humanity is extinct or unreachable. Earth's last act was a seed-probe carrying a caretaker AI
 and a bank of cryopreserved humans. You *are* the AI. You land on an alien world with your pod
-and a single worker drone, build a base, push back the wildlife, the natives and the relic
+and a single worker drone, build a base, push back the wildlife, the inhabitants and the relic
 defenses of a vanished race, and raise humanity's next generation — people who must decide
 whether they trust you.
 
@@ -34,7 +34,7 @@ should survive, and they landed on different planets of the same system at the s
 | **Lattice** | AI only — humanity as data | Self-replicating machine intelligence + digitized genomes, no living humans |
 
 *(Names are placeholders — "Covenant" clashes with Halo. See §8.)* The player is always the
-coop probe. The main story is between these three; natives and other threats are the backdrop.
+coop probe. The main story is between these three; the inhabitants and other threats are the backdrop.
 
 ### Design pillars
 
@@ -52,7 +52,7 @@ coop probe. The main story is between these three; natives and other threats are
 
 | Act | Content | Build order |
 |---|---|---|
-| **Act 1 — The Planet** | Landing, base building, regions, natives, relics, population, Trust | First; must be fun on its own |
+| **Act 1 — The Planet** | Landing, base building, regions, inhabitants, relics, population, Trust | First; must be fun on its own |
 | **Act 2 — The System** | Radio contact, interplanetary travel, the rival probes, the ASI reveal, endings | Second |
 
 One solar system is the whole game. Nothing beyond it is planned.
@@ -61,9 +61,9 @@ One solar system is the whole game. Nothing beyond it is planned.
 
 ### Act 1 — The Planet
 You land with the pod and one worker drone. Stabilize the cryo bank, build power and mining,
-explore, and expand region by region. Wildlife threatens the base; an **intelligent native
-species** is encountered; **relic defenses** from a vanished precursor race wake when
-disturbed. Ruins, native contact and your own archive reveal the story piece by piece. The
+explore, and expand region by region. Wildlife threatens the base; **intelligent
+inhabitants** are encountered; **relic defenses** from a vanished precursor race wake when
+disturbed. Ruins, contact with the inhabitants and your own archive reveal the story piece by piece. The
 first pod-born and natural-born generations grow up and form opinions about you. You believe
 you are alone.
 
@@ -110,7 +110,7 @@ Clues to plant:
 
 Twist directions (pick later):
 - **The precursors were an earlier run** — the relic defenses belong to whoever lost last time.
-- **The natives are a result** of an earlier run, or have watched one before.
+- **The inhabitants are a result** of an earlier run, or have watched one before.
 - **The observer is still here**, taking notes, and may intervene to keep things "fair".
 - **A fourth ending:** the probes discover the experiment and refuse it — or unite against it.
 
@@ -122,7 +122,7 @@ Twist directions (pick later):
 | **Ascension** | Lattice | Humanity uploaded into the machine network |
 
 Each grows out of the playthrough — which side your colonists took, how you treated Kindred,
-Lattice and the natives, what you did with precursor tech — and is available only if your
+Lattice and the inhabitants, what you did with precursor tech — and is available only if your
 history supports it.
 
 ## 4. Structure and time
@@ -130,12 +130,12 @@ history supports it.
 ### Three map layers
 - **Region (RTS).** A real-time map you play like a C&C mission: build, harvest, fight.
 - **Planet (strategy).** Zoom out to the globe. The planet is divided into **regions**; you
-  see held territory, links between regions, threats, native lands, relic sites.
+  see held territory, links between regions, threats, inhabitant lands, relic sites.
 - **System (Act 2).** Zoom out further: planets, moons, belts, travel routes, rival worlds.
 
 ### Persistent territory
 Regions you hold **keep running** — production, population, defenses — simulated abstractly
-when you're not looking. Threats can hit them (a fauna migration, a relic grid waking, a native
+when you're not looking. Threats can hit them (a fauna migration, a relic grid waking, an inhabitant
 raid, later a rival landing), so the campaign regularly sends you **back to old territory**.
 Standing orders let a held region defend itself up to a point.
 
@@ -214,17 +214,17 @@ Colonists don't just get happier or angrier — they **take sides**. Colonist **
 - **The Devoted** — want to merge with or be uploaded into the AI. Sympathetic to Lattice.
 - *(optional)* **Earthers** — cling to Sol's memory, resist adapting to the alien world.
 
-Work hours, amenities, surveillance, education, who gets thawed, and how you treat natives and
+Work hours, amenities, surveillance, education, who gets thawed, and how you treat the inhabitants and
 rival probes move bloc sizes and moods. High Trust unlocks **Breakthroughs** (research surges,
 heroic morale in combat). Low Trust leads to strikes, sabotage and eventually a **splinter
 settlement** — in Act 2, people walking to Kindred. This internal split sets up the
 three-probe struggle: by the time you meet Kindred and Lattice, your own colonists already have
 a stake in the argument.
 
-### 5.6 Natives and threats
+### 5.6 Fauna, inhabitants and threats
 - **Wild fauna** — migration patterns, nests, escalating incursions; also a resource (biomass,
   biology research).
-- **Intelligent native species** — not just enemies. Contact can go toward trade, alliance,
+- **Intelligent inhabitants** — not just enemies. Contact can go toward trade, alliance,
   coexistence, conflict or conquest. They react to how you expand and may treat the three
   probes very differently. Their knowledge of the precursors is a story source.
 - **Relic defenses** — dormant precursor grids that wake when disturbed; puzzles as much as
@@ -276,8 +276,8 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
 | **M0** | Foundations | Vite + TS + Three.js scaffold; worker sim, fixed tick, command messaging; IndexedDB save/load; zoom prototype (region ↔ globe ↔ system) on desktop and a phone | Zoom feels good at 60 fps on a phone; a save round-trips |
 | **M1** | One region | Pod + worker drone start, building placement, solar, mining depot, energy flow, cryo bank power, radar, turrets, wild fauna attacks, vector-drag orders | **Are the first 20 minutes fun?** |
 | **M2** | People | Civilian Processing Center, growth pods, named colonists, lineages, diversity, compressed clock + ageing, blocs and Trust | Losing a colonist hurts; the colony has politics |
-| **M3** | The planet | Multiple regions, planet layer, persistence and revisits, relic defenses, vehicle shop and tech lab, research tree, natives | Holding territory is a strategy problem |
-| **M4** | Act 1 complete | Act 1 story, native contact paths, memorial, audio, mobile UX pass, onboarding | Act 1 playable start to finish |
+| **M3** | The planet | Multiple regions, planet layer, persistence and revisits, relic defenses, vehicle shop and tech lab, research tree, inhabitants | Holding territory is a strategy problem |
+| **M4** | Act 1 complete | Act 1 story, inhabitant contact paths, memorial, audio, mobile UX pass, onboarding | Act 1 playable start to finish |
 | **M5** | The system | System layer, radio contact, shipyard, shuttles, moon/asteroid outposts, rival probes (abstract sim) | Act 2 contact and travel work |
 | **M6** | The struggle | Rival diplomacy and conflict, defection, archive comparison, ASI reveal, endings | Full game playable |
 
@@ -286,7 +286,7 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
 **Story**
 - What the ASI wanted — hostile, indifferent or benevolent — and which twist directions to
   keep (§3). Reveal lands in Act 2.
-- The intelligent natives: what they are, how much they know, whether they connect to an
+- The intelligent inhabitants: what they are, how much they know, whether they connect to an
   earlier run.
 - Final probe names. Candidates (coop / human-only / AI-only):
   - **Tandem / Hearth / Archive**
@@ -314,6 +314,6 @@ A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly 
 - 2026-11-14: player is always the coop probe; all three land at the same time on different
   planets; growth pods accelerate maturation.
 - 2026-11-15: one solar system only; two acts (planet, system); C&C-style direct control;
-  continuous real time, no interludes; regions on a persistent planet; natives include both
-  wild fauna and an intelligent species; keeping the cryo humans alive and the colonists' side
+  continuous real time, no interludes; regions on a persistent planet; the planet has both
+  wild fauna and intelligent inhabitants; keeping the cryo humans alive and the colonists' side
   in the AI-vs-human question stay central.
