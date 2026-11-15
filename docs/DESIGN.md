@@ -163,10 +163,31 @@ pressure, which blocs you empowered, how much autonomy you granted, how you deal
 and Lattice, what you did with precursor tech. The final choice is available only if your
 history supports it.
 
-## 4. The time model — epochs
+## 4. The time model — growth pods and epochs
 
-Real-time combat runs in seconds; humans take ~18 years to grow up. The game reconciles
-these with **epochs**:
+Real-time combat runs in seconds; humans take ~18 years to grow up.
+
+### Growth pods (decided 2026-11-14)
+Embryos are raised in **growth pods** — accelerated-maturation tech that takes a thawed
+embryo to a working adult far faster than nature (minutes to hours of game time, tunable).
+Pods are the colony's main way to make new people.
+
+- Pods are **buildings**: limited in number, cost energy and biomass while running, and are
+  high-value targets — losing power or a pod mid-cycle can lose the person inside.
+- What the pod can't give is a childhood. The AI fills the gap with **imprinted education**,
+  and what it chooses to teach is a lever: skills, history (which version of Earth?),
+  loyalty.
+- **Pod-born vs. born.** Once natural births begin, the colony splits into people the AI
+  raised and people their parents raised. Pod-born lean Partner or Devoted; the born lean
+  Autonomist. This feeds the bloc politics in §5.4.
+- Possible side-effects of acceleration (shorter lifespans, fragility, instability) as a
+  trade-off between speed and quality: slow the pod down and colonists come out better.
+- Story hook: the pod tech is **too advanced for a war-torn Earth** — another clue for the
+  ASI twist.
+
+### Epochs
+With pods handling the first generation, epochs mainly carry natural generations, ageing,
+politics and long research. The game still alternates between:
 
 - **Crisis phase (real time).** Landings, fauna incursions, raids, disasters, expeditions.
   RTS-paced, pausable on mobile.
