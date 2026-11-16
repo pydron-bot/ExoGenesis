@@ -312,10 +312,14 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
 - **The game reads content, not constants.** `src/content/index.ts` bundles it; invalid content
   stops the game with a readable error list instead of misbehaving. `npm run content:check`
   validates everything, and `npm run build` runs it first.
-- **Editor** at `http://hive1:5176/editor.html` (dev server only, never shipped). Saves go
+- **Editor** at `http://hive1:5176/editor.html`. Saves go
   straight to `content/` through a dev-server API (`devtools/content-server.ts`), are
   conflict-checked against the file on disk, and live-reload any open game tab. A Commit button
   commits `content/` to the local repo; pushing stays with Claude at session wrap.
+  It also ships at `deeek.org/ExoGenesis/editor.html`, where `src/editor/github.ts` answers the
+  same API from GitHub (fine-grained token; saves held in IndexedDB; Commit = one git-data-API
+  commit on `main`, refusing files changed on GitHub since they were edited unless told to
+  overwrite). Web commits redeploy the site and don't reach hive1 until it pulls.
 - **Regions** are `content/regions/<id>.json`: a sculpt grid added to the generated terrain and a
   flora paint grid (both 121×121, one sample per 2 u, one run-length-encoded row per line), plus
   herds and flora seed/density. The landing pad and Command Core stay at the origin (the landing

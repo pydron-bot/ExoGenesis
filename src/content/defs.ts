@@ -147,7 +147,12 @@ export const ASSET_EXT: Record<AssetKind, readonly string[]> = {
 /** Where an asset's file lives, relative to the site root (public/ in the repo). */
 /** Site base ('/' locally, '/ExoGenesis/' on deeek.org); undefined under plain node (content-check). */
 const BASE: string = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/';
-export const mediaUrl = (a: { kind: string; file: string }) => `${BASE}media/${a.kind}/${a.file}`;
+let mediaOverride: ((rel: string) => string | null) | null = null;
+/** Editor on deeek.org: serve files uploaded this session from the browser (the site has the old copy until it redeploys). */
+export function setMediaOverride(fn: typeof mediaOverride) { mediaOverride = fn; }
+export const mediaUrl = (a: { kind: string; file: string }) => mediaOverride?.(`${a.kind}/${a.file}`) ?? `${BASE}media/${a.kind}/${a.file}`;
+/** Adds a cache-busting version, except to blob: URLs (which a query string breaks). */
+export const withVersion = (url: string, v: string) => (v && !url.startsWith('blob:') ? `${url}?v=${v}` : url);
 
 export const assetShape = {
   name: str({ label: 'Name' }),

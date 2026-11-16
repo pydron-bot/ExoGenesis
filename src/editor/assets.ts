@@ -10,7 +10,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { BUILTINS, builtinById, type Builtin } from '../assets/builtin';
 import { applyImport, forgetModel, loadModel, modelStats } from '../assets/models';
-import { ASSET_EXT, ASSET_KINDS, ID_RE, mediaUrl, type AssetDef, type AssetKind } from '../content/defs';
+import { ASSET_EXT, ASSET_KINDS, ID_RE, mediaUrl, withVersion, type AssetDef, type AssetKind } from '../content/defs';
 
 export interface MediaInfo { hash: string; bytes: number }
 export interface Usage { coll: 'units' | 'buildings' | 'sound'; id: string; name: string }
@@ -42,7 +42,7 @@ const fmtBytes = (n: number) => (n > 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB
 const kindOfExt = (ext: string): AssetKind | null => (ASSET_KINDS.find((k) => ASSET_EXT[k].includes(ext)) ?? null);
 const urlOf = (a: AssetDef, media: Map<string, MediaInfo>) => {
   const m = media.get(`${a.kind}/${a.file}`);
-  return m ? `${mediaUrl(a)}?v=${m.hash.slice(0, 10)}` : null;
+  return m ? withVersion(mediaUrl(a), m.hash.slice(0, 10)) : null;
 };
 
 // ---------- rendering: one viewer renderer + one thumbnail renderer for the editor's lifetime ----------

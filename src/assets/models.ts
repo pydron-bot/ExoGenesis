@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { mediaUrl, type AssetDef } from '../content/defs';
+import { mediaUrl, withVersion, type AssetDef } from '../content/defs';
 
 const loader = new GLTFLoader();
 const cache = new Map<string, Promise<THREE.Group>>();
@@ -41,7 +41,7 @@ export function applyImport(inner: THREE.Object3D, a: Pick<AssetDef, 'scale' | '
 
 /** A ready-to-place copy of a model asset (cache-busted by `version`, e.g. the file hash). */
 export async function loadModel(a: AssetDef, version = ''): Promise<THREE.Group> {
-  const url = mediaUrl(a) + (version ? `?v=${version}` : '');
+  const url = withVersion(mediaUrl(a), version);
   const scene = await loadScene(url);
   return applyImport(scene.clone(true), a);
 }

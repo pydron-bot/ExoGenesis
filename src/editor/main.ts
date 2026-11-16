@@ -1,5 +1,6 @@
 /**
- * Exo Genesis content editor (dev only: needs the dev server's /__content API).
+ * Exo Genesis content editor. In dev it talks to the dev server's /__content API;
+ * on deeek.org the same API is answered by GitHub (./github.ts).
  *
  * Schema-driven: every collection in src/content/defs.ts gets a list and a form
  * for free. Saves are conflict-checked against the file on disk; commits go to
@@ -12,6 +13,12 @@ import { MapEditor } from './map';
 import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, uploadFiles, type AssetHost, type MediaInfo, type Usage } from './assets';
 import { BUILTINS } from '../assets/builtin';
 import type { AssetDef } from '../content/defs';
+import { setMediaOverride } from '../content/defs';
+import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, token } from './github';
+
+/** Dev server on hive1, or the deployed site (GitHub-backed). */
+const WEB = !import.meta.env.DEV;
+if (WEB) setMediaOverride(localMediaUrl);
 
 interface FileRec { path: string; hash: string; data: unknown; parseError?: string }
 interface Current {
@@ -63,7 +70,7 @@ class ApiError extends Error {
 async function api<T = Record<string, unknown>>(method: string, url: string, body?: unknown): Promise<T> {
   if (method !== 'GET') busy++;
   const raw = body instanceof Blob;
-  const r = await fetch(url, {
+  const r = await (WEB ? ghFetch : fetch)(url, {
     method,
     headers: { 'x-exo-editor': '1', ...(body ? { 'content-type': raw ? 'application/octet-stream' : 'application/json' } : {}) },
     body: raw ? body : body ? JSON.stringify(body) : undefined,
@@ -448,6 +455,7 @@ async function refreshGit() {
     st.title = n ? g.changes.map((c) => `${c.status}  ${c.path}`).join('\n') : `Last: ${g.last}`;
     st.classList.toggle('pending', n > 0);
     ($('commit') as HTMLButtonElement).disabled = n === 0;
+    if (WEB) ($('discard') as HTMLButtonElement).disabled = n === 0;
   } catch { /* dev server restarting */ }
 }
 
@@ -457,13 +465,28 @@ async function doCommit() {
   if (!message) { input.focus(); toast('Write a short description first', true); return; }
   if (dirty() && !confirm('The open record has unsaved changes, which won\'t be included. Commit anyway?')) return;
   try {
-    const r = await api<{ commit: string; files: number }>('POST', '/__content/commit', { message });
+    let r: { commit: string; files: number };
+    try {
+      r = await api<typeof r>('POST', '/__content/commit', { message });
+    } catch (e) {
+      if (!(WEB && e instanceof ApiError && e.status === 409)) throw e;
+      if (!confirm(`Some files ${e.message}.\n\nOK = commit yours over them\nCancel = don't commit (Discard drops your changes)`)) return;
+      r = await api<typeof r>('POST', '/__content/commit?overwrite=1', { message });
+    }
     input.value = '';
-    toast(`Committed ${r.files} file${r.files > 1 ? 's' : ''} as ${r.commit}`);
+    toast(`Committed ${r.files} file${r.files > 1 ? 's' : ''} as ${r.commit}${WEB ? ' · the game updates in a minute or two' : ''}`);
     void refreshGit();
   } catch (e) {
     toast(`Commit failed: ${(e as Error).message}`, true);
   }
+}
+
+async function doDiscard() {
+  if (!confirm('Drop every uncommitted change made in this browser? This can\'t be undone.')) return;
+  await api('POST', '/__content/discard');
+  if (cur) open(cur.coll, cur.id, true);
+  await poll();
+  toast('Discarded uncommitted changes');
 }
 
 // ---------- watch for changes made elsewhere ----------
@@ -566,6 +589,56 @@ addEventListener('drop', (e) => {
   void addFiles([...e.dataTransfer.files]);
 });
 
+// ---------- web: GitHub sign-in ----------
+/** Until a working token is in place, the main pane asks for one (and nothing else loads). */
+async function webSetup() {
+  const game = $<HTMLAnchorElement>('open-game');
+  game.href = `${import.meta.env.BASE_URL}?intro=0`;
+  const git = $('git');
+  const discard = h('button', { id: 'discard', textContent: 'Discard', title: 'Drop uncommitted changes made in this browser', disabled: true });
+  discard.onclick = () => void doDiscard();
+  const out = h('button', { cls: 'mini', textContent: 'Sign out', title: 'Forget the GitHub token in this browser' });
+  out.onclick = () => { if (confirm('Forget the GitHub token in this browser? Uncommitted changes stay here.')) { token.clear(); location.reload(); } };
+  git.append(discard, out);
+  const emptyHtml = `Pick something on the left. Saves stay in this browser until you <b>Commit</b>, which pushes them to <code>${REPO}</code>; the game here updates a minute or two later.`;
+  $('empty').innerHTML = emptyHtml;
+  let problem = token.get() ? await checkToken() : '';
+  while (problem !== null) {
+    problem = await new Promise<string | null>((done) => {
+      const input = h('input', { type: 'password', placeholder: 'github_pat_…', autocomplete: 'off' });
+      input.style.width = '100%';
+      const go = h('button', { cls: 'primary', textContent: 'Connect' });
+      const msg = h('p', { cls: 'err' });
+      if (problem) msg.textContent = problem;
+      const submit = async () => {
+        const t = input.value.trim();
+        if (!t) return;
+        token.set(t);
+        go.disabled = true;
+        const p = await checkToken();
+        if (p) token.clear();
+        done(p);
+      };
+      go.onclick = () => void submit();
+      input.onkeydown = (e) => { if (e.key === 'Enter') void submit(); };
+      const link = h('a', { href: `https://github.com/settings/personal-access-tokens/new`, target: '_blank', rel: 'noopener', textContent: 'Create a fine-grained token' });
+      $('main').replaceChildren(h('div', { id: 'signin' },
+        h('h2', { textContent: 'Connect to GitHub' }),
+        h('p', { textContent: `The editor saves by committing to ${REPO} (${BRANCH}). It needs a token that can write to that repo; it stays in this browser only.` }),
+        h('ol', {},
+          h('li', {}, link, ' (GitHub → Settings → Developer settings).'),
+          h('li', { textContent: `Resource owner: ${REPO.split('/')[0]}. Repository access: only ${REPO.split('/')[1]}.` }),
+          h('li', { textContent: 'Permissions → Contents: Read and write. Nothing else.' }),
+          h('li', { textContent: 'Generate, copy, paste it here.' }),
+        ),
+        input, go, msg,
+      ));
+      input.focus();
+    });
+  }
+  $('main').replaceChildren(h('div', { id: 'empty', innerHTML: emptyHtml }));
+}
+
 // ---------- boot ----------
 $('commit').onclick = () => void doCommit();
 $('commit-msg').onkeydown = (e) => { if (e.key === 'Enter') void doCommit(); };
@@ -574,6 +647,7 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('beforeunload', (e) => { if (dirty()) e.preventDefault(); });
 
+if (WEB) await webSetup();
 await loadAll();
 renderSide();
 await refreshGit();
@@ -590,4 +664,4 @@ addEventListener('hashchange', () => routeTo(location.hash));
 setInterval(() => void poll(), 4000);
 
 declare global { interface Window { __editor: unknown } }
-window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, get assetPanel() { return assetPanel; }, files, media, dirty };
+window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, get assetPanel() { return assetPanel; }, files, media, dirty, api };

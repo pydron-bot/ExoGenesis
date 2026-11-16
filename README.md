@@ -61,6 +61,7 @@ npm run content:check  # validate content/ against src/content/defs.ts
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 node tools/map-smoke.mjs     # map editor → game end-to-end (restores the region afterwards)
 node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores content/ + public/media/)
+node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)
 ```
 
 ## Content and the editor
@@ -72,3 +73,8 @@ audio files onto the editor to add them, then pick a model in a unit's or buildi
 Edit them at **http://hive1:5176/editor.html** (dev server only): saves write straight into
 `content/`, open game tabs reload with the new values, and the Commit button commits
 `content/` to the local repo. Schemas are in `src/content/defs.ts`; see DESIGN.md §6.4.
+
+The same editor is live at **https://deeek.org/ExoGenesis/editor.html**. There it asks once per
+browser for a fine-grained GitHub token (this repo only, Contents: read and write). Saves stay in
+that browser (IndexedDB) until Commit, which makes one commit on `main` and so redeploys the site.
+Those commits land on GitHub, not on hive1: **pull before working on hive1** (`git pull --rebase`).

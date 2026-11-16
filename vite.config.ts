@@ -7,5 +7,9 @@ export default defineConfig({
   plugins: [contentServer()],
   server: { host: true, port: 5176, strictPort: true, allowedHosts: ['hive1', '.ts.net'] },
   preview: { host: true, port: 4176 },
-  build: { chunkSizeWarningLimit: 900 },
+  build: {
+    chunkSizeWarningLimit: 900,
+    // the editor ships too: on deeek.org it saves by committing to GitHub (src/editor/github.ts)
+    rolldownOptions: { input: { main: 'index.html', editor: 'editor.html' } },
+  },
 });

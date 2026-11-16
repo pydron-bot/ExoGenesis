@@ -196,3 +196,11 @@ button.linkish, a.linkish { background: none; border: 0; padding: 0; color: var(
 .image-box.tiled img { display: none; }
 canvas.wave { width: 100%; height: 120px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; display: block; margin-bottom: 6px; }
 .asset-panel audio { width: 100%; margin-bottom: 6px; }
+
+/* web (deeek.org): GitHub sign-in */
+#signin { max-width: 520px; margin: 48px auto; display: grid; gap: 10px; }
+#signin h2 { margin: 0; color: var(--accent); }
+#signin ol { margin: 0; padding-left: 20px; color: var(--dim); }
+#signin a { color: var(--accent); }
+#signin input { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
+#signin .err:empty { display: none; }
