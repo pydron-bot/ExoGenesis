@@ -23,6 +23,9 @@ import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
 import { TitleScreen } from './title';
+import { VERSION } from './changelog';
+import { hasUnseen, openWhatsNew } from './whatsnew';
+import { surfaceUniforms, addSurfaceDetail, buildClouds, setSurfaceMaps, updateClouds, updateSurface, type SurfaceMaps } from './world/surface';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -191,6 +194,20 @@ if (look === 'smooth') {
   (globe.material as THREE.MeshStandardMaterial).color.setRGB(m, m * 0.98, m * 0.96);
 }
 scene.add(globe);
+// detail from orbit: baked surface maps (after startup, see startSurfaceBake), relief, oceans, night glow, clouds
+const surfaceOn = params.get('surface') !== '0';
+const clouds = buildClouds();
+if (surfaceOn) { addSurfaceDetail(globe.material as THREE.MeshStandardMaterial); scene.add(clouds); }
+function startSurfaceBake() {
+  if (!surfaceOn) return;
+  const w = new Worker(new URL('./world/surface-worker.ts', import.meta.url), { type: 'module' });
+  w.onmessage = (e: MessageEvent<SurfaceMaps & { ms: number }>) => {
+    setSurfaceMaps(e.data);
+    (window as unknown as { __surfaceMs: number }).__surfaceMs = e.data.ms;
+    w.terminate();
+  };
+  w.postMessage({ region: { height: regionDef.height, flora: regionDef.flora } });
+}
 await loadStep('Mapping regions…');
 const provinces = new Provinces(scene, globe, $('labels'), generated.prov);
 (window as unknown as { __genMs: Record<string, number> }).__genMs = generated.ms;
@@ -422,6 +439,9 @@ lookBtn.onclick = () => {
 };
 
 const skirmish = skirmishMode ? startSkirmish({ scene, renderer, cam, region, log, params }) : null;
+$('b-news').textContent = `v${VERSION}`;
+$('brand-ver').textContent = `v${VERSION}`;
+$('b-news').onclick = () => { document.body.classList.remove('more'); $('b-more').classList.remove('on'); openWhatsNew(); };
 $('b-skirmish').onclick = () => {
   const u = new URL(location.href);
   u.searchParams.set('mode', 'skirmish');
@@ -524,6 +544,7 @@ function updateHud(dt: number, now: number) {
 function reveal() {
   loadTimes.push(['first frame', performance.now()]);
   if (useTitle) showTitle();
+  startSurfaceBake();
   $('loader-step').textContent = 'Ready';
   barTo(1, 200);
   document.body.classList.add('loaded');
@@ -584,9 +605,11 @@ function showTitle() {
   ];
   title = new TitleScreen(cam, camera, {
     choices,
-    foot: 'M1 · <a href="https://deeek.org/">deeek.org</a>',
+    foot: `<button class="t-ver" title="What's new">v${VERSION}${hasUnseen() ? '<span class="badge">NEW</span>' : ''}</button> · M1 · <a href="https://deeek.org/">deeek.org</a>`,
     tap: () => audio.play('tap'),
   });
+  const ver = title.root.querySelector<HTMLButtonElement>('.t-ver')!;
+  ver.onclick = () => { audio.play('tap'); openWhatsNew(() => ver.querySelector('.badge')?.remove()); };
 }
 
 // ---------- frame loop ----------
@@ -611,6 +634,7 @@ function frame(now: number) {
   (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = 1.25 * smoothstep(300, 1400, cam.altitude());
   atmosphere.visible = cam.altitude() > 300;
   provinces.update(camera, cam.dist, innerWidth, innerHeight);
+  if (surfaceOn) { updateSurface(dt, system.sunPos, cam.altitude(), t); updateClouds(clouds, cam.altitude()); }
   if (title) provinces.hide(); // a clean planet behind the title, no map overlay
 
   // sky: day/night at the landing site, fading to space as we climb
@@ -699,5 +723,6 @@ const exo = {
   fogView,
   audio,
   res,
+  surfaceUniforms,
 };
 (window as unknown as { __exo: typeof exo }).__exo = exo;

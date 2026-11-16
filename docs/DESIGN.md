@@ -551,3 +551,11 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
   colony exists; plays the landing), SKIRMISH, SOUND, EDITOR, deeek.org link. HUD, labels, province overlay
   and fog are hidden behind it; the remembered camera isn't overwritten by the title's orbit. Skipped by
   `?title=0` (resume or land as before), `?intro=0`, `?new=1`, `?view=…` and skirmish, so tools are unchanged.
+- **Planet detail + versions (2026-11-16, v0.9.0):** `src/world/surface.ts`. A 2048×1024 equirect surface
+  map (colour + flora, height + baked slopes) from the same `surfaceAt` as the globe geometry, baked in
+  `surface-worker.ts` after the first frame (~2 s on hive1, nothing waits on it) and faded in. The globe
+  shader adds it per pixel from ~250 u altitude up: relief from the slopes, smooth glinting oceans with
+  depth, fine grain, bioluminescent flora specks on the night side; a cloud shell (R×1.022) fades in above
+  ~400 u. `?surface=0` turns it off. Planet view costs ~2× the old globe in SwiftShader (130 vs 65 ms at
+  390 px); the ground view is unchanged. Versions: `package.json` + `src/changelog.ts` (What's new on the
+  title and ⋯), checked by `tools/version-check.mjs` in `npm run build`.

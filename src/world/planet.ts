@@ -156,6 +156,29 @@ export function terrainColor(h: number, flora: number, out: THREE.Color) {
   return out.lerp(C.high, smoothstep(34, 46, h));
 }
 
+/**
+ * The planet's surface at direction `d`: raw height (may be below sea level),
+ * flora field and colour (into `color`). Inside the landing region it follows
+ * the detailed (sculpted, painted) patch; `inner` is then the region's
+ * Chebyshev distance from the centre, else -1. Shared by the globe geometry and
+ * the baked surface texture (surface.ts) so the two always agree.
+ */
+export function surfaceAt(d: THREE.Vector3, color: THREE.Color): { h: number; flora: number; inner: number } {
+  const cu = d.dot(U);
+  if (cu > 0.95) {
+    const x = (R * d.dot(E)) / cu, z = (R * d.dot(N)) / cu;
+    const inner = Math.max(Math.abs(x), Math.abs(z));
+    if (inner < HALF + 2) {
+      const h = regionHeightRaw(x, z), flora = regionFlora(x, z);
+      terrainColor(h, flora, color);
+      return { h, flora, inner };
+    }
+  }
+  const h = globeHeight(d), flora = floraAt(d);
+  terrainColor(h, flora, color);
+  return { h, flora, inner: -1 };
+}
+
 /** Globe geometry as plain arrays (worker-friendly: see gen-worker.ts). */
 export interface GlobeArrays { position: Float32Array; color: Float32Array; normal: Float32Array; index: Uint32Array | null }
 
@@ -188,23 +211,13 @@ export function globeArrays(look: 'flat' | 'smooth' = 'flat'): GlobeArrays {
   const color = new THREE.Color();
   for (let i = 0; i < n; i++) {
     d.set(dirs[i * 3], dirs[i * 3 + 1], dirs[i * 3 + 2]).normalize();
-    let h = globeHeight(d);
-    let r = R + Math.max(0, h);
-    const cu = d.dot(U);
-    let inPatch = false;
-    if (cu > 0.95) {
-      const x = (R * d.dot(E)) / cu, z = (R * d.dot(N)) / cu;
-      const inner = Math.max(Math.abs(x), Math.abs(z));
-      if (inner < HALF + 2) {
-        // follow the detailed patch; sink only well inside it so coarse triangles that
-        // straddle the border don't open a trench along the patch edge
-        terrainColor(regionHeightRaw(x, z), regionFlora(x, z), color);
-        h = Math.max(0, regionHeightRaw(x, z)) - (inner < HALF - 60 ? 14 : 1.5);
-        r = R + h;
-        inPatch = true;
-      }
+    const sf = surfaceAt(d, color);
+    let r = R + Math.max(0, sf.h);
+    if (sf.inner >= 0) {
+      // follow the detailed patch; sink only well inside it so coarse triangles that
+      // straddle the border don't open a trench along the patch edge
+      r = R + Math.max(0, sf.h) - (sf.inner < HALF - 60 ? 14 : 1.5);
     }
-    if (!inPatch) terrainColor(h, floraAt(d), color);
     pos[i * 3] = d.x * r; pos[i * 3 + 1] = d.y * r; pos[i * 3 + 2] = d.z * r;
     col[i * 3] = color.r; col[i * 3 + 1] = color.g; col[i * 3 + 2] = color.b;
   }

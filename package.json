@@ -1,6 +1,6 @@
 {
   "name": "exogenesis",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Exo Genesis: browser base-building RTS with a strategy layer, in one solar system.",
   "type": "module",
@@ -9,11 +9,12 @@
   },
   "scripts": {
     "dev": "vite --host",
-    "build": "node tools/content-check.mjs && tsc --noEmit && vite build",
+    "build": "node tools/content-check.mjs && node tools/version-check.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
     "shot": "node tools/shot.mjs",
-    "content:check": "node tools/content-check.mjs"
+    "content:check": "node tools/content-check.mjs",
+    "version:check": "node tools/version-check.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

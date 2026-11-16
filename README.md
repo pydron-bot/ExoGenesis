@@ -64,6 +64,12 @@ node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores conte
 node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)
 ```
 
+## Versions
+
+`package.json` holds the version and `src/changelog.ts` the release notes players see under
+**What's new** (title screen footer, ⋯ menu). Every push that changes the game bumps both:
+minor for features, patch for fixes. `npm run build` checks they agree (`npm run version:check`).
+
 ## Content and the editor
 
 Game numbers and maps live in `content/` as JSON (units, buildings, regions, colony rules), not in code.

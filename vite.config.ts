@@ -41,6 +41,8 @@ function contentManifest(): Plugin {
 export default defineConfig({
   // '/' locally, '/ExoGenesis/' when the Pages workflow builds it for deeek.org/ExoGenesis/.
   base: process.env.EXO_BASE ?? '/',
+  // the version without bundling package.json (src/changelog.ts)
+  define: { __VERSION__: JSON.stringify(JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version) },
   plugins: [contentServer(), contentManifest()],
   server: { host: true, port: 5176, strictPort: true, allowedHosts: ['hive1', '.ts.net'] },
   preview: { host: true, port: 4176 },
