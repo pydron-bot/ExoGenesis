@@ -11,7 +11,7 @@ import { F, FX, STRIDE, UT } from '../skirmish/types';
 import { regionHeightRaw, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
 import { PathGrid } from './path';
-import { compass, depositFor, placeProblem } from './rules';
+import { compass, depositFor, linePoints, placeProblem } from './rules';
 import {
   MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
@@ -46,6 +46,23 @@ const PATH_PAD = 1.4;
 const REPATH = 20;
 /** A unit that hasn't got closer to its goal for this many ticks re-plans, then gives up. */
 const STALL = 30;
+/** Predators treat walls as this much farther away when picking a target (they'd rather get past them). */
+const WALL_PENALTY = 14;
+/** Half the thickness of a wall segment, for collisions. */
+const WALL_HALF = 0.8;
+
+/** A wall segment's ends (it runs along its yaw, one clearance long, overlapping its neighbours a little). */
+function wallEnds(b: Building) {
+  const half = DEFS[b.kind].clearance / 2 + 0.15, yaw = b.yaw ?? 0;
+  const ux = Math.sin(yaw), uz = Math.cos(yaw);
+  return { ax: b.x - ux * half, az: b.z - uz * half, bx: b.x + ux * half, bz: b.z + uz * half };
+}
+
+/** Do segments p→q and a→b cross? */
+function crosses(px: number, pz: number, qx: number, qz: number, ax: number, az: number, bx: number, bz: number) {
+  const o = (x1: number, z1: number, x2: number, z2: number, x3: number, z3: number) => Math.sign((x2 - x1) * (z3 - z1) - (z2 - z1) * (x3 - x1));
+  return o(px, pz, qx, qz, ax, az) !== o(px, pz, qx, qz, bx, bz) && o(ax, az, bx, bz, px, pz) !== o(ax, az, bx, bz, qx, qz);
+}
 
 export type Level = 'info' | 'warn' | 'bad';
 export type EventSink = (text: string, level: Level) => void;
@@ -345,11 +362,14 @@ export class Sim {
       if (slot < 0) continue; // render pool full: hold the unit until one frees up
       const kind = b.queue.shift()!;
       b.prod = 0;
+      // the door faces away from the bay's yaw (local −Z)
+      const yaw = b.yaw ?? 0, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
       const out = bodyR(b) + 3;
       const n = this.units.length;
-      const gx = b.x + Math.sin(n * 2.4) * 4, gz = b.z - out - 5 + Math.cos(n * 2.4) * 3;
+      const side = Math.sin(n * 2.4) * 4, ahead = out + 5 + Math.cos(n * 2.4) * 3;
+      const gx = b.x + fx * ahead + fz * side, gz = b.z + fz * ahead - fx * side;
       this.units.push({
-        id: s.nextId++, unit: kind, slot, x: b.x, z: b.z - out, heading: Math.PI, hp: ud.hp, cd: 0,
+        id: s.nextId++, unit: kind, slot, x: b.x + fx * out, z: b.z + fz * out, heading: yaw + Math.PI, hp: ud.hp, cd: 0,
         order: { kind: 'move', x: gx, z: gz }, gx, gz, target: -1,
       });
       this.emit(`${ud.name} ready${b.queue.length ? ` · ${b.queue.length} more queued` : ''}`, 'info');
@@ -557,7 +577,7 @@ export class Sim {
     }
     if (best >= 0) return best;
     for (const b of s.buildings) {
-      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
+      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (def(b).role === 'wall' ? WALL_PENALTY : 0);
       if (dist < bd) { bd = dist; best = b.id; }
     }
     return best;
@@ -566,11 +586,18 @@ export class Sim {
   private stepHostiles() {
     const s = this.s;
     const hs = s.hostiles;
+    const was = hs.map((h) => [h.x, h.z]);
     for (const h of hs) {
       const u = this.unitDef(h);
       h.cd = Math.max(0, h.cd - DT);
       let tgt = h.target >= 0 ? this.entity(h.target) : undefined;
-      if (!tgt || (s.tick + h.id) % 10 === 0) { h.target = this.chooseTarget(h, u); tgt = this.entity(h.target); }
+      if (!tgt) h.chew = false;
+      if (!tgt || (!h.chew && (s.tick + h.id) % 10 === 0)) {
+        const was = h.target;
+        h.target = this.chooseTarget(h, u);
+        tgt = this.entity(h.target);
+        if (h.target !== was) { h.best = Infinity; h.stall = 0; }
+      }
       if (!tgt) continue;
       const isB = 'kind' in tgt, isU = 'order' in tgt;
       const tr = isB ? bodyR(tgt as Building) : isU ? content.units[(tgt as Unit).unit].radius : 1;
@@ -586,6 +613,23 @@ export class Sim {
         continue;
       }
       this.steer(h, tgt.x, tgt.z, u.speed);
+      // pressed against something (a wall) and getting nowhere: chew through what's in the way
+      const left = dist - tr;
+      if (left < (h.best ?? Infinity) - 0.3) { h.best = left; h.stall = 0; }
+      else if ((h.stall = (h.stall ?? 0) + 1) > 15) {
+        let block: Building | null = null, bd = u.radius + 2.5;
+        for (const b of s.buildings) {
+          let gap = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
+          if (def(b).role === 'wall') {
+            const w = wallEnds(b), lx = w.bx - w.ax, lz = w.bz - w.az;
+            const t = clamp(((h.x - w.ax) * lx + (h.z - w.az) * lz) / (lx * lx + lz * lz), 0, 1);
+            gap = Math.hypot(h.x - (w.ax + lx * t), h.z - (w.az + lz * t)) - WALL_HALF;
+          }
+          if (gap < bd) { bd = gap; block = b; }
+        }
+        h.stall = 0;
+        if (block && block.id !== h.target) { h.target = block.id; h.chew = true; h.best = Infinity; }
+      }
     }
     // separation, and keep out of building bodies
     for (let i = 0; i < hs.length; i++) {
@@ -600,10 +644,24 @@ export class Sim {
         }
       }
       for (const b of s.buildings) {
-        const dx = a.x - b.x, dz = a.z - b.z, d = Math.hypot(dx, dz), min = bodyR(b) + ra;
-        if (d > 1e-3 && d < min) { a.x = b.x + (dx / d) * min; a.z = b.z + (dz / d) * min; }
+        let cx = b.x, cz = b.z, min = bodyR(b) + ra;
+        if (def(b).role === 'wall') {
+          // walls are thick line segments: push out from the nearest point on the segment
+          const w = wallEnds(b), lx = w.bx - w.ax, lz = w.bz - w.az;
+          const t = clamp(((a.x - w.ax) * lx + (a.z - w.az) * lz) / (lx * lx + lz * lz), 0, 1);
+          cx = w.ax + lx * t; cz = w.az + lz * t; min = WALL_HALF + ra;
+        }
+        const dx = a.x - cx, dz = a.z - cz, d = Math.hypot(dx, dz);
+        if (d > 1e-3 && d < min) { a.x = cx + (dx / d) * min; a.z = cz + (dz / d) * min; }
       }
       a.x = clamp(a.x, -LIMIT, LIMIT); a.z = clamp(a.z, -LIMIT, LIMIT);
+      // never end up on the other side of a wall this tick
+      const [px, pz] = was[i];
+      for (const b of s.buildings) {
+        if (def(b).role !== 'wall') continue;
+        const w = wallEnds(b);
+        if (crosses(px, pz, a.x, a.z, w.ax, w.az, w.bx, w.bz)) { a.x = px; a.z = pz; break; }
+      }
     }
     // packs are announced once seen (radar sees them as they arrive)
     for (const p of s.packs) {
@@ -765,8 +823,24 @@ export class Sim {
         const why = placeProblem(s, DEFS, RULES, c.kind, c.x, c.z);
         if (why) { this.emit(`Can't build there: ${why}`, 'warn'); return; }
         s.alloys -= dd.cost;
-        s.buildings.push({ id: s.nextId++, kind: c.kind, x: c.x, z: c.z, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
+        s.buildings.push({ id: s.nextId++, kind: c.kind, x: c.x, z: c.z, yaw: c.yaw ?? 0, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
         this.emit(`${dd.name} placed${s.drones.length ? '' : ' · waiting for a drone'}`, 'info');
+        return;
+      }
+      case 'buildLine': {
+        const dd = DEFS[c.kind];
+        if (!dd || !dd.buildable) return;
+        const { pts, yaw } = linePoints(dd, c.x1, c.z1, c.x2, c.z2);
+        let placed = 0, skipped = 0, poor = false;
+        for (const p of pts) {
+          if (s.alloys < dd.cost) { poor = true; break; }
+          if (placeProblem(s, DEFS, RULES, c.kind, p.x, p.z)) { skipped++; continue; }
+          s.alloys -= dd.cost;
+          s.buildings.push({ id: s.nextId++, kind: c.kind, x: p.x, z: p.z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
+          placed++;
+        }
+        if (placed) this.emit(`${placed} ${dd.name} segment${placed > 1 ? 's' : ''} placed${skipped ? ` · ${skipped} spots blocked` : ''}${poor ? ' · ran out of alloys' : ''}`, 'info');
+        else this.emit(poor ? `Not enough alloys for a ${dd.name} (${dd.cost} each)` : `Can't build a ${dd.name} there`, 'warn');
         return;
       }
       case 'repair': {
@@ -799,6 +873,17 @@ export class Sim {
       case 'debug': {
         if (c.alloys) s.alloys += c.alloys;
         if (c.wave) s.waves.next = s.tick;
+        if (c.spawn && content.units[c.spawn.unit]) {
+          // tests: a pack of `n` right here
+          const sp = c.spawn, pack = { id: s.nextId++, size: sp.n ?? 1, alive: 0, announced: true, from: compass(sp.x, sp.z) };
+          for (let i = 0; i < pack.size; i++) {
+            const slot = this.freeSlot();
+            if (slot < 0) break;
+            s.hostiles.push({ id: s.nextId++, unit: sp.unit, slot, x: sp.x + (i % 4) * 1.6, z: sp.z - Math.floor(i / 4) * 1.6, heading: 0, hp: content.units[sp.unit].hp, target: -1, cd: 0, pack: pack.id });
+            pack.alive++;
+          }
+          s.packs.push(pack);
+        }
         if (c.hurt) {
           const b = s.buildings.find((x) => x.id === c.hurt!.id);
           if (b) { b.hp -= c.hurt.hp; if (b.hp <= 0) this.destroyBuilding(b); }

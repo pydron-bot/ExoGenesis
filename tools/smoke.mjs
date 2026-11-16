@@ -5,6 +5,7 @@
  *   a pack with a turret, save/load, lose the Core and start a new game.
  *   node tools/smoke.mjs [--url http://localhost:5176/] [--gpu]
  */
+import fs from 'node:fs';
 import { chromium } from 'playwright';
 
 const gpu = process.argv.includes('--gpu');
@@ -50,7 +51,11 @@ check(Math.hypot(s.drones[0].x - d0.x, s.drones[0].z - d0.z) > 5, `drone moved t
 
 // 2. build menu → Solar Array → hover → click
 await page.click('#b-build');
-check(await page.locator('#build-menu.open [data-kind]').count() === 6, 'build menu lists the 6 buildable buildings');
+const buildable = fs.readdirSync(new URL('../content/buildings/', import.meta.url)).filter((f) => {
+  const d = JSON.parse(fs.readFileSync(new URL(`../content/buildings/${f}`, import.meta.url)));
+  return d.buildable !== false && d.role !== 'core';
+}).length;
+check(await page.locator('#build-menu.open [data-kind]').count() === buildable, `build menu lists the ${buildable} buildable buildings`);
 await page.dispatchEvent('#build-menu [data-kind="solar"]', 'pointerdown');
 check(await page.evaluate(() => __exo.ui.build) === 'solar', 'picking Solar Array enters placement');
 const spot = await page.evaluate(() => {

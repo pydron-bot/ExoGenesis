@@ -17,7 +17,7 @@ import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
 import { ArmyView } from './skirmish/view';
 import type { SkSnapshot } from './skirmish/types';
-import { placeProblem } from './sim/rules';
+import { linePoints, placeProblem } from './sim/rules';
 import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 
@@ -251,13 +251,19 @@ const canPlace = (kind: string, x: number, z: number) => {
   if (c.alloys < content.buildings[kind].cost) return `not enough alloys (${content.buildings[kind].cost} needed)`;
   return placeProblem(c, content.buildings, content.colony, kind, x, z);
 };
+const isLine = (kind: string) => content.buildings[kind]?.role === 'wall';
 function setBuild(kind: string | null) {
   ui.build = kind;
   ui.ghost = null;
+  ui.line = null;
+  ui.ghostLine = null;
+  document.body.classList.toggle('placing', !!kind);
+  $('pl-rotate').style.display = kind && !isLine(kind) ? '' : 'none';
   if (kind) {
     if (cam.a > 0.3) cam.setView('surface');
     const d = content.buildings[kind];
-    log(coarse ? `Tap the ground to preview the ${d.name}, tap it again to build` : `Click to place the ${d.name} · Shift-click to place several · Esc to stop`);
+    if (isLine(kind)) log(coarse ? `${d.name}: tap where it starts, tap where it ends, tap the end again to build · ✓ Done when finished` : `${d.name}: click where it starts, then where it ends · it chains on · Esc or ✓ Done to stop`);
+    else log(coarse ? `Tap the ground to preview the ${d.name}, tap it again to build · ⟳ rotates` : `Click to place the ${d.name} · R rotates · Shift-click to place several · Esc to stop`);
   }
 }
 function restartGame() {
@@ -354,9 +360,27 @@ $('b-skirmish').onclick = () => {
 const help = $('help');
 let helped = false;
 const army = skirmish ? null : new ArmyView(scene);
-if (!skirmish) new Input(renderer.domElement, cam, region, ui, {
+const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {
   move: (drone, x, z) => sim.command({ type: 'move', drone, x, z }),
-  build: (kind, x, z) => sim.command({ type: 'build', kind, x, z }),
+  build: (kind, x, z, yaw) => sim.command({ type: 'build', kind, x, z, yaw }),
+  isLine,
+  linePreview: (kind, x1, z1, x2, z2) => {
+    const { pts, yaw } = linePoints(content.buildings[kind], x1, z1, x2, z2);
+    const c = sim.cur;
+    // check each segment as the sim will: in order, paying as it goes
+    let alloys = c?.alloys ?? 0;
+    const cost = content.buildings[kind].cost;
+    return {
+      yaw,
+      pts: pts.map((p) => {
+        const ok = !!c && alloys >= cost && !placeProblem(c, content.buildings, content.colony, kind, p.x, p.z);
+        if (ok) alloys -= cost;
+        return { ...p, ok };
+      }),
+    };
+  },
+  buildLine: (kind, x1, z1, x2, z2) => sim.command({ type: 'buildLine', kind, x1, z1, x2, z2 }),
+  lineStep: (kind) => content.buildings[kind].clearance + 0.02,
   placeProblem: canPlace,
   buildings: () => sim.cur?.buildings ?? [],
   units: () => sim.cur?.units ?? [],
@@ -369,6 +393,8 @@ if (!skirmish) new Input(renderer.domElement, cam, region, ui, {
   interacted: () => { if (!helped) { helped = true; setTimeout(() => help.classList.add('gone'), 4000); } },
   say: (t) => log(t, 'warn'),
 }, army);
+$('pl-rotate').onclick = () => input?.rotate();
+$('pl-done').onclick = () => setBuild(null);
 if (!skirmish) addEventListener('keydown', (e) => {
   // X: selected combat units stop and guard where they stand
   if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) sim.command({ type: 'stop', ids: ui.sel.ids });

@@ -43,12 +43,32 @@ export function placeProblem(
   for (const b of w.buildings) {
     const o = defs[b.kind];
     if (!o) continue;
-    const reach = o.role === 'core' ? (o.range ?? rules.buildRadius) : b.progress >= 1 ? rules.buildRadius + o.clearance / 2 : 0;
+    // walls don't extend the build area (no creeping a wall across the map)
+    const reach = o.role === 'core' ? (o.range ?? rules.buildRadius) : b.progress >= 1 && o.role !== 'wall' ? rules.buildRadius + o.clearance / 2 : 0;
     if (Math.hypot(b.x - x, b.z - z) <= reach) { near = true; break; }
   }
   if (!near) return 'outside the build area: build closer to the Core or a finished building';
   if (d.role === 'depot' && depositFor(w, d, x, z) < 0) return `no alloy deposit within ${d.range} u`;
   return null;
+}
+
+/** Most segments in one wall line. */
+export const MAX_LINE = 30;
+
+/**
+ * Segment centres for a line of `kind` from (x1, z1) toward (x2, z2), one
+ * clearance apart (a hair more, so neighbours pass the clearance check), and the
+ * yaw they all share. At least one segment.
+ */
+export function linePoints(d: BuildingDef, x1: number, z1: number, x2: number, z2: number) {
+  const len = Math.hypot(x2 - x1, z2 - z1);
+  const step = d.clearance + 0.02;
+  const n = Math.min(MAX_LINE, Math.floor(len / step) + 1);
+  const yaw = len > 0.01 ? Math.atan2(x2 - x1, z2 - z1) : 0;
+  const ux = len > 0.01 ? (x2 - x1) / len : 0, uz = len > 0.01 ? (z2 - z1) / len : 0;
+  const pts: { x: number; z: number }[] = [];
+  for (let i = 0; i < n; i++) pts.push({ x: x1 + ux * step * i, z: z1 + uz * step * i });
+  return { pts, yaw };
 }
 
 /** Nearest deposit with alloys left within a depot's range, or -1. */

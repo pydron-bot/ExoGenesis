@@ -103,7 +103,26 @@ const _fd = new THREE.Vector3();
 /** Flora field inside the region, including paint. */
 export const regionFlora = (x: number, z: number) => floraAt(regionDir(x, z, _fd)) + floraPaintAt(x, z) * FLORA_PAINT_SHIFT;
 
-export const regionHeight = (x: number, z: number) => Math.max(0, regionHeightRaw(x, z));
+/**
+ * Building pads (visual only — the sim keeps reading the raw terrain): the
+ * ground under each building is levelled to `h` within `r`, blending back to the
+ * terrain over PAD_FALL. Set by the region view from the building list.
+ */
+export interface GroundPad { x: number; z: number; r: number; h: number }
+export const PAD_FALL = 3;
+let groundPads: GroundPad[] = [];
+export function setGroundPads(p: GroundPad[]) { groundPads = p; }
+
+export const regionHeight = (x: number, z: number) => {
+  let h = Math.max(0, regionHeightRaw(x, z));
+  for (const p of groundPads) {
+    const dx = x - p.x, dz = z - p.z, reach = p.r + PAD_FALL;
+    if (dx > reach || dx < -reach || dz > reach || dz < -reach) continue;
+    const d = Math.hypot(dx, dz);
+    if (d < reach) h = lerp(h, p.h, 1 - smoothstep(p.r, reach, d));
+  }
+  return h;
+};
 
 /** World position of region coords, `lift` units above the ground. */
 export function regionToWorld(x: number, z: number, lift: number, out = new THREE.Vector3()) {

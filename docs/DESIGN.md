@@ -408,7 +408,25 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
   "RADAR OFFLINE" minimap beyond that; build menu = 3-column grid above the bar; bar on one row (Surf / Planet
   / Sys); goal = one truncated line; card tips hidden. Commands while paused now update the screen at once.
   `node tools/phone-shot.mjs <dir> [width]` screenshots the phone layout.
-- **Not in M1 yet:** fog of war, walls, building rotation, terrain flattening under buildings, sound.
+- **Walls, rotation, flat ground (2026-11-16, overnight):**
+  - **Walls** (`content/buildings/wall.json`, role `wall`, 6◆ per 4 u segment, 350 hp, no power): placed as a
+    line — click/tap the start, then the end (touch: tap the end again to confirm); the next line chains on
+    from the end until ✓ Done / Esc. Each segment must be inside the build area, and walls don't extend it
+    (no creeping a wall across the map). Up to 30 segments per line.
+  - **Predators vs walls:** walls collide as thick line segments, and a predator can never end a tick on the
+    other side of a wall line. Walls count 14 u farther away when predators pick a target, so they head for
+    real buildings; one that stops making progress for 1.5 s chews through whatever blocks it and keeps at it
+    till it falls. Measured: 8 swarmers break a segment in ~12 s, then pour through the gap. They don't path
+    around walls yet (they chew). Units path around walls (A* grid) — leave a gap as a gate.
+  - **Rotation:** R (desktop) or ⟳ Rotate (placement bar, which also has ✓ Done) turns the ghost 45°. Buildings
+    store `yaw`; the Vehicle Bay's units come out of its door side. Bodies are still circles, so rotation is
+    visual except for the bay door (and walls, which run along their line).
+  - **Flat ground:** each building levels a pad under itself (mean height of its footprint, blending back over
+    3 u). Visual only: `regionHeight` (rendering, `regionToWorld`) includes pads; the sim reads
+    `regionHeightRaw`, unchanged. The patch mesh re-levels just the vertices near a changed pad.
+  - **Fixed:** turret heads aimed mirrored (a child's rotation.y of θ faces heading yaw − θ, not θ).
+  - `debug` command can now `spawn` a pack at a point (tests). `tools/build-smoke.mjs` (18 checks).
+- **Not in M1 yet:** fog of war, sound.
 
 ## 8. Open questions
 

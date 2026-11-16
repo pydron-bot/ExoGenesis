@@ -19,6 +19,8 @@ export interface Building {
   kind: string;
   x: number;
   z: number;
+  /** Facing (radians, region heading: 0 = +z). Walls run along it; a bay's door faces the opposite way. */
+  yaw?: number;
   /** 0..1 construction progress; 1 = online. */
   progress: number;
   hp: number;
@@ -79,6 +81,10 @@ export interface Hostile {
   target: number;
   cd: number;
   pack: number;
+  /** Stuck against something (a wall) and chewing through it: keep this target till it's gone. */
+  chew?: boolean;
+  best?: number;
+  stall?: number;
 }
 
 /**
@@ -154,7 +160,9 @@ export type LandingStage = 'burn' | 'touchdown' | 'deploy';
 
 export type Command =
   | { type: 'move'; drone: number; x: number; z: number }
-  | { type: 'build'; kind: string; x: number; z: number }
+  | { type: 'build'; kind: string; x: number; z: number; yaw?: number }
+  /** A line of segments (walls) from (x1, z1) to (x2, z2). */
+  | { type: 'buildLine'; kind: string; x1: number; z1: number; x2: number; z2: number }
   | { type: 'repair'; id: number }
   | { type: 'power'; id: number; on: boolean }
   | { type: 'demolish'; id: number }
@@ -167,7 +175,7 @@ export type Command =
   | { type: 'stop'; ids: number[] }
   | { type: 'landing'; stage: LandingStage }
   /** Playtesting / tests: spawn the next pack now, add alloys, or damage a building. */
-  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number } };
+  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number } };
 
 export type ToWorker =
   | { type: 'cmd'; cmd: Command }

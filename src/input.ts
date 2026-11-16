@@ -6,7 +6,10 @@
  *     select every unit of that type on screen; tap ground to send the
  *     selection, or drag from one of them to aim the order
  *   - placing a building: on desktop the ghost follows the mouse and a click
- *     places it; on touch the first tap shows the ghost, a second tap on it places
+ *     places it; on touch the first tap shows the ghost, a second tap on it places;
+ *     R (or the ⟳ button) rotates it
+ *   - walls are lines: click/tap where it starts, then where it ends (touch: tap
+ *     the end again to confirm); the next line chains on from the end
  *   - drag elsewhere pans, pinch/wheel zooms, two-finger twist or right-drag rotates
  */
 import * as THREE from 'three';
@@ -19,7 +22,14 @@ export type UiState = RegionUi;
 
 interface Handlers {
   move(drone: number, x: number, z: number): void;
-  build(kind: string, x: number, z: number): void;
+  build(kind: string, x: number, z: number, yaw: number): void;
+  /** Kinds placed as a line (walls). */
+  isLine(kind: string): boolean;
+  /** Segments a line would place, each checked. */
+  linePreview(kind: string, x1: number, z1: number, x2: number, z2: number): NonNullable<UiState['ghostLine']>;
+  buildLine(kind: string, x1: number, z1: number, x2: number, z2: number): void;
+  /** Distance between segment centres in a line. */
+  lineStep(kind: string): number;
   /** Why `kind` can't go at (x, z), or null. */
   placeProblem(kind: string, x: number, z: number): string | null;
   buildings(): Building[];
@@ -143,8 +153,26 @@ export class Input {
   }
 
   private ghostAt(g: { x: number; z: number } | null) {
-    if (!g || !this.ui.build) { this.ui.ghost = null; return; }
-    this.ui.ghost = { x: g.x, z: g.z, ok: !this.h.placeProblem(this.ui.build, g.x, g.z) };
+    const kind = this.ui.build;
+    if (!g || !kind) { this.ui.ghost = null; this.ui.ghostLine = null; return; }
+    if (this.h.isLine(kind)) {
+      const from = this.ui.line ?? g;
+      const prev = this.h.linePreview(kind, from.x, from.z, g.x, g.z);
+      // a lone first segment follows the placement rotation
+      if (!this.ui.line) prev.yaw = this.ui.yaw ?? 0;
+      this.ui.ghostLine = prev;
+      this.ui.ghost = { x: g.x, z: g.z, ok: prev.pts.some((p) => p.ok) };
+      return;
+    }
+    this.ui.ghostLine = null;
+    this.ui.ghost = { x: g.x, z: g.z, ok: !this.h.placeProblem(kind, g.x, g.z) };
+  }
+
+  /** Placement: turn the building (or a lone wall segment) 45°. */
+  rotate() {
+    if (!this.ui.build) return;
+    this.ui.yaw = ((this.ui.yaw ?? 0) + Math.PI / 4) % (Math.PI * 2);
+    if (this.ui.ghost) this.ghostAt(this.ui.ghost);
   }
 
   private down(e: PointerEvent) {
@@ -270,6 +298,32 @@ export class Input {
   private tap(x: number, y: number, mouse: boolean, keep: boolean) {
     if (this.cam.a >= 0.5) return;
     const g = this.ground(x, y);
+    if (this.ui.build && this.h.isLine(this.ui.build)) {
+      if (!g) return;
+      const kind = this.ui.build;
+      if (!this.ui.line) {
+        // first point
+        this.ui.line = g;
+        this.ghostAt(g);
+        return;
+      }
+      // touch: tapping somewhere else moves the end; tapping the end again builds
+      // (so tapping the start twice builds a single segment)
+      const near = this.ui.ghost && Math.hypot(this.ui.ghost.x - g.x, this.ui.ghost.z - g.z) < 6;
+      if (!mouse && !near) { this.ghostAt(g); return; }
+      const end = mouse ? g : this.ui.ghost!;
+      const from = this.ui.line;
+      const prev = this.h.linePreview(kind, from.x, from.z, end.x, end.z);
+      if (!prev.pts.some((p) => p.ok)) { this.h.say('Can\'t build a wall there'); this.ghostAt(end); return; }
+      this.h.buildLine(kind, from.x, from.z, end.x, end.z);
+      // the next line chains on one segment past where this one ended
+      const last = prev.pts[prev.pts.length - 1], step = this.h.lineStep(kind);
+      this.ui.line = { x: last.x + Math.sin(prev.yaw) * step, z: last.z + Math.cos(prev.yaw) * step };
+      this.ui.yaw = prev.yaw;
+      this.ui.ghost = null;
+      this.ui.ghostLine = null;
+      return;
+    }
     if (this.ui.build) {
       if (!g) return;
       // touch: first tap previews, a tap on the preview places it
@@ -278,7 +332,7 @@ export class Input {
       const at = mouse ? g : this.ui.ghost!;
       const why = this.h.placeProblem(this.ui.build, at.x, at.z);
       if (why) { this.h.say(`Can't build there: ${why}`); this.ghostAt(at); return; }
-      this.h.build(this.ui.build, at.x, at.z);
+      this.h.build(this.ui.build, at.x, at.z, this.ui.yaw ?? 0);
       if (!keep) this.h.setBuild(null);
       return;
     }
@@ -315,6 +369,7 @@ export class Input {
       case '2': this.h.view('planet'); break;
       case '3': this.h.view('system'); break;
       case 'b': this.h.toggleBuildMenu(); break;
+      case 'r': this.rotate(); break;
       case 'Escape': this.h.setBuild(null); this.ui.sel = null; this.h.select(); break;
       case ' ': e.preventDefault(); this.h.togglePause(); break;
       default: return;

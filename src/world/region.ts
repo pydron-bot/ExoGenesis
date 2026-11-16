@@ -8,7 +8,8 @@ import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
 import { Flora } from './flora';
 import {
-  E, HALF, N, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, worldToRegion,
+  E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, worldToRegion,
+  type GroundPad,
 } from './planet';
 
 const STEP = 2;
@@ -32,6 +33,8 @@ function buildPatch(look: Look): THREE.Mesh {
   const col: number[] = [];
   const uv: number[] = [];
   const idx: number[] = [];
+  /** Per vertex: region x, z and skirt drop, so building pads can re-level it later. */
+  const vx: number[] = [], vz: number[] = [], vdrop: number[] = [];
   const v = new THREE.Vector3(), d = new THREE.Vector3(), c = new THREE.Color();
   for (let j = -1; j <= n + 1; j++) {
     for (let i = -1; i <= n + 1; i++) {
@@ -42,6 +45,7 @@ function buildPatch(look: Look): THREE.Mesh {
       regionDir(x, z, d);
       v.copy(d).multiplyScalar(R + Math.max(0, raw) - (skirt ? 10 : 0));
       pos.push(v.x, v.y, v.z);
+      vx.push(x); vz.push(z); vdrop.push(skirt ? 10 : 0);
       terrainColor(raw, regionFlora(x, z), c);
       col.push(c.r, c.g, c.b);
       uv.push(x / 22, z / 22); // one texture tile per 22 units (~220 m)
@@ -80,12 +84,18 @@ function buildPatch(look: Look): THREE.Mesh {
     });
   } else {
     geo = geo.toNonIndexed();
+    // toNonIndexed walks the index in order: vertex k came from index[k]
+    const ix = [...idx];
+    const [x0, z0, d0] = [vx, vz, vdrop].map((a) => [...a]);
+    vx.length = vz.length = vdrop.length = 0;
+    for (const k of ix) { vx.push(x0[k]); vz.push(z0[k]); vdrop.push(d0[k]); }
     geo.computeVertexNormals();
     mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92 });
   }
   geo.computeBoundingSphere();
   const m = new THREE.Mesh(geo, mat);
   m.name = 'region-patch';
+  m.userData.verts = { x: Float32Array.from(vx), z: Float32Array.from(vz), drop: Float32Array.from(vdrop) };
   return m;
 }
 
@@ -372,6 +382,22 @@ export function buildBay(): THREE.Group {
   return g;
 }
 
+/** Wall segment: runs along local Z, one clearance (4 u) long, with a post at one end. */
+export function buildWall(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#8f989f');
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.2, 4.1), hull);
+  slab.position.y = 1.1;
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, 4.1), dark);
+  cap.position.y = 2.35;
+  const post = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.9, 0.7), dark);
+  post.position.set(0, 1.45, 2);
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.12, 3.4), glow('#5ff3ff', 1.2));
+  strip.position.y = 1.7;
+  g.add(slab, cap, post, strip);
+  return g;
+}
+
 /** Alloy deposit: a cluster of metallic crystals. */
 export function buildDeposit(seed: number): THREE.Group {
   const g = new THREE.Group();
@@ -398,6 +424,7 @@ export function buildForRole(role: string): THREE.Group {
     case 'turret': return buildTurret();
     case 'radar': return buildRadar();
     case 'factory': return buildBay();
+    case 'wall': return buildWall();
     default: return buildSolar();
   }
 }
@@ -492,6 +519,11 @@ export interface RegionUi {
   /** Building kind being placed, and where the ghost is. */
   build: string | null;
   ghost: { x: number; z: number; ok: boolean } | null;
+  /** Placement rotation (region heading). */
+  yaw?: number;
+  /** Line placement (walls): where the line starts, and the segments it would place. */
+  line?: { x: number; z: number } | null;
+  ghostLine?: { pts: { x: number; z: number; ok: boolean }[]; yaw: number } | null;
 }
 
 interface BEntry { kind: string; done: boolean; obj: THREE.Group; powered: boolean; emissive: [THREE.MeshStandardMaterial, number][]; bar: THREE.Group }
@@ -528,6 +560,10 @@ export class RegionView {
   private models: Record<string, THREE.Object3D> = {};
   private firstDrone = -1;
   private coreAlive = true;
+  /** Ground pads under buildings, by building id (height fixed when first seen). */
+  private pads = new Map<number, GroundPad>();
+  private padKey = '';
+  private lineGhosts: THREE.Group[] = [];
 
   constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1, private rules: RegionRules = { defs: {}, buildRadius: 30 }) {
     this.patch = buildPatch(look);
@@ -617,6 +653,17 @@ export class RegionView {
       if (dist < r && dist < bd) { bd = dist; best = b.id; }
     }
     return best;
+  }
+
+  /** Test hook: region heading a building (or a named part of it) faces. */
+  facing(id: number, part?: string): number | null {
+    const e = this.buildings.get(id);
+    const o = e && (part ? e.obj.getObjectByName(part) : e.obj);
+    if (!o) return null;
+    o.updateMatrixWorld(true);
+    const a = worldToRegion(new THREE.Vector3(0, 0, 0).applyMatrix4(o.matrixWorld));
+    const b = worldToRegion(new THREE.Vector3(0, 0, 5).applyMatrix4(o.matrixWorld));
+    return Math.atan2(b.x - a.x, b.z - a.z);
   }
 
   /** Use an asset model for a building kind instead of the built-in (null = built-in). */
@@ -712,13 +759,15 @@ export class RegionView {
     if (ui.drag && from) this.orderRibbon.set(from.x, from.z, ui.drag.x, ui.drag.z);
 
     // placement ghost and range rings
-    for (const [k, g] of this.ghosts) g.visible = ui.build === k && !!ui.ghost;
+    const line = ui.build ? ui.ghostLine : null;
+    for (const [k, g] of this.ghosts) g.visible = ui.build === k && !!ui.ghost && !line;
+    this.syncLineGhosts(ui.build, line ?? null);
     this.rangeRing.hide();
     this.reachRing.hide();
-    if (ui.build && ui.ghost) {
+    if (ui.build && ui.ghost && !line) {
       const g = this.ghostFor(ui.build);
       g.visible = true;
-      orient(g, ui.ghost.x, ui.ghost.z, 0, 0);
+      orient(g, ui.ghost.x, ui.ghost.z, ui.yaw ?? 0, 0);
       const mat = ui.ghost.ok ? this.ghostOk : this.ghostBad;
       g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = mat; });
       const d = this.rules.defs[ui.build];
@@ -753,6 +802,67 @@ export class RegionView {
     this.faunaMesh.instanceMatrix.needsUpdate = true;
   }
 
+  /** Wall line preview: one ghost segment per point, green or red. */
+  private syncLineGhosts(kind: string | null, line: NonNullable<RegionUi['ghostLine']> | null) {
+    const n = kind && line ? line.pts.length : 0;
+    while (this.lineGhosts.length < n) {
+      const g = this.modelFor(kind!);
+      g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = this.ghostOk; });
+      this.details.add(g);
+      this.lineGhosts.push(g);
+    }
+    this.lineGhosts.forEach((g, i) => {
+      g.visible = i < n;
+      if (i >= n) return;
+      const p = line!.pts[i];
+      orient(g, p.x, p.z, line!.yaw, 0);
+      const mat = p.ok ? this.ghostOk : this.ghostBad;
+      g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = mat; });
+    });
+  }
+
+  /**
+   * Level the ground under buildings (visual only). Pads are added/removed as
+   * buildings come and go; only the patch vertices near a changed pad move.
+   */
+  private syncPads(list: Building[]) {
+    const ids = list.filter((b) => b.kind !== 'core').map((b) => b.id);
+    const key = ids.join(',');
+    if (key === this.padKey) return;
+    this.padKey = key;
+    const changed: GroundPad[] = [];
+    const keep = new Set(ids);
+    for (const [id, p] of this.pads) if (!keep.has(id)) { changed.push(p); this.pads.delete(id); }
+    for (const b of list) {
+      if (b.kind === 'core' || this.pads.has(b.id)) continue;
+      const r = (this.rules.defs[b.kind]?.clearance ?? 8) / 2 + 0.5;
+      let h = 0, n = 0;
+      for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r * 0.7, r * 0.7], [-r * 0.7, -r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, r * 0.7]]) {
+        h += Math.max(0, regionHeightRaw(b.x + dx, b.z + dz)); n++;
+      }
+      const p = { x: b.x, z: b.z, r, h: Math.max(0.4, h / n) };
+      this.pads.set(b.id, p);
+      changed.push(p);
+    }
+    setGroundPads([...this.pads.values()]);
+    if (!changed.length) return;
+    const verts = this.patch.userData.verts as { x: Float32Array; z: Float32Array; drop: Float32Array } | undefined;
+    if (!verts) return;
+    const pos = this.patch.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const v = new THREE.Vector3();
+    let moved = 0;
+    for (let i = 0; i < pos.count; i++) {
+      const x = verts.x[i], z = verts.z[i];
+      if (!changed.some((p) => Math.abs(x - p.x) < p.r + PAD_FALL + 1 && Math.abs(z - p.z) < p.r + PAD_FALL + 1)) continue;
+      regionDir(x, z, v).multiplyScalar(R + regionHeight(x, z) - verts.drop[i]);
+      pos.setXYZ(i, v.x, v.y, v.z);
+      moved++;
+    }
+    if (!moved) return;
+    pos.needsUpdate = true;
+    this.patch.geometry.computeVertexNormals();
+  }
+
   /** While placing: faint rings showing where building is allowed. */
   private syncAreaRings(list: Building[]) {
     const want: [number, number, number][] = [];
@@ -771,6 +881,7 @@ export class RegionView {
   }
 
   private syncBuildings(cur: Snapshot, t: number, ui: RegionUi, camera: THREE.Camera) {
+    this.syncPads(cur.buildings);
     const seen = new Set<number>();
     let coreSeen = false;
     const charge = cur.storageMax > 0 ? cur.stored / cur.storageMax : 0;
@@ -789,7 +900,7 @@ export class RegionView {
           const k = (d?.clearance ?? 8) / 9;
           obj.scale.set(k, 1, k * 1.6);
         }
-        orient(obj, b.x, b.z, 0, 0);
+        orient(obj, b.x, b.z, b.yaw ?? 0, 0);
         this.details.add(obj);
         const emissive: [THREE.MeshStandardMaterial, number][] = [];
         obj.traverse((o) => {
@@ -821,7 +932,8 @@ export class RegionView {
         if (role === 'turret' && b.aim !== undefined) {
           const head = e.obj.getObjectByName('head');
           if (head) {
-            let dh = b.aim - head.rotation.y;
+            // a child's rotation.y of θ faces heading (yaw − θ), so aim → θ = yaw − aim
+            let dh = (b.yaw ?? 0) - b.aim - head.rotation.y;
             dh = Math.atan2(Math.sin(dh), Math.cos(dh));
             head.rotation.y += dh * 0.25;
           }

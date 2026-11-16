@@ -1,0 +1,11 @@
+{
+  "name": "Wall",
+  "description": "Cheap armoured segments. Drag out a line; predators have to chew through, units path around. Leave gaps for your units.",
+  "role": "wall",
+  "buildable": true,
+  "cost": 6,
+  "hp": 350,
+  "powerMW": 0,
+  "buildSeconds": 3,
+  "clearance": 4
+}
