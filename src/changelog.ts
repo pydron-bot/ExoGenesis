@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.12.4',
+    date: '2026-11-16',
+    title: 'Colony lights (experimental)',
+    notes: [
+      'Experimental: add ?lights=1 to the address to try colony lighting. Floodlights, headlights, muzzle flashes and explosions light up the ground at night, and nights get darker',
+    ],
+  },
+  {
     version: '0.12.3',
     date: '2026-11-16',
     title: 'Smoother big bases, part 2',
