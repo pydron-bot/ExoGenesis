@@ -148,7 +148,7 @@ await page.evaluate(() => __exo.sim.setSpeed(1));
 await page.evaluate(() => __exo.sim.flush());
 await wait(800);
 const n = (await cur()).units.length;
-await page.goto(url);
+await page.goto(`${url}?title=0`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
 await wait(1500);
 check((await cur()).units.length === n && n > 0, `resume keeps the army (${n} units)`);

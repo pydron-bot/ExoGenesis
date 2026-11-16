@@ -545,3 +545,9 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
   touchdown → six shell petals fold out → petals dissolve into the core → drone bay opens and the drone
   flies to its post. Sim has a landing phase (drone and economy wait for deploy; grazers bolt from the
   engine noise). Needs a real-phone check for fps with flora on.
+- **Title screen (2026-11-16):** `src/title.ts`. The wordmark assembles over the live planet (slow orbit
+  drift, landscape shifts the planet right of the menu, portrait pulls back and lifts it), tagline types
+  out, menu slides in: CONTINUE (Sol/time of the autosave; dives to the surface), NEW GAME (two taps when a
+  colony exists; plays the landing), SKIRMISH, SOUND, EDITOR, deeek.org link. HUD, labels, province overlay
+  and fog are hidden behind it; the remembered camera isn't overwritten by the title's orbit. Skipped by
+  `?title=0` (resume or land as before), `?intro=0`, `?new=1`, `?view=…` and skirmish, so tools are unchanged.

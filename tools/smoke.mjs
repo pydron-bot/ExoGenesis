@@ -158,7 +158,14 @@ await wait(800);
 const before6b = await cur();
 await page.goto(`${url}`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
-await wait(1200);
+await wait(2400); // the title's menu slides in
+check(await page.evaluate(() => !!__exo.title && getComputedStyle(document.getElementById('hud')).display === 'none'), 'a plain visit opens on the title screen, HUD hidden');
+check(/Sol \d+/.test(await page.textContent('[data-id=continue] small')), 'title offers CONTINUE with the colony\'s Sol');
+await page.click('[data-id=new]');
+check(/tap again/.test(await page.textContent('[data-id=new] small')) && await page.evaluate(() => !!__exo.title), 'NEW GAME asks twice when there is a colony');
+await page.click('[data-id=continue]');
+await until(() => !__exo.title && __exo.cam.dist < 200, null, 10000);
+check(true, 'CONTINUE closes the title and dives to the surface');
 s = await cur();
 check(s.buildings.length === before6b.buildings.length && s.tick >= before6b.tick - 5, `coming back resumes the autosave (${s.buildings.length} buildings, tick ${s.tick}) with no landing cinematic`);
 check(await page.evaluate(() => !document.body.classList.contains('cine')), 'resume skips the landing cinematic');

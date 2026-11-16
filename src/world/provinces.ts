@@ -159,6 +159,9 @@ export class Provinces {
     }
   }
 
+  /** Hide borders and fill for this frame (the next update() decides again). */
+  hide() { this.borders.visible = this.fill.visible = false; }
+
   update(camera: THREE.PerspectiveCamera, dist: number, width: number, height: number) {
     const k = smoothstep(900, 3500, dist) * (1 - smoothstep(40000, 160000, dist));
     (this.borders.material as THREE.LineBasicMaterial).opacity = k * 0.45;

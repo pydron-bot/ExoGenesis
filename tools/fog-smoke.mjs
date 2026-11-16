@@ -99,7 +99,7 @@ check(dark < lit * 0.5, `unexplored ground is drawn darker (lit ${lit.toFixed(0)
 // 5. resume keeps the explored map
 await page.evaluate(() => __exo.sim.flush());
 await wait(800);
-await page.goto(url);
+await page.goto(`${url}?title=0`);
 await ready();
 await wait(1500);
 check(await fogAt(-90, 90) >= 1, 'resume remembers explored ground');

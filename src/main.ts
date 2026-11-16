@@ -22,6 +22,7 @@ import { linePoints, placeProblem } from './sim/rules';
 import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
+import { TitleScreen } from './title';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -233,6 +234,7 @@ let landing: Landing | null = null;
 // ?new=1 starts fresh. The camera is remembered separately in localStorage.
 const CAM_KEY = 'exo.camera';
 function saveCamera() {
+  if (title || landing) return; // the title's orbit and the descent aren't where you play from
   try { localStorage.setItem(CAM_KEY, JSON.stringify({ dist: cam.targetDist, yaw: cam.yaw, pitch: cam.targetPitch, fx: cam.fx, fz: cam.fz })); } catch { /* private mode */ }
 }
 function restoreCamera() {
@@ -253,32 +255,48 @@ if (!skirmishMode) {
   }
 }
 
-if (!skirmishMode) {
-  if (resumed) {
-    sim.load(resumed.sim);
-    restoreCamera();
-    const sol = content.colony.solSeconds, secs = resumed.sim.tick / TICK_HZ;
-    const h = hourAt(secs, sol);
-    log(`Welcome back · resumed at Sol ${Math.floor(secs / sol) + 1}, ${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')} · ⋯ → New game to start over`);
-  } else if (params.get('intro') === '0' || params.get('view')) {
-    sim.command({ type: 'landing', stage: 'deploy' });
-  } else {
-    document.body.classList.add('cine');
-    landing = new Landing(scene, region, cam, {
-      stage: (s) => sim.command({ type: 'landing', stage: s }),
-      caption: (title, sub) => {
-        $('cine-title').textContent = title;
-        $('cine-sub').textContent = sub;
-      },
-      done: () => {
-        document.body.classList.remove('cine');
-        cineEl.classList.add('gone');
-        selectFirstDrone = true;
-        landing = null;
-        for (const [text, level] of heldLog.splice(0)) log(text, level);
-      },
-    });
-  }
+/** "Sol 3, 14:22" for a sim tick. */
+function solTime(tick: number) {
+  const sol = content.colony.solSeconds, secs = tick / TICK_HZ;
+  const h = hourAt(secs, sol);
+  return `Sol ${Math.floor(secs / sol) + 1}, ${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
+}
+/**
+ * The title screen comes first unless a URL asks to go straight in:
+ * ?title=0 (resume or land as before), ?intro=0, ?new=1, ?view=…, skirmish.
+ */
+const useTitle = !skirmishMode && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
+if (useTitle) document.body.classList.add('title');
+let title: TitleScreen | null = null;
+
+function startResume() {
+  if (!resumed) return;
+  sim.load(resumed.sim);
+  cam.setView('surface'); // the default; a remembered camera overrides it
+  restoreCamera();
+  log(`Welcome back · resumed at ${solTime(resumed.sim.tick)} · ⋯ → New game to start over`);
+}
+function startLanding() {
+  document.body.classList.add('cine');
+  landing = new Landing(scene, region, cam, {
+    stage: (s) => sim.command({ type: 'landing', stage: s }),
+    caption: (title, sub) => {
+      $('cine-title').textContent = title;
+      $('cine-sub').textContent = sub;
+    },
+    done: () => {
+      document.body.classList.remove('cine');
+      cineEl.classList.add('gone');
+      selectFirstDrone = true;
+      landing = null;
+      for (const [text, level] of heldLog.splice(0)) log(text, level);
+    },
+  });
+}
+if (!skirmishMode && !useTitle) {
+  if (resumed) startResume();
+  else if (params.get('intro') === '0' || params.get('view')) sim.command({ type: 'landing', stage: 'deploy' });
+  else startLanding();
 }
 $('cine-skip').onclick = () => landing?.skip();
 addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
@@ -505,6 +523,7 @@ function updateHud(dt: number, now: number) {
 // ---------- reveal + layout ----------
 function reveal() {
   loadTimes.push(['first frame', performance.now()]);
+  if (useTitle) showTitle();
   $('loader-step').textContent = 'Ready';
   barTo(1, 200);
   document.body.classList.add('loaded');
@@ -545,6 +564,31 @@ const spatial: Spatial = (x, z) => {
   return { gain, pan: Math.max(-0.8, Math.min(0.8, sndV.x * 0.75)) };
 };
 
+// ---------- title screen ----------
+function showTitle() {
+  const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
+  const soundSub = () => (audio.disabled ? 'Off (turned off in the URL)' : audio.on ? 'On · tap to mute' : 'Muted · tap to turn on');
+  const choices = [
+    ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
+    {
+      id: 'new', label: 'NEW GAME', sub: 'Land the probe on a fresh world',
+      ...(resumed ? { confirm: `Your colony at ${solTime(resumed.sim.tick)} will be lost · tap again` } : {}),
+      run: go(startLanding),
+    },
+    { id: 'skirmish', label: 'SKIRMISH', sub: 'Hundreds of units, one battlefield (prototype)', run: () => $('b-skirmish').click() },
+    {
+      id: 'sound', label: 'SOUND', sub: soundSub(),
+      run: () => { if (!audio.disabled) { audio.setOn(!audio.on); syncSound(); } title?.setSub('sound', soundSub()); },
+    },
+    { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
+  ];
+  title = new TitleScreen(cam, camera, {
+    choices,
+    foot: 'M1 · <a href="https://deeek.org/">deeek.org</a>',
+    tap: () => audio.play('tap'),
+  });
+}
+
 // ---------- frame loop ----------
 const skyDay = new THREE.Color('#8fb0ad');
 const skyNight = new THREE.Color('#0b1622');
@@ -567,6 +611,7 @@ function frame(now: number) {
   (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = 1.25 * smoothstep(300, 1400, cam.altitude());
   atmosphere.visible = cam.altitude() > 300;
   provinces.update(camera, cam.dist, innerWidth, innerHeight);
+  if (title) provinces.hide(); // a clean planet behind the title, no map overlay
 
   // sky: day/night at the landing site, fading to space as we climb
   const sunUp = system.sunPos.clone().normalize().dot(U);
@@ -591,16 +636,17 @@ function frame(now: number) {
       ui.sel = { kind: 'drone', id: sim.cur.drones[0].id };
       hud.selected();
     }
+    if (title) title.update(dt, cam.altitude(), solTime(sim.cur.tick).toUpperCase());
     const alpha = sim.alpha(now);
     // world animations run on game time: frozen when paused, faster at ×3
     gameT += dt * speed;
     region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera, gameT);
     // fog shows once the landing has handed over (the descent keeps its vista)
-    fogView.amount = landing ? 0 : 1;
+    fogView.amount = landing || title ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt);
     // sound: only the wind during the landing
-    audio.quiet = !!landing;
+    audio.quiet = !!landing || !!title;
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
     audio.ambient(sim.cur.daylight, air, dt);
     if (!ready) { ready = true; exo.ready = true; reveal(); }
@@ -625,6 +671,7 @@ const exo = {
   skirmish,
   region,
   get landing() { return landing; },
+  get title() { return title; },
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
   hud,
   ui,

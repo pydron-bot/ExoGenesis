@@ -268,3 +268,102 @@ body.skirmish #goals, body.skirmish #minimap, body.skirmish #card, body.skirmish
   #hud #card button { padding: 7px 8px; }
   .ev { font-size: 11px; }
 }
+
+/* ---------- title screen (src/title.ts) ---------- */
+body.title #hud, body.title #labels, body.title #cine, body.title #help { display: none !important; }
+#title {
+  position: fixed; inset: 0; z-index: 30; color: var(--text); font-family: var(--mono);
+  display: flex; align-items: center; padding: 0 max(28px, 6vw);
+  padding: env(safe-area-inset-top) max(28px, 6vw) env(safe-area-inset-bottom);
+  transition: opacity 0.7s ease;
+}
+#title.out { opacity: 0; pointer-events: none; }
+#title .t-vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(2, 4, 8, 0.82) 0%, rgba(2, 4, 8, 0.5) 32%, rgba(2, 4, 8, 0) 58%),
+    radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%);
+  animation: t-fade 2.2s ease both;
+}
+#title .t-scan {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.18; mix-blend-mode: overlay;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.25) 0 1px, transparent 1px 3px);
+  animation: t-scan 9s linear infinite;
+}
+#title .t-col { position: relative; display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+#title .t-mark {
+  position: relative; margin: 0; font-weight: 700; white-space: nowrap; overflow: hidden;
+  font-size: clamp(30px, 6.4vw, 64px); letter-spacing: 0.16em; line-height: 1.05; color: #e9fdff;
+  text-shadow: 0 0 18px rgba(95, 243, 255, 0.55), 0 0 2px rgba(95, 243, 255, 0.9);
+}
+#title .t-mark span {
+  display: inline-block; opacity: 0;
+  animation: t-letter 0.9s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(0.25s + var(--i) * 0.07s);
+}
+/* a glint sweeps across the wordmark now and then */
+#title .t-mark::after {
+  content: ''; position: absolute; inset: -20% auto -20% -40%; width: 30%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  mix-blend-mode: overlay; transform: skewX(-18deg);
+  animation: t-glint 6.5s ease-in-out 1.6s infinite;
+}
+#title .t-rule {
+  height: 1px; width: 100%; transform-origin: left; transform: scaleX(0);
+  background: linear-gradient(90deg, var(--cyan), rgba(95, 243, 255, 0));
+  box-shadow: 0 0 8px var(--cyan); animation: t-rule 1s cubic-bezier(.6, 0, .2, 1) 0.9s both;
+}
+#title .t-tag { min-height: 1.4em; font-size: clamp(10px, 2.6vw, 13px); letter-spacing: 0.24em; color: var(--cyan); }
+#title .t-caret {
+  display: inline-block; width: 0.6em; height: 1em; margin-left: 2px; vertical-align: -2px;
+  background: var(--cyan); animation: t-blink 1s steps(1) infinite;
+}
+#title .t-menu { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+#title .t-item {
+  display: flex; flex-direction: column; gap: 2px; text-align: left; text-decoration: none; color: var(--text);
+  font: inherit; background: rgba(6, 14, 22, 0.55); border: 1px solid var(--line); border-left: 3px solid var(--cyan-dim);
+  border-radius: 4px; padding: 10px 16px; cursor: pointer; width: min(360px, 100%);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  opacity: 0; animation: t-item 0.6s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(1.5s + var(--i) * 0.09s);
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+#title .t-item b { font-size: 15px; letter-spacing: 0.2em; font-weight: 700; }
+#title .t-item small { font-size: 11px; color: rgba(214, 246, 255, 0.62); letter-spacing: 0.04em; }
+#title .t-item:hover, #title .t-item:focus-visible {
+  outline: none; border-color: var(--cyan); border-left-color: var(--cyan); background: rgba(10, 34, 46, 0.72); transform: translateX(4px);
+}
+#title .t-item:first-child { border-left-color: var(--cyan); }
+#title .t-item:first-child b { color: var(--cyan); text-shadow: 0 0 10px rgba(95, 243, 255, 0.5); }
+#title .t-item.armed { border-color: var(--amber); border-left-color: var(--amber); }
+#title .t-item.armed small { color: var(--amber); }
+#title .t-status { min-height: 1em; font-size: 11px; color: rgba(214, 246, 255, 0.5); letter-spacing: 0.08em; animation: t-fade 1s ease 2.2s both; }
+#title .t-foot, #title .t-tele {
+  position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); font-size: 10px; letter-spacing: 0.14em;
+  color: rgba(214, 246, 255, 0.45); animation: t-fade 1.2s ease 2s both;
+}
+#title .t-foot { left: max(28px, 6vw); }
+#title .t-foot a { color: var(--cyan-dim); text-decoration: none; }
+#title .t-tele { right: max(20px, 4vw); text-align: right; color: var(--cyan-dim); }
+@keyframes t-letter { from { opacity: 0; transform: translateY(0.35em); filter: blur(8px); letter-spacing: 0.5em; } to { opacity: 1; transform: none; filter: none; } }
+@keyframes t-glint { 0% { left: -40%; } 22%, 100% { left: 120%; } }
+@keyframes t-rule { to { transform: scaleX(1); } }
+@keyframes t-blink { 50% { opacity: 0; } }
+@keyframes t-item { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes t-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes t-scan { to { background-position: 0 300px; } }
+/* portrait phones: wordmark up top, menu at the bottom, the planet between */
+@media (max-aspect-ratio: 1/1) {
+  #title { align-items: stretch; padding-top: calc(54px + env(safe-area-inset-top)); padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+  #title .t-vignette { background: linear-gradient(180deg, rgba(2, 4, 8, 0.75) 0%, rgba(2, 4, 8, 0) 30%, rgba(2, 4, 8, 0) 50%, rgba(2, 4, 8, 0.85) 100%); }
+  #title .t-col { flex: 1; max-width: none; }
+  #title .t-mark { text-align: center; }
+  #title .t-rule { background: linear-gradient(90deg, rgba(95, 243, 255, 0), var(--cyan), rgba(95, 243, 255, 0)); transform-origin: center; }
+  #title .t-tag { text-align: center; }
+  #title .t-menu { margin-top: auto; align-items: center; }
+  #title .t-item { width: 100%; max-width: 420px; }
+  #title .t-status { text-align: center; }
+  #title .t-foot { left: 0; right: 0; text-align: center; }
+  #title .t-tele { top: calc(14px + env(safe-area-inset-top)); bottom: auto; left: 0; right: 0; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #title *, #title *::after { animation-duration: 0.01s !important; animation-delay: 0s !important; }
+}
