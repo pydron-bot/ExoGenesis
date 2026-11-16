@@ -43,7 +43,7 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 | Order the drone | drag from the drone to a spot | same, or click drone then click ground |
 | Pan | drag the ground | drag / WASD / arrows |
 | Zoom | pinch | wheel / + − |
-| Rotate | two-finger twist / vertical | right-drag / Q E |
+| Rotate | two-finger twist / vertical | right-drag (or shift-drag) / Q E |
 | Jump | Surface / Planet / System buttons | 1 / 2 / 3 |
 | Build solar | Solar, then tap ground | B, then click |
 | Pause | ❚❚ | Space |

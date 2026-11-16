@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.10.2',
+    date: '2026-11-16',
+    title: 'Mouse rotation the right way round',
+    notes: [
+      'Rotating the view by right-dragging (or shift-dragging) left and right now turns it the other way. Touch is unchanged',
+    ],
+  },
+  {
     version: '0.10.1',
     date: '2026-11-16',
     title: 'Drag orders on slow frames',

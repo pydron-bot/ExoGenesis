@@ -61,6 +61,8 @@ export class Input {
   private ndc = new THREE.Vector2();
   private orderDrone = -1;
   private downUnit = -1;
+  /** Horizontal orbit direction for this drag: −1 for the mouse (reversed from touch). */
+  private orbitSign = 1;
   /** When the press on a unit happened (event time), and the selection before it (to undo a hold that fired late). */
   private downStamp = 0;
   private downSel: number[] = [];
@@ -195,7 +197,8 @@ export class Input {
     }
     if (this.pts.size > 2) return;
     const surface = this.cam.a < 0.5;
-    if (e.button === 2 || e.shiftKey || !surface) { this.mode = 'orbit'; return; }
+    // mouse rotate (right-drag, shift-drag) is reversed from a touch drag; a touch drag keeps its direction
+    if (e.button === 2 || e.shiftKey || !surface) { this.mode = 'orbit'; this.orbitSign = e.pointerType === 'mouse' && (e.button === 2 || e.shiftKey) ? -1 : 1; return; }
     const drone = this.ui.build ? -1 : this.droneAt(e.clientX, e.clientY);
     const unit = this.ui.build || drone >= 0 ? -1 : this.unitAt(e.clientX, e.clientY);
     clearTimeout(this.holdTimer);
@@ -253,7 +256,7 @@ export class Input {
       return;
     }
     if (this.mode === 'pan') this.cam.pan(dx, dy, this.el.clientHeight);
-    else if (this.mode === 'orbit') this.cam.rotate(-dx * 0.005, dy * 0.004);
+    else if (this.mode === 'orbit') this.cam.rotate(-dx * 0.005 * this.orbitSign, dy * 0.004);
     else if (this.mode === 'order') {
       if (this.ui.sel?.kind !== 'drone' || this.ui.sel.id !== this.orderDrone) { this.ui.sel = { kind: 'drone', id: this.orderDrone }; this.h.select(); }
       this.ui.drag = this.ground(e.clientX, e.clientY) ?? this.ui.drag;

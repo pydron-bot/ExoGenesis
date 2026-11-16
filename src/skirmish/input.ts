@@ -46,6 +46,8 @@ const BRUSH_PX = 30;
 export class SkInput {
   private pts = new Map<number, { x: number; y: number; sx: number; sy: number; t: number }>();
   private mode: Mode = 'none';
+  /** Horizontal orbit direction for this drag: −1 for mouse (reversed from touch). */
+  private orbitSign = 1;
   private pinch = { d: 0, ang: 0, my: 0 };
   private ndc = new THREE.Vector2();
   private v = new THREE.Vector3();
@@ -141,8 +143,8 @@ export class SkInput {
     if (this.pts.size > 2) return;
     this.held = false;
     if (e.pointerType === 'mouse' && e.button === 2) { this.mode = 'pan'; return; }
-    if (e.pointerType === 'mouse' && (e.button === 1 || e.altKey)) { this.mode = 'orbit'; return; }
-    if (this.cam.a > 0.5) { this.mode = 'orbit'; return; }
+    if (e.pointerType === 'mouse' && (e.button === 1 || e.altKey)) { this.mode = 'orbit'; this.orbitSign = -1; return; }
+    if (this.cam.a > 0.5) { this.mode = 'orbit'; this.orbitSign = 1; return; }
     if (this.ui.paint) {
       this.mode = 'paint';
       this.stroke = [{ x: e.clientX, y: e.clientY }];
@@ -207,7 +209,7 @@ export class SkInput {
     }
     switch (this.mode) {
       case 'pan': this.cam.pan(dx, dy, this.el.clientHeight); break;
-      case 'orbit': this.cam.rotate(-dx * 0.005, dy * 0.004); break;
+      case 'orbit': this.cam.rotate(-dx * 0.005 * this.orbitSign, dy * 0.004); break;
       case 'order': this.ui.drag = this.ground(e.clientX, e.clientY) ?? this.ui.drag; break;
       case 'paint':
         this.stroke.push({ x: e.clientX, y: e.clientY });
