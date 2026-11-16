@@ -8,6 +8,7 @@ import { placeMatrix, regionPoint } from '../world/heightGrid';
 import { flattenForInstancing, loadModel } from '../assets/models';
 import { builtinUnitLook } from './models';
 import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, type SkSnapshot } from './types';
+import { colonyLights } from '../world/lights';
 
 interface Pool { mesh: THREE.InstancedMesh; life: Float32Array; max: Float32Array; next: number; color: THREE.Color[]; size: Float32Array; pos: Float32Array }
 
@@ -38,6 +39,8 @@ export class ArmyView {
   readonly wz = new Float32Array(MAX_UNITS);
   readonly lx = new Float32Array(MAX_UNITS);
   readonly lz = new Float32Array(MAX_UNITS);
+  /** Interpolated heading per slot (headlights). */
+  readonly hd = new Float32Array(MAX_UNITS);
   readonly visible = new Uint8Array(MAX_UNITS);
   readonly type = new Uint8Array(MAX_UNITS);
   private counts = new Int32Array(DEFS.length);
@@ -57,6 +60,7 @@ export class ArmyView {
 
   constructor(scene: THREE.Scene) {
     scene.add(this.group);
+    colonyLights?.addArmy(this, (t) => DEFS[t]?.team ?? 1);
     // one instanced draw per unit type, plus a glow layer for types that have one (player vehicles)
     for (const d of DEFS) {
       const look = builtinUnitLook(d.id, d.team === 0 ? 'accord' : 'fauna');
@@ -122,7 +126,7 @@ export class ArmyView {
       placeMatrix(x, z, h, 0, scale, this.m);
       const i = counts[t]++;
       this.bodies[t].setMatrixAt(i, this.m);
-      this.lx[s] = x; this.lz[s] = z;
+      this.lx[s] = x; this.lz[s] = z; this.hd[s] = h;
       this.wx[s] = this.m.elements[12]; this.wy[s] = this.m.elements[13]; this.wz[s] = this.m.elements[14];
       this.visible[s] = 1;
       this.type[s] = t;
@@ -160,6 +164,7 @@ export class ArmyView {
   private spawnFx(fx: Float32Array) {
     for (let i = 0; i < fx.length; i += FX_STRIDE) {
       const k = fx[i], x1 = fx[i + 1], z1 = fx[i + 2], x2 = fx[i + 3], z2 = fx[i + 4];
+      colonyLights?.fx(k, x1, z1, x2, z2);
       switch (k) {
         case FX.ROVER_SHOT: this.tracer(x1, z1, 1.3, x2, z2, 0.14, 0.12, C.roverShot); break;
         case FX.TANK_SHOT: case FX.TURRET_SHOT:

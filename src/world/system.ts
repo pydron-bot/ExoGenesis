@@ -145,6 +145,9 @@ export class SolarSystem {
   private bodies: Body[] = [];
   private star: THREE.Group;
   private light: THREE.PointLight;
+  /** Ambient and sky fill (colony lights dim them at night). */
+  ambient: THREE.AmbientLight;
+  fill: THREE.HemisphereLight;
   private rings: THREE.Line[] = [];
   private belts: THREE.InstancedMesh[] = [];
   private labelLayer: HTMLElement;
@@ -170,9 +173,10 @@ export class SolarSystem {
     this.group.add(this.star);
     this.light = new THREE.PointLight('#fff4e4', 3.2, 0, 0);
     this.group.add(this.light);
-    this.group.add(new THREE.AmbientLight('#8fa6c0', 0.12));
+    this.ambient = new THREE.AmbientLight('#8fa6c0', 0.12);
+    this.group.add(this.ambient);
     // sky fill oriented to the landing site so slopes facing away from the sun aren't black
-    const fill = new THREE.HemisphereLight('#bcd7e0', '#4a3024', 0.7);
+    const fill = this.fill = new THREE.HemisphereLight('#bcd7e0', '#4a3024', 0.7);
     fill.position.copy(U);
     this.group.add(fill);
 

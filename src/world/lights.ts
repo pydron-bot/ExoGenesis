@@ -1,0 +1,403 @@
+/**
+ * Colony lighting (prototype, `?lights=1`).
+ *
+ * Two layers:
+ *  1. A light map: every light source (floodlights, the core and its beacon,
+ *     headlights, muzzle flashes, explosions) is drawn as a soft additive blob
+ *     into a small top-down HDR texture covering the region, once a frame.
+ *     Every lit material on the surface samples it at its own position, so
+ *     hundreds of lights cost one tiny render pass plus one texture read. No
+ *     shadows, and no light direction beyond "facing up gets more" — fine from an
+ *     RTS camera.
+ *  2. A few real point lights (fixed count, so shaders never recompile) handed
+ *     each frame to the biggest live explosions, for proper highlights on the
+ *     sides of things.
+ *
+ * Materials are patched lazily on first draw (a Mesh.onBeforeRender hook), so
+ * models that load later light up without anyone having to remember to call
+ * this. The shader only acts inside the region, so the globe and the solar
+ * system are untouched.
+ */
+import * as THREE from 'three';
+import { E, HALF, N, R, U } from './planet';
+import { GRID_N, rawGrid, regionPoint } from './heightGrid';
+
+/** Light map resolution: 256² over the 240 u region ≈ 1 texel per unit. */
+const RES = 256;
+const MAX_BLOBS = 2048;
+const MAX_FLASHES = 384;
+/** Real point lights for the biggest flashes. */
+const REAL = 4;
+
+const rt = new THREE.WebGLRenderTarget(RES, RES, {
+  type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false,
+  minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false,
+});
+
+/** Ground height per region grid node, so the shader knows how far above the ground a fragment is. */
+function heightTexture() {
+  const g = rawGrid();
+  const data = new Uint16Array(g.length);
+  for (let i = 0; i < g.length; i++) data[i] = THREE.DataUtils.toHalfFloat(Math.max(0, g[i]));
+  const t = new THREE.DataTexture(data, GRID_N, GRID_N, THREE.RedFormat, THREE.HalfFloatType);
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+export const lightUniforms = {
+  uLmTex: { value: rt.texture as THREE.Texture },
+  uLmH: { value: null as THREE.Texture | null },
+  uLmOn: { value: 0 },
+  uLmU: { value: U.clone() },
+  uLmE: { value: E.clone() },
+  uLmN: { value: N.clone() },
+  uLmR: { value: R },
+  uLmHalf: { value: HALF },
+  /** Region up in view space (lights fall mostly on upward faces). */
+  uLmUpV: { value: new THREE.Vector3(0, 1, 0) },
+};
+
+const LIT = /#include <lights_fragment_end>/;
+
+/** Make `mat` receive the light map. Safe to call repeatedly; skips materials without lighting. */
+export function addLights(mat: THREE.Material) {
+  if (mat.userData.lm !== undefined) return;
+  const ok = mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshLambertMaterial || mat instanceof THREE.MeshPhongMaterial;
+  mat.userData.lm = ok;
+  if (!ok) return;
+  const prev = mat.onBeforeCompile;
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.onBeforeCompile = (sh, r) => {
+    prev.call(mat, sh, r);
+    if (!LIT.test(sh.fragmentShader)) return;
+    Object.assign(sh.uniforms, lightUniforms);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vLmW;`)
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        vec4 lmW4 = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          lmW4 = instanceMatrix * lmW4;
+        #endif
+        vLmW = (modelMatrix * lmW4).xyz;`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vLmW;
+        uniform sampler2D uLmTex, uLmH;
+        uniform float uLmOn, uLmR, uLmHalf;
+        uniform vec3 uLmU, uLmE, uLmN, uLmUpV;`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        {
+          float lmRad = length(vLmW);
+          if (uLmOn > 0.001 && lmRad < uLmR + 400.0) {
+            vec3 fd = vLmW / lmRad;
+            float up = dot(fd, uLmU);
+            vec2 rp = uLmR * vec2(dot(fd, uLmE), dot(fd, uLmN)) / max(up, 0.5);
+            if (up > 0.5 && abs(rp.x) < uLmHalf && abs(rp.y) < uLmHalf) {
+              vec3 L = texture2D(uLmTex, (rp + uLmHalf) / (2.0 * uLmHalf)).rgb;
+              float g = texture2D(uLmH, (rp + uLmHalf + 0.5) / (2.0 * uLmHalf + 1.0)).r;
+              float lift = max(0.0, lmRad - uLmR - g);
+              // pools on the ground: tall things catch less the higher they reach; tops more than sides
+              float k = uLmOn / (1.0 + lift * lift * 0.006);
+              k *= 0.45 + 0.55 * max(dot(normal, uLmUpV), 0.0);
+              reflectedLight.indirectDiffuse += diffuseColor.rgb * L * k;
+            }
+          }
+        }`);
+  };
+  mat.customProgramCacheKey = () => `${prevKey()}|lm`;
+  mat.needsUpdate = true;
+}
+
+function patchObject(o: THREE.Object3D) {
+  const m = (o as THREE.Mesh).material;
+  if (!m) return;
+  if (Array.isArray(m)) m.forEach(addLights); else addLights(m);
+}
+
+// ---------- the light map pass ----------
+
+const blobVert = /* glsl */ `
+  attribute vec3 aCol;
+  attribute float aShape;
+  varying vec3 vCol;
+  varying vec2 vUv;
+  varying float vShape;
+  void main() {
+    vCol = aCol; vShape = aShape; vUv = position.xy;
+    gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+  }`;
+const blobFrag = /* glsl */ `
+  varying vec3 vCol;
+  varying vec2 vUv;
+  varying float vShape;
+  void main() {
+    vec2 p = vUv;
+    float w;
+    if (vShape > 0.5) {
+      // a headlight: narrow at the lamp (y = -1), widening and fading toward the far end
+      float along = (p.y + 1.0) * 0.5;
+      p.x /= 0.25 + 0.75 * along;
+      float d = dot(p, p);
+      w = max(0.0, 1.0 - d);
+      w = w * w * (1.0 - along * 0.6);
+    } else {
+      float d = dot(p, p);
+      w = max(0.0, 1.0 - d);
+      w *= w;
+    }
+    gl_FragColor = vec4(vCol * w, 1.0);
+  }`;
+
+interface Flash { x: number; z: number; r: number; i: number; col: THREE.Color; life: number; max: number; real: boolean }
+
+/** Colour and strength of a light source. */
+export interface LightLook { color: string; radius: number; intensity: number; flicker?: boolean }
+
+/**
+ * Floodlights per building kind. Prototype table; these would move into the
+ * building JSON (`light: { color, radius, intensity }`) if we keep the feature.
+ */
+export const BUILDING_LIGHTS: Record<string, LightLook> = {
+  depot: { color: '#ffd9a0', radius: 16, intensity: 1.1 },
+  bay: { color: '#e4f2ff', radius: 16, intensity: 1.1 },
+  civic: { color: '#ffc98a', radius: 18, intensity: 1.0 },
+  hydroponics: { color: '#ff7ad9', radius: 12, intensity: 1.0 },
+  geothermal: { color: '#ff8a3d', radius: 13, intensity: 1.0, flicker: true },
+  repairpad: { color: '#5bff9a', radius: 10, intensity: 0.8 },
+  radar: { color: '#7ff7ff', radius: 8, intensity: 0.6 },
+  battery: { color: '#7ff7ff', radius: 7, intensity: 0.5 },
+  turret: { color: '#ffd27a', radius: 9, intensity: 0.7 },
+  cannon: { color: '#ffd27a', radius: 10, intensity: 0.7 },
+  pointdefense: { color: '#ffd27a', radius: 8, intensity: 0.6 },
+  gate: { color: '#ffb547', radius: 9, intensity: 0.7 },
+};
+const CORE_LIGHT: LightLook = { color: '#d8f4ff', radius: 28, intensity: 1.4 };
+const BEACON = new THREE.Color('#ffb547');
+const SCAFFOLD = new THREE.Color('#ffc46b');
+const HEADLIGHT = new THREE.Color('#e6f6ff');
+
+/** Light-relevant view of an army (ArmyView), kept structural so this module has no skirmish imports. */
+export interface ArmyLights {
+  slots: number;
+  readonly visible: Uint8Array;
+  readonly type: Uint8Array;
+  readonly lx: Float32Array;
+  readonly lz: Float32Array;
+  readonly hd: Float32Array;
+}
+
+export class ColonyLights {
+  private scene = new THREE.Scene();
+  private cam = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, -10, 10);
+  private blobs: THREE.InstancedMesh;
+  private aCol: THREE.InstancedBufferAttribute;
+  private aShape: THREE.InstancedBufferAttribute;
+  private n = 0;
+  private m = new THREE.Matrix4();
+  private q = new THREE.Quaternion();
+  private s = new THREE.Vector3();
+  private p = new THREE.Vector3();
+  private zAxis = new THREE.Vector3(0, 0, 1);
+  private c = new THREE.Color();
+  private flashes: Flash[] = Array.from({ length: MAX_FLASHES }, () => ({ x: 0, z: 0, r: 0, i: 0, col: new THREE.Color(), life: 0, max: 1, real: false }));
+  private nextFlash = 0;
+  private real: THREE.PointLight[] = [];
+  private armies: { army: ArmyLights; team: (type: number) => number }[] = [];
+  private colors = new Map<string, THREE.Color>();
+  /** 0 day .. 1 night: steady lights are faint by day. */
+  night = 0;
+  /** Count of blobs drawn last frame (debug / tests). */
+  drawn = 0;
+
+  constructor(scene: THREE.Scene) {
+    lightUniforms.uLmH.value = heightTexture();
+    lightUniforms.uLmOn.value = 1;
+    const geo = new THREE.PlaneGeometry(2, 2);
+    this.aCol = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BLOBS * 3), 3);
+    this.aShape = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BLOBS), 1);
+    this.aCol.setUsage(THREE.DynamicDrawUsage);
+    this.aShape.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('aCol', this.aCol);
+    geo.setAttribute('aShape', this.aShape);
+    this.blobs = new THREE.InstancedMesh(geo, new THREE.ShaderMaterial({
+      vertexShader: blobVert, fragmentShader: blobFrag,
+      blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true, toneMapped: false,
+    }), MAX_BLOBS);
+    this.blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.blobs.frustumCulled = false;
+    this.blobs.count = 0;
+    this.scene.add(this.blobs);
+    this.cam.position.z = 5;
+
+    for (let i = 0; i < REAL; i++) {
+      const l = new THREE.PointLight('#ffffff', 0, 30, 2);
+      scene.add(l);
+      this.real.push(l);
+    }
+    // patch every lit material the first time it's drawn
+    THREE.Mesh.prototype.onBeforeRender = function (this: THREE.Mesh, _r, _s, _c, _g, mat) { addLights(mat); };
+    scene.traverse(patchObject);
+  }
+
+  /** Register an army so its player vehicles get headlights. `team(type)` → 0 player, 1 fauna. */
+  addArmy(army: ArmyLights, team: (type: number) => number) { this.armies.push({ army, team }); }
+
+  private color(hex: string) {
+    let c = this.colors.get(hex);
+    if (!c) { c = new THREE.Color(hex); this.colors.set(hex, c); }
+    return c;
+  }
+
+  /** Queue one light blob for this frame: region (x, z), radius, colour × intensity; heading ≠ null makes it a forward cone. */
+  blob(x: number, z: number, r: number, col: THREE.Color, i: number, heading: number | null = null, len = r) {
+    if (this.n >= MAX_BLOBS || i <= 0.001) return;
+    if (Math.abs(x) > HALF + r || Math.abs(z) > HALF + r) return;
+    const j = this.n++;
+    if (heading === null) {
+      this.m.makeScale(r, r, 1).setPosition(x, z, 0);
+      this.aShape.array[j] = 0;
+    } else {
+      // forward in region coords is (sin h, cos h); the quad's +y points along it after rotating by −h
+      this.q.setFromAxisAngle(this.zAxis, -heading);
+      const half = len / 2;
+      this.p.set(x + Math.sin(heading) * half, z + Math.cos(heading) * half, 0);
+      this.m.compose(this.p, this.q, this.s.set(r * 0.55, half, 1));
+      this.aShape.array[j] = 1;
+    }
+    this.blobs.setMatrixAt(j, this.m);
+    this.aCol.array[j * 3] = col.r * i;
+    this.aCol.array[j * 3 + 1] = col.g * i;
+    this.aCol.array[j * 3 + 2] = col.b * i;
+  }
+
+  /** A short-lived light (shot, impact, explosion). `real` lets it borrow one of the point lights. */
+  flash(x: number, z: number, r: number, color: THREE.Color, i: number, life: number, real = false) {
+    const f = this.flashes[this.nextFlash];
+    this.nextFlash = (this.nextFlash + 1) % MAX_FLASHES;
+    f.x = x; f.z = z; f.r = r; f.i = i; f.col.copy(color); f.life = f.max = life; f.real = real;
+  }
+
+  /** Sim effect events (skirmish FX layout): see skirmish/types FX. */
+  fx(kind: number, x1: number, z1: number, x2: number, z2: number) {
+    const C = FXC;
+    switch (kind) {
+      case 0: this.flash(x1, z1, 4, C.rover, 1.2, 0.08); this.flash(x2, z2, 3, C.rover, 0.8, 0.12); break; // rover shot
+      case 1: case 6: // tank / turret shot: a muzzle flash and a hit
+        this.flash(x1, z1, 7, C.tank, 2.0, 0.1);
+        this.flash(x2, z2, 5, C.tank, 1.4, 0.2);
+        break;
+      case 2: this.flash(x2, z2, 3, C.bite, 0.8, 0.12); break; // bite
+      case 3: this.flash(x1, z1, 8, C.dieSmall, 2.2, 0.4, true); break; // small death
+      case 4: this.flash(x1, z1, 16, C.dieBig, 3.0, 0.7, true); break; // big death
+      case 5: this.flash(x1, z1, 7, C.coreHit, 1.6, 0.25); break; // core hit
+      case 7: // shell: gun flash, then a wide burst
+        this.flash(x1, z1, 8, C.shell, 2.2, 0.12);
+        this.flash(x2, z2, 14, C.shell, 3.0, 0.6, true);
+        break;
+      case 8: this.flash(x2, z2, 9, C.arc, 2.2, 0.15, true); this.flash(x1, z1, 5, C.arc, 1.2, 0.1); break; // arc
+      case 9: this.flash(x2, z2, 5, C.spit, 1.2, 0.3); break; // spit
+      case 10: this.flash(x1, z1, 10, C.emerge, 1.0, 0.8); break; // burrower surfaces
+      case 11: this.flash(x2, z2, 4, C.repair, 0.8, 0.2); break; // repair beam
+      case 12: this.flash(x1, z1, 3.5, C.pd, 1.2, 0.05); break; // point-defense
+    }
+  }
+
+  /**
+   * Gather this frame's lights and render the light map. Call once a frame,
+   * before the main render.
+   */
+  update(renderer: THREE.WebGLRenderer, camera: THREE.Camera, dt: number, t: number, src: {
+    buildings?: { kind: string; x: number; z: number; progress: number; powered: boolean; yaw?: number }[];
+    core?: { x: number; z: number; beacon: number } | null;
+    drones?: { x: number; z: number; heading: number }[];
+  }) {
+    this.n = 0;
+    const steady = (0.12 + 0.88 * this.night) * 0.75;
+    // floodlights
+    for (const b of src.buildings ?? []) {
+      if (b.kind === 'core') continue;
+      if (b.progress < 1) {
+        // construction work light, a little restless
+        this.blob(b.x, b.z, 9, SCAFFOLD, 0.55 * steady * (0.85 + 0.15 * Math.sin(t * 9 + b.x)));
+        continue;
+      }
+      const l = BUILDING_LIGHTS[b.kind];
+      if (!l || !b.powered) continue;
+      const f = l.flicker ? 0.85 + 0.15 * Math.sin(t * 5.3 + b.z) * Math.sin(t * 2.1 + b.x) : 1;
+      this.blob(b.x, b.z, l.radius, this.color(l.color), l.intensity * steady * f);
+    }
+    if (src.core) {
+      const c = src.core;
+      this.blob(c.x, c.z, CORE_LIGHT.radius, this.color(CORE_LIGHT.color), CORE_LIGHT.intensity * steady);
+      // the beacon: a slow amber pulse washing a wide circle
+      this.blob(c.x, c.z, 34, BEACON, c.beacon * 0.18 * steady);
+    }
+    // headlights: drones and player vehicles
+    for (const d of src.drones ?? []) this.blob(d.x, d.z, 7, HEADLIGHT, 1.6 * steady, d.heading, 12);
+    for (const { army, team } of this.armies) {
+      for (let s = 0; s < army.slots; s++) {
+        if (!army.visible[s] || team(army.type[s]) !== 0) continue;
+        this.blob(army.lx[s], army.lz[s], 8, HEADLIGHT, 1.8 * steady, army.hd[s], 16);
+      }
+    }
+    // flashes, and the biggest few get the real point lights
+    const flashK = 0.55 + 0.45 * this.night;
+    let nReal = 0;
+    const best: Flash[] = [];
+    for (const f of this.flashes) {
+      if (f.life <= 0) continue;
+      f.life -= dt;
+      if (f.life <= 0) continue;
+      const k = f.life / f.max;
+      const grow = 0.6 + 0.4 * (1 - k);
+      this.blob(f.x, f.z, f.r * grow, f.col, f.i * k * k * flashK);
+      if (f.real) best.push(f);
+    }
+    if (best.length > REAL) best.sort((a, b) => b.i * b.r * (b.life / b.max) - a.i * a.r * (a.life / a.max));
+    for (const l of this.real) {
+      const f = best[nReal++];
+      if (!f) { l.intensity = 0; continue; }
+      const k = f.life / f.max;
+      regionPoint(f.x, f.z, 2.5, l.position);
+      l.color.copy(f.col);
+      l.distance = f.r * 1.6;
+      l.intensity = 60 * f.i * k * k * flashK;
+    }
+
+    this.blobs.count = this.n;
+    this.drawn = this.n;
+    this.blobs.instanceMatrix.needsUpdate = true;
+    this.aCol.needsUpdate = true;
+    this.aShape.needsUpdate = true;
+    // region up in view space for the shader
+    lightUniforms.uLmUpV.value.copy(U).transformDirection(camera.matrixWorldInverse);
+
+    const prevTarget = renderer.getRenderTarget();
+    const prevAuto = renderer.autoClear;
+    renderer.getClearColor(this.c);
+    const prevAlpha = renderer.getClearAlpha();
+    renderer.setRenderTarget(rt);
+    renderer.setClearColor(0x000000, 1);
+    renderer.clear(true, false, false);
+    if (this.n) renderer.render(this.scene, this.cam);
+    renderer.setRenderTarget(prevTarget);
+    renderer.setClearColor(this.c, prevAlpha);
+    renderer.autoClear = prevAuto;
+  }
+}
+
+const FXC = {
+  rover: new THREE.Color('#7ff8ff'), tank: new THREE.Color('#ffc46b'), bite: new THREE.Color('#ff6a4d'),
+  dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
+  shell: new THREE.Color('#ff9a3d'), arc: new THREE.Color('#b9a6ff'), spit: new THREE.Color('#a6ff4d'),
+  emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'),
+};
+
+/** The live instance, when `?lights=1`. Renderers that make light (ArmyView) check this. */
+export let colonyLights: ColonyLights | null = null;
+export function enableColonyLights(scene: THREE.Scene) {
+  colonyLights ??= new ColonyLights(scene);
+  return colonyLights;
+}

@@ -17,6 +17,7 @@ import { Landing } from './landing';
 import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
 import { FogView, addFog } from './world/fog';
+import { enableColonyLights } from './world/lights';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
 import { DEFS as UNIT_DEFS, type SkSnapshot } from './skirmish/types';
@@ -175,6 +176,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, innerWidth / viewH(), 0.2, 1.2e7);
 const fog = new THREE.Fog('#8fb0ad', 400, 1200);
 scene.fog = fog;
+// colony lights (prototype): floodlights, headlights, flashes via a top-down light map; ?lights=1
+const lights = params.get('lights') === '1' ? enableColonyLights(scene) : null;
 
 await loadStep('Charting the solar system…');
 const system = new SolarSystem(scene, $('labels'));
@@ -691,6 +694,27 @@ function frame(now: number) {
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
     audio.ambient(sim.cur.daylight, air, dt);
     if (!ready) { ready = true; exo.ready = true; reveal(); }
+  }
+  if (lights) {
+    // darker nights so the lights read; steady lights fade out by day
+    const night = 1 - smoothstep(-0.2, 0.15, sunUp);
+    lights.night = night;
+    system.fill.intensity = lerp(0.7, 0.32, night);
+    system.ambient.intensity = lerp(0.12, 0.07, night);
+    const c = sim.cur, p = sim.prev;
+    const live = !skirmish && c && p && c.deployed;
+    const alpha = live ? sim.alpha(now) : 0;
+    const core = live ? c.buildings.find((b) => b.kind === 'core') : undefined;
+    lights.update(renderer, camera, dt, t, {
+      buildings: live ? c.buildings : undefined,
+      core: core && region.core.visible ? { x: core.x, z: core.z, beacon: Math.max(0, Math.sin(t * 4)) } : null,
+      drones: live ? c.drones.map((b) => {
+        const a = p.drones.find((d) => d.id === b.id) ?? b;
+        let dh = b.heading - a.heading;
+        dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+        return { x: lerp(a.x, b.x, alpha), z: lerp(a.z, b.z, alpha), heading: a.heading + dh * alpha };
+      }) : undefined,
+    });
   }
   updateHud(dt, now);
   renderer.render(scene, camera);
