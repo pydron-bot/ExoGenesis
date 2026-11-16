@@ -78,3 +78,17 @@ The same editor is live at **https://deeek.org/ExoGenesis/editor.html**. There i
 browser for a fine-grained GitHub token (this repo only, Contents: read and write). Saves stay in
 that browser (IndexedDB) until Commit, which makes one commit on `main` and so redeploys the site.
 Those commits land on GitHub, not on hive1: **pull before working on hive1** (`git pull --rebase`).
+
+Without a token, pick **Work without GitHub**: the editor starts from the content the site was
+built with (`content-manifest.json`), and **Export** downloads every change as one
+`exo-changes-*.json`. Apply it on hive1 with
+
+```bash
+node tools/import-changes.mjs exo-changes-….json --dry-run   # what it would do
+node tools/import-changes.mjs exo-changes-….json --commit    # apply, content check, commit
+```
+
+Each change records the file's git blob sha when it was edited; anything changed here since is
+a conflict and nothing is written unless `--force`. Paths outside `content/*.json` and
+`public/media/<kind>/` are refused. Once the site redeploys with them, the exported edits clear
+from the browser by themselves.

@@ -319,7 +319,9 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   It also ships at `deeek.org/ExoGenesis/editor.html`, where `src/editor/github.ts` answers the
   same API from GitHub (fine-grained token; saves held in IndexedDB; Commit = one git-data-API
   commit on `main`, refusing files changed on GitHub since they were edited unless told to
-  overwrite). Web commits redeploy the site and don't reach hive1 until it pulls.
+  overwrite). Web commits redeploy the site and don't reach hive1 until it pulls. Without a
+  token it runs in file mode on the build's content snapshot (`content-manifest.json`) and
+  Export hands Claude an `exo-changes/1` file for `tools/import-changes.mjs`.
 - **Regions** are `content/regions/<id>.json`: a sculpt grid added to the generated terrain and a
   flora paint grid (both 121×121, one sample per 2 u, one run-length-encoded row per line), plus
   herds and flora seed/density. The landing pad and Command Core stay at the origin (the landing

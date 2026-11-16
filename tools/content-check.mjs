@@ -6,8 +6,10 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { runnerImport } from 'vite';
 
-const root = path.resolve(import.meta.dirname, '..');
-const { module: m } = await runnerImport(path.join(root, 'src/content/db.ts'));
+const code = path.resolve(import.meta.dirname, '..');
+// EXO_ROOT: check content/ and public/media/ under another directory (tools/import-changes.mjs --root)
+const root = path.resolve(process.env.EXO_ROOT ?? code);
+const { module: m } = await runnerImport(path.join(code, 'src/content/db.ts'));
 
 async function walk(dir, sub = '') {
   const out = {};

@@ -16,6 +16,11 @@
  *
  * Auth is a fine-grained personal access token (Contents: read and write on
  * this repo only), pasted once per browser and kept in localStorage.
+ *
+ * Without a token ("file" mode) the base is the content snapshot the site was
+ * built with (content-manifest.json, see vite.config.ts), there's no Commit,
+ * and changes leave as an export file that tools/import-changes.mjs applies on
+ * hive1. Export works in both modes.
  */
 export const REPO = 'pydron-bot/ExoGenesis';
 export const BRANCH = 'main';
@@ -24,6 +29,17 @@ const TOKEN_KEY = 'exo.editor.token';
 const CONTENT_RE = /^[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)*\.json$/;
 const MEDIA_RE = /^(model|image|audio)\/[a-z0-9][a-z0-9_-]*\.([a-z0-9]+)$/;
 const REFRESH_MS = 30_000;
+const MODE_KEY = 'exo.editor.mode';
+export const EXPORT_FORMAT = 'exo-changes/1';
+
+/** 'github' (token, commits) or 'file' (no token, export only). */
+export const mode = {
+  get: (): 'github' | 'file' => { try { return localStorage.getItem(MODE_KEY) === 'file' ? 'file' : 'github'; } catch { return 'github'; } },
+  set: (m: 'github' | 'file') => { try { localStorage.setItem(MODE_KEY, m); } catch { /* private mode */ } },
+};
+let fileMode = false;
+/** The site's build-time content snapshot (file mode). */
+let manifestTexts = new Map<string, string>();
 
 export const token = {
   get: () => { try { return localStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; } },
@@ -125,14 +141,25 @@ async function fetchTree(treeSha: string): Promise<Map<string, TreeEntry>> {
   return m;
 }
 
+async function fetchManifest(): Promise<{ commit: string; message: string; files: Record<string, { sha: string; size: number; text?: string }> }> {
+  const r = await fetch(`${import.meta.env.BASE_URL}content-manifest.json`, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`content snapshot: ${r.status}`);
+  return r.json();
+}
+
 async function refresh(force = false) {
-  if (!force && Date.now() - fetchedAt < REFRESH_MS) return;
+  if (!force && Date.now() - fetchedAt < (fileMode ? 5 * REFRESH_MS : REFRESH_MS)) return;
   fetchedAt = Date.now();
-  const h = await fetchHead();
+  let h: { commit: string; message: string; tree?: string; files?: Awaited<ReturnType<typeof fetchManifest>>['files'] };
+  if (fileMode) h = await fetchManifest();
+  else h = await fetchHead();
   if (h.commit !== head) {
-    base = await fetchTree(h.tree);
+    if (h.files) {
+      base = new Map(Object.entries(h.files).map(([p, f]) => [p, { sha: f.sha, size: f.size }]));
+      manifestTexts = new Map(Object.entries(h.files).filter(([, f]) => typeof f.text === 'string').map(([p, f]) => [p, f.text!]));
+    } else base = await fetchTree(h.tree!);
     head = h.commit;
-    lastMsg = `${h.commit.slice(0, 7)} ${h.message.split('\n')[0]}`;
+    lastMsg = `${h.commit.slice(0, 7)} ${h.message.split('\n')[0]}${fileMode ? ' (deployed)' : ''}`;
     // a pending edit that now matches the repo (e.g. committed from another device) is done
     for (const [p, e] of pending) {
       const now = base.get(p)?.sha ?? null;
@@ -143,6 +170,7 @@ async function refresh(force = false) {
 
 function ensureLoaded() {
   return (loaded ??= (async () => {
+    fileMode = mode.get() === 'file';
     const keys = (await store<IDBValidKey[]>('pending', 'readonly', (s) => s.getAllKeys())) ?? [];
     const vals = (await store<Pending[]>('pending', 'readonly', (s) => s.getAll())) ?? [];
     pending = new Map(keys.map((k, i) => [String(k), vals[i]]));
@@ -182,6 +210,11 @@ async function readText(p: string): Promise<string> {
   if (e?.kind === 'text') return e.text;
   const sha = base.get(p)?.sha;
   if (!sha) throw new HttpErr(404, 'no such file');
+  if (fileMode) {
+    const t = manifestTexts.get(p);
+    if (t === undefined) throw new HttpErr(404, 'not in the content snapshot');
+    return t;
+  }
   const hit = await store<string>('blobs', 'readonly', (s) => s.get(sha));
   if (typeof hit === 'string') return hit;
   const r = await fetch(`${API}/git/blobs/${sha}`, { headers: { accept: 'application/vnd.github.raw+json', authorization: `Bearer ${token.get()}` } });
@@ -208,7 +241,19 @@ async function conflicts(tree: Map<string, TreeEntry>): Promise<string[]> {
   return [...pending].filter(([p, e]) => (tree.get(p)?.sha ?? null) !== e.orig).map(([p]) => p);
 }
 
+/** Every pending change as one self-contained file for tools/import-changes.mjs. */
+async function exportChanges(message: string) {
+  const changes = [];
+  for (const [p, e] of [...pending].sort(([a], [b]) => a.localeCompare(b))) {
+    if (e.kind === 'del') changes.push({ path: p, op: 'delete', orig: e.orig });
+    else if (e.kind === 'text') changes.push({ path: p, op: 'write', orig: e.orig, sha: e.sha, text: e.text });
+    else changes.push({ path: p, op: 'write', orig: e.orig, sha: e.sha, base64: b64(new Uint8Array(await e.blob.arrayBuffer())) });
+  }
+  return { format: EXPORT_FORMAT, base: head, exported: new Date().toISOString(), message, changes };
+}
+
 async function commit(message: string, overwrite: boolean): Promise<{ commit: string; files: number }> {
+  if (fileMode) throw new HttpErr(400, 'not connected to GitHub: use Export and send the file to Claude');
   if (!pending.size) throw new HttpErr(400, 'nothing to commit');
   const entries: { path: string; mode: '100644'; type: 'blob'; sha: string | null }[] = [];
   for (const [p, e] of pending) {
@@ -327,6 +372,9 @@ async function handle(method: string, url: URL, body: unknown, raw: Blob | null)
         })),
         last: lastMsg,
       };
+    case 'POST /__content/export':
+      if (!pending.size) throw new HttpErr(400, 'nothing to export');
+      return exportChanges((b.message ?? '').trim());
     case 'POST /__content/discard': {
       for (const rel of [...localMedia.keys()]) if (pending.has(`public/media/${rel}`)) { URL.revokeObjectURL(localMedia.get(rel)!); localMedia.delete(rel); }
       pending.clear();

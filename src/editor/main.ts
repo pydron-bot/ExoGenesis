@@ -14,7 +14,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import type { AssetDef } from '../content/defs';
 import { setMediaOverride } from '../content/defs';
-import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, token } from './github';
+import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
 const WEB = !import.meta.env.DEV;
@@ -455,7 +455,7 @@ async function refreshGit() {
     st.title = n ? g.changes.map((c) => `${c.status}  ${c.path}`).join('\n') : `Last: ${g.last}`;
     st.classList.toggle('pending', n > 0);
     ($('commit') as HTMLButtonElement).disabled = n === 0;
-    if (WEB) ($('discard') as HTMLButtonElement).disabled = n === 0;
+    if (WEB) { ($('discard') as HTMLButtonElement).disabled = n === 0; ($('export') as HTMLButtonElement).disabled = n === 0; }
   } catch { /* dev server restarting */ }
 }
 
@@ -589,19 +589,51 @@ addEventListener('drop', (e) => {
   void addFiles([...e.dataTransfer.files]);
 });
 
-// ---------- web: GitHub sign-in ----------
-/** Until a working token is in place, the main pane asks for one (and nothing else loads). */
+// ---------- web: GitHub sign-in or file mode ----------
+/** File mode: no token, no Commit; changes leave as an export file for tools/import-changes.mjs. */
+const fileMode = () => mode.get() === 'file';
+
+async function doExport() {
+  if (dirty() && !confirm('The open record has unsaved changes, which won\'t be included. Export anyway?')) return;
+  try {
+    const message = $<HTMLInputElement>('commit-msg').value.trim();
+    const data = await api<{ changes: unknown[] }>('POST', '/__content/export', { message });
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
+    const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })), download: `exo-changes-${stamp}.json` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    toast(`Exported ${data.changes.length} change${data.changes.length > 1 ? 's' : ''}. Send the file to Claude; they clear here once the game is redeployed with them.`);
+  } catch (e) {
+    toast(`Export failed: ${(e as Error).message}`, true);
+  }
+}
+
+/** Until the editor has a working token or file mode is chosen, the main pane asks (and nothing else loads). */
 async function webSetup() {
   const game = $<HTMLAnchorElement>('open-game');
   game.href = `${import.meta.env.BASE_URL}?intro=0`;
   const git = $('git');
+  const exp = h('button', { id: 'export', textContent: 'Export', title: 'Download every uncommitted change as one file for Claude to import', disabled: true });
+  exp.onclick = () => void doExport();
   const discard = h('button', { id: 'discard', textContent: 'Discard', title: 'Drop uncommitted changes made in this browser', disabled: true });
   discard.onclick = () => void doDiscard();
-  const out = h('button', { cls: 'mini', textContent: 'Sign out', title: 'Forget the GitHub token in this browser' });
-  out.onclick = () => { if (confirm('Forget the GitHub token in this browser? Uncommitted changes stay here.')) { token.clear(); location.reload(); } };
-  git.append(discard, out);
-  const emptyHtml = `Pick something on the left. Saves stay in this browser until you <b>Commit</b>, which pushes them to <code>${REPO}</code>; the game here updates a minute or two later.`;
+  const out = fileMode()
+    ? h('button', { cls: 'mini', textContent: 'Connect GitHub', title: 'Use a GitHub token to commit directly' })
+    : h('button', { cls: 'mini', textContent: 'Sign out', title: 'Forget the GitHub token in this browser' });
+  out.onclick = fileMode()
+    ? () => { mode.set('github'); location.reload(); }
+    : () => { if (confirm('Forget the GitHub token in this browser? Uncommitted changes stay here.')) { token.clear(); location.reload(); } };
+  git.append(exp, discard, out);
+  const emptyHtml = fileMode()
+    ? 'Pick something on the left. You\'re editing the deployed content without GitHub: saves stay in this browser, and <b>Export</b> downloads them as one file for Claude to import. They clear here once the game is redeployed with them.'
+    : `Pick something on the left. Saves stay in this browser until you <b>Commit</b>, which pushes them to <code>${REPO}</code>; the game here updates a minute or two later. <b>Export</b> downloads them as a file instead.`;
   $('empty').innerHTML = emptyHtml;
+  if (fileMode()) {
+    $('commit').style.display = 'none';
+    $<HTMLInputElement>('commit-msg').placeholder = 'Describe your changes (goes in the export)';
+    $('commit-msg').onkeydown = (e) => { if (e.key === 'Enter') void doExport(); };
+    return;
+  }
   let problem = token.get() ? await checkToken() : '';
   while (problem !== null) {
     problem = await new Promise<string | null>((done) => {
@@ -621,6 +653,8 @@ async function webSetup() {
       };
       go.onclick = () => void submit();
       input.onkeydown = (e) => { if (e.key === 'Enter') void submit(); };
+      const noToken = h('button', { id: 'no-token', textContent: 'Work without GitHub (export a file)' });
+      noToken.onclick = () => { mode.set('file'); location.reload(); };
       const link = h('a', { href: `https://github.com/settings/personal-access-tokens/new`, target: '_blank', rel: 'noopener', textContent: 'Create a fine-grained token' });
       $('main').replaceChildren(h('div', { id: 'signin' },
         h('h2', { textContent: 'Connect to GitHub' }),
@@ -632,6 +666,8 @@ async function webSetup() {
           h('li', { textContent: 'Generate, copy, paste it here.' }),
         ),
         input, go, msg,
+        h('p', { cls: 'or', textContent: 'Or edit without a token: changes download as a file you send to Claude, who imports and commits them.' }),
+        noToken,
       ));
       input.focus();
     });

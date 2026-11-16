@@ -3,12 +3,17 @@
  * seeded from this checkout's HEAD (nothing reaches github.com):
  * sign-in, load, save stays local, survives a reload, commit, a GitHub-side
  * change caught at commit and overwritten on request, media upload, discard.
+ * Then file mode (no token): content from the site's snapshot, Export, and
+ * tools/import-changes.mjs applying it to a scratch copy (conflicts refused).
  *
  * Needs a production build served under the Pages base:
  *   EXO_BASE=/ExoGenesis/ npm run build && EXO_BASE=/ExoGenesis/ npx vite preview --port 4176
  *   node tools/editor-web-smoke.mjs [--url http://localhost:4176/ExoGenesis/editor.html]
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright';
 
@@ -175,6 +180,55 @@ await waitStatus(/All committed/);
 check(headTree().has('public/media/model/smoke-test.glb'), 'Discard drops local changes without touching GitHub');
 
 check(!log.some((l) => /refs|blobs|trees|commits/.test(l) && l.startsWith('PUT')), 'no stray writes');
+
+// ---------- file mode: no token, export, import on hive1 ----------
+const fctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, acceptDownloads: true });
+let ghCalls = 0;
+await fctx.route('https://api.github.com/**', (r) => { ghCalls++; return r.abort(); });
+const fp = await fctx.newPage();
+fp.on('pageerror', (e) => errs.push(e.message));
+fp.on('dialog', (d) => void d.accept());
+await fp.goto(url);
+await fp.click('#no-token');
+await fp.waitForFunction(() => window.__editor?.files.size > 0);
+check(await fp.evaluate(() => window.__editor.files.has('units/rover.json')) && !(await fp.isVisible('#commit')), 'file mode loads the deployed snapshot, no Commit button');
+await fp.evaluate(() => { location.hash = '#units/rover.json'; });
+await fp.waitForFunction(() => window.__editor.cur?.id === 'rover');
+const hp0 = await fp.evaluate(() => window.__editor.cur.saved.hp);
+await fp.evaluate((v) => { window.__editor.cur.draft.hp = v; }, hp0 + 3);
+await fp.keyboard.press('Control+s');
+await fp.evaluate(async () => { await window.__editor.api('PUT', '/__content/media?path=image/smoke-pic.png', new Blob([new Uint8Array([137, 80, 78, 71, 1, 2, 3])])); });
+await fp.waitForFunction(() => /2 uncommitted/.test(document.getElementById('git-status').textContent), null, { timeout: 15000 });
+await fp.fill('#commit-msg', 'rover hp from the web');
+const [dl] = await Promise.all([fp.waitForEvent('download'), fp.click('#export')]);
+const dir = mkdtempSync(path.join(tmpdir(), 'exo-import-'));
+const exp = path.join(dir, dl.suggestedFilename());
+await dl.saveAs(exp);
+const ex = JSON.parse(readFileSync(exp, 'utf8'));
+check(/^exo-changes-.*\.json$/.test(dl.suggestedFilename()) && ex.changes.length === 2 && ex.message === 'rover hp from the web', 'Export downloads both changes with the note');
+check(ghCalls === 0, 'file mode never calls GitHub');
+
+const repo = path.resolve(import.meta.dirname, '..');
+const scratch = path.join(dir, 'repo');
+cpSync(path.join(repo, 'content'), path.join(scratch, 'content'), { recursive: true });
+cpSync(path.join(repo, 'public/media'), path.join(scratch, 'public/media'), { recursive: true });
+const imp = (...a) => spawnSync('node', [path.join(repo, 'tools/import-changes.mjs'), exp, '--root', scratch, ...a], { encoding: 'utf8' });
+let r = imp();
+check(r.status === 0 && JSON.parse(readFileSync(path.join(scratch, 'content/units/rover.json'), 'utf8')).hp === hp0 + 3
+  && readFileSync(path.join(scratch, 'public/media/image/smoke-pic.png')).length === 7, 'import applies JSON and binary, content check passes');
+r = imp();
+check(r.status === 0 && /already applied/.test(r.stdout), 'importing twice is a no-op');
+const rv = JSON.parse(readFileSync(path.join(scratch, 'content/units/rover.json'), 'utf8')); rv.hp = 1; writeFileSync(path.join(scratch, 'content/units/rover.json'), JSON.stringify(rv, null, 2) + '\n');
+rmSync(path.join(scratch, 'public/media/image/smoke-pic.png'));
+r = imp();
+check(r.status === 1 && /conflicts/.test(r.stdout) && JSON.parse(readFileSync(path.join(scratch, 'content/units/rover.json'), 'utf8')).hp === 1, 'a file changed since the edit is refused, nothing written');
+r = imp('--force');
+check(r.status === 0 && JSON.parse(readFileSync(path.join(scratch, 'content/units/rover.json'), 'utf8')).hp === hp0 + 3, '--force applies over it');
+const bad = path.join(dir, 'bad.json');
+writeFileSync(bad, JSON.stringify({ format: 'exo-changes/1', changes: [{ path: 'content/../src/main.ts', op: 'write', orig: null, text: 'x' }] }));
+r = spawnSync('node', [path.join(repo, 'tools/import-changes.mjs'), bad, '--root', scratch], { encoding: 'utf8' });
+check(r.status === 2 && /refusing path/.test(r.stderr), 'paths outside content/ and media are refused');
+rmSync(dir, { recursive: true });
 check(errs.length === 0, `no page errors ${errs.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');
