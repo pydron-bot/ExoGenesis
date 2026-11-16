@@ -321,6 +321,8 @@ export class SolarSystem {
     this.light.position.copy(this.sunPos);
     this.belts[0].rotation.y = t * 0.0004;
     this.belts[1].rotation.y = t * 0.00008;
+    // belts are sub-pixel specks until the system view; skip ~5k rocks' worth of triangles below it
+    for (const b of this.belts) b.visible = sys > 0.02;
 
     const origin = new THREE.Vector3();
     const v = new THREE.Vector3();

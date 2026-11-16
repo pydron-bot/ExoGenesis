@@ -16,7 +16,8 @@ function pool(geo: THREE.BufferGeometry, n: number): Pool {
     color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false,
   }), n);
   mesh.frustumCulled = false;
-  mesh.count = n;
+  // only draw up to the highest live slot (tickPool / spawns keep this current); 0 = no draw
+  mesh.count = 0;
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   for (let i = 0; i < n; i++) { mesh.setMatrixAt(i, zero); mesh.setColorAt(i, new THREE.Color(0, 0, 0)); }
   return { mesh, life: new Float32Array(n), max: new Float32Array(n), next: 0, color: Array.from({ length: n }, () => new THREE.Color()), size: new Float32Array(n), pos: new Float32Array(n * 3) };
@@ -164,6 +165,7 @@ export class ArmyView {
         if (len < 0.01) continue;
         const p = this.tracers;
         const j = p.next; p.next = (j + 1) % p.life.length;
+        p.mesh.count = Math.max(p.mesh.count, j + 1);
         const w = tank ? 0.32 : k === FX.BITE ? 0.25 : 0.14;
         this.m.lookAt(this.v1, this.v2, this.up.copy(this.v1).normalize());
         this.m.scale(this.v2.set(w, w, k === FX.BITE ? Math.min(len, 1.2) : len));
@@ -185,6 +187,7 @@ export class ArmyView {
   private flash(x: number, z: number, size: number, life: number, color: THREE.Color) {
     const p = this.flashes;
     const j = p.next; p.next = (j + 1) % p.life.length;
+    p.mesh.count = Math.max(p.mesh.count, j + 1);
     regionPoint(x, z, 1, this.v1);
     p.pos[j * 3] = this.v1.x; p.pos[j * 3 + 1] = this.v1.y; p.pos[j * 3 + 2] = this.v1.z;
     p.size[j] = size;
@@ -195,7 +198,7 @@ export class ArmyView {
   }
 
   private tickPool(p: Pool, dt: number, grow: boolean) {
-    let any = false;
+    let any = false, hi = -1;
     for (let j = 0; j < p.life.length; j++) {
       if (p.life[j] <= 0) continue;
       any = true;
@@ -209,7 +212,9 @@ export class ArmyView {
         p.mesh.setMatrixAt(j, this.m);
       }
       if (p.life[j] <= 0) p.mesh.setColorAt(j, this.col.setRGB(0, 0, 0));
+      else hi = j;
     }
+    p.mesh.count = hi + 1;
     if (any) {
       p.mesh.instanceColor!.needsUpdate = true;
       if (grow) p.mesh.instanceMatrix.needsUpdate = true;

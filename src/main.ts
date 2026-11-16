@@ -138,7 +138,27 @@ setRegionTerrain(regionDef);
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.75 : 2));
+// Render scale: starts at the device's (capped) pixel ratio and steps down while
+// frames are slow, back up when there's headroom. Phones are fill-bound, so this
+// is the big lever. ?dpr=N pins it.
+const dprPinned = Number(params.get('dpr')) || 0;
+const dprMax = dprPinned || Math.min(devicePixelRatio, coarse ? 1.75 : 2);
+const dprMin = Math.min(dprMax, 1);
+const res = { scale: dprMax, acc: 0, n: 0, good: 0 };
+renderer.setPixelRatio(dprMax);
+/** Called once a frame with the real frame time (unclamped, seconds). */
+function adaptRes(rawDt: number) {
+  if (dprPinned || rawDt > 0.5 || document.hidden) return; // a stall or a background tab, not load
+  res.acc += rawDt; res.n++;
+  if (res.acc < 2) return;
+  const fps = res.n / res.acc;
+  res.acc = 0; res.n = 0;
+  let next = res.scale;
+  if (fps < 40) { next = Math.max(dprMin, res.scale - 0.25); res.good = 0; }
+  else if (fps > 56 && ++res.good >= 3) { next = Math.min(dprMax, res.scale + 0.25); res.good = 0; } // 6 s of headroom
+  else if (fps <= 56) res.good = 0;
+  if (next !== res.scale) { res.scale = next; renderer.setPixelRatio(next); renderer.setSize(innerWidth, innerHeight); }
+}
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -474,7 +494,8 @@ function updateHud(dt: number, now: number) {
     : `ALT ${fmtAlt(cam.altitude())}`;
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
-  el.fps.textContent = innerWidth < 640 ? `${fpsShown.toFixed(0)} fps` : `${fpsShown.toFixed(0)} fps · ${renderer.info.render.calls} draws`;
+  const scaled = res.scale < dprMax ? ` · ${res.scale}x` : '';
+  el.fps.textContent = innerWidth < 640 ? `${fpsShown.toFixed(0)} fps${scaled}` : `${fpsShown.toFixed(0)} fps${scaled} · ${renderer.info.render.calls} draws`;
   document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
     const v = b.dataset.view;
     b.classList.toggle('on', (v === 'system' && cam.b > 0.5) || (v === 'planet' && cam.a > 0.5 && cam.b <= 0.5) || (v === 'surface' && cam.a <= 0.5));
@@ -534,6 +555,7 @@ let last = t0;
 let ready = false;
 
 function frame(now: number) {
+  adaptRes((now - last) / 1000);
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const t = (now - t0) / 1000;
@@ -626,5 +648,6 @@ const exo = {
   height: regionHeight,
   fogView,
   audio,
+  res,
 };
 (window as unknown as { __exo: typeof exo }).__exo = exo;
