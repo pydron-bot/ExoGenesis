@@ -9,5 +9,7 @@
   "buildSeconds": 14,
   "clearance": 10,
   "range": 30,
-  "mineRate": 1.2
+  "mineRate": 1.2,
+  "staff": 1,
+  "specialty": "engineer"
 }

@@ -1,0 +1,16 @@
+{
+  "name": "Civilian Center",
+  "description": "Where colonists come from and where they live. Two growth pods mature embryos from the cryo bank into young adults (select it to start one), and it houses six. Pods need power and biomass the whole cycle: a long blackout kills the child inside.",
+  "role": "civic",
+  "buildable": true,
+  "cost": 150,
+  "hp": 700,
+  "powerMW": -1.5,
+  "buildSeconds": 24,
+  "clearance": 14,
+  "housing": 6,
+  "pods": 2,
+  "biomassStorage": 80,
+  "staff": 1,
+  "specialty": "medic"
+}

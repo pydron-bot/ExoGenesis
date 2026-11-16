@@ -7,5 +7,7 @@
   "hp": 900,
   "powerMW": -1.5,
   "buildSeconds": 18,
-  "clearance": 13
+  "clearance": 13,
+  "staff": 1,
+  "specialty": "engineer"
 }
