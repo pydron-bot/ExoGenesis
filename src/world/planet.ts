@@ -5,7 +5,6 @@
  * the system is placed relative to it.
  */
 import * as THREE from 'three';
-import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { REGION_HALF } from '../sim/types';
 import { HEIGHT_SCALE, REGION_CELLS, REGION_STEP } from '../content/defs';
 import { decodeGrid } from '../content/grid';
@@ -157,17 +156,42 @@ export function terrainColor(h: number, flora: number, out: THREE.Color) {
   return out.lerp(C.high, smoothstep(34, 46, h));
 }
 
-/** Low-poly globe; the part under the landing region is sunk so the detailed patch covers it. */
-export function buildGlobe(look: 'flat' | 'smooth' = 'flat'): THREE.Mesh {
-  let geo: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, 64);
-  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-  const col = new Float32Array(pos.count * 3);
+/** Globe geometry as plain arrays (worker-friendly: see gen-worker.ts). */
+export interface GlobeArrays { position: Float32Array; color: Float32Array; normal: Float32Array; index: Uint32Array | null }
+
+/**
+ * Low-poly globe geometry; the part under the landing region is sunk so the
+ * detailed patch covers it. The icosphere repeats each corner for every
+ * triangle that uses it (~6×), so corners are welded first and the terrain is
+ * worked out once per corner; the result is indexed for both looks (flat
+ * shading takes its normals per pixel).
+ */
+export function globeArrays(look: 'flat' | 'smooth' = 'flat'): GlobeArrays {
+  const ico = new THREE.IcosahedronGeometry(1, 64);
+  const src = (ico.getAttribute('position') as THREE.BufferAttribute).array as Float32Array;
+  const count = src.length / 3;
+  const index = new Uint32Array(count);
+  const seen = new Map<number, number>();
+  const dirs: number[] = [];
+  const Q = 32768, B = 2 * Q + 1;
+  for (let i = 0; i < count; i++) {
+    const x = src[i * 3], y = src[i * 3 + 1], z = src[i * 3 + 2];
+    const key = (Math.round(x * Q) + Q) * B * B + (Math.round(y * Q) + Q) * B + (Math.round(z * Q) + Q);
+    let k = seen.get(key);
+    if (k === undefined) { k = dirs.length / 3; seen.set(key, k); dirs.push(x, y, z); }
+    index[i] = k;
+  }
+  ico.dispose();
+  const n = dirs.length / 3;
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
   const d = new THREE.Vector3();
   const color = new THREE.Color();
-  for (let i = 0; i < pos.count; i++) {
-    d.fromBufferAttribute(pos, i).normalize();
+  for (let i = 0; i < n; i++) {
+    d.set(dirs[i * 3], dirs[i * 3 + 1], dirs[i * 3 + 2]).normalize();
     let h = globeHeight(d);
+    let r = R + Math.max(0, h);
     const cu = d.dot(U);
+    let inPatch = false;
     if (cu > 0.95) {
       const x = (R * d.dot(E)) / cu, z = (R * d.dot(N)) / cu;
       const inner = Math.max(Math.abs(x), Math.abs(z));
@@ -176,23 +200,30 @@ export function buildGlobe(look: 'flat' | 'smooth' = 'flat'): THREE.Mesh {
         // straddle the border don't open a trench along the patch edge
         terrainColor(regionHeightRaw(x, z), regionFlora(x, z), color);
         h = Math.max(0, regionHeightRaw(x, z)) - (inner < HALF - 60 ? 14 : 1.5);
-        col.set([color.r, color.g, color.b], i * 3);
-        pos.setXYZ(i, d.x * (R + h), d.y * (R + h), d.z * (R + h));
-        continue;
+        r = R + h;
+        inPatch = true;
       }
     }
-    terrainColor(h, floraAt(d), color);
-    col.set([color.r, color.g, color.b], i * 3);
-    pos.setXYZ(i, d.x * (R + Math.max(0, h)), d.y * (R + Math.max(0, h)), d.z * (R + Math.max(0, h)));
+    if (!inPatch) terrainColor(h, floraAt(d), color);
+    pos[i * 3] = d.x * r; pos[i * 3 + 1] = d.y * r; pos[i * 3 + 2] = d.z * r;
+    col[i * 3] = color.r; col[i * 3 + 1] = color.g; col[i * 3 + 2] = color.b;
   }
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  if (look === 'smooth') {
-    // weld the icosphere's duplicated corners so normals average across triangles
-    geo.deleteAttribute('normal');
-    geo.deleteAttribute('uv');
-    geo = mergeVertices(geo, 1e-3);
-  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
   geo.computeVertexNormals();
+  void look; // same geometry for both looks; the material decides flat or smooth shading
+  return { position: pos, color: col, normal: (geo.getAttribute('normal') as THREE.BufferAttribute).array as Float32Array, index };
+}
+
+/** The globe mesh from its arrays. */
+export function globeMesh(a: GlobeArrays, look: 'flat' | 'smooth' = 'flat'): THREE.Mesh {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(a.position, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(a.color, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(a.normal, 3));
+  if (a.index) geo.setIndex(new THREE.BufferAttribute(a.index, 1));
+  geo.computeBoundingSphere();
   const mesh = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: look === 'flat', roughness: 0.95, metalness: 0 }),
@@ -200,6 +231,8 @@ export function buildGlobe(look: 'flat' | 'smooth' = 'flat'): THREE.Mesh {
   mesh.name = 'home-globe';
   return mesh;
 }
+
+export const buildGlobe = (look: 'flat' | 'smooth' = 'flat') => globeMesh(globeArrays(look), look);
 
 /** Thin fresnel shell for the atmosphere glow seen from orbit. */
 export function buildAtmosphere(radius: number, color: THREE.ColorRepresentation, strength = 1): THREE.Mesh {

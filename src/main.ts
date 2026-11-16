@@ -7,8 +7,8 @@ import { SimClient } from './sim/client';
 import { TICK_HZ, type SimState } from './sim/types';
 import { content, contentIssues } from './content';
 import { lerp, smoothstep } from './world/noise';
-import { buildAtmosphere, buildGlobe, R, U, regionHeight, regionToWorld, setRegionTerrain } from './world/planet';
-import { Provinces } from './world/provinces';
+import { buildAtmosphere, globeMesh, R, U, regionHeight, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
+import { Provinces, type ProvinceData } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 import { startSkirmish } from './skirmish/mode';
@@ -35,14 +35,15 @@ const loaderEl = $('loader');
  * steps so far, so it keeps moving smoothly instead of jumping.
  */
 const STEPS: [string, number][] = [
-  ['Shaping the landing site…', 40],
-  ['Charting the solar system…', 175],
-  ['Forming the planet…', 365],
-  ['Mapping regions…', 230],
-  ['Growing alien flora…', 165],
-  ['Building the base…', 120],
-  ['Warming up shaders…', 60],
-  ['Starting the simulation…', 210],
+  ['Shaping the landing site…', 50],
+  ['Charting the solar system…', 200],
+  ['Growing alien flora…', 200],
+  // the globe and provinces are generated in a worker in parallel with the steps above
+  ['Forming the planet…', 125],
+  ['Mapping regions…', 5],
+  ['Building the base…', 25],
+  ['Warming up shaders…', 90],
+  ['Starting the simulation…', 40],
 ];
 /** Where the bar was when the code finished loading (the CSS-only creep before that). */
 let loadFrom = 0.02;
@@ -111,13 +112,25 @@ if (contentIssues.length) {
   throw new Error(`content: ${contentIssues.length} issue(s)`);
 }
 const regionDef = content.regions.touchdown;
+const skirmishMode = params.get('mode') === 'skirmish';
+const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
+// Start both workers first so their work overlaps everything below: the sim
+// (boots its module graph and a new game) and the globe/province generator.
+/** Sim events that arrive before the HUD exists wait here. */
+const early: [string, 'info' | 'warn' | 'bad'][] = [];
+let logFn: ((text: string, level: 'info' | 'warn' | 'bad') => void) | null = null;
+const sim = new SimClient((t, l) => (logFn ? logFn(t, l) : early.push([t, l])), !skirmishMode);
+const gen = new Promise<{ globe: GlobeArrays; prov: ProvinceData; ms: Record<string, number> }>((res, rej) => {
+  const w = new Worker(new URL('./world/gen-worker.ts', import.meta.url), { type: 'module' });
+  w.onmessage = (e) => { res(e.data); w.terminate(); };
+  w.onerror = (e) => rej(new Error(e.message || 'generation worker failed'));
+  w.postMessage({ look, region: { height: regionDef.height, flora: regionDef.flora } });
+});
 await loadStep('Shaping the landing site…');
 setRegionTerrain(regionDef);
 
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
-const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
-const skirmishMode = params.get('mode') === 'skirmish';
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.75 : 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -132,19 +145,6 @@ scene.fog = fog;
 
 await loadStep('Charting the solar system…');
 const system = new SolarSystem(scene, $('labels'));
-await loadStep('Forming the planet…');
-const globe = buildGlobe(look);
-if (look === 'smooth') {
-  // match the globe to the textured landing patch as seen from a distance
-  const m = groundTextures().mean;
-  (globe.material as THREE.MeshStandardMaterial).color.setRGB(m, m * 0.98, m * 0.96);
-}
-scene.add(globe);
-await loadStep('Mapping regions…');
-const provinces = new Provinces(scene, globe, $('labels'));
-// atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
-const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
-scene.add(atmosphere);
 await loadStep(skirmishMode ? 'Raising the battlefield…' : 'Growing alien flora…');
 const floraParam = params.get('flora');
 const region = new RegionView(
@@ -154,6 +154,22 @@ const region = new RegionView(
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
 );
 const cam = new ZoomCamera(camera);
+// the globe and provinces were generated in a worker meanwhile
+await loadStep('Forming the planet…');
+const generated = await gen;
+const globe = globeMesh(generated.globe, look);
+if (look === 'smooth') {
+  // match the globe to the textured landing patch as seen from a distance
+  const m = groundTextures().mean;
+  (globe.material as THREE.MeshStandardMaterial).color.setRGB(m, m * 0.98, m * 0.96);
+}
+scene.add(globe);
+await loadStep('Mapping regions…');
+const provinces = new Provinces(scene, globe, $('labels'), generated.prov);
+(window as unknown as { __genMs: Record<string, number> }).__genMs = generated.ms;
+// atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
+const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
+scene.add(atmosphere);
 // fog of war (colony only; ?fog=0 turns it off)
 const fogView = new FogView(!skirmishMode && params.get('fog') !== '0');
 if (fogView.enabled) { region.enableFog(); addFog(globe.material as THREE.Material); }
@@ -176,7 +192,8 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
   setTimeout(() => el.remove(), 10500);
 }
 
-const sim = new SimClient(log, !skirmishMode);
+logFn = log;
+for (const [t, l] of early.splice(0)) log(t, l);
 const ui: RegionUi = { sel: null, drag: null, build: null, ghost: null };
 /** Select the first drone once the landing hands over control. */
 let selectFirstDrone = true;

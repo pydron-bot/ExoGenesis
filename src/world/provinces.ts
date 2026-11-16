@@ -50,6 +50,71 @@ function makeSeeds(): Province[] {
   return out;
 }
 
+/** Province layout as plain arrays (computed in gen-worker.ts at load). */
+export interface ProvinceData {
+  /** Triangles per province (index = province id). */
+  tris: Int32Array;
+  /** Border line segments, lifted off the ground. */
+  borders: Float32Array;
+  /** Tinted overlay triangles for held + tutorial provinces. */
+  fillPos: Float32Array;
+  fillCol: Float32Array;
+}
+
+/** Spherical Voronoi of the province seeds over the globe's (indexed) triangles. */
+export function provinceData(globe: { position: Float32Array; index: Uint32Array | null }): ProvinceData {
+  const list = makeSeeds();
+  const pa = globe.position;
+  const index = globe.index ?? Uint32Array.from({ length: pa.length / 3 }, (_, i) => i);
+  const triCount = index.length / 3;
+  const owner = new Int16Array(triCount);
+  const tris = new Int32Array(list.length);
+  const m = new THREE.Vector3();
+  for (let t = 0; t < triCount; t++) {
+    const a = index[t * 3] * 3, b = index[t * 3 + 1] * 3, c = index[t * 3 + 2] * 3;
+    m.set(pa[a] + pa[b] + pa[c], pa[a + 1] + pa[b + 1] + pa[c + 1], pa[a + 2] + pa[b + 2] + pa[c + 2]).normalize();
+    if (globeHeight(m) <= 0) { owner[t] = -1; continue; }
+    let best = 0, bd = -2;
+    for (const p of list) {
+      const d = p.seed.dot(m);
+      if (d > bd) { bd = d; best = p.id; }
+    }
+    owner[t] = best;
+    tris[best]++;
+  }
+
+  // a vertex a little above the ground (lines and tint sit on top of the terrain)
+  const lifted = (vi: number, out: number[]) => {
+    const x = pa[vi * 3], y = pa[vi * 3 + 1], z = pa[vi * 3 + 2], l = Math.hypot(x, y, z), k = (l + 4) / l;
+    out.push(x * k, y * k, z * k);
+  };
+  // shared edges (by vertex pair) between triangles owned by different land provinces
+  const edges = new Map<number, number>();
+  const nv = pa.length / 3;
+  const linePts: number[] = [];
+  for (let t = 0; t < triCount; t++) {
+    for (let k = 0; k < 3; k++) {
+      const v0 = index[t * 3 + k], v1 = index[t * 3 + ((k + 1) % 3)];
+      const ek = v0 < v1 ? v0 * nv + v1 : v1 * nv + v0;
+      const other = edges.get(ek);
+      if (other === undefined) { edges.set(ek, t); continue; }
+      edges.delete(ek);
+      const o1 = owner[t], o2 = owner[other];
+      if (o1 !== o2 && o1 >= 0 && o2 >= 0) { lifted(v0, linePts); lifted(v1, linePts); }
+    }
+  }
+
+  const fp: number[] = [], fc: number[] = [];
+  const cyan = new THREE.Color('#5ff3ff'), amber = new THREE.Color('#ffb547');
+  for (let t = 0; t < triCount; t++) {
+    const o = owner[t];
+    if (o < 0 || list[o].state === 'unexplored') continue;
+    const col = list[o].state === 'held' ? cyan : amber;
+    for (let k = 0; k < 3; k++) { lifted(index[t * 3 + k], fp); fc.push(col.r, col.g, col.b); }
+  }
+  return { tris, borders: Float32Array.from(linePts), fillPos: Float32Array.from(fp), fillCol: Float32Array.from(fc) };
+}
+
 export class Provinces {
   readonly list: Province[];
   private borders: THREE.LineSegments;
@@ -57,73 +122,27 @@ export class Provinces {
   private labels: { el: HTMLDivElement; pos: THREE.Vector3; p: Province }[] = [];
   readonly landCount: number;
 
-  constructor(scene: THREE.Scene, globe: THREE.Mesh, labelLayer: HTMLElement) {
+  /** `data` from provinceData() (computed off the main thread at load), or computed here from `globe`. */
+  constructor(scene: THREE.Scene, globe: THREE.Mesh, labelLayer: HTMLElement, data?: ProvinceData) {
     this.list = makeSeeds();
-    const geo = globe.geometry.index ? globe.geometry.toNonIndexed() : globe.geometry;
-    const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-    const triCount = pos.count / 3;
-    const owner = new Int16Array(triCount);
-    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), m = new THREE.Vector3();
-
-    for (let t = 0; t < triCount; t++) {
-      a.fromBufferAttribute(pos, t * 3); b.fromBufferAttribute(pos, t * 3 + 1); c.fromBufferAttribute(pos, t * 3 + 2);
-      m.copy(a).add(b).add(c).normalize();
-      if (globeHeight(m) <= 0) { owner[t] = -1; continue; }
-      let best = 0, bd = -2;
-      for (const p of this.list) {
-        const d = p.seed.dot(m);
-        if (d > bd) { bd = d; best = p.id; }
-      }
-      owner[t] = best;
-      this.list[best].tris++;
+    if (!data) {
+      const g = globe.geometry;
+      data = provinceData({ position: (g.getAttribute('position') as THREE.BufferAttribute).array as Float32Array, index: g.index ? Uint32Array.from(g.index.array) : null });
     }
+    this.list.forEach((p) => { p.tris = data!.tris[p.id] ?? 0; });
     this.landCount = this.list.filter((p) => p.tris > 0).length;
+    const linePts = data.borders;
 
-    // shared edges between triangles owned by different land provinces
-    const key = (v: THREE.Vector3) => `${Math.round(v.x * 4)},${Math.round(v.y * 4)},${Math.round(v.z * 4)}`;
-    const edges = new Map<string, number>();
-    const linePts: number[] = [];
-    const lift = (v: THREE.Vector3) => v.clone().multiplyScalar((v.length() + 4) / v.length());
-    const verts = [a, b, c];
-    for (let t = 0; t < triCount; t++) {
-      for (let k = 0; k < 3; k++) verts[k].fromBufferAttribute(pos, t * 3 + k);
-      for (let k = 0; k < 3; k++) {
-        const v0 = verts[k], v1 = verts[(k + 1) % 3];
-        const k0 = key(v0), k1 = key(v1);
-        const ek = k0 < k1 ? `${k0}|${k1}` : `${k1}|${k0}`;
-        const other = edges.get(ek);
-        if (other === undefined) { edges.set(ek, t); continue; }
-        edges.delete(ek);
-        const o1 = owner[t], o2 = owner[other];
-        if (o1 !== o2 && o1 >= 0 && o2 >= 0) {
-          const p0 = lift(v0), p1 = lift(v1);
-          linePts.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
-        }
-      }
-    }
     const lg = new THREE.BufferGeometry();
-    lg.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
+    lg.setAttribute('position', new THREE.BufferAttribute(linePts, 3));
     this.borders = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({
       color: '#bff8ff', transparent: true, opacity: 0, depthWrite: false, fog: false,
     }));
     scene.add(this.borders);
 
-    // tinted overlay for held + tutorial provinces
-    const fp: number[] = [], fc: number[] = [];
-    const cyan = new THREE.Color('#5ff3ff'), amber = new THREE.Color('#ffb547');
-    for (let t = 0; t < triCount; t++) {
-      const o = owner[t];
-      if (o < 0 || this.list[o].state === 'unexplored') continue;
-      const col = this.list[o].state === 'held' ? cyan : amber;
-      for (let k = 0; k < 3; k++) {
-        const v = lift(a.fromBufferAttribute(pos, t * 3 + k));
-        fp.push(v.x, v.y, v.z);
-        fc.push(col.r, col.g, col.b);
-      }
-    }
     const fg = new THREE.BufferGeometry();
-    fg.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3));
-    fg.setAttribute('color', new THREE.Float32BufferAttribute(fc, 3));
+    fg.setAttribute('position', new THREE.BufferAttribute(data.fillPos, 3));
+    fg.setAttribute('color', new THREE.BufferAttribute(data.fillCol, 3));
     this.fill = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({
       vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     }));

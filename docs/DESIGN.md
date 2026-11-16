@@ -487,7 +487,14 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
 - **Skirmish (`?mode=skirmish`):** ~1,000 hostiles on screen at **60 fps on iPhone**; sim
   27.6 ms/tick on the phone at ~1,000 units (budget 100 ms at 10 Hz), ~3 ms on hive1.
   All touch selection methods felt good (tap, hold/double-tap all-of-type, paint, control groups).
-- **Follow-ups:** startup is slow (height grid, globe, provinces and textures all built on the main
+- **Startup (2026-11-16, overnight):** 1650 → ~980 ms to the first frame on hive1 (dev server, 3-run mean,
+  `node tools/load-times.mjs [--cpu 4]`). The sim worker now starts first (its ~300 ms boot overlaps everything);
+  a generation worker (`src/world/gen-worker.ts`) builds the globe and provinces while the main thread builds the
+  solar system, flora and patch; the globe welds the icosphere's repeated corners first and works out terrain
+  once per corner (253k → 42k vertices, indexed for both looks: 390/630 → ~190 ms), and province borders key
+  edges by vertex pair (225 → ~85 ms). What's left is mostly browser work (module loading in dev, GPU uploads,
+  shader compiles), which needs measuring on the phone; flora placement could also move to the worker.
+- **Follow-ups (earlier):** startup is slow (height grid, globe, provinces and textures all built on the main
   thread at load — move to the worker / cache / build lazily); "Command Core destroyed" event repeats
   every 5 s after the core falls; no game-over/restart flow in skirmish.
 - **Flora + landing (2026-11-15):** procedural alien flora (`src/world/flora.ts`): six archetypes
