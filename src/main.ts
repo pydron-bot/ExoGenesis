@@ -553,6 +553,7 @@ const bg = new THREE.Color();
 const t0 = performance.now();
 let last = t0;
 let ready = false;
+let gameT = 0;
 
 function frame(now: number) {
   adaptRes((now - last) / 1000);
@@ -591,7 +592,9 @@ function frame(now: number) {
       hud.selected();
     }
     const alpha = sim.alpha(now);
-    region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera);
+    // world animations run on game time: frozen when paused, faster at ×3
+    gameT += dt * speed;
+    region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera, gameT);
     // fog shows once the landing has handed over (the descent keeps its vista)
     fogView.amount = landing ? 0 : 1;
     fogView.update(sim.cur.fog, dt);

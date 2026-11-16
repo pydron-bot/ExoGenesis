@@ -545,6 +545,8 @@ export class RegionView {
   private buildings = new Map<number, BEntry>();
   private deposits: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
+  /** Game-time seconds this frame (see update). */
+  private gameT = 0;
   private orderRibbon = new Ribbon(CYAN, 0.45);
   private targetRibbon = new Ribbon(CYAN, 0.18);
   private selRing: THREE.Mesh;
@@ -706,7 +708,12 @@ export class RegionView {
     return g;
   }
 
-  update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: RegionUi, dist: number, camera: THREE.Camera) {
+  /**
+   * `t` is wall-clock seconds (UI pulses: selection, placement, beacon keep going while paused);
+   * `gameT` advances with the game speed and stops when paused (drones, haulers, dishes, doors).
+   */
+  update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: RegionUi, dist: number, camera: THREE.Camera, gameT = t) {
+    this.gameT = gameT;
     this.updateOverlay(dist, t);
 
     // drones (interpolated)
@@ -725,7 +732,7 @@ export class RegionView {
       const x = lerp(a.x, b.x, alpha), z = lerp(a.z, b.z, alpha);
       let dh = b.heading - a.heading;
       dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-      const bob = Math.sin(t * 3 + b.id) * 0.15;
+      const bob = Math.sin(gameT * 3 + b.id) * 0.15;
       const held = this.droneHeld && b.id === this.firstDrone;
       if (!held) orient(e.obj, x, z, a.heading + dh * alpha, 2.4 + bob);
       e.x = x; e.z = z;
@@ -955,17 +962,17 @@ export class RegionView {
         }
         if (role === 'radar' && lit) {
           const dish = e.obj.getObjectByName('dish');
-          if (dish) dish.rotation.y = t * 1.2;
+          if (dish) dish.rotation.y = this.gameT * 1.2;
         }
         if (role === 'battery') {
           e.obj.traverse((o) => {
             if (o.name === 'charge') ((o as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = lit ? 0.3 + charge * 3 : 0.1;
           });
         }
-        if (role === 'depot') this.hauler(b, cur, t);
+        if (role === 'depot') this.hauler(b, cur, this.gameT);
         if (role === 'factory') {
           const door = e.obj.getObjectByName('door') as THREE.Mesh | undefined;
-          if (door) (door.material as THREE.MeshStandardMaterial).emissiveIntensity = !lit ? 0.1 : b.queue?.length ? 1.2 + Math.max(0, Math.sin(t * 5)) * 2 : 0.5;
+          if (door) (door.material as THREE.MeshStandardMaterial).emissiveIntensity = !lit ? 0.1 : b.queue?.length ? 1.2 + Math.max(0, Math.sin(this.gameT * 5)) * 2 : 0.5;
         }
       }
       this.hpBar(b, d, ui, camera, e.bar);
