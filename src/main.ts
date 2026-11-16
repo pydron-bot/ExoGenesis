@@ -17,7 +17,7 @@ import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
 import { FogView, addFog } from './world/fog';
 import { ArmyView } from './skirmish/view';
-import type { SkSnapshot } from './skirmish/types';
+import { DEFS as UNIT_DEFS, UT, type SkSnapshot } from './skirmish/types';
 import { linePoints, placeProblem } from './sim/rules';
 import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
@@ -257,10 +257,15 @@ if (!skirmishMode) {
 $('cine-skip').onclick = () => landing?.skip();
 addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
 
-// asset models assigned in content replace built-in building models once loaded
+// asset models assigned in content replace built-in building models once loaded.
+// ?models=new previews the Blender set (content/assets/exo-<kind>.json) without
+// assigning it in content.
+const previewModels = params.get('models') === 'new';
+const modelFor = (kind: string, assigned?: string) => (previewModels && content.assets[`exo-${kind}`] ? `exo-${kind}` : assigned);
 for (const [kind, d] of Object.entries(content.buildings)) {
-  if (!d.model || !content.assets[d.model] || d.role === 'core') continue;
-  loadModel(content.assets[d.model]).then(
+  const id = modelFor(kind, d.model);
+  if (!id || !content.assets[id] || d.role === 'core') continue;
+  loadModel(content.assets[id]).then(
     (m) => region.setBuildingModel(kind, m),
     (e) => console.warn(`${kind} model failed to load; keeping the built-in`, e),
   );
@@ -381,6 +386,10 @@ $('b-skirmish').onclick = () => {
 
 const help = $('help');
 let helped = false;
+if (previewModels) for (const [t, id] of [[UT.Rover, 'rover'], [UT.Tank, 'tank']] as const) {
+  const a = content.assets[`exo-${id}`];
+  if (a) UNIT_DEFS[t].model = a;
+}
 const army = skirmish ? null : new ArmyView(scene);
 const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {
   move: (drone, x, z) => sim.command({ type: 'move', drone, x, z }),

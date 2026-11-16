@@ -80,13 +80,16 @@ try {
   // 2. upload three files through the picker
   await ed.goto(`${url}editor.html#library`);
   await ed.waitForSelector('.asset-card');
+  // counts per kind before the upload (the library isn't empty: content/assets has the Blender set)
+  const count = async (kind) => Number((await ed.$$eval('.chip', (c) => c.map((x) => x.textContent))).find((t) => t.startsWith(kind))?.split(' ')[1] ?? 0);
+  const before = { Models: await count('Models'), Images: await count('Images'), Audio: await count('Audio') };
   const [chooser] = await Promise.all([ed.waitForEvent('filechooser'), ed.click('button.mini:has-text("Upload")')]);
   await chooser.setFiles([glb, path.join(tmp, 'Test Panel.png'), path.join(tmp, 'beep.wav')]);
-  await ed.waitForFunction(() => document.querySelectorAll('.chip')[1]?.textContent === 'Models 1', null, { timeout: 15000 });
+  await ed.waitForFunction((n) => [...document.querySelectorAll('.chip')].some((c) => c.textContent === `Models ${n}`), before.Models + 1, { timeout: 15000 });
   check(await exists('public/media/model/scout-tank.glb') && await exists('content/assets/scout-tank.json'), 'model uploaded: public/media/model/scout-tank.glb + record');
   check(await exists('public/media/image/test-panel.png') && await exists('public/media/audio/beep.wav'), 'image and audio uploaded');
   const chips = await ed.$$eval('.chip', (c) => c.map((x) => x.textContent));
-  check(chips.includes('Images 1') && chips.includes('Audio 1'), `library counts (${chips.join(', ')})`);
+  check(chips.includes(`Images ${before.Images + 1}`) && chips.includes(`Audio ${before.Audio + 1}`), `library counts (${chips.join(', ')})`);
   await wait(2500);
   check(await ed.locator('.asset-card:has-text("Scout Tank") img[src^="data:image/png"]').count() === 1, 'model card has a rendered thumbnail');
 

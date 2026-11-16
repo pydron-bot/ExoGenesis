@@ -332,6 +332,14 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
 - **Binary assets** go in the repo while small; switch to Git LFS if audio grows past a few
   hundred MB.
 
+- **Blender set v1 (2026-11-16, overnight):** `blender/build.py` (headless: `blender -b --factory-startup -P
+  blender/build.py -- [--only turret,…]`) builds `public/media/model/exo-<id>.glb` for solar, depot, battery,
+  turret, radar, bay, wall, rover and tank (276–1,544 tris, 19–91 KB each), with records
+  `content/assets/exo-<id>.json` (scale 1, built to size). Animated parts are separate nodes with the names the
+  game uses (`head`, `dish`, `door`, `charge`), so aiming, spinning and glow dimming keep working. **Not assigned
+  in content yet**: `?models=new` previews the whole set in-game; adopting one = set the Model field in the
+  editor. `node tools/model-compare.mjs <dir>` shoots built-in vs Blender pairs (same base, camera, daylight).
+
 | Tool | Edits | Lands with |
 |---|---|---|
 | Data layer + schema forms | Units, buildings, colony rules | ✅ 2026-11-15 |
