@@ -1,9 +1,0 @@
-{
-  "name": "Scout Tank",
-  "kind": "model",
-  "file": "scout-tank.glb",
-  "source": "blender",
-  "scale": 2.22,
-  "yaw": 90,
-  "lift": -0.44
-}

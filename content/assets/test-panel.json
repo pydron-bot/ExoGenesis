@@ -1,9 +1,0 @@
-{
-  "name": "Test Panel",
-  "kind": "image",
-  "file": "test-panel.png",
-  "source": "other",
-  "scale": 1,
-  "yaw": 0,
-  "lift": 0
-}
