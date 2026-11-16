@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import './style.css';
 import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input } from './input';
-import { getSave, putSave } from './save';
+import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type SimState } from './sim/types';
 import { content, contentIssues } from './content';
@@ -18,7 +18,7 @@ import { ColonyHud } from './colony-hud';
 import { ArmyView } from './skirmish/view';
 import type { SkSnapshot } from './skirmish/types';
 import { placeProblem } from './sim/rules';
-import { sunAngle } from './sim/daylight';
+import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 
 const params = new URLSearchParams(location.search);
@@ -179,8 +179,40 @@ let selectFirstDrone = true;
 // ---------- landing cinematic ----------
 const cineEl = $('cine');
 let landing: Landing | null = null;
+// ---------- resume where you left off ----------
+// The sim worker autosaves every few seconds and whenever the page is hidden
+// (phones discard background tabs); on the next visit we pick up from there.
+// ?new=1 starts fresh. The camera is remembered separately in localStorage.
+const CAM_KEY = 'exo.camera';
+function saveCamera() {
+  try { localStorage.setItem(CAM_KEY, JSON.stringify({ dist: cam.targetDist, yaw: cam.yaw, pitch: cam.targetPitch, fx: cam.fx, fz: cam.fz })); } catch { /* private mode */ }
+}
+function restoreCamera() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CAM_KEY) ?? 'null');
+    if (!c) return;
+    Object.assign(cam, { yaw: c.yaw, fx: c.fx, fz: c.fz });
+    cam.targetDist = c.dist;
+    cam.targetPitch = c.pitch;
+  } catch { /* ignore */ }
+}
+let resumed: AutoSave | null = null;
 if (!skirmishMode) {
-  if (params.get('intro') === '0' || params.get('view')) {
+  if (params.get('new') === '1') await delSave(AUTOSAVE).catch(() => {});
+  else {
+    const a = await getSave<AutoSave>(AUTOSAVE).catch(() => undefined);
+    if (a?.version === 2 && a.sim && !a.sim.over && a.sim.phase === 'deployed') resumed = a;
+  }
+}
+
+if (!skirmishMode) {
+  if (resumed) {
+    sim.load(resumed.sim);
+    restoreCamera();
+    const sol = content.colony.solSeconds, secs = resumed.sim.tick / TICK_HZ;
+    const h = hourAt(secs, sol);
+    log(`Welcome back · resumed at Sol ${Math.floor(secs / sol) + 1}, ${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')} · ⋯ → New game to start over`);
+  } else if (params.get('intro') === '0' || params.get('view')) {
     sim.command({ type: 'landing', stage: 'deploy' });
   } else {
     document.body.classList.add('cine');
@@ -227,21 +259,33 @@ function setBuild(kind: string | null) {
     log(coarse ? `Tap the ground to preview the ${d.name}, tap it again to build` : `Click to place the ${d.name} · Shift-click to place several · Esc to stop`);
   }
 }
+function restartGame() {
+  sim.newGame(Date.now() % 100000);
+  sim.command({ type: 'landing', stage: 'deploy' });
+  sim.flush(); // overwrite the old autosave right away
+  hud.reset();
+  ui.sel = null; setBuild(null);
+  selectFirstDrone = true;
+  document.body.classList.remove('more');
+}
 const hud = new ColonyHud({
   defs: content.buildings, rules: content.colony, ui, cam,
   command: (c) => sim.command(c),
   setBuild,
-  restart: () => {
-    sim.newGame(Date.now() % 100000);
-    sim.command({ type: 'landing', stage: 'deploy' });
-    hud.reset();
-    ui.sel = null; setBuild(null);
-    selectFirstDrone = true;
-  },
+  restart: () => restartGame(),
   load: () => $('b-load').click(),
   log,
 });
 $('b-build').onclick = () => hud.toggleMenu();
+$('b-new').onclick = () => { if (confirm('Start a new game? Your current colony will be lost (unless you Saved it).')) restartGame(); };
+if (!skirmishMode) {
+  sim.autosave(true);
+  // phones throw hidden tabs away: save the moment the page goes to the background
+  const flush = () => { sim.flush(); saveCamera(); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+  addEventListener('pagehide', flush);
+  setInterval(saveCamera, 10000);
+}
 
 // playtesting: ?debug=1 → F8 summons the next predator pack now, F9 adds 500 alloys
 if (params.get('debug') === '1') {

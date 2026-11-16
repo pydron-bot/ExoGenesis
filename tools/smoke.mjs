@@ -25,7 +25,7 @@ const until = (fn, arg, timeout = 60000) => page.waitForFunction(fn, arg, { time
 const screen = (x, z, lift = 0) => page.evaluate(([x, z, lift]) => __exo.screenOf(x, z, lift), [x, z, lift]);
 const cmd = (c) => page.evaluate((c) => __exo.sim.command(c), c);
 
-await page.goto(`${url}?intro=0`);
+await page.goto(`${url}?intro=0&new=1`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
 await wait(1500);
 
@@ -147,10 +147,29 @@ await wait(1500);
 s = await cur();
 check(s.buildings.length === saved.buildings.length && s.tick >= saved.tick, `load restores the save (${s.buildings.length} buildings, tick ${saved.tick} → ${s.tick})`);
 
+// 6b. autosave: leave and come back without ?new=1 → resumes where we were
+await page.evaluate(() => __exo.sim.flush());
+await wait(800);
+const before6b = await cur();
+await page.goto(`${url}`);
+await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
+await wait(1200);
+s = await cur();
+check(s.buildings.length === before6b.buildings.length && s.tick >= before6b.tick - 5, `coming back resumes the autosave (${s.buildings.length} buildings, tick ${s.tick}) with no landing cinematic`);
+check(await page.evaluate(() => !document.body.classList.contains('cine')), 'resume skips the landing cinematic');
+check(/Welcome back/.test(await page.textContent('#log')), 'says welcome back');
+
 // 7. lose the core → game over → new game
 await cmd({ type: 'debug', hurt: { id: 1, hp: 99999 } });
 await until(() => document.querySelector('#over')?.classList.contains('on'), null, 10000);
 check(/COLONY LOST/.test(await page.textContent('#over')), 'losing the Core shows the game-over panel');
+await wait(11000); // the worker's autosave tick clears the save once the colony is lost
+await page.goto(`${url}?intro=0`);
+await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
+await wait(800);
+check((await cur()).buildings.length === 1 && !(await cur()).over, 'after a loss, coming back starts a fresh colony');
+await cmd({ type: 'debug', hurt: { id: 1, hp: 99999 } });
+await until(() => document.querySelector('#over')?.classList.contains('on'), null, 10000);
 await page.click('#over-restart');
 await until(() => !document.querySelector('#over')?.classList.contains('on') && __exo.sim.cur.buildings.length === 1 && __exo.sim.cur.deployed, null, 10000);
 check(true, 'New game starts over');

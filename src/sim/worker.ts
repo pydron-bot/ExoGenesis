@@ -2,6 +2,7 @@
  * The simulation worker: owns the game state and runs src/sim/core.ts at a
  * fixed tick; the main thread only renders snapshots and sends commands.
  */
+import { AUTOSAVE, delSave, putSave, type AutoSave } from '../save';
 import { Sim } from './core';
 import { TICK_MS, type FromWorker, type ToWorker } from './types';
 
@@ -9,6 +10,30 @@ const ctx = self as unknown as Worker;
 const post = (msg: FromWorker, transfer: Transferable[] = []) => ctx.postMessage(msg, transfer);
 const sim = new Sim((text, level) => post({ type: 'event', text, level }));
 let speed = 1;
+let autosave = false;
+let saving = false;
+let lastSavedTick = -1;
+
+/** Write the game to the autosave slot (or clear it once the colony is lost). */
+async function autoSave() {
+  if (!autosave || saving) return;
+  const s = sim.s;
+  if (s.phase !== 'deployed') return;
+  saving = true;
+  try {
+    if (s.over) await delSave(AUTOSAVE);
+    else if (s.tick !== lastSavedTick) {
+      const file: AutoSave = { version: 2, savedAt: Date.now(), sim: s };
+      await putSave(AUTOSAVE, file);
+      lastSavedTick = s.tick;
+    }
+  } catch (e) {
+    console.warn('autosave failed', e);
+  } finally {
+    saving = false;
+  }
+}
+setInterval(() => void autoSave(), 10000);
 
 function snapshot() {
   const snap = sim.snapshot();
@@ -36,7 +61,14 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       return;
     case 'new':
       sim.newGame(msg.seed);
+      lastSavedTick = -1;
       snapshot();
+      return;
+    case 'autosave':
+      autosave = msg.on;
+      return;
+    case 'flush':
+      void autoSave();
       return;
   }
 };

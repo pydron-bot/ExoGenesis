@@ -83,6 +83,10 @@ export class Sim {
   }
 
   load(state: SimState) {
+    // content may have changed since the save: drop things that no longer exist
+    state.buildings = state.buildings.filter((b) => DEFS[b.kind] || b.kind === 'core');
+    state.hostiles = state.hostiles.filter((h) => content.units[h.unit]);
+    for (const b of state.buildings) b.hp = Math.min(b.hp, DEFS[b.kind]?.hp ?? b.hp);
     this.s = state;
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = state.hostiles.reduce((m, h) => Math.max(m, h.slot + 1), 0);

@@ -131,7 +131,10 @@ export type ToWorker =
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }
   | { type: 'load'; state: SimState }
-  | { type: 'new'; seed: number };
+  | { type: 'new'; seed: number }
+  /** Autosave to IndexedDB every few seconds while on; `flush` saves right now. */
+  | { type: 'autosave'; on: boolean }
+  | { type: 'flush' };
 
 export interface DroneSnap {
   id: number; x: number; z: number; heading: number; tx: number; tz: number;

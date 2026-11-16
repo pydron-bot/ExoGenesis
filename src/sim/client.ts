@@ -43,6 +43,8 @@ export class SimClient {
   setSpeed(speed: number) { this.worker.postMessage({ type: 'speed', speed }); }
   load(state: SimState) { this.worker.postMessage({ type: 'load', state }); }
   newGame(seed: number) { this.worker.postMessage({ type: 'new', seed }); }
+  autosave(on: boolean) { this.worker.postMessage({ type: 'autosave', on }); }
+  flush() { this.worker.postMessage({ type: 'flush' }); }
 
   save(): Promise<SimState> {
     const reqId = ++this.reqId;

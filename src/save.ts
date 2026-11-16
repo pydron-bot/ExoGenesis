@@ -32,3 +32,18 @@ export async function getSave<T>(key: string): Promise<T | undefined> {
   db.close();
   return v;
 }
+
+export async function delSave(key: string): Promise<void> {
+  const db = await open();
+  await new Promise<void>((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+  db.close();
+}
+
+/** The continuous autosave (written by the sim worker, read at startup). */
+export const AUTOSAVE = 'auto';
+export interface AutoSave { version: 2; savedAt: number; sim: import('./sim/types').SimState }

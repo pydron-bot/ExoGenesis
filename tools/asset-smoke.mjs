@@ -131,7 +131,7 @@ try {
   // 6. the game uses it
   const game = await ctx.newPage();
   game.on('pageerror', (e) => errors.push(`game: ${e.message}`));
-  await game.goto(`${url}?intro=0`);
+  await game.goto(`${url}?intro=0&new=1`);
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   await game.waitForFunction(() => !!__exo.region.models.solar, null, { timeout: 30000 });
   check(true, 'game loaded the asset as the Solar Array model');

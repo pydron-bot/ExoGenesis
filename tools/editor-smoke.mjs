@@ -39,7 +39,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 try {
   const game = await ctx.newPage();
   game.on('pageerror', (e) => errors.push(`game: ${e.message}`));
-  await game.goto(`${url}?intro=0`);
+  await game.goto(`${url}?intro=0&new=1`);
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   await game.evaluate(() => (window.__marker = 1));
 
@@ -104,7 +104,7 @@ try {
   // 7. bad content → the game explains instead of starting
   await fs.writeFile(rover, JSON.stringify({ ...after, hp: 'lots' }, null, 2) + '\n');
   await wait(2500); // the game tab live-reloads into the error screen
-  if (!(await game.locator('#content-issues').count())) await game.goto(`${url}?intro=0`);
+  if (!(await game.locator('#content-issues').count())) await game.goto(`${url}?intro=0&new=1`);
   await game.waitForSelector('#content-issues', { timeout: 30000 });
   check((await game.textContent('#content-issues')).includes('units/rover.json · hp: must be a number'), 'game shows a clear content error');
   errors.splice(0, errors.length, ...errors.filter((e) => !e.includes('content: 1 issue')));

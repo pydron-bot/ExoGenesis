@@ -25,7 +25,7 @@ const P = { x: 40, z: 40 };
 try {
   const game = await ctx.newPage();
   game.on('pageerror', (e) => errors.push(`game: ${e.message}`));
-  await game.goto(`${url}?intro=0`);
+  await game.goto(`${url}?intro=0&new=1`);
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   const h0 = await game.evaluate(([x, z]) => __exo.height(x, z), [P.x, P.z]);
   const f0 = await game.evaluate(() => __exo.sim.cur.fauna.length / 3);

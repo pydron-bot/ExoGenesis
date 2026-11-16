@@ -39,6 +39,8 @@ export class ColonyHud {
   };
   private goals: Goal[];
   private reached = new Set<string>();
+  /** First goal check after a (re)start: mark what's already done without announcing it. */
+  private primed = false;
   private cardKey = '';
   private menuKey = '';
   private terrain: HTMLCanvasElement | null = null;
@@ -128,8 +130,9 @@ export class ColonyHud {
   private renderGoals(s: Snapshot) {
     for (const g of this.goals) if (!this.reached.has(g.id) && g.done(s)) {
       this.reached.add(g.id);
-      this.d.log(`Goal complete: ${g.text}`);
+      if (this.primed) this.d.log(`Goal complete: ${g.text}`);
     }
+    this.primed = true;
     const first = this.goals.find((g) => !this.reached.has(g.id));
     const html = this.goals.map((g, i) => `<li value="${i + 1}" class="${this.reached.has(g.id) ? 'done' : g === first ? 'now' : ''}">${esc(g.text)}</li>`).join('');
     if (this.el.goalsList.innerHTML !== html) this.el.goalsList.innerHTML = html;
@@ -281,5 +284,5 @@ export class ColonyHud {
   }
 
   /** Forget goal progress (new game). */
-  reset() { this.reached.clear(); this.cardKey = ''; this.menuKey = ''; }
+  reset() { this.reached.clear(); this.primed = false; this.cardKey = ''; this.menuKey = ''; }
 }
