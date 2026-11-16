@@ -163,6 +163,8 @@ body.menu-open #card { display: none !important; }
 #minimap.on { display: block; }
 #minimap.off { border-color: rgba(255,181,71,.5); }
 #bar .sm { display: none; }
+#sound-vol { width: 84px; margin: 0 6px; align-self: center; accent-color: var(--cyan); }
+#snd.off #sound-vol { opacity: 0.4; }
 .r.dim { opacity: 0.5; }
 #build-menu {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above-bar);

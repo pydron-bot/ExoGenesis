@@ -21,6 +21,7 @@ import { DEFS as UNIT_DEFS, UT, type SkSnapshot } from './skirmish/types';
 import { linePoints, placeProblem } from './sim/rules';
 import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
+import { GameAudio, type Spatial } from './audio';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -119,7 +120,12 @@ const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
 /** Sim events that arrive before the HUD exists wait here. */
 const early: [string, 'info' | 'warn' | 'bad'][] = [];
 let logFn: ((text: string, level: 'info' | 'warn' | 'bad') => void) | null = null;
-const sim = new SimClient((t, l) => (logFn ? logFn(t, l) : early.push([t, l])), !skirmishMode);
+// sound (colony only; ?sound=0 turns it off for good, the ⋯ menu for now)
+const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0');
+const sim = new SimClient((t, l, cue) => {
+  if (cue) audio.event(cue);
+  if (logFn) logFn(t, l); else early.push([t, l]);
+}, !skirmishMode);
 const gen = new Promise<{ globe: GlobeArrays; prov: ProvinceData; ms: Record<string, number> }>((res, rej) => {
   const w = new Worker(new URL('./world/gen-worker.ts', import.meta.url), { type: 'module' });
   w.onmessage = (e) => { res(e.data); w.terminate(); };
@@ -422,7 +428,7 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   togglePause: () => setSpeed(speed === 0 ? 1 : 0),
   toggleBuildMenu: () => hud.toggleMenu(),
   interacted: () => { if (!helped) { helped = true; setTimeout(() => help.classList.add('gone'), 4000); } },
-  say: (t) => log(t, 'warn'),
+  say: (t) => { log(t, 'warn'); audio.play('deny'); },
 }, army);
 $('pl-rotate').onclick = () => input?.rotate();
 $('pl-done').onclick = () => setBuild(null);
@@ -491,6 +497,33 @@ new ResizeObserver(syncBar).observe(barEl);
 syncBar();
 $('b-more').onclick = () => { document.body.classList.toggle('more'); $('b-more').classList.toggle('on'); };
 
+// ---------- sound controls (⋯ on phones) ----------
+const soundBtn = $<HTMLButtonElement>('b-sound');
+const volEl = $<HTMLInputElement>('sound-vol');
+function syncSound() {
+  soundBtn.textContent = audio.disabled ? '♪ Off (URL)' : audio.on ? '♪ Sound' : '♪ Muted';
+  soundBtn.classList.toggle('on', audio.on && !audio.disabled);
+  soundBtn.disabled = volEl.disabled = audio.disabled;
+  volEl.value = String(Math.round(audio.volume * 100));
+  $('snd').classList.toggle('off', !audio.on || audio.disabled);
+}
+soundBtn.onclick = () => { audio.setOn(!audio.on); syncSound(); };
+volEl.oninput = () => { audio.setVolume(Number(volEl.value) / 100); if (!audio.on) audio.setOn(true); syncSound(); };
+syncSound();
+// a soft tick for HUD buttons
+hudEl.addEventListener('pointerdown', (e) => { if ((e.target as Element).closest?.('button')) audio.play('tap'); });
+/** World sounds: quieter away from the camera focus and when zoomed out; panned by screen x. */
+const sndV = new THREE.Vector3();
+const spatial: Spatial = (x, z) => {
+  if (cam.a > 0.4) return null; // up in orbit: nothing
+  const d = Math.hypot(x - cam.fx, z - cam.fz);
+  const reach = 30 + cam.dist * 0.9;
+  let gain = Math.min(1, 120 / (cam.dist + 45)) / (1 + 2 * (d / reach) ** 2);
+  sndV.copy(regionToWorld(x, z, 1)).project(camera);
+  if (sndV.z > 1 || Math.abs(sndV.x) > 1.15 || Math.abs(sndV.y) > 1.15) gain *= 0.35; // off screen
+  return { gain, pan: Math.max(-0.8, Math.min(0.8, sndV.x * 0.75)) };
+};
+
 // ---------- frame loop ----------
 const skyDay = new THREE.Color('#8fb0ad');
 const skyNight = new THREE.Color('#0b1622');
@@ -541,6 +574,10 @@ function frame(now: number) {
     fogView.amount = landing ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt);
+    // sound: only the wind during the landing
+    audio.quiet = !!landing;
+    audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
+    audio.ambient(sim.cur.daylight, air, dt);
     if (!ready) { ready = true; exo.ready = true; reveal(); }
   }
   updateHud(dt, now);
@@ -588,5 +625,6 @@ const exo = {
   capture: () => { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
   height: regionHeight,
   fogView,
+  audio,
 };
 (window as unknown as { __exo: typeof exo }).__exo = exo;

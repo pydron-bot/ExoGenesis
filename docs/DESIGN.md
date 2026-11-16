@@ -326,8 +326,9 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   lift, applied by `src/assets/models.ts` in both editor and game). Models are .glb, front +Z, Y
   up, 1 u ≈ 10 m. A unit's or building's `model` field swaps its built-in mesh (units are flattened
   to one instanced mesh; animation is dropped). Wired today: skirmish units and the Solar Array;
-  the Command Core stays procedural (the landing animates it). Images and audio are stored and
-  previewed but nothing in the game plays or shows them yet. The 15 built-in procedural models are
+  the Command Core stays procedural (the landing animates it). Audio assets can replace any built-in
+  sound through the Sound rules (`content/rules/sound.json`); images are stored and previewed but
+  nothing in the game shows them yet. The 15 built-in procedural models are
   listed in the library and can be exported to .glb as Blender starting points.
 - **Binary assets** go in the repo while small; switch to Git LFS if audio grows past a few
   hundred MB.
@@ -444,7 +445,31 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
   unexplored 10% brightness, explored 42%. It works out region coords from the world position, so it
   stacks on the flora's own shader. Fog stays off during the landing cinematic and fades in after; `?fog=0`
   turns it off. `tools/fog-smoke.mjs` (11 checks).
-- **Not in M1 yet:** sound.
+- **Sound (2026-11-16):** `src/audio/` — one Web Audio context, everything synthesised (no files), mixed as
+  combat / events / alerts / UI / ambient → master → limiter.
+  - **What plays:** turret, rover and tank shots (tank heavier), predator bites, small and big deaths (from the
+    snapshot `fx`, once per sim tick); building placed, building online, unit ready, drone fabricated, pack
+    destroyed, drone/unit/wall lost, refused orders (not enough alloys, can't build there); a two-tone **warning**
+    for "Contact!", radar pack warnings and no drones left; a klaxon **alarm** for cryo integrity drops, a
+    building destroyed and game over; a soft tick on HUD buttons; and a wind bed (lower and a touch more
+    whistly at night, gusting, fades out as the camera climbs). Sim events carry a small `cue` id next to their
+    text (`EventCue` in `src/sim/types.ts`), so nothing matches on wording. Turrets got their own FX kind
+    (`TURRET_SHOT`, drawn like a tank shot).
+  - **Taming it:** per kind, only the shot nearest the camera focus plays each tick (a crowd is a little louder,
+    up to 1.5×); every sound has a minimum gap (turret 0.11 s, alarm 3 s…); at most 12 voices (7 combat; alerts
+    always get through); ±5% pitch variation (not on alerts). World sounds fade with distance from the camera
+    focus and with zoom, are cut to 35% off screen, pan by screen x, are skipped below 4%, and stop in orbit.
+    Only the wind plays during the landing cinematic; skirmish mode is silent.
+  - **Controls:** ♪ Sound toggle + volume slider in the bar (behind ⋯ on phones), remembered in localStorage
+    (`exo.sound`); `?sound=0` turns it off completely (no AudioContext at all).
+  - **Content:** `content/rules/sound.json` (editor: Rules → Sound): master and per-category volumes, and per
+    sound an optional audio asset from the library that replaces the synthesised one (wind loops).
+  - **iOS:** the context is created and resumed inside the first tap (pointerdown/touchend/click/keydown listeners
+    stay attached, since iOS suspends it again after calls or backgrounding). iOS mutes Web Audio entirely while
+    the ringer switch is on silent — if there's no sound on the phone, check the switch first.
+  - Tests: `tools/sound-smoke.mjs` (counts what started via `__exo.audio.stats()`; it can't judge how it sounds —
+    the recipes in `src/audio/synth.ts` are first guesses for Derek to tune by ear).
+- **Not in M1 yet:** nothing left on the list; next is a full M1 playtest.
 
 ## 8. Open questions
 
