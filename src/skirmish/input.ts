@@ -12,6 +12,7 @@
  * drag from a selected unit (aim an order vector). Desktop adds a classic box
  * select (left-drag on empty ground) with right-drag to pan.
  */
+import { viewH } from '../viewport';
 import * as THREE from 'three';
 import type { ZoomCamera } from '../camera';
 import type { RegionView } from '../world/region';
@@ -280,9 +281,9 @@ export class SkInput {
   private drawOverlay() {
     const c = this.overlayCanvas, g = this.overlay;
     const dpr = Math.min(2, devicePixelRatio);
-    if (c.width !== innerWidth * dpr) { c.width = innerWidth * dpr; c.height = innerHeight * dpr; }
+    if (c.width !== innerWidth * dpr) { c.width = innerWidth * dpr; c.height = viewH() * dpr; }
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, innerWidth, innerHeight);
+    g.clearRect(0, 0, innerWidth, viewH());
     if (this.stroke.length > 1) {
       g.lineCap = g.lineJoin = 'round';
       g.strokeStyle = 'rgba(255,210,122,0.18)';

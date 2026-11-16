@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.12.1',
+    date: '2026-11-16',
+    title: 'Home screen app fits the screen',
+    notes: [
+      'On iPhone, the installed app now fills the whole screen: no more empty strip under the buttons at the bottom',
+      'The top bar sits a little lower in the installed app, clear of the status bar',
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-11-16',
     title: 'Install it on your phone',

@@ -2,6 +2,7 @@
  * Skirmish mode wiring: worker client, army renderer, touch input, HUD.
  * Entered with ?mode=skirmish (or the ⚔ Skirmish button).
  */
+import { viewH } from '../viewport';
 import * as THREE from 'three';
 import type { ZoomCamera } from '../camera';
 import { regionPoint } from '../world/heightGrid';
@@ -186,7 +187,7 @@ export function startSkirmish(env: SkirmishEnv) {
     unitScreen(slot: number) {
       const v = new THREE.Vector3(army.wx[slot], army.wy[slot] + 1, army.wz[slot]).project(cam.camera);
       if (!army.visible[slot] || v.z > 1 || Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95) return null;
-      return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight, type: army.type[slot] };
+      return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH(), type: army.type[slot] };
     },
     update(now: number, dt: number) {
       if (!prev || !cur) return;

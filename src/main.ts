@@ -1,3 +1,4 @@
+import { viewH } from './viewport';
 import * as THREE from 'three';
 import './style.css';
 import { VIEWS, ZoomCamera, type ViewName } from './camera';
@@ -163,15 +164,15 @@ function adaptRes(rawDt: number) {
   if (fps < 40) { next = Math.max(dprMin, res.scale - 0.25); res.good = 0; }
   else if (fps > 56 && ++res.good >= 3) { next = Math.min(dprMax, res.scale + 0.25); res.good = 0; } // 6 s of headroom
   else if (fps <= 56) res.good = 0;
-  if (next !== res.scale) { res.scale = next; renderer.setPixelRatio(next); renderer.setSize(innerWidth, innerHeight); }
+  if (next !== res.scale) { res.scale = next; renderer.setPixelRatio(next); renderer.setSize(innerWidth, viewH()); }
 }
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(innerWidth, viewH());
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 $('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.2, 1.2e7);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / viewH(), 0.2, 1.2e7);
 const fog = new THREE.Fog('#8fb0ad', 400, 1200);
 scene.fog = fog;
 
@@ -523,9 +524,9 @@ const initial = params.get('view') as ViewName | null;
 if (initial && initial in VIEWS) cam.setView(initial, true);
 
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+  camera.aspect = innerWidth / viewH();
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth, viewH());
 });
 
 // ---------- HUD refresh ----------
@@ -644,11 +645,11 @@ function frame(now: number) {
   const t = (now - t0) / 1000;
 
   const simSecs = sim.cur && !skirmish ? sim.cur.secs + sim.alpha(now) * (speed / TICK_HZ) : undefined;
-  system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, innerHeight, simSecs === undefined ? undefined : sunAngle(simSecs, content.colony.solSeconds, U.x, U.z));
+  system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, viewH(), simSecs === undefined ? undefined : sunAngle(simSecs, content.colony.solSeconds, U.x, U.z));
   cam.update(dt, system.starPos);
   (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = 1.25 * smoothstep(300, 1400, cam.altitude());
   atmosphere.visible = cam.altitude() > 300;
-  provinces.update(camera, cam.dist, innerWidth, innerHeight);
+  provinces.update(camera, cam.dist, innerWidth, viewH());
   if (surfaceOn) { updateSurface(dt, system.sunPos, cam.altitude(), t); updateClouds(clouds, cam.altitude()); }
   if (title) provinces.hide(); // a clean planet behind the title, no map overlay
 
@@ -719,14 +720,14 @@ const exo = {
   droneScreen: (id?: number) => {
     const d = id === undefined ? null : region.drones.get(id);
     const v = (d ? d.world : region.droneWorld).clone().project(camera);
-    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
   },
   /** Screen position of a combat unit (by id), or null if it isn't drawn. */
   unitScreen: (id: number) => {
     const u = sim.cur?.units.find((x) => x.id === id);
     if (!u || !army || !army.visible[u.slot]) return null;
     const v = new THREE.Vector3(army.wx[u.slot], army.wy[u.slot] + 1, army.wz[u.slot]).project(camera);
-    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
   },
   colonists,
   /** Screen position of a colonist drawn outdoors (by id), or null. */
@@ -734,12 +735,12 @@ const exo = {
     const c = colonists?.at.get(id);
     if (!c) return null;
     const v = c.world.clone().add(new THREE.Vector3(0, 0, 0)).project(camera);
-    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
   },
   /** Screen position of a region point on the ground. */
   screenOf: (x: number, z: number, lift = 0) => {
     const v = regionToWorld(x, z, lift).project(camera);
-    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
   },
   canPlace,
   capture: () => { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },

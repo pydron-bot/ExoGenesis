@@ -7,6 +7,7 @@
  * The world keeps rendering behind it; main.ts decides what each choice does
  * and hides the HUD while `body.title` is set.
  */
+import { viewH } from './viewport';
 import * as THREE from 'three';
 import type { ZoomCamera } from './camera';
 import { R } from './world/planet';
@@ -145,7 +146,7 @@ export class TitleScreen {
     const t = this.t;
     const cam = this.cam;
     // slow orbit: swings low over the limb and back out to the whole disc
-    const w = innerWidth, h = innerHeight, aspect = w / h;
+    const w = innerWidth, h = viewH(), aspect = w / h;
     // a narrow screen sees less of the width: pull back so the disc still fits
     const back = aspect < 1 ? Math.pow(1 / aspect, 0.75) : 1;
     cam.yaw += dt * 0.045;

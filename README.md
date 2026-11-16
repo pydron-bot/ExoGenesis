@@ -76,7 +76,9 @@ offline. Pieces: `public/manifest.webmanifest`, icons in `public/icons/` (from `
 by `vite.config.ts` from `src/sw-template.js` (registered by `src/pwa.ts`, production builds only).
 It precaches the game (not the editor) under a cache named for the build; pages, content and media
 are network-first, so a release shows on the next load; hashed `assets/` are cache-first.
-`?sw=0` skips registering it.
+`?sw=0` skips registering it. As an installed app `src/viewport.ts` sets `html.app`: the top HUD gets
+12 px more room under the status bar (`--safe-top`), and on iOS the app area takes the full screen
+height (`--app-h`, `viewH()`: use it instead of `innerHeight`), which iOS can under-report.
 
 ## Versions
 
