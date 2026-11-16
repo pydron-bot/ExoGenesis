@@ -23,6 +23,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const P = { x: 40, z: 40 };
 
 try {
+  // the editor first: started beside a running game (software GL, its workers), the map view's
+  // WebGL setup can take 10-30 s on a 4-core box; alone it takes under a second
+  const ed = await ctx.newPage();
+  ed.on('pageerror', (e) => errors.push(`editor: ${e.message}`));
+  ed.on('dialog', (d) => d.accept());
+  await ed.goto(`${url}editor.html#regions/touchdown.json`);
+  await ed.waitForSelector('.map-wrap canvas');
+
   const game = await ctx.newPage();
   game.on('pageerror', (e) => errors.push(`game: ${e.message}`));
   await game.goto(`${url}?intro=0&new=1`);
@@ -30,12 +38,7 @@ try {
   const h0 = await game.evaluate(([x, z]) => __exo.height(x, z), [P.x, P.z]);
   const f0 = await game.evaluate(() => __exo.sim.cur.fauna.length / 3);
   const dep0 = await game.evaluate(() => __exo.sim.cur.deposits.length);
-
-  const ed = await ctx.newPage();
-  ed.on('pageerror', (e) => errors.push(`editor: ${e.message}`));
-  ed.on('dialog', (d) => d.accept());
-  await ed.goto(`${url}editor.html#regions/touchdown.json`);
-  await ed.waitForSelector('.map-wrap canvas');
+  await ed.bringToFront();
   await wait(1500);
   const screen = (x, z) => ed.evaluate(([x, z]) => __editor.map.screenOf(x, z), [x, z]);
   const draft = () => ed.evaluate(() => ({ height: !!__editor.cur.draft.height, flora: !!__editor.cur.draft.flora, herds: __editor.cur.draft.herds.length, deposits: __editor.cur.draft.deposits.length, spawns: __editor.cur.draft.spawns.length }));

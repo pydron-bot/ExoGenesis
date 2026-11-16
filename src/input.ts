@@ -61,6 +61,9 @@ export class Input {
   private ndc = new THREE.Vector2();
   private orderDrone = -1;
   private downUnit = -1;
+  /** When the press on a unit happened (event time), and the selection before it (to undo a hold that fired late). */
+  private downStamp = 0;
+  private downSel: number[] = [];
   private held = false;
   private holdTimer = 0;
   private lastTap = { t: 0, id: -1 };
@@ -201,6 +204,8 @@ export class Input {
     else if (unit >= 0) {
       this.mode = 'unit';
       this.downUnit = unit;
+      this.downStamp = e.timeStamp;
+      this.downSel = [...this.selIds()];
       this.holdTimer = window.setTimeout(() => {
         if (this.mode === 'unit') { this.held = true; this.selectType(unit); }
       }, HOLD_MS);
@@ -230,6 +235,12 @@ export class Input {
     }
     const moved = Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_PX;
     if (!moved) return;
+    if (this.mode === 'unit' && this.held && e.timeStamp - this.downStamp < HOLD_MS) {
+      // the finger was already moving before the hold time was up; a slow frame just delivered the move late.
+      // It's a drag, not a hold: undo the select-all-of-type
+      this.held = false;
+      this.selectUnits(this.downSel);
+    }
     if (this.mode === 'unit' && !this.held) {
       // dragging off a unit aims an order: for the selection if it's in it, else for this unit alone
       clearTimeout(this.holdTimer);

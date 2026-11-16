@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.10.1',
+    date: '2026-11-16',
+    title: 'Drag orders on slow frames',
+    notes: [
+      'Dragging from a unit to order it no longer turns into "select all of this type" when the game is running slowly',
+    ],
+  },
+  {
     version: '0.10.0',
     date: '2026-11-16',
     title: 'More units, more buildings, new predators',
