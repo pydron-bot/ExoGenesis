@@ -90,7 +90,8 @@ async function loadStep(text: string) {
   await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 }
 function loaderError(msg: string) {
-  const step = $('loader-step');
+  const step = document.getElementById('loader-step');
+  if (!step) return; // loader already gone (e.g. the content-error screen replaced it)
   step.className = 'step err';
   step.textContent = `Something went wrong while loading: ${msg}`;
 }
