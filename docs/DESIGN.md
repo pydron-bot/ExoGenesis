@@ -349,7 +349,7 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
 | # | Goal | Contents | Exit test |
 |---|---|---|---|
 | **M0** ✅ (tech demo 2026-11-15) | Foundations | Vite + TS + Three.js scaffold; worker sim, fixed tick, command messaging; IndexedDB save/load; zoom prototype (region ↔ globe ↔ system) on desktop and a phone | Zoom feels good at 60 fps on a phone; a save round-trips |
-| **M1** 🛠 (playable 2026-11-15) | One region | Pod + worker drone start, building placement, solar, mining depot, energy flow, cryo bank power, radar, turrets, wild fauna attacks, vector-drag orders | **Are the first 20 minutes fun?** |
+| **M1** 🛠 (playable 2026-11-15) | One region | Pod + worker drone start, building placement, solar, mining depot, energy flow, cryo bank power, radar, turrets, wild fauna attacks, vector-drag orders, combat units (Vehicle Bay, 2026-11-16) | **Are the first 20 minutes fun?** |
 | **M2** | People | Civilian Processing Center, growth pods, named colonists, lineages, diversity, compressed clock + ageing, blocs and Trust | Losing a colonist hurts; the colony has politics |
 | **M3** | The planet | Multiple regions, planet layer, persistence and revisits, relic defenses, vehicle shop and tech lab, research tree, inhabitants | Holding territory is a strategy problem |
 | **M4** | Act 1 complete | Act 1 story, inhabitant contact paths, memorial, audio, mobile UX pass, onboarding | Act 1 playable start to finish |
@@ -379,8 +379,29 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
   With the current numbers (5 seeds): idle loses the cryo bank at 6 min; economy-only falls at ~10–12;
   all-turrets browns out the cryo bank at ~8–10; balanced survives 20 min on 4/5 seeds (one fell at 18).
 - **Debug:** `?debug=1` → F8 summons the next pack, F9 +500 alloys.
-- **Not in M1 yet:** fog of war, unit production / player combat units, walls, building rotation, terrain
-  flattening under buildings, sound.
+- **Playtest (Derek, 2026-11-16, two nights):** pressure is right; power priority at night feels right;
+  performance good; wanted combat units. Next: work through the "not in M1 yet" list.
+- **Combat units (2026-11-16):** a **Vehicle Bay** (role `factory`) produces any Accord unit record
+  that has a `cost` (Rover 50◆/12 s, Tank 110◆/24 s), one at a time while powered (power rank with the
+  radar; 15% standby when the queue is empty). Alloys are paid at queue time; Cancel last refunds in
+  full. Cap `maxUnits` (12) counts queued units. Units roll out of the door (−Z) and park.
+  - **Behaviour:** they always shoot the nearest hostile in weapon range, even on the move. Idle units
+    guard a post: they chase anything that comes within their aggro, plus anything attacking a building
+    within `unitResponse` (45 u) of the post, on a leash, then walk back. Predators go for units in aggro
+    like they do drones. A Tank's splash does half damage around the target.
+  - **Movement:** A* on a 2 u grid (`src/sim/path.ts`): water and building bodies blocked, string-pulled
+    into waypoints, re-planned every ~2 s; a unit that stops getting closer re-plans, then gives up and
+    guards where it is. Units sent together spread out around the point (sunflower pattern).
+  - **Controls:** tap a unit to select (shift adds/removes), double-tap or hold to select all of that type on
+    screen, ⚔ counter in the top bar selects the whole army (tap again to centre on it), tap ground or drag
+    from a unit to order, X or Stop = guard here.
+  - **Numbers:** the Rover and Tank stats were the skirmish PoC's (60 / 170 hp), and a 4-pack killed a Rover
+    in ~1.5 s. Raised to 150 / 450 hp (also affects the skirmish). Balance harness (5 seeds): `army`
+    (economy + bay + units, one turret) survives 3/5; `mixed` 2/5; `balanced` (turrets) still 5/5. Units
+    are viable but not stronger than turrets. `tools/balance.mjs --trace` prints the Core, hostiles and units
+    every 10 s.
+  - Tests: `tools/units-smoke.mjs` (18 checks).
+- **Not in M1 yet:** fog of war, walls, building rotation, terrain flattening under buildings, sound.
 
 ## 8. Open questions
 

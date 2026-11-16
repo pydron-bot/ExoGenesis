@@ -54,12 +54,13 @@ try {
   await ed.goto(`${url}editor.html#units/rover.json`);
   await ed.waitForSelector('.row[data-key=hp] input');
   await ed.evaluate(() => (window.__marker = 1));
-  check((await ed.inputValue('.row[data-key=hp] input')) === '60', 'rover form shows hp 60');
+  const hp0 = (await readRover()).hp;
+  check((await ed.inputValue('.row[data-key=hp] input')) === String(hp0), `rover form shows hp ${hp0}`);
   check(await ed.locator('#side .item', { hasText: 'Brute' }).count() === 1, 'sidebar lists units');
 
   // 1. edit + save
   await ed.fill('.row[data-key=hp] input', '75');
-  check((await ed.textContent('.row[data-key=hp] .was')) === 'was 60', 'changed field shows the old value');
+  check((await ed.textContent('.row[data-key=hp] .was')) === `was ${hp0}`, 'changed field shows the old value');
   check(await ed.isEnabled('#save'), 'save enabled when dirty');
   await ed.keyboard.press('Control+s');
   await wait(800);

@@ -50,7 +50,7 @@ check(Math.hypot(s.drones[0].x - d0.x, s.drones[0].z - d0.z) > 5, `drone moved t
 
 // 2. build menu → Solar Array → hover → click
 await page.click('#b-build');
-check(await page.locator('#build-menu.open [data-kind]').count() === 5, 'build menu lists the 5 buildable buildings');
+check(await page.locator('#build-menu.open [data-kind]').count() === 6, 'build menu lists the 6 buildable buildings');
 await page.dispatchEvent('#build-menu [data-kind="solar"]', 'pointerdown');
 check(await page.evaluate(() => __exo.ui.build) === 'solar', 'picking Solar Array enters placement');
 const spot = await page.evaluate(() => {

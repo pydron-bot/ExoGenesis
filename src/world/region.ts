@@ -343,6 +343,35 @@ export function buildRadar(): THREE.Group {
   return g;
 }
 
+/** Vehicle Bay: a hangar whose door faces −Z, where finished units roll out. */
+export function buildBay(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#aab3bb');
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 9), dark);
+  slab.position.y = 0.25;
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 8, 14, 1, false, -Math.PI / 2, Math.PI), hull);
+  roof.rotation.x = -Math.PI / 2; // half-pipe arching up, running front to back
+  roof.position.y = 0.5;
+  const back = new THREE.Mesh(new THREE.CircleGeometry(3.6, 14, 0, Math.PI), hull);
+  back.position.set(0, 0.5, 4);
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 2.8), glow('#ffb547', 1.6));
+  door.position.set(0, 1.9, -4.02);
+  door.rotation.y = Math.PI;
+  door.name = 'door';
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.35, 0.4), dark);
+  frame.position.set(0, 3.45, -4.05);
+  const ramp = new THREE.Mesh(new THREE.BoxGeometry(5, 0.2, 2.4), dark);
+  ramp.position.set(0, 0.3, -5.2);
+  ramp.rotation.x = -0.12;
+  for (const x of [-4.4, 4.4]) {
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.4, 6), dark);
+    vent.position.set(x, 1.2, 0);
+    g.add(vent);
+  }
+  g.add(slab, roof, back, door, frame, ramp);
+  return g;
+}
+
 /** Alloy deposit: a cluster of metallic crystals. */
 export function buildDeposit(seed: number): THREE.Group {
   const g = new THREE.Group();
@@ -368,6 +397,7 @@ export function buildForRole(role: string): THREE.Group {
     case 'battery': return buildBattery();
     case 'turret': return buildTurret();
     case 'radar': return buildRadar();
+    case 'factory': return buildBay();
     default: return buildSolar();
   }
 }
@@ -451,10 +481,14 @@ class GroundRing {
 export interface BuildingLook { role: string; name: string; hp: number; clearance: number; fireRange?: number; range?: number; storage?: number }
 export interface RegionRules { defs: Record<string, BuildingLook>; buildRadius: number }
 
-export type Selection = { kind: 'drone' | 'building'; id: number } | null;
+export type Selection = { kind: 'drone' | 'building'; id: number } | { kind: 'units'; ids: number[] } | null;
 export interface RegionUi {
   sel: Selection;
   drag: { x: number; z: number } | null;
+  /** Where an order being dragged starts when it's for combat units (their centre). */
+  dragFrom?: { x: number; z: number } | null;
+  /** Flash a destination marker here until `until` (performance.now ms). */
+  mark?: { x: number; z: number; until: number } | null;
   /** Building kind being placed, and where the ghost is. */
   build: string | null;
   ghost: { x: number; z: number; ok: boolean } | null;
@@ -643,9 +677,10 @@ export class RegionView {
     }
 
     // selection, orders
-    const selDrone = ui.sel?.kind === 'drone' ? this.drones.get(ui.sel.id) : undefined;
-    const selDroneSnap = selDrone ? cur.drones.find((d) => d.id === ui.sel!.id) : undefined;
-    const selB = ui.sel?.kind === 'building' ? cur.buildings.find((b) => b.id === ui.sel!.id) : undefined;
+    const sel = ui.sel;
+    const selDrone = sel?.kind === 'drone' ? this.drones.get(sel.id) : undefined;
+    const selDroneSnap = sel?.kind === 'drone' ? cur.drones.find((d) => d.id === sel.id) : undefined;
+    const selB = sel?.kind === 'building' ? cur.buildings.find((b) => b.id === sel.id) : undefined;
     this.selRing.visible = !!selDrone || !!selB;
     if (selDrone) {
       orient(this.selRing, selDrone.x, selDrone.z, 0, 0.3);
@@ -661,12 +696,20 @@ export class RegionView {
       this.targetRing.scale.setScalar(b.working ? 2.6 : 0.8 + (t % 1) * 0.6);
       this.targetRibbon.mesh.visible = Math.hypot(b.tx - selDrone.x, b.tz - selDrone.z) > 3;
       this.targetRibbon.set(selDrone.x, selDrone.z, b.tx, b.tz);
+    } else if (ui.mark && performance.now() < ui.mark.until && !ui.drag) {
+      // combat-unit order: a shrinking marker where they're headed
+      const k = (ui.mark.until - performance.now()) / 900;
+      this.targetRing.visible = true;
+      orient(this.targetRing, ui.mark.x, ui.mark.z, t, 0.35);
+      this.targetRing.scale.setScalar(0.6 + k * 1.6);
+      this.targetRibbon.mesh.visible = false;
     } else {
       this.targetRing.visible = false;
       this.targetRibbon.mesh.visible = false;
     }
-    this.orderRibbon.mesh.visible = !!ui.drag && !!selDrone;
-    if (ui.drag && selDrone) this.orderRibbon.set(selDrone.x, selDrone.z, ui.drag.x, ui.drag.z);
+    const from = selDrone ?? ui.dragFrom;
+    this.orderRibbon.mesh.visible = !!ui.drag && !!from;
+    if (ui.drag && from) this.orderRibbon.set(from.x, from.z, ui.drag.x, ui.drag.z);
 
     // placement ghost and range rings
     for (const [k, g] of this.ghosts) g.visible = ui.build === k && !!ui.ghost;
@@ -793,6 +836,10 @@ export class RegionView {
           });
         }
         if (role === 'depot') this.hauler(b, cur, t);
+        if (role === 'factory') {
+          const door = e.obj.getObjectByName('door') as THREE.Mesh | undefined;
+          if (door) (door.material as THREE.MeshStandardMaterial).emissiveIntensity = !lit ? 0.1 : b.queue?.length ? 1.2 + Math.max(0, Math.sin(t * 5)) * 2 : 0.5;
+        }
       }
       this.hpBar(b, d, ui, camera, e.bar);
     }

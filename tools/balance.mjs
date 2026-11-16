@@ -2,7 +2,7 @@
  * Headless balance runs: plays the real sim (src/sim/core.ts) for N game
  * minutes with scripted strategies and prints a timeline, so tuning content/
  * numbers is measured, not guessed.
- *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive] [--quiet]
+ *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed] [--quiet]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -12,6 +12,8 @@ const minutes = Number(arg('--minutes', 20));
 const seed = Number(arg('--seed', 1337));
 const only = arg('--strategy', 'all');
 const quiet = process.argv.includes('--quiet');
+/** --trace: every 10 s while hostiles are about, print the Core, hostiles and units. */
+const trace = process.argv.includes('--trace');
 const root = path.resolve(import.meta.dirname, '..');
 const { module: core } = await runnerImport(path.join(root, 'src/sim/core.ts'));
 const { module: rules } = await runnerImport(path.join(root, 'src/sim/rules.ts'));
@@ -40,6 +42,10 @@ const STRATEGIES = {
   // economy only, no defense
   greedy: () => [['solar'], ['solar'], ['depot', 'near'], ['solar'], ['depot', 'near'], ['battery'], ['solar'], ['depot', 'near'], ['solar'], ['battery'], ['fab']],
   balanced: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['turret', 'spawn'], ['radar'], ['depot', 'near'], ['turret', 'guard'], ['solar'], ['battery'], ['fab'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn'], ['battery'], ['solar'], ['turret', 'spawn'], ['turret', 'guard']],
+  // economy + a Vehicle Bay and an army that rushes to whatever attacks (one turret)
+  army: () => [['solar'], ['solar'], ['depot', 'near'], ['battery'], ['bay'], ['rover'], ['rover'], ['solar'], ['turret', 'guard'], ['tank'], ['radar'], ['depot', 'near'], ['solar'], ['rover'], ['tank'], ['battery'], ['solar'], ['tank'], ['rover'], ['tank'], ['solar'], ['tank'], ['tank']],
+  // the balanced build with a small army mixed in
+  mixed: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['bay'], ['rover'], ['turret', 'spawn'], ['radar'], ['tank'], ['depot', 'near'], ['solar'], ['battery'], ['tank'], ['turret', 'spawn'], ['solar'], ['rover'], ['tank'], ['solar'], ['tank']],
   defensive: () => [['solar'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['turret', 'spawn'], ['solar'], ['radar'], ['battery'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn']],
 };
 
@@ -59,6 +65,10 @@ function run(name) {
       const [kind, where] = plan[0];
       if (kind === 'fab') {
         if (s.alloys >= RULES.droneCost) { sim.command({ type: 'fab' }); plan.shift(); }
+      } else if (content.units[kind]) {
+        const bay = s.buildings.find((b) => b.kind === 'bay' && b.progress >= 1);
+        if (!s.buildings.some((b) => b.kind === 'bay')) plan.unshift(['bay']); // lost it: rebuild first
+        else if (bay && s.alloys >= content.units[kind].cost) { sim.command({ type: 'produce', id: bay.id, unit: kind }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
       } else if (s.alloys >= DEFS[kind].cost) {
         let target = { x: 0, z: -10 };
         if (where === 'near') {
@@ -83,13 +93,31 @@ function run(name) {
         if (p) { sim.command({ type: 'build', kind, ...p }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
       }
     }
+    // the army: idle units go after any hostile near the base, then come home
+    if (tick % (3 * TICK_HZ) === 0 && s.units?.length) {
+      const near = s.hostiles.filter((h) => s.buildings.some((b) => Math.hypot(b.x - h.x, b.z - h.z) < 45));
+      const idle = s.units.filter((u) => u.order.kind === 'idle' && u.target < 0);
+      if (near.length && idle.length) {
+        const cx = near.reduce((m, h) => m + h.x, 0) / near.length, cz = near.reduce((m, h) => m + h.z, 0) / near.length;
+        sim.command({ type: 'order', ids: idle.map((u) => u.id), x: cx, z: cz });
+      } else if (!s.hostiles.length && idle.length) {
+        const bay = s.buildings.find((b) => b.kind === 'bay');
+        const far = idle.filter((u) => bay && Math.hypot(u.x - bay.x, u.z - bay.z) > 30);
+        if (far.length) sim.command({ type: 'order', ids: far.map((u) => u.id), x: bay.x, z: bay.z - 14 });
+      }
+    }
     sim.step();
+    if (trace && tick % (10 * TICK_HZ) === 0 && s.hostiles.length) {
+      const c = s.buildings.find((b) => b.kind === 'core');
+      const p = (o) => `${o.x.toFixed(0)},${o.z.toFixed(0)}`;
+      console.log(`${(sim.secs / 60).toFixed(2)}m core ${c ? c.hp.toFixed(0) : '-'} · ${s.hostiles.length} hostiles @${p(s.hostiles[0])}→${s.hostiles[0].target} · units ${(s.units ?? []).map((u) => `${u.unit[0]}@${p(u)} ${u.order.kind}${u.target >= 0 ? '!' : ''} g${u.gx.toFixed(0)},${u.gz.toFixed(0)}`).join(' ')} · bays ${s.buildings.filter((b) => b.kind === 'bay').map((b) => `${p(b)} ${b.progress.toFixed(1)} q${b.queue?.length ?? 0}`)}`);
+    }
     if (tick % (60 * TICK_HZ) === 0) {
       const snap = sim.snapshot();
       rows.push({
         min: tick / 600, alloys: Math.floor(s.alloys), cryo: s.cryo.toFixed(0), gen: snap.gen.toFixed(1), draw: snap.draw.toFixed(1),
         stored: Math.round(s.stored), day: snap.daylight.toFixed(2), built: s.buildings.filter((b) => b.progress >= 1).length - 1,
-        hostiles: s.hostiles.length, kills: s.stats.kills, lost: s.stats.buildingsLost, packs: s.waves.n,
+        hostiles: s.hostiles.length, units: s.units?.length ?? 0, kills: s.stats.kills, lost: s.stats.buildingsLost, packs: s.waves.n,
       });
     }
   }
@@ -101,7 +129,7 @@ function run(name) {
     const shown = events.filter((e) => e.level !== 'info' || /destroyed|online/.test(e.text)).slice(0, 60);
     for (const e of shown) console.log(`  ${(e.t / 60).toFixed(1).padStart(5)}m ${e.level.padEnd(4)} ${e.text}`);
   }
-  console.log(`  end: alloys ${Math.floor(s.alloys)} · cryo ${s.cryo.toFixed(0)}% · kills ${s.stats.kills} · buildings lost ${s.stats.buildingsLost} · drones lost ${s.stats.dronesLost} · packs ${s.waves.n} (beaten ${s.stats.packsBeaten}) · mined ${Math.round(s.stats.mined)}`);
+  console.log(`  end: alloys ${Math.floor(s.alloys)} · cryo ${s.cryo.toFixed(0)}% · kills ${s.stats.kills} · buildings lost ${s.stats.buildingsLost} · drones lost ${s.stats.dronesLost} · units lost ${s.stats.unitsLost ?? 0} · packs ${s.waves.n} (beaten ${s.stats.packsBeaten}) · mined ${Math.round(s.stats.mined)}`);
   return s;
 }
 

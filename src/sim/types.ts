@@ -33,6 +33,10 @@ export interface Building {
   engaged?: boolean;
   /** Depot: deposit index being mined (-1 none). */
   mining?: number;
+  /** Factory: unit ids (content/units) waiting to be produced; the first is in progress. */
+  queue?: string[];
+  /** Factory: 0..1 progress on queue[0]. */
+  prod?: number;
 }
 
 export type DroneTask =
@@ -77,6 +81,37 @@ export interface Hostile {
   pack: number;
 }
 
+/**
+ * A player combat unit (Rover, Tank...). Orders: `move` walks there ignoring
+ * enemies except to shoot what's in range on the way; `idle` guards `gx/gz`,
+ * chasing hostiles within aggro of it, then walks back.
+ */
+export interface Unit {
+  id: number;
+  /** Unit content id (rover, tank). */
+  unit: string;
+  /** Render slot (shared pool with hostiles). */
+  slot: number;
+  x: number;
+  z: number;
+  heading: number;
+  hp: number;
+  cd: number;
+  order: { kind: 'idle' } | { kind: 'move'; x: number; z: number };
+  /** Guard post: where it returns to after a chase. */
+  gx: number;
+  gz: number;
+  /** Hostile id it's shooting at (-1 none). */
+  target: number;
+  /** Waypoints being followed (flat x, z pairs) toward `goal`; re-planned every few seconds. */
+  path?: number[];
+  goal?: [number, number];
+  repath?: number;
+  /** Stuck detection: closest it has got to the goal, and ticks since it last improved. */
+  best?: number;
+  stall?: number;
+}
+
 export interface Deposit { x: number; z: number; alloys: number; max: number }
 
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
@@ -99,6 +134,8 @@ export interface SimState {
   fauna: Creature[];
   deposits: Deposit[];
   hostiles: Hostile[];
+  /** Player combat units (absent in saves from before units existed). */
+  units?: Unit[];
   packs: Pack[];
   /** Next pack index and the tick it arrives; attackers spawned so far. */
   waves: { n: number; next: number; spawned: number };
@@ -110,7 +147,7 @@ export interface SimState {
   panic: number;
   /** Set when the game is lost. */
   over: null | 'core' | 'cryo';
-  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number };
+  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number };
 }
 
 export type LandingStage = 'burn' | 'touchdown' | 'deploy';
@@ -122,6 +159,12 @@ export type Command =
   | { type: 'power'; id: number; on: boolean }
   | { type: 'demolish'; id: number }
   | { type: 'fab' }
+  /** Factory: queue a unit, or drop the last queued one. */
+  | { type: 'produce'; id: number; unit: string }
+  | { type: 'unqueue'; id: number }
+  /** Combat units: move (spread out around the point), or stop and guard where they stand. */
+  | { type: 'order'; ids: number[]; x: number; z: number }
+  | { type: 'stop'; ids: number[] }
   | { type: 'landing'; stage: LandingStage }
   /** Playtesting / tests: spawn the next pack now, add alloys, or damage a building. */
   | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number } };
@@ -139,6 +182,11 @@ export type ToWorker =
 export interface DroneSnap {
   id: number; x: number; z: number; heading: number; tx: number; tz: number;
   moving: boolean; working: boolean; hp: number; task: DroneTask['kind']; manual: boolean;
+}
+
+export interface UnitSnap {
+  id: number; unit: string; slot: number; x: number; z: number; hp: number;
+  order: Unit['order']['kind']; tx: number; tz: number; engaged: boolean;
 }
 
 export interface Snapshot {
@@ -159,6 +207,8 @@ export interface Snapshot {
   /** Effects this tick (skirmish FX layout). */
   fx: Float32Array;
   hostiles: number;
+  /** Player combat units (they're also in `army`, at `slot`). */
+  units: UnitSnap[];
   alloys: number;
   cryo: number;
   /** MW generated / wanted / actually short for the cryo bank. */

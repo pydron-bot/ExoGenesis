@@ -2,6 +2,9 @@
  * Unified touch + mouse input for the colony.
  *   - tap a drone or building to select it; tap empty ground with a drone
  *     selected to send it there; drag a vector from a drone to order it
+ *   - combat units: tap one to select it (shift adds), double-tap or hold one to
+ *     select every unit of that type on screen; tap ground to send the
+ *     selection, or drag from one of them to aim the order
  *   - placing a building: on desktop the ghost follows the mouse and a click
  *     places it; on touch the first tap shows the ghost, a second tap on it places
  *   - drag elsewhere pans, pinch/wheel zooms, two-finger twist or right-drag rotates
@@ -9,7 +12,8 @@
 import * as THREE from 'three';
 import type { ZoomCamera, ViewName } from './camera';
 import type { RegionUi, RegionView } from './world/region';
-import type { Building } from './sim/types';
+import type { Building, UnitSnap } from './sim/types';
+import type { ArmyView } from './skirmish/view';
 
 export type UiState = RegionUi;
 
@@ -19,6 +23,8 @@ interface Handlers {
   /** Why `kind` can't go at (x, z), or null. */
   placeProblem(kind: string, x: number, z: number): string | null;
   buildings(): Building[];
+  units(): UnitSnap[];
+  order(ids: number[], x: number, z: number): void;
   setBuild(kind: string | null): void;
   select(): void;
   view(v: ViewName): void;
@@ -28,10 +34,13 @@ interface Handlers {
   say(text: string): void;
 }
 
-type Mode = 'none' | 'pan' | 'orbit' | 'order' | 'pinch';
+type Mode = 'none' | 'pan' | 'orbit' | 'order' | 'pinch' | 'unit' | 'uorder';
 
 const TAP_PX = 9;
 const DRONE_PICK_PX = 42;
+const UNIT_PICK_PX = 30;
+const HOLD_MS = 420;
+const DOUBLE_MS = 320;
 
 export class Input {
   private pts = new Map<number, { x: number; y: number; sx: number; sy: number; t: number }>();
@@ -39,6 +48,11 @@ export class Input {
   private pinch = { d: 0, ang: 0, my: 0 };
   private ndc = new THREE.Vector2();
   private orderDrone = -1;
+  private downUnit = -1;
+  private held = false;
+  private holdTimer = 0;
+  private lastTap = { t: 0, id: -1 };
+  private v = new THREE.Vector3();
 
   constructor(
     private el: HTMLElement,
@@ -46,6 +60,7 @@ export class Input {
     private region: RegionView,
     private ui: UiState,
     private h: Handlers,
+    private army: ArmyView | null = null,
   ) {
     el.addEventListener('pointerdown', (e) => this.down(e));
     el.addEventListener('pointermove', (e) => this.moveEv(e));
@@ -81,6 +96,52 @@ export class Input {
     return best;
   }
 
+  /** Screen position of a combat unit (from the renderer's interpolated positions). */
+  private unitScreen(u: UnitSnap) {
+    const a = this.army;
+    if (!a || !a.visible[u.slot]) return null;
+    this.v.set(a.wx[u.slot], a.wy[u.slot] + 1, a.wz[u.slot]).project(this.cam.camera);
+    if (this.v.z > 1 || Math.abs(this.v.x) > 1.05 || Math.abs(this.v.y) > 1.05) return null;
+    const r = this.el.getBoundingClientRect();
+    return { x: ((this.v.x + 1) / 2) * r.width + r.left, y: ((1 - this.v.y) / 2) * r.height + r.top };
+  }
+
+  /** Nearest combat unit to a screen point within the pick radius, or -1. */
+  private unitAt(x: number, y: number) {
+    if (this.cam.dist > 400) return -1;
+    let best = -1, bd = UNIT_PICK_PX;
+    for (const u of this.h.units()) {
+      const p = this.unitScreen(u);
+      if (!p) continue;
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bd) { bd = d; best = u.id; }
+    }
+    return best;
+  }
+
+  private selIds(): number[] { return this.ui.sel?.kind === 'units' ? this.ui.sel.ids : []; }
+
+  private selectUnits(ids: number[], add = false) {
+    const set = new Set(add ? this.selIds() : []);
+    for (const id of ids) set.add(id);
+    this.ui.sel = set.size ? { kind: 'units', ids: [...set] } : null;
+    this.h.select();
+  }
+
+  /** Every on-screen combat unit of the same type as unit `id`. */
+  private selectType(id: number) {
+    const all = this.h.units();
+    const kind = all.find((u) => u.id === id)?.unit;
+    this.selectUnits(all.filter((u) => u.unit === kind && this.unitScreen(u)).map((u) => u.id));
+    if (navigator.vibrate) navigator.vibrate(15);
+  }
+
+  private centre(ids: number[]) {
+    let x = 0, z = 0, n = 0;
+    for (const u of this.h.units()) if (ids.includes(u.id)) { x += u.x; z += u.z; n++; }
+    return n ? { x: x / n, z: z / n } : null;
+  }
+
   private ghostAt(g: { x: number; z: number } | null) {
     if (!g || !this.ui.build) { this.ui.ghost = null; return; }
     this.ui.ghost = { x: g.x, z: g.z, ok: !this.h.placeProblem(this.ui.build, g.x, g.z) };
@@ -91,6 +152,7 @@ export class Input {
     this.pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now() });
     this.h.interacted();
     if (this.pts.size === 2) {
+      clearTimeout(this.holdTimer);
       this.mode = 'pinch';
       this.ui.drag = null;
       this.pinch = this.pinchState();
@@ -100,8 +162,17 @@ export class Input {
     const surface = this.cam.a < 0.5;
     if (e.button === 2 || e.shiftKey || !surface) { this.mode = 'orbit'; return; }
     const drone = this.ui.build ? -1 : this.droneAt(e.clientX, e.clientY);
+    const unit = this.ui.build || drone >= 0 ? -1 : this.unitAt(e.clientX, e.clientY);
+    clearTimeout(this.holdTimer);
+    this.held = false;
     if (drone >= 0) { this.mode = 'order'; this.orderDrone = drone; }
-    else this.mode = 'pan';
+    else if (unit >= 0) {
+      this.mode = 'unit';
+      this.downUnit = unit;
+      this.holdTimer = window.setTimeout(() => {
+        if (this.mode === 'unit') { this.held = true; this.selectType(unit); }
+      }, HOLD_MS);
+    } else this.mode = 'pan';
   }
 
   private pinchState() {
@@ -127,6 +198,17 @@ export class Input {
     }
     const moved = Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_PX;
     if (!moved) return;
+    if (this.mode === 'unit' && !this.held) {
+      // dragging off a unit aims an order: for the selection if it's in it, else for this unit alone
+      clearTimeout(this.holdTimer);
+      if (!this.selIds().includes(this.downUnit)) this.selectUnits([this.downUnit]);
+      this.mode = 'uorder';
+    }
+    if (this.mode === 'uorder') {
+      this.ui.dragFrom = this.centre(this.selIds());
+      this.ui.drag = this.ground(e.clientX, e.clientY) ?? this.ui.drag;
+      return;
+    }
     if (this.mode === 'pan') this.cam.pan(dx, dy, this.el.clientHeight);
     else if (this.mode === 'orbit') this.cam.rotate(-dx * 0.005, dy * 0.004);
     else if (this.mode === 'order') {
@@ -143,19 +225,45 @@ export class Input {
       if (this.pts.size === 0) this.mode = 'none';
       return;
     }
+    clearTimeout(this.holdTimer);
     const tap = Math.hypot(e.clientX - p.sx, e.clientY - p.sy) <= TAP_PX && performance.now() - p.t < 450;
     if (this.mode === 'order' && this.ui.drag) {
       this.h.move(this.orderDrone, this.ui.drag.x, this.ui.drag.z);
+    } else if (this.mode === 'uorder' && this.ui.drag) {
+      this.orderUnits(this.ui.drag.x, this.ui.drag.z);
+    } else if (this.mode === 'unit') {
+      if (!this.held && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) <= TAP_PX) {
+        // event timestamps: a slow frame mustn't break a double-tap
+        const u = this.downUnit, kind = (id: number) => this.h.units().find((x) => x.id === id)?.unit;
+        if (this.lastTap.id >= 0 && e.timeStamp - this.lastTap.t < DOUBLE_MS && kind(this.lastTap.id) === kind(u)) {
+          this.selectType(u);
+          this.lastTap = { t: 0, id: -1 };
+        } else {
+          if (e.shiftKey && this.selIds().includes(u)) this.selectUnits(this.selIds().filter((x) => x !== u));
+          else this.selectUnits([u], e.shiftKey);
+          this.lastTap = { t: e.timeStamp, id: u };
+        }
+      }
     } else if (tap && e.button !== 2) {
       this.tap(e.clientX, e.clientY, e.pointerType === 'mouse', e.shiftKey);
     }
     this.ui.drag = null;
+    this.ui.dragFrom = null;
     this.mode = 'none';
+  }
+
+  private orderUnits(x: number, z: number) {
+    const ids = this.selIds();
+    if (!ids.length) return;
+    this.h.order(ids, x, z);
+    this.ui.mark = { x, z, until: performance.now() + 900 };
   }
 
   private cancel(e: PointerEvent) {
     this.pts.delete(e.pointerId);
+    clearTimeout(this.holdTimer);
     this.ui.drag = null;
+    this.ui.dragFrom = null;
     this.mode = 'none';
   }
 
@@ -187,6 +295,7 @@ export class Input {
       return;
     }
     if (this.ui.sel?.kind === 'drone' && g) this.h.move(this.ui.sel.id, g.x, g.z);
+    else if (this.ui.sel?.kind === 'units' && g) this.orderUnits(g.x, g.z);
     else { this.ui.sel = null; this.h.select(); }
   }
 

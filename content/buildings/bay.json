@@ -1,0 +1,11 @@
+{
+  "name": "Vehicle Bay",
+  "description": "Produces Rovers and Tanks while powered. Select it to queue units.",
+  "role": "factory",
+  "buildable": true,
+  "cost": 120,
+  "hp": 900,
+  "powerMW": -1.5,
+  "buildSeconds": 18,
+  "clearance": 13
+}

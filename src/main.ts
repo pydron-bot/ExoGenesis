@@ -270,7 +270,7 @@ function restartGame() {
   document.body.classList.remove('more');
 }
 const hud = new ColonyHud({
-  defs: content.buildings, rules: content.colony, ui, cam,
+  defs: content.buildings, units: content.units, rules: content.colony, ui, cam,
   command: (c) => sim.command(c),
   setBuild,
   restart: () => restartGame(),
@@ -353,11 +353,14 @@ $('b-skirmish').onclick = () => {
 
 const help = $('help');
 let helped = false;
+const army = skirmish ? null : new ArmyView(scene);
 if (!skirmish) new Input(renderer.domElement, cam, region, ui, {
   move: (drone, x, z) => sim.command({ type: 'move', drone, x, z }),
   build: (kind, x, z) => sim.command({ type: 'build', kind, x, z }),
   placeProblem: canPlace,
   buildings: () => sim.cur?.buildings ?? [],
+  units: () => sim.cur?.units ?? [],
+  order: (ids, x, z) => sim.command({ type: 'order', ids, x, z }),
   setBuild,
   select: () => hud.selected(),
   view: (v) => cam.setView(v),
@@ -365,8 +368,20 @@ if (!skirmish) new Input(renderer.domElement, cam, region, ui, {
   toggleBuildMenu: () => hud.toggleMenu(),
   interacted: () => { if (!helped) { helped = true; setTimeout(() => help.classList.add('gone'), 4000); } },
   say: (t) => log(t, 'warn'),
+}, army);
+if (!skirmish) addEventListener('keydown', (e) => {
+  // X: selected combat units stop and guard where they stand
+  if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) sim.command({ type: 'stop', ids: ui.sel.ids });
 });
-const army = skirmish ? null : new ArmyView(scene);
+/** Selected combat units as the army renderer wants them: slot → generation. */
+const armySel = new Map<number, number>();
+function syncArmySel() {
+  armySel.clear();
+  const sel = ui.sel;
+  if (sel?.kind !== 'units' || !sim.cur) return armySel;
+  for (const u of sim.cur.units) if (sel.ids.includes(u.id)) armySel.set(u.slot, u.id & 0xffff);
+  return armySel;
+}
 const asArmy = (s: NonNullable<typeof sim.cur>) => ({ units: s.army, slots: s.armySlots, fx: s.fx, tick: s.tick } as unknown as SkSnapshot);
 
 const initial = params.get('view') as ViewName | null;
@@ -465,7 +480,7 @@ function frame(now: number) {
     }
     const alpha = sim.alpha(now);
     region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera);
-    army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, new Map(), dt);
+    army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt);
     if (!ready) { ready = true; exo.ready = true; reveal(); }
   }
   updateHud(dt, now);
@@ -495,6 +510,13 @@ const exo = {
   droneScreen: (id?: number) => {
     const d = id === undefined ? null : region.drones.get(id);
     const v = (d ? d.world : region.droneWorld).clone().project(camera);
+    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+  },
+  /** Screen position of a combat unit (by id), or null if it isn't drawn. */
+  unitScreen: (id: number) => {
+    const u = sim.cur?.units.find((x) => x.id === id);
+    if (!u || !army || !army.visible[u.slot]) return null;
+    const v = new THREE.Vector3(army.wx[u.slot], army.wy[u.slot] + 1, army.wz[u.slot]).project(camera);
     return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
   },
   /** Screen position of a region point on the ground. */

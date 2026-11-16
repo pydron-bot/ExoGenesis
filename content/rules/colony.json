@@ -8,6 +8,8 @@
   "droneCost": 70,
   "droneBuildSeconds": 20,
   "maxDrones": 4,
+  "maxUnits": 12,
+  "unitResponse": 45,
   "repairRate": 25,
   "buildRadius": 30,
   "cryoDrawMW": 4,

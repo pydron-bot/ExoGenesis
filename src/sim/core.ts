@@ -2,18 +2,19 @@
  * The colony simulation: pure logic over SimState, no worker or DOM. The worker
  * (sim/worker.ts) runs it at a fixed tick; tools/balance.mjs runs it headless.
  *
- * One tick: power → drones → fabrication → mining → predators + turrets →
- * waves → cryo bank → grazers.
+ * One tick: power → drones → fabrication + factories → mining → turrets →
+ * combat units → predators → waves → cryo bank → grazers.
  */
 import { content } from '../content';
 import type { BuildingDef, UnitDef } from '../content/defs';
 import { F, FX, STRIDE, UT } from '../skirmish/types';
 import { regionHeightRaw, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
+import { PathGrid } from './path';
 import { compass, depositFor, placeProblem } from './rules';
 import {
   MAX_HOSTILES, REGION_HALF, TICK_HZ,
-  type Building, type Command, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot,
+  type Building, type Command, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
 } from './types';
 
 const RULES = content.colony;
@@ -35,6 +36,16 @@ const STANDBY = 0.15;
 /** Drones not under orders back away from predators this close, and won't auto-task near them. */
 const DRONE_FEAR = 10;
 const HOT_ZONE = 18;
+/** Idle combat units drop a chase once the target is this many aggro radii from their guard post. */
+const LEASH = 1.8;
+/** Spacing between units sent to the same point. */
+const SPREAD = 3.4;
+/** Path grid keeps units this far from building bodies (the biggest unit radius). */
+const PATH_PAD = 1.4;
+/** Re-plan a followed path this often (ticks), so chases and new buildings are picked up. */
+const REPATH = 20;
+/** A unit that hasn't got closer to its goal for this many ticks re-plans, then gives up. */
+const STALL = 30;
 
 export type Level = 'info' | 'warn' | 'bad';
 export type EventSink = (text: string, level: Level) => void;
@@ -48,6 +59,7 @@ const UNIT_TYPE: Record<string, number> = { rover: UT.Rover, tank: UT.Tank, swar
 export class Sim {
   s!: SimState;
   private fx: number[] = [];
+  private grid = new PathGrid(LIMIT);
   private slotsUsed = 0;
   /** Power result of the last tick. */
   power = { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 };
@@ -60,12 +72,12 @@ export class Sim {
   newGame(seed: number) {
     const s: SimState = {
       version: 2, seed, rng: seed, tick: 0, nextId: 2, alloys: RULES.startAlloys, cryo: 100, cryoWarn: 100, stored: 0,
-      drones: [], buildings: [], herds: [], fauna: [], hostiles: [], packs: [],
+      drones: [], buildings: [], herds: [], fauna: [], hostiles: [], units: [], packs: [],
       deposits: (REGION.deposits ?? []).map((d) => ({ x: d.x, z: d.z, alloys: d.alloys, max: d.alloys })),
       waves: { n: 0, next: Math.round(THREATS.graceSeconds * TICK_HZ), spawned: 0 },
       fab: { queued: 0, progress: 0 },
       phase: 'descent', panic: 0, over: null,
-      stats: { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0 },
+      stats: { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 },
     };
     this.s = s;
     s.buildings.push({ id: 1, kind: 'core', x: 0, z: 0, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
@@ -86,10 +98,13 @@ export class Sim {
     // content may have changed since the save: drop things that no longer exist
     state.buildings = state.buildings.filter((b) => DEFS[b.kind] || b.kind === 'core');
     state.hostiles = state.hostiles.filter((h) => content.units[h.unit]);
+    state.units = (state.units ?? []).filter((u) => content.units[u.unit]);
+    state.stats.unitsLost ??= 0;
+    for (const b of state.buildings) if (b.queue) b.queue = b.queue.filter((k) => content.units[k]);
     for (const b of state.buildings) b.hp = Math.min(b.hp, DEFS[b.kind]?.hp ?? b.hp);
     this.s = state;
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
-    this.slotsUsed = state.hostiles.reduce((m, h) => Math.max(m, h.slot + 1), 0);
+    this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
   }
 
   rnd(): number {
@@ -102,8 +117,9 @@ export class Sim {
 
   get secs() { return this.s.tick / TICK_HZ; }
   get deployed() { return this.s.phase === 'deployed'; }
-  private entity(id: number): Building | Drone | undefined {
-    return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id);
+  get units(): Unit[] { return (this.s.units ??= []); }
+  private entity(id: number): Building | Drone | Unit | undefined {
+    return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id);
   }
 
   // ---------- tick ----------
@@ -115,8 +131,10 @@ export class Sim {
       this.stepPower();
       this.stepDrones();
       this.stepFab();
+      this.stepFactories();
       this.stepMining();
       this.stepTurrets();
+      this.stepUnits();
       this.stepHostiles();
       this.stepWaves();
       this.stepCryo();
@@ -147,8 +165,9 @@ export class Sim {
       if (d.role === 'battery') { cap += d.storage ?? 0; b.powered = true; }
       if (d.powerMW > 0) { gen += d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW; b.powered = true; }
       else if (d.powerMW < 0) {
-        const rank = d.fireRange ? 0 : d.role === 'radar' ? 2 : 3;
-        loads.push({ b, mw: -d.powerMW * (d.fireRange && !b.engaged ? STANDBY : 1), rank, battery: d.role !== 'depot' });
+        const rank = d.fireRange ? 0 : d.role === 'radar' || d.role === 'factory' ? 2 : 3;
+        const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length);
+        loads.push({ b, mw: -d.powerMW * (idle ? STANDBY : 1), rank, battery: d.role !== 'depot' });
       } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
@@ -313,6 +332,30 @@ export class Sim {
     }
   }
 
+  /** Vehicle bays work through their queue while powered; a finished unit rolls out the front. */
+  private stepFactories() {
+    const s = this.s;
+    for (const b of s.buildings) {
+      if (def(b).role !== 'factory' || b.progress < 1 || !b.queue?.length || !b.powered) continue;
+      const ud = content.units[b.queue[0]];
+      if (!ud) { b.queue.shift(); b.prod = 0; continue; }
+      b.prod = Math.min(1, (b.prod ?? 0) + DT / Math.max(0.1, ud.buildSeconds ?? 10));
+      if (b.prod < 1) continue;
+      const slot = this.freeSlot();
+      if (slot < 0) continue; // render pool full: hold the unit until one frees up
+      const kind = b.queue.shift()!;
+      b.prod = 0;
+      const out = bodyR(b) + 3;
+      const n = this.units.length;
+      const gx = b.x + Math.sin(n * 2.4) * 4, gz = b.z - out - 5 + Math.cos(n * 2.4) * 3;
+      this.units.push({
+        id: s.nextId++, unit: kind, slot, x: b.x, z: b.z - out, heading: Math.PI, hp: ud.hp, cd: 0,
+        order: { kind: 'move', x: gx, z: gz }, gx, gz, target: -1,
+      });
+      this.emit(`${ud.name} ready${b.queue.length ? ` · ${b.queue.length} more queued` : ''}`, 'info');
+    }
+  }
+
   // ---------- mining ----------
   private stepMining() {
     const s = this.s;
@@ -356,6 +399,135 @@ export class Sim {
     }
   }
 
+  /** Turn and step toward (tx, tz), sliding around water. */
+  private steer(o: { x: number; z: number; heading: number }, tx: number, tz: number, speed: number) {
+    let ang = Math.atan2(tx - o.x, tz - o.z);
+    const step = Math.min(speed * DT, Math.hypot(tx - o.x, tz - o.z));
+    for (const off of [0, 0.5, -0.5, 1, -1, 1.6, -1.6]) {
+      const a = ang + off;
+      if (!this.blocked(o.x + Math.sin(a) * (step + 2), o.z + Math.cos(a) * (step + 2))) { ang = a; break; }
+    }
+    let dh = ang - o.heading;
+    dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+    o.heading += clamp(dh, -6 * DT, 6 * DT);
+    o.x += Math.sin(o.heading) * step;
+    o.z += Math.cos(o.heading) * step;
+  }
+
+  /**
+   * Walk a unit toward (tx, tz) along a planned path. Returns false if it's
+   * stuck and should give up.
+   */
+  private goTo(u: Unit, tx: number, tz: number, speed: number) {
+    const t = this.s.tick;
+    const far = !u.goal || Math.hypot(u.goal[0] - tx, u.goal[1] - tz) > 3;
+    if (far || !u.path || (u.repath ?? 0) <= t) {
+      if (far) { u.best = Infinity; u.stall = 0; }
+      u.goal = [tx, tz];
+      u.path = this.grid.find(u.x, u.z, tx, tz) ?? [];
+      u.repath = t + REPATH + (u.id % 7);
+    }
+    const p = u.path;
+    while (p.length > 2 && Math.hypot(p[0] - u.x, p[1] - u.z) < 1.5) p.splice(0, 2);
+    if (!p.length) return false;
+    this.steer(u, p[0], p[1], speed);
+    const d = Math.hypot(tx - u.x, tz - u.z);
+    if (d < (u.best ?? Infinity) - 0.5) { u.best = d; u.stall = 0; }
+    else if ((u.stall = (u.stall ?? 0) + 1) > STALL * 3) return false;
+    else if (u.stall % STALL === 0) u.repath = t;
+    return true;
+  }
+
+  private arrive(u: Unit) {
+    u.gx = u.x; u.gz = u.z;
+    u.order = { kind: 'idle' };
+    u.path = undefined; u.goal = undefined;
+  }
+
+  /**
+   * Combat units: shoot the nearest hostile in range (even on the move); idle
+   * units chase hostiles that come within aggro of them, on a leash from their
+   * guard post, then walk back.
+   */
+  private stepUnits() {
+    const s = this.s, us = this.units;
+    if (us.length) this.grid.setBodies(s.buildings.map((b) => ({ x: b.x, z: b.z, r: bodyR(b) })), PATH_PAD);
+    for (const u of us) {
+      const d = content.units[u.unit];
+      u.cd = Math.max(0, u.cd - DT);
+      const moving = u.order.kind === 'move';
+      let tgt = u.target >= 0 ? s.hostiles.find((h) => h.id === u.target) : undefined;
+      const leash = Math.max(d.aggro * LEASH, RULES.unitResponse + 10);
+      if (!tgt || (s.tick + u.id) % 5 === 0) {
+        const seek = moving ? d.range : d.aggro;
+        let bd = Infinity;
+        tgt = undefined;
+        for (const h of s.hostiles) {
+          const dist = Math.hypot(h.x - u.x, h.z - u.z) - this.unitDef(h).radius;
+          if (dist <= seek && dist < bd) { bd = dist; tgt = h; }
+        }
+        // idle: answer attacks on buildings near the guard post
+        if (!tgt && !moving) {
+          for (const h of s.hostiles) {
+            if (Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse) continue;
+            const b = s.buildings.find((x) => x.id === h.target);
+            if (!b || Math.hypot(b.x - h.x, b.z - h.z) > bodyR(b) + 12) continue;
+            const dist = Math.hypot(h.x - u.x, h.z - u.z);
+            if (dist < bd) { bd = dist; tgt = h; }
+          }
+        }
+      }
+      if (tgt && !moving && Math.hypot(tgt.x - u.gx, tgt.z - u.gz) > leash) tgt = undefined;
+      u.target = tgt?.id ?? -1;
+      const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.unitDef(tgt).radius - d.radius : Infinity;
+      if (tgt && gap <= d.range) {
+        if (!moving) {
+          let dh = Math.atan2(tgt.x - u.x, tgt.z - u.z) - u.heading;
+          dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+          u.heading += clamp(dh, -8 * DT, 8 * DT);
+        }
+        if (u.cd <= 0) {
+          u.cd = d.cooldown;
+          const tx = tgt.x, tz = tgt.z;
+          this.fx.push(d.splash ? FX.TANK_SHOT : FX.ROVER_SHOT, u.x, u.z, tx, tz);
+          tgt.hp -= d.damage;
+          if (d.splash) {
+            for (const h of [...s.hostiles]) {
+              if (h !== tgt && Math.hypot(h.x - tx, h.z - tz) < d.splash) { h.hp -= d.damage / 2; if (h.hp <= 0) this.killHostile(h); }
+            }
+          }
+          if (tgt.hp <= 0) { this.killHostile(tgt); u.target = -1; }
+        }
+      }
+      if (u.order.kind === 'move') {
+        const o = u.order;
+        if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed)) this.arrive(u);
+      } else if (tgt && gap > d.range) {
+        if (!this.goTo(u, tgt.x, tgt.z, d.speed)) u.target = -1;
+      } else if (!tgt && Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5) {
+        if (!this.goTo(u, u.gx, u.gz, d.speed)) this.arrive(u);
+      }
+    }
+    // separation, and out of building bodies
+    for (let i = 0; i < us.length; i++) {
+      const a = us[i], ra = content.units[a.unit].radius;
+      for (let j = i + 1; j < us.length; j++) {
+        const b = us[j], rb = content.units[b.unit].radius;
+        const dx = b.x - a.x, dz = b.z - a.z, dd = Math.hypot(dx, dz), min = ra + rb + 0.3;
+        if (dd > 1e-3 && dd < min) {
+          const push = (min - dd) / 2;
+          a.x -= (dx / dd) * push; a.z -= (dz / dd) * push;
+          b.x += (dx / dd) * push; b.z += (dz / dd) * push;
+        }
+      }
+      for (const b of this.s.buildings) {
+        const dx = a.x - b.x, dz = a.z - b.z, dd = Math.hypot(dx, dz), min = bodyR(b) + ra;
+        if (dd > 1e-3 && dd < min) { a.x = b.x + (dx / dd) * min; a.z = b.z + (dz / dd) * min; }
+      }
+      a.x = clamp(a.x, -LIMIT, LIMIT); a.z = clamp(a.z, -LIMIT, LIMIT);
+    }
+  }
+
   private killHostile(h: Hostile) {
     const s = this.s;
     const i = s.hostiles.indexOf(h);
@@ -379,7 +551,7 @@ export class Sim {
   private chooseTarget(h: Hostile, u: UnitDef) {
     const s = this.s;
     let best = -1, bd = Infinity;
-    for (const d of s.drones) {
+    for (const d of [...s.drones, ...this.units]) {
       const dist = Math.hypot(d.x - h.x, d.z - h.z);
       if (dist < u.aggro && dist < bd) { bd = dist; best = d.id; }
     }
@@ -400,8 +572,8 @@ export class Sim {
       let tgt = h.target >= 0 ? this.entity(h.target) : undefined;
       if (!tgt || (s.tick + h.id) % 10 === 0) { h.target = this.chooseTarget(h, u); tgt = this.entity(h.target); }
       if (!tgt) continue;
-      const isB = 'kind' in tgt;
-      const tr = isB ? bodyR(tgt as Building) : 1;
+      const isB = 'kind' in tgt, isU = 'order' in tgt;
+      const tr = isB ? bodyR(tgt as Building) : isU ? content.units[(tgt as Unit).unit].radius : 1;
       const dx = tgt.x - h.x, dz = tgt.z - h.z, dist = Math.hypot(dx, dz);
       if (dist - tr - u.radius <= u.range) {
         h.heading = Math.atan2(dx, dz);
@@ -409,22 +581,11 @@ export class Sim {
           h.cd = u.cooldown;
           tgt.hp -= u.damage;
           this.fx.push(FX.BITE, h.x, h.z, tgt.x, tgt.z);
-          if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : this.destroyDrone(tgt as Drone);
+          if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : this.destroyDrone(tgt as Drone);
         }
         continue;
       }
-      // steer toward the target, sliding around water
-      let ang = Math.atan2(dx, dz);
-      const step = u.speed * DT;
-      for (const off of [0, 0.5, -0.5, 1, -1, 1.6, -1.6]) {
-        const a = ang + off;
-        if (!this.blocked(h.x + Math.sin(a) * (step + 2), h.z + Math.cos(a) * (step + 2))) { ang = a; break; }
-      }
-      let dh = ang - h.heading;
-      dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-      h.heading += clamp(dh, -6 * DT, 6 * DT);
-      h.x += Math.sin(h.heading) * step;
-      h.z += Math.cos(h.heading) * step;
+      this.steer(h, tgt.x, tgt.z, u.speed);
     }
     // separation, and keep out of building bodies
     for (let i = 0; i < hs.length; i++) {
@@ -473,6 +634,16 @@ export class Sim {
     this.emit('Worker drone destroyed', 'bad');
   }
 
+  private destroyUnit(u: Unit) {
+    const s = this.s;
+    const i = this.units.indexOf(u);
+    if (i < 0) return;
+    this.units.splice(i, 1);
+    s.stats.unitsLost = (s.stats.unitsLost ?? 0) + 1;
+    this.fx.push(u.unit === 'tank' ? FX.DIE_BIG : FX.DIE_SMALL, u.x, u.z, 0, 0);
+    this.emit(`${content.units[u.unit].name} destroyed`, 'bad');
+  }
+
   private lose(why: 'core' | 'cryo') {
     if (this.s.over) return;
     this.s.over = why;
@@ -516,7 +687,7 @@ export class Sim {
   }
 
   private freeSlot() {
-    const used = new Set(this.s.hostiles.map((h) => h.slot));
+    const used = new Set([...this.s.hostiles, ...this.units].map((h) => h.slot));
     for (let i = 0; i < MAX_HOSTILES; i++) if (!used.has(i)) { this.slotsUsed = Math.max(this.slotsUsed, i + 1); return i; }
     return -1;
   }
@@ -542,7 +713,7 @@ export class Sim {
       const h = Math.floor(this.rnd() * s.herds.length);
       s.herds[h] = this.herdSpot(h);
     }
-    const scary = [...s.drones, ...s.hostiles];
+    const scary = [...s.drones, ...this.units, ...s.hostiles];
     for (const f of s.fauna) {
       let tx = f.tx, tz = f.tz, sp = WALK;
       const rc0 = Math.hypot(f.x, f.z);
@@ -618,7 +789,8 @@ export class Sim {
         const b = s.buildings.find((x) => x.id === c.id);
         if (!b || b.kind === 'core') return;
         const dd = def(b);
-        const refund = b.progress < 1 ? dd.cost * (1 - b.progress * 0.5) : dd.cost * 0.5 * (b.hp / dd.hp);
+        const queued = (b.queue ?? []).reduce((m, k) => m + (content.units[k]?.cost ?? 0), 0);
+        const refund = queued + (b.progress < 1 ? dd.cost * (1 - b.progress * 0.5) : dd.cost * 0.5 * (b.hp / dd.hp));
         s.alloys += refund;
         s.buildings.splice(s.buildings.indexOf(b), 1);
         this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info');
@@ -631,6 +803,43 @@ export class Sim {
           const b = s.buildings.find((x) => x.id === c.hurt!.id);
           if (b) { b.hp -= c.hurt.hp; if (b.hp <= 0) this.destroyBuilding(b); }
         }
+        return;
+      }
+      case 'produce': {
+        const b = s.buildings.find((x) => x.id === c.id);
+        const ud = content.units[c.unit];
+        if (!b || def(b).role !== 'factory' || b.progress < 1 || !ud || ud.faction !== 'accord' || ud.cost === undefined) return;
+        const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
+        if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn'); return; }
+        if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn'); return; }
+        s.alloys -= ud.cost;
+        (b.queue ??= []).push(c.unit);
+        if (b.queue.length === 1) b.prod = 0;
+        return;
+      }
+      case 'unqueue': {
+        const b = s.buildings.find((x) => x.id === c.id);
+        if (!b?.queue?.length) return;
+        const k = b.queue.pop()!;
+        s.alloys += content.units[k]?.cost ?? 0;
+        if (!b.queue.length) b.prod = 0;
+        return;
+      }
+      case 'order': {
+        const sel = this.units.filter((u) => c.ids.includes(u.id));
+        // spread out around the point (sunflower), nearest units take the inner spots
+        const x = clamp(c.x, -LIMIT, LIMIT), z = clamp(c.z, -LIMIT, LIMIT);
+        sel.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
+        sel.forEach((u, i) => {
+          const r = SPREAD * Math.sqrt(i) * (i ? 1 : 0), a = i * 2.39996;
+          const ox = clamp(x + Math.cos(a) * r, -LIMIT, LIMIT), oz = clamp(z + Math.sin(a) * r, -LIMIT, LIMIT);
+          u.order = { kind: 'move', x: ox, z: oz };
+          u.target = -1;
+        });
+        return;
+      }
+      case 'stop': {
+        for (const u of this.units) if (c.ids.includes(u.id)) { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; }
         return;
       }
       case 'fab': {
@@ -675,6 +884,15 @@ export class Sim {
       army[o + F.HP] = h.hp / this.unitDef(h).hp;
       army[o + F.GEN] = h.id & 0xffff; army[o + F.ALIVE] = 1;
     }
+    const units: UnitSnap[] = this.units.map((u) => {
+      const o = u.slot * STRIDE, d = content.units[u.unit];
+      army[o + F.X] = u.x; army[o + F.Z] = u.z; army[o + F.HEADING] = u.heading;
+      army[o + F.TYPE] = UNIT_TYPE[u.unit] ?? UT.Rover;
+      army[o + F.HP] = u.hp / d.hp;
+      army[o + F.GEN] = u.id & 0xffff; army[o + F.ALIVE] = 1;
+      const mv = u.order.kind === 'move' ? u.order : null;
+      return { id: u.id, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0 };
+    });
     const fx = new Float32Array(this.fx);
     this.fx.length = 0;
     const drones: DroneSnap[] = s.drones.map((d) => {
@@ -696,8 +914,8 @@ export class Sim {
     });
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
-      drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b })), deposits: s.deposits.map((d) => ({ ...d })),
-      army, armySlots: slots, fx, hostiles: s.hostiles.length,
+      drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
+      army, armySlots: slots, fx, hostiles: s.hostiles.length, units,
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,

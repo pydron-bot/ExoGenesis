@@ -4,7 +4,7 @@
  * sends commands. Updated a few times a second, not every frame.
  */
 import type { ZoomCamera } from './camera';
-import type { BuildingDef, ColonyRules } from './content/defs';
+import type { BuildingDef, ColonyRules, UnitDef } from './content/defs';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
 import { F, STRIDE } from './skirmish/types';
@@ -15,6 +15,7 @@ import * as THREE from 'three';
 
 interface HudDeps {
   defs: Record<string, BuildingDef>;
+  units: Record<string, UnitDef>;
   rules: ColonyRules;
   ui: RegionUi;
   cam: ZoomCamera;
@@ -33,7 +34,7 @@ interface Goal { id: string; text: string; done: (s: Snapshot) => boolean }
 
 export class ColonyHud {
   private el = {
-    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'),
+    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'),
     goals: $('goals'), goalsList: $('goals-list'), menu: $('build-menu'), card: $('card'), mini: $<HTMLCanvasElement>('minimap'),
     over: $('over'),
   };
@@ -56,6 +57,7 @@ export class ColonyHud {
       { id: 'battery', text: 'Build a Battery Bank before nightfall', done: (s) => has(s, 'battery') },
       { id: 'turret', text: 'Build a Defense Turret', done: (s) => has(s, 'turret') },
       { id: 'pack', text: 'Destroy a predator pack', done: (s) => s.stats.packsBeaten >= 1 },
+      { id: 'bay', text: 'Build a Vehicle Bay and produce a combat unit', done: (s) => s.units.length > 0 },
       { id: 'radar', text: 'Build a Radar for early warning', done: (s) => has(s, 'radar') },
       { id: 'drone', text: 'Fabricate a second worker drone at the Core', done: (s) => s.drones.length >= 2 },
       { id: 'sol4', text: 'Keep the colony alive until Sol 4', done: (s) => sol(s) >= 4 },
@@ -76,6 +78,19 @@ export class ColonyHud {
       const x = ((e.clientX - r.left) / r.width * 2 - 1) * REGION_HALF;
       const z = -((e.clientY - r.top) / r.height * 2 - 1) * REGION_HALF;
       this.d.cam.fx = x; this.d.cam.fz = z;
+    });
+    this.el.army.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const ids = this.cur?.units.map((u) => u.id) ?? [];
+      const all = this.d.ui.sel?.kind === 'units' && this.d.ui.sel.ids.length === ids.length;
+      if (!ids.length) return;
+      if (all) {
+        // second tap: centre the camera on them
+        this.d.cam.fx = this.cur!.units.reduce((m, u) => m + u.x, 0) / ids.length;
+        this.d.cam.fz = this.cur!.units.reduce((m, u) => m + u.z, 0) / ids.length;
+      }
+      this.d.ui.sel = { kind: 'units', ids };
+      this.selected();
     });
     $('over-restart').onclick = () => this.d.restart();
     $('over-load').onclick = () => this.d.load();
@@ -125,6 +140,10 @@ export class ColonyHud {
     if (seen.length) { e.threat.style.display = ''; e.threat.className = 'r bad'; e.threat.innerHTML = `⚠ <b>${seen.reduce((m, p) => m + p.alive, 0)}</b> predators`; }
     else if (s.nextPack !== null) { e.threat.style.display = ''; e.threat.className = `r ${s.nextPack < 30 ? 'warn' : ''}`; e.threat.innerHTML = `⚠ next pack <b>${mmss(s.nextPack)}</b>`; }
     else e.threat.style.display = 'none';
+    const n = s.units.length;
+    e.army.style.display = n ? '' : 'none';
+    e.army.innerHTML = `⚔ <b>${n}</b>`;
+    e.army.classList.toggle('on', this.d.ui.sel?.kind === 'units');
   }
 
   private renderGoals(s: Snapshot) {
@@ -156,6 +175,10 @@ export class ColonyHud {
     if (!b.on) return ['Switched off', 'warn'];
     if (!b.powered && d.powerMW < 0) return ['No power (load shed)', 'bad'];
     if (d.role === 'depot' && (b.mining === undefined || b.mining < 0)) return ['Idle: no deposit in reach', 'warn'];
+    if (d.role === 'factory') {
+      if (!b.queue?.length) return ['Idle: queue a unit', ''];
+      return [`Producing ${this.d.units[b.queue[0]]?.name ?? b.queue[0]} · ${Math.floor((b.prod ?? 0) * 100)}%`, ''];
+    }
     return ['Online', ''];
   }
 
@@ -165,7 +188,29 @@ export class ColonyHud {
     document.body.classList.toggle('card-open', !!sel);
     if (!sel) { card.classList.remove('on'); this.cardKey = ''; return; }
     let html = '';
-    if (sel.kind === 'drone') {
+    if (sel.kind === 'units') {
+      const us = s.units.filter((u) => sel.ids.includes(u.id));
+      if (!us.length) { this.d.ui.sel = null; card.classList.remove('on'); return; }
+      if (us.length !== sel.ids.length) sel.ids = us.map((u) => u.id); // drop the dead
+      const counts = new Map<string, number>();
+      for (const u of us) counts.set(u.unit, (counts.get(u.unit) ?? 0) + 1);
+      const title = [...counts].map(([k, n]) => `${n} ${(this.d.units[k]?.name ?? k).toUpperCase()}${n > 1 ? 'S' : ''}`).join(' · ');
+      const hp = us.reduce((m, u) => m + u.hp, 0) / us.length;
+      const fighting = us.filter((u) => u.engaged).length, moving = us.filter((u) => u.order === 'move').length;
+      const st = fighting ? `${fighting} engaging` : moving ? 'Moving' : 'Guarding';
+      const rows: [string, string][] = [];
+      if (us.length === 1) {
+        const d = this.d.units[us[0].unit];
+        rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.range} u${d.splash ? ' · splash' : ''}`]);
+        rows.push(['Speed', `${d.speed} u/s`]);
+      }
+      rows.push(['Move', this.coarse() ? 'tap ground or drag from a unit' : 'click ground or drag from a unit']);
+      rows.push(['Select', this.coarse() ? 'hold or double-tap: all of a type' : 'double-click: all of a type']);
+      html = `<div class="t">${esc(title)}</div><div class="s ${fighting ? 'warn' : ''}">${st}</div>
+        <div class="hp"><i style="width:${(hp * 100).toFixed(0)}%;background:${hp > 0.6 ? '#5bff9a' : hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
+        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+        <div class="grp"><button data-act="stop" title="Stop and guard here (X)">Stop</button><button data-act="deselect">Done</button></div>`;
+    } else if (sel.kind === 'drone') {
       const dr = s.drones.find((x) => x.id === sel.id);
       if (!dr) { this.d.ui.sel = null; card.classList.remove('on'); return; }
       const n = s.drones.indexOf(dr) + 1;
@@ -196,12 +241,24 @@ export class ColonyHud {
       }
       const btn: string[] = [];
       if (d.role === 'core') btn.push(`<button data-act="fab" title="Fabricate a worker drone">+ Drone <small>${this.d.rules.droneCost}◆</small></button>`);
+      let queue = '';
+      if (d.role === 'factory' && b.progress >= 1) {
+        const q = b.queue ?? [];
+        const total = s.units.length + s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
+        rows.push(['Army', `${s.units.length} / ${this.d.rules.maxUnits}${total > s.units.length ? ` (+${total - s.units.length} queued)` : ''}`]);
+        queue = q.length ? `<div class="q">${q.map((k, i) => `<i class="${i ? '' : 'now'}">${esc(this.d.units[k]?.name ?? k)}</i>`).join('')}</div>` : '';
+        for (const [k, u] of Object.entries(this.d.units)) {
+          if (u.faction !== 'accord' || u.cost === undefined) continue;
+          btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆</small></button>`);
+        }
+        if (q.length) btn.push('<button data-act="unqueue" title="Cancel the last queued unit (full refund)">Cancel last</button>');
+      }
       if (b.progress >= 1 && b.hp < d.hp) btn.push('<button data-act="repair">Repair</button>');
       if (d.role !== 'core' && b.progress >= 1) btn.push(`<button data-act="power">${b.on ? 'Switch off' : 'Switch on'}</button>`);
       if (d.role !== 'core') btn.push(`<button data-act="demolish">${b.progress < 1 ? 'Cancel' : 'Recycle'}</button>`);
       html = `<div class="t">${esc(d.name.toUpperCase())}</div><div class="s ${cls}">${esc(st)}</div>
         <div class="hp"><i style="width:${Math.min(100, (b.hp / d.hp) * 100).toFixed(0)}%;background:${b.hp / d.hp > 0.6 ? '#5bff9a' : b.hp / d.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${queue}
         <div class="grp">${btn.join('')}</div>`;
     }
     card.classList.add('on');
@@ -213,8 +270,16 @@ export class ColonyHud {
     const sel = this.d.ui.sel;
     if (!act || !sel || !this.cur) return;
     e.preventDefault();
+    if (sel.kind === 'units') {
+      if (act === 'stop') this.d.command({ type: 'stop', ids: sel.ids });
+      if (act === 'deselect') this.d.ui.sel = null;
+      this.cardKey = '';
+      return;
+    }
     const b = this.cur.buildings.find((x) => x.id === sel.id);
     if (act === 'fab') this.d.command({ type: 'fab' });
+    else if (b && act.startsWith('produce:')) this.d.command({ type: 'produce', id: b.id, unit: act.slice(8) });
+    else if (b && act === 'unqueue') this.d.command({ type: 'unqueue', id: b.id });
     else if (!b) return;
     else if (act === 'repair') this.d.command({ type: 'repair', id: b.id });
     else if (act === 'power') this.d.command({ type: 'power', id: b.id, on: !b.on });
@@ -226,6 +291,8 @@ export class ColonyHud {
     }
     this.cardKey = '';
   }
+
+  private coarse() { return matchMedia('(pointer: coarse)').matches; }
 
   private terrainImage() {
     if (this.terrain) return this.terrain;
@@ -262,10 +329,12 @@ export class ColonyHud {
     }
     g.fillStyle = '#ffffff';
     for (const d of s.drones) g.fillRect(px(d.x) - 1, pz(d.z) - 1, 3, 3);
+    g.fillStyle = '#5ff3ff';
+    for (const u of s.units) g.fillRect(px(u.x) - 1.5, pz(u.z) - 1.5, 3, 3);
     g.fillStyle = '#ff4d5e';
     for (let i = 0; i < s.armySlots; i++) {
       const o = i * STRIDE;
-      if (!s.army[o + F.ALIVE]) continue;
+      if (!s.army[o + F.ALIVE] || s.army[o + F.TYPE] < 2) continue; // 0/1 = our rovers/tanks
       g.fillRect(px(s.army[o + F.X]) - 1.5, pz(s.army[o + F.Z]) - 1.5, 3, 3);
     }
     // where the camera is looking
@@ -280,7 +349,7 @@ export class ColonyHud {
     $('over-title').textContent = 'COLONY LOST';
     $('over-sub').textContent = s.over === 'core' ? 'The Command Core was destroyed.' : 'The cryo bank failed. The embryos are gone.';
     const sol = Math.floor(s.secs / this.d.rules.solSeconds) + 1;
-    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · goals ${this.reached.size}/${this.goals.length}`;
+    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · goals ${this.reached.size}/${this.goals.length}`;
   }
 
   /** Forget goal progress (new game). */

@@ -21,12 +21,14 @@ export const unitShape = {
   splash: num({ label: 'Splash radius', min: 0, max: 50, step: 0.1, unit: 'u', optional: true, help: 'Units inside take half damage.' }),
   radius: num({ label: 'Body radius', min: 0.1, max: 20, step: 0.1, unit: 'u', help: 'Collision and selection size.' }),
   aggro: num({ label: 'Aggro radius', min: 0, max: 200, unit: 'u', help: 'How far it notices enemies on its own.' }),
+  cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys', optional: true, help: 'Accord units with a cost can be produced at a Vehicle Bay (factory role).' }),
+  buildSeconds: num({ label: 'Production time', min: 0, max: 600, step: 0.5, unit: 's', optional: true }),
   model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model.' }),
   modelScale: num({ label: 'Model scale', min: 0.1, max: 10, step: 0.05, default: 1, help: 'Gameplay size, on top of the asset\'s own scale.' }),
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -34,7 +36,7 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap.',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost).',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
@@ -62,6 +64,8 @@ export const colonyRulesShape = {
   droneCost: int({ label: 'Drone cost', min: 0, max: 10000, unit: 'alloys', help: 'Fabricated at the Command Core.' }),
   droneBuildSeconds: num({ label: 'Drone fabrication time', min: 0, max: 600, unit: 's' }),
   maxDrones: int({ label: 'Max drones', min: 1, max: 20 }),
+  maxUnits: int({ label: 'Combat unit limit', min: 0, max: 200, help: 'Most combat units alive (plus queued) at once.' }),
+  unitResponse: num({ label: 'Unit response radius', min: 0, max: 240, unit: 'u', help: 'Idle combat units go after hostiles attacking buildings within this distance of their post (they always fight what comes within their own aggro radius).' }),
   repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', help: 'Per drone.' }),
   buildRadius: num({ label: 'Build radius', min: 5, max: 240, unit: 'u', help: 'New buildings must be this close to a finished one (or the Core\'s Range).' }),
   cryoDrawMW: num({ label: 'Cryo bank draw', min: 0, max: 100, step: 0.1, unit: 'MW' }),
