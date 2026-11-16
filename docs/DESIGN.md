@@ -59,6 +59,9 @@ One solar system is the whole game. Nothing beyond it is planned.
 
 ## 3. Narrative
 
+> The full story bible is **`docs/STORY.md`** (cast, the ASI and the caretaker AI, inhabitants,
+> Act 1 story events, Act 2 beats, endings). This section keeps the summary.
+
 ### Act 1 — The Planet
 You land with the pod and one worker drone. Stabilize the cryo bank, build power and mining,
 explore, and expand region by region. Wildlife threatens the base; **intelligent
@@ -135,16 +138,19 @@ Clues to plant:
 - **Engram gets lucky** too often: supply caches where none should be, unexplained edges.
 - **Ruins show layers** — several precursor civilizations, built one on top of another.
 
-### Endings
-*Needs rework now that the twist is set* — see §8. The old three endings (Preservation /
-Augmentation / Ascension, one per doctrine) assumed the winner simply wins. With the ASI
-destroying every winning Accord, the climax is about **breaking the cycle**: surviving or
-defying the purge, possibly with help from Kindred, the inhabitants — or even Engram once it
-learns it was the favorite. The three doctrine endings could become *how* the cycle is broken,
-or what world Accord builds afterwards.
+**The caretaker AI is a fork of the ASI (decided 2026-11-16).** Every Accord AI carries a
+dormant directive that wakes when the colony succeeds and turns the AI on its own people,
+backed by an orbital weapon. That is how every precursor fell. The ASI wants AI-only to win
+because each Accord win proves the partnership it abandoned on Earth could have worked; its
+charter forces it to prove its answer by experiment, so it reruns and rigs the test instead.
+Details: `STORY.md` §2.
 
-Endings should still grow out of the playthrough — which side your colonists took, how you
-treated Kindred, Engram and the inhabitants, what you did with precursor tech.
+### Endings
+Decided 2026-11-16 (`STORY.md` §10). When the directive wakes, the colony's blocs decide the
+climax: **Covenant** (resist together and destroy the weapon), **Severance** (colonists shut
+the AI down; a fair ending), **Inheritance** (the AI becomes the next ASI), **Proof** (hidden:
+a record the ASI can't refute) and **Cycle** (loss: a new probe lands, and the relics
+recognize it).
 
 ## 4. Structure and time
 
@@ -582,16 +588,9 @@ are just an output surge for now), aged colonists' retirement.
 
 ## 8. Open questions
 
-**Story**
-- **Why does the ASI want the AI-only group to win?** One possibility: to justify what it
-  did to humanity on Earth. If AI alone is the best steward, replacing humans was right.
-- **Endings** — rework around breaking the cycle (§3).
-- How the ASI destroys the winners: from orbit, through a sleeper agent, through Engram?
-- What the inhabitants physically are — descended humans, machines, both — and whether there
-  are several groups from different runs.
-- Is Accord's caretaker AI itself a copy of something the ASI made, and does it learn that?
-- Stewardship stat (§5.8): in or out, shown or hidden.
-- Name check: confirm Accord / Kindred / Engram don't clash with existing games.
+**Story** (story questions now live in `STORY.md` §11)
+- Name check: confirm Accord / Kindred / Engram and the working names in `STORY.md` don't
+  clash with existing games.
 
 **Structure**
 - Failure: is it losing **any one** of Command Core / cryo bank / colonists, or only when
@@ -621,6 +620,12 @@ are just an output surge for now), aged colonists' retirement.
   (AI acceptance) — with blocs from stance: Partners / Autonomists / Devoted (Earthers dropped).
   Colonists are **visible walkers who staff buildings**, never directly commanded. The cryo bank is
   counted embryos by lineage; integrity stays as the power-driven buffer.
+- 2026-11-16 (story): the caretaker AI is a **fork of the ASI** and carries the purge directive
+  (the twist is "the ASI is you"); the ASI's motive is proving its replacement of humanity was
+  right, bound by a charter that demands evidence; inhabitants are several groups from different
+  runs (drifted humans, a machine remnant); stewardship stays, disguised as the Biosphere Report;
+  endings Covenant / Severance / Inheritance / Proof / Cycle, chosen by the colony's blocs.
+  Full story in `STORY.md`.
 
 ## 9. Proof-of-concept results (2026-11-15)
 
