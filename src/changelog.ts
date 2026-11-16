@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.12.2',
+    date: '2026-11-16',
+    title: 'Smoother big bases',
+    notes: [
+      'Long walls and solar fields cost far less to draw, so large colonies stay smoother, especially on phones',
+    ],
+  },
+  {
     version: '0.12.1',
     date: '2026-11-16',
     title: 'Home screen app fits the screen',

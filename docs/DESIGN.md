@@ -354,6 +354,12 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   see-through), geothermal (`plume`, see-through steam), artillery, arc, engineer, scout, and the fauna swarmer,
   brute, spitter and burrower (own skin colours; fauna get no instance tint). 380–1,600 tris, 26–92 KB each.
   Still **not assigned**; `?models=new` now previews every unit with an `exo-<id>` record, not just rover and tank.
+- **Instanced buildings (v0.12.2, proof of concept):** finished walls and solar arrays draw through
+  `src/world/batch.ts`: one InstancedMesh per material per kind, however many are built (a building's own
+  object stays as an empty placeholder holding its pose). Glowing materials get a dimmed twin; an unpowered
+  building's glow parts sit in the dimmed pool. Measured on a ~90-building base: ~6 draw calls per building
+  otherwise, the base's main render cost (triangles barely matter). Extend with `BATCHED_KINDS`; kinds with
+  animated parts (`head`, `dish`, `ring`, `door`, `charge`, `plume`) need those parts kept per building first.
 
 | Tool | Edits | Lands with |
 |---|---|---|

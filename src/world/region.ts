@@ -3,6 +3,7 @@
  * everything the sim puts on it (Command Core, drone, buildings, fauna).
  */
 import * as THREE from 'three';
+import { BATCHED_KINDS, BuildingBatch } from './batch';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
@@ -781,6 +782,8 @@ export class RegionView {
   readonly drones = new Map<number, { obj: THREE.Group; x: number; z: number; world: THREE.Vector3 }>();
   private faunaMesh: THREE.InstancedMesh;
   private buildings = new Map<number, BEntry>();
+  /** Instanced finished buildings, per kind in BATCHED_KINDS. */
+  private batches = new Map<string, BuildingBatch>();
   private deposits: THREE.Group[] = [];
   private vents: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
@@ -928,7 +931,31 @@ export class RegionView {
     if (obj) this.models[kind] = obj; else delete this.models[kind];
     const g = this.ghosts.get(kind);
     if (g) { this.details.remove(g); this.ghosts.delete(kind); }
-    for (const [id, e] of this.buildings) if (e.kind === kind && e.done) { this.details.remove(e.obj); this.buildings.delete(id); }
+    for (const [id, e] of this.buildings) if (e.kind === kind && e.done) { this.dropBuilding(id, e); this.buildings.delete(id); }
+    const batch = this.batches.get(kind);
+    if (batch) { this.details.remove(batch.group); batch.dispose(); this.batches.delete(kind); }
+  }
+
+  /** The instanced batch for a kind, made on first use (null if the kind isn't batched). */
+  private batchFor(kind: string): BuildingBatch | null {
+    if (!BATCHED_KINDS.has(kind)) return null;
+    let b = this.batches.get(kind);
+    if (!b) {
+      b = new BuildingBatch(this.modelFor(kind));
+      this.batches.set(kind, b);
+      this.details.add(b.group);
+    }
+    return b;
+  }
+
+  /** Test hook: draw calls and instance counts of the building batches. */
+  batchStats(): Record<string, { count: number; drawCalls: number }> {
+    return Object.fromEntries([...this.batches].map(([k, b]) => [k, { count: b.count, drawCalls: b.drawCalls }]));
+  }
+
+  private dropBuilding(id: number, e: BEntry) {
+    this.details.remove(e.obj, e.bar);
+    this.batches.get(e.kind)?.remove(id);
   }
 
   private modelFor(kind: string): THREE.Group {
@@ -1155,9 +1182,11 @@ export class RegionView {
       const done = b.progress >= 1;
       let e = this.buildings.get(b.id);
       if (!e || e.done !== done) {
-        if (e) { this.details.remove(e.obj, e.bar); }
+        if (e) this.dropBuilding(b.id, e);
         else this.flora?.clear(b.x, b.z, (d?.clearance ?? 8) / 2 + 2);
-        const obj = done ? this.modelFor(b.kind) : buildScaffold();
+        // batched kinds: an empty placeholder (it keeps the pose for facing()); the batch draws the model
+        const batch = done ? this.batchFor(b.kind) : null;
+        const obj = batch ? new THREE.Group() : done ? this.modelFor(b.kind) : buildScaffold();
         if (!done) {
           // scale the construction frame to the footprint
           const k = (d?.clearance ?? 8) / 9;
@@ -1165,6 +1194,7 @@ export class RegionView {
         }
         orient(obj, b.x, b.z, b.yaw ?? 0, 0);
         this.details.add(obj);
+        if (batch) { obj.updateMatrix(); batch.set(b.id, obj.matrix); }
         const emissive: [THREE.MeshStandardMaterial, number][] = [];
         obj.traverse((o) => {
           const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
@@ -1190,6 +1220,7 @@ export class RegionView {
         if (lit !== e.powered) {
           e.powered = lit;
           for (const [mm, base] of e.emissive) mm.emissiveIntensity = lit ? base : base * 0.08;
+          this.batches.get(b.kind)?.setPowered(b.id, lit);
         }
         const role = d?.role;
         if (role === 'turret' && b.aim !== undefined) {
@@ -1240,7 +1271,7 @@ export class RegionView {
     }
     for (const [id, e] of this.buildings) {
       if (seen.has(id)) continue;
-      this.details.remove(e.obj, e.bar);
+      this.dropBuilding(id, e);
       this.buildings.delete(id);
       const h = this.haulers.get(id);
       if (h) { this.details.remove(h); this.haulers.delete(id); }
