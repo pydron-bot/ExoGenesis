@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.12.0',
+    date: '2026-11-16',
+    title: 'Install it on your phone',
+    notes: [
+      'Add Exo Genesis to your home screen (iPhone: Share → Add to Home Screen; Android: ⋮ → Install app). It gets its own icon and opens full-screen',
+      'Once you have played it once, it starts and plays without a connection. New versions still arrive as soon as you are back online',
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-11-16',
     title: 'More units, more buildings, new predators',

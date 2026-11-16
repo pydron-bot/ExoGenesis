@@ -26,6 +26,7 @@ import { GameAudio, type Spatial } from './audio';
 import { TitleScreen } from './title';
 import { VERSION } from './changelog';
 import { hasUnseen, openWhatsNew } from './whatsnew';
+import { registerServiceWorker } from './pwa';
 import { surfaceUniforms, addSurfaceDetail, buildClouds, setSurfaceMaps, updateClouds, updateSurface, type SurfaceMaps } from './world/surface';
 
 const params = new URLSearchParams(location.search);
@@ -563,6 +564,7 @@ function reveal() {
   document.body.classList.add('loaded');
   loaderEl.classList.add('done');
   setTimeout(() => loaderEl.remove(), 700);
+  registerServiceWorker();
 }
 // panels sit above the bottom bar, whatever height it wraps to
 const barEl = $('bar');

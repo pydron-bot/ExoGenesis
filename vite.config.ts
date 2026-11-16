@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { contentServer } from './devtools/content-server';
@@ -38,12 +38,45 @@ function contentManifest(): Plugin {
   };
 }
 
+/**
+ * sw.js: the service worker that makes the game an installable, offline-capable
+ * app (manifest: public/manifest.webmanifest; registered by src/pwa.ts). Written
+ * after the build so it can precache every file the game needs (not the editor).
+ * The cache is named after a hash of those files, so each release gets its own
+ * and the old one is dropped. Logic: src/sw-template.js.
+ */
+function serviceWorker(): Plugin {
+  let outDir = 'dist';
+  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const p = path.join(dir, e.name);
+    return e.isDirectory() ? walk(p) : [p];
+  });
+  return {
+    name: 'exo-service-worker',
+    apply: 'build',
+    configResolved(c) { outDir = path.resolve(c.root, c.build.outDir); },
+    closeBundle() {
+      const files = walk(outDir)
+        .map((abs) => path.relative(outDir, abs).split(path.sep).join('/'))
+        .filter((f) => f !== 'sw.js' && !/^editor\.html$|^assets\/editor-|^content-manifest\.json$|(^|\/)\.gitkeep$/.test(f))
+        .sort();
+      const h = createHash('sha1');
+      for (const f of files) h.update(f).update(readFileSync(path.join(outDir, f)));
+      const precache = ['./', ...files.filter((f) => f !== 'index.html')];
+      const src = readFileSync('src/sw-template.js', 'utf8')
+        .replace('const CACHE = __CACHE__;', `const CACHE = ${JSON.stringify(`exo-${h.digest('hex').slice(0, 12)}`)};`)
+        .replace('const PRECACHE = __PRECACHE__;', `const PRECACHE = ${JSON.stringify(precache)};`);
+      writeFileSync(path.join(outDir, 'sw.js'), src);
+    },
+  };
+}
+
 export default defineConfig({
   // '/' locally, '/ExoGenesis/' when the Pages workflow builds it for deeek.org/ExoGenesis/.
   base: process.env.EXO_BASE ?? '/',
   // the version without bundling package.json (src/changelog.ts)
   define: { __VERSION__: JSON.stringify(JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version) },
-  plugins: [contentServer(), contentManifest()],
+  plugins: [contentServer(), contentManifest(), serviceWorker()],
   server: { host: true, port: 5176, strictPort: true, allowedHosts: ['hive1', '.ts.net'] },
   preview: { host: true, port: 4176 },
   build: {

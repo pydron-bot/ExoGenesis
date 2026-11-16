@@ -63,7 +63,20 @@ node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 node tools/map-smoke.mjs     # map editor → game end-to-end (restores the region afterwards)
 node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores content/ + public/media/)
 node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)
+node tools/pwa-smoke.mjs     # installable app: manifest, icons, service worker, offline boot (same /ExoGenesis/ preview)
+node tools/make-icons.mjs    # re-render the app icons from public/icons/icon.svg
 ```
+
+## Installable app (PWA)
+
+On a phone, **Add to Home Screen** (iOS Safari: Share → Add to Home Screen; Android Chrome: ⋮ →
+Install app) gives an icon that opens the game full-screen. After the first visit it also plays
+offline. Pieces: `public/manifest.webmanifest`, icons in `public/icons/` (from `icon.svg` via
+`tools/make-icons.mjs`), the iOS tags in `index.html`, and a service worker built into `dist/sw.js`
+by `vite.config.ts` from `src/sw-template.js` (registered by `src/pwa.ts`, production builds only).
+It precaches the game (not the editor) under a cache named for the build; pages, content and media
+are network-first, so a release shows on the next load; hashed `assets/` are cache-first.
+`?sw=0` skips registering it.
 
 ## Versions
 

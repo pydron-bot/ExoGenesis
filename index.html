@@ -4,6 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#05080d" />
+    <!-- installable app (home screen): manifest + service worker (vite.config.ts → sw.js, registered in src/pwa.ts) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Exo Genesis" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Exo Genesis</title>
     <meta name="description" content="Exo Genesis tech demo: zoom from a landing site to the whole solar system." />
     <style>
