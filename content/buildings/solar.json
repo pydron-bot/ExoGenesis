@@ -9,6 +9,5 @@
   "buildSeconds": 8,
   "clearance": 9,
   "staff": 1,
-  "specialty": "technician",
-  "model": "scout-tank"
+  "specialty": "technician"
 }
