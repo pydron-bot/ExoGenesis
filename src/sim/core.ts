@@ -13,7 +13,7 @@ import { daylight } from './daylight';
 import { PathGrid } from './path';
 import { compass, depositFor, linePoints, placeProblem } from './rules';
 import {
-  MAX_HOSTILES, REGION_HALF, TICK_HZ,
+  FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
 } from './types';
 
@@ -77,6 +77,9 @@ export class Sim {
   s!: SimState;
   private fx: number[] = [];
   private grid = new PathGrid(LIMIT);
+  /** Fog of war: in sight now / ever seen (mirrored into s.explored for saves). */
+  private vis = new Uint8Array(FOG_N * FOG_N);
+  private exp = new Uint8Array(FOG_N * FOG_N);
   private slotsUsed = 0;
   /** Power result of the last tick. */
   power = { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 };
@@ -109,6 +112,8 @@ export class Sim {
       }
     });
     this.slotsUsed = 0;
+    this.exp.fill(0);
+    this.stepFog(true);
   }
 
   load(state: SimState) {
@@ -122,6 +127,10 @@ export class Sim {
     this.s = state;
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
+    this.exp.fill(0);
+    const ex = state.explored;
+    if (ex?.length === this.exp.length) for (let i = 0; i < ex.length; i++) this.exp[i] = ex.charCodeAt(i) === 49 ? 1 : 0;
+    this.stepFog(true);
   }
 
   rnd(): number {
@@ -156,6 +165,7 @@ export class Sim {
       this.stepWaves();
       this.stepCryo();
     }
+    if (s.tick % 5 === 0) this.stepFog();
     this.stepGrazers();
   }
 
@@ -228,6 +238,46 @@ export class Sim {
       }
     }
     if (s.cryo <= 0) this.lose('cryo');
+  }
+
+  // ---------- fog of war ----------
+  /** Recompute what's in sight; anything newly seen joins the explored map. */
+  private stepFog(force = false) {
+    const s = this.s, vis = this.vis, exp = this.exp;
+    vis.fill(0);
+    const see = (x: number, z: number, r: number) => {
+      const c = FOG_CELL, i0 = Math.max(0, Math.floor((x - r + REGION_HALF) / c)), i1 = Math.min(FOG_N - 1, Math.floor((x + r + REGION_HALF) / c));
+      const j0 = Math.max(0, Math.floor((z - r + REGION_HALF) / c)), j1 = Math.min(FOG_N - 1, Math.floor((z + r + REGION_HALF) / c));
+      for (let j = j0; j <= j1; j++) {
+        const cz = -REGION_HALF + (j + 0.5) * c - z;
+        for (let i = i0; i <= i1; i++) {
+          const cx = -REGION_HALF + (i + 0.5) * c - x;
+          if (cx * cx + cz * cz <= r * r) vis[j * FOG_N + i] = 1;
+        }
+      }
+    };
+    for (const b of s.buildings) {
+      const d = def(b);
+      see(b.x, b.z, b.progress < 1 ? bodyR(b) + 6 : d.sight ?? Math.max(RULES.buildingSight, (d.fireRange ?? 0) + 4));
+    }
+    for (const d of s.drones) see(d.x, d.z, RULES.droneSight);
+    for (const u of this.units) {
+      const d = content.units[u.unit];
+      see(u.x, u.z, d.sight ?? Math.max(d.aggro, d.range) + 8);
+    }
+    let grew = false;
+    for (let i = 0; i < vis.length; i++) if (vis[i] && !exp[i]) { exp[i] = 1; grew = true; }
+    if (grew || force || !s.explored) {
+      let str = '';
+      for (let i = 0; i < exp.length; i++) str += exp[i] ? '1' : '0';
+      s.explored = str;
+    }
+  }
+
+  /** Is region point (x, z) in sight right now? */
+  visible(x: number, z: number) {
+    const i = Math.floor((x + REGION_HALF) / FOG_CELL), j = Math.floor((z + REGION_HALF) / FOG_CELL);
+    return i >= 0 && j >= 0 && i < FOG_N && j < FOG_N && this.vis[j * FOG_N + i] === 1;
   }
 
   // ---------- drones ----------
@@ -962,7 +1012,11 @@ export class Sim {
     s.fauna.forEach((f, i) => { fa[i * 3] = f.x; fa[i * 3 + 1] = f.z; fa[i * 3 + 2] = f.heading; });
     const slots = this.slotsUsed;
     const army = new Float32Array(Math.max(1, slots) * STRIDE);
+    const radar = this.radarPowered();
+    const blips = new Float32Array(radar ? s.hostiles.length * 2 : 0);
+    s.hostiles.forEach((h, i) => { if (radar) { blips[i * 2] = h.x; blips[i * 2 + 1] = h.z; } });
     for (const h of s.hostiles) {
+      if (!this.visible(h.x, h.z)) continue; // in the fog: not drawn (radar shows it as a blip)
       const o = h.slot * STRIDE;
       army[o + F.X] = h.x; army[o + F.Z] = h.z; army[o + F.HEADING] = h.heading;
       army[o + F.TYPE] = UNIT_TYPE[h.unit] ?? UT.Swarmer;
@@ -978,8 +1032,16 @@ export class Sim {
       const mv = u.order.kind === 'move' ? u.order : null;
       return { id: u.id, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0 };
     });
-    const fx = new Float32Array(this.fx);
+    // effects in the fog stay hidden too
+    const kept: number[] = [];
+    for (let i = 0; i < this.fx.length; i += 5) {
+      const f = this.fx;
+      if (this.visible(f[i + 1], f[i + 2]) || this.visible(f[i + 3], f[i + 4])) kept.push(f[i], f[i + 1], f[i + 2], f[i + 3], f[i + 4]);
+    }
+    const fx = new Float32Array(kept);
     this.fx.length = 0;
+    const fog = new Uint8Array(FOG_N * FOG_N);
+    for (let i = 0; i < fog.length; i++) fog[i] = this.vis[i] ? 2 : this.exp[i];
     const drones: DroneSnap[] = s.drones.map((d) => {
       const t = d.task;
       let tx = d.x, tz = d.z;
@@ -991,7 +1053,6 @@ export class Sim {
       const working = (t.kind === 'build' || t.kind === 'repair') && Math.hypot(tx - d.x, tz - d.z) < 14;
       return { id: d.id, x: d.x, z: d.z, heading: d.heading, tx, tz, moving: t.kind !== 'idle', working, hp: d.hp / RULES.droneHp, task: t.kind, manual: !!d.manual };
     });
-    const radar = this.radarPowered();
     const packs = s.packs.map((p) => {
       let x = 0, z = 0, n = 0;
       for (const h of s.hostiles) if (h.pack === p.id) { x += h.x; z += h.z; n++; }
@@ -1000,7 +1061,7 @@ export class Sim {
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
       drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
-      army, armySlots: slots, fx, hostiles: s.hostiles.length, units,
+      army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units,
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,

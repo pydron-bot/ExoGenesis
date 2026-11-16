@@ -7,8 +7,7 @@ import type { ZoomCamera } from './camera';
 import type { BuildingDef, ColonyRules, UnitDef } from './content/defs';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
-import { F, STRIDE } from './skirmish/types';
-import { REGION_HALF } from './sim/types';
+import { FOG_N, REGION_HALF } from './sim/types';
 import { regionFlora, regionHeightRaw, terrainColor } from './world/planet';
 import type { RegionUi } from './world/region';
 import * as THREE from 'three';
@@ -45,6 +44,7 @@ export class ColonyHud {
   private cardKey = '';
   private menuKey = '';
   private terrain: HTMLCanvasElement | null = null;
+  private fogCv: HTMLCanvasElement | null = null;
   private last = 0;
   /**
    * Radar as the HUD shows it. A radar that's short of power can flick on and
@@ -352,12 +352,23 @@ export class ColonyHud {
     for (const d of s.drones) g.fillRect(px(d.x) - 1, pz(d.z) - 1, 3, 3);
     g.fillStyle = '#5ff3ff';
     for (const u of s.units) g.fillRect(px(u.x) - 1.5, pz(u.z) - 1.5, 3, 3);
-    g.fillStyle = '#ff4d5e';
-    for (let i = 0; i < (rv.offline ? 0 : s.armySlots); i++) {
-      const o = i * STRIDE;
-      if (!s.army[o + F.ALIVE] || s.army[o + F.TYPE] < 2) continue; // 0/1 = our rovers/tanks
-      g.fillRect(px(s.army[o + F.X]) - 1.5, pz(s.army[o + F.Z]) - 1.5, 3, 3);
+    // fog of war: unexplored black, explored dim (drawn under the radar blips)
+    if (s.fog) {
+      this.fogCv ??= Object.assign(document.createElement('canvas'), { width: FOG_N, height: FOG_N });
+      const fg = this.fogCv.getContext('2d')!, img = fg.createImageData(FOG_N, FOG_N);
+      for (let j = 0; j < FOG_N; j++) for (let i = 0; i < FOG_N; i++) {
+        const v = s.fog[j * FOG_N + i], o = ((FOG_N - 1 - j) * FOG_N + i) * 4; // canvas y runs south
+        img.data[o + 3] = v === 2 ? 0 : v === 1 ? 110 : 225;
+      }
+      fg.putImageData(img, 0, 0);
+      g.imageSmoothingEnabled = true;
+      g.drawImage(this.fogCv, 0, 0, W, W);
+      g.imageSmoothingEnabled = false;
     }
+    // radar blips: every predator on the map, fog or not
+    g.fillStyle = '#ff4d5e';
+    const bl = rv.offline ? new Float32Array(0) : s.blips ?? new Float32Array(0);
+    for (let i = 0; i < bl.length; i += 2) g.fillRect(px(bl[i]) - 1.5, pz(bl[i + 1]) - 1.5, 3, 3);
     // where the camera is looking
     g.strokeStyle = 'rgba(255,255,255,.7)';
     g.strokeRect(px(this.d.cam.fx) - 10, pz(this.d.cam.fz) - 7, 20, 14);

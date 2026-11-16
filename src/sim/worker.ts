@@ -37,7 +37,7 @@ setInterval(() => void autoSave(), 10000);
 
 function snapshot() {
   const snap = sim.snapshot();
-  post(snap, [snap.fauna.buffer, snap.army.buffer, snap.fx.buffer]);
+  post(snap, [snap.fauna.buffer, snap.army.buffer, snap.fx.buffer, snap.fog.buffer, snap.blips.buffer]);
 }
 
 ctx.onmessage = (e: MessageEvent<ToWorker>) => {

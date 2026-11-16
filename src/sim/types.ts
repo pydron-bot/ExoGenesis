@@ -7,6 +7,9 @@ export const TICK_HZ = 10;
 export const TICK_MS = 1000 / TICK_HZ;
 /** Half-width of the landing region, in world units (~1 unit = 10 m). */
 export const REGION_HALF = 120;
+/** Fog of war grid: FOG_N² cells of FOG_CELL units, row-major by z then x. */
+export const FOG_CELL = 4;
+export const FOG_N = Math.ceil((REGION_HALF * 2) / FOG_CELL);
 /** Hostile render slots (shared buffer layout with the skirmish renderer). */
 export const MAX_HOSTILES = 400;
 
@@ -142,6 +145,8 @@ export interface SimState {
   hostiles: Hostile[];
   /** Player combat units (absent in saves from before units existed). */
   units?: Unit[];
+  /** Fog of war: cells ever seen, one '0'/'1' per cell (absent in older saves). */
+  explored?: string;
   packs: Pack[];
   /** Next pack index and the tick it arrives; attackers spawned so far. */
   waves: { n: number; next: number; spawned: number };
@@ -209,8 +214,12 @@ export interface Snapshot {
   fauna: Float32Array;
   buildings: Building[];
   deposits: Deposit[];
-  /** Hostiles in the skirmish renderer's layout (see skirmish/types STRIDE / F). */
+  /** Hostiles in the skirmish renderer's layout (see skirmish/types STRIDE / F). Only ones in sight. */
   army: Float32Array;
+  /** Fog of war, FOG_N² cells: 0 never seen, 1 seen before, 2 in sight now. */
+  fog: Uint8Array;
+  /** Radar blips: x, z of every hostile on the map (empty without a powered radar). */
+  blips: Float32Array;
   armySlots: number;
   /** Effects this tick (skirmish FX layout). */
   fx: Float32Array;

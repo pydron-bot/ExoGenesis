@@ -21,6 +21,7 @@ export const unitShape = {
   splash: num({ label: 'Splash radius', min: 0, max: 50, step: 0.1, unit: 'u', optional: true, help: 'Units inside take half damage.' }),
   radius: num({ label: 'Body radius', min: 0.1, max: 20, step: 0.1, unit: 'u', help: 'Collision and selection size.' }),
   aggro: num({ label: 'Aggro radius', min: 0, max: 200, unit: 'u', help: 'How far it notices enemies on its own.' }),
+  sight: num({ label: 'Sight', min: 0, max: 240, unit: 'u', optional: true, help: 'How far it sees through the fog of war. Empty = its aggro or attack range (whichever is longer) + 8.' }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys', optional: true, help: 'Accord units with a cost can be produced at a Vehicle Bay (factory role).' }),
   buildSeconds: num({ label: 'Production time', min: 0, max: 600, step: 0.5, unit: 's', optional: true }),
   model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model.' }),
@@ -50,6 +51,7 @@ export const buildingShape = {
   cooldown: num({ label: 'Fire cooldown', min: 0.05, max: 30, step: 0.05, unit: 's', optional: true }),
   mineRate: num({ label: 'Mining rate', min: 0, max: 100, step: 0.05, unit: 'alloys/s', optional: true, help: 'Depots, while powered.' }),
   storage: num({ label: 'Storage', min: 0, max: 100000, unit: 'MJ', optional: true, help: 'Batteries. 1 MJ = 1 MW for 1 s.' }),
+  sight: num({ label: 'Sight', min: 0, max: 240, unit: 'u', optional: true, help: 'How far it sees through the fog of war. Empty = the colony rule\'s building sight (or firing range + 4 if longer).' }),
   model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model. (The Command Core\'s is fixed: the landing cinematic animates it.)' }),
 } satisfies Shape;
 export type BuildingDef = Infer<typeof buildingShape>;
@@ -65,6 +67,8 @@ export const colonyRulesShape = {
   droneBuildSeconds: num({ label: 'Drone fabrication time', min: 0, max: 600, unit: 's' }),
   maxDrones: int({ label: 'Max drones', min: 1, max: 20 }),
   maxUnits: int({ label: 'Combat unit limit', min: 0, max: 200, help: 'Most combat units alive (plus queued) at once.' }),
+  buildingSight: num({ label: 'Building sight', min: 0, max: 240, unit: 'u', help: 'How far buildings see through the fog of war, unless the building sets its own Sight.' }),
+  droneSight: num({ label: 'Drone sight', min: 0, max: 240, unit: 'u', help: 'How far worker drones see through the fog of war.' }),
   unitResponse: num({ label: 'Unit response radius', min: 0, max: 240, unit: 'u', help: 'Idle combat units go after hostiles attacking buildings within this distance of their post (they always fight what comes within their own aggro radius).' }),
   repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', help: 'Per drone.' }),
   buildRadius: num({ label: 'Build radius', min: 5, max: 240, unit: 'u', help: 'New buildings must be this close to a finished one (or the Core\'s Range).' }),

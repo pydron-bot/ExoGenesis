@@ -15,6 +15,7 @@ import { startSkirmish } from './skirmish/mode';
 import { Landing } from './landing';
 import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
+import { FogView, addFog } from './world/fog';
 import { ArmyView } from './skirmish/view';
 import type { SkSnapshot } from './skirmish/types';
 import { linePoints, placeProblem } from './sim/rules';
@@ -153,6 +154,9 @@ const region = new RegionView(
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
 );
 const cam = new ZoomCamera(camera);
+// fog of war (colony only; ?fog=0 turns it off)
+const fogView = new FogView(!skirmishMode && params.get('fog') !== '0');
+if (fogView.enabled) { region.enableFog(); addFog(globe.material as THREE.Material); }
 await loadStep('Building the base…');
 
 // ---------- HUD ----------
@@ -271,6 +275,7 @@ function restartGame() {
   sim.command({ type: 'landing', stage: 'deploy' });
   sim.flush(); // overwrite the old autosave right away
   hud.reset();
+  fogView.reset();
   ui.sel = null; setBuild(null);
   selectFirstDrone = true;
   document.body.classList.remove('more');
@@ -506,6 +511,9 @@ function frame(now: number) {
     }
     const alpha = sim.alpha(now);
     region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera);
+    // fog shows once the landing has handed over (the descent keeps its vista)
+    fogView.amount = landing ? 0 : 1;
+    fogView.update(sim.cur.fog, dt);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt);
     if (!ready) { ready = true; exo.ready = true; reveal(); }
   }
@@ -553,5 +561,6 @@ const exo = {
   canPlace,
   capture: () => { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
   height: regionHeight,
+  fogView,
 };
 (window as unknown as { __exo: typeof exo }).__exo = exo;

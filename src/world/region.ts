@@ -7,6 +7,7 @@ import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
 import { Flora } from './flora';
+import { addFog } from './fog';
 import {
   E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, worldToRegion,
   type GroundPad,
@@ -564,6 +565,7 @@ export class RegionView {
   private pads = new Map<number, GroundPad>();
   private padKey = '';
   private lineGhosts: THREE.Group[] = [];
+  private fog = false;
 
   constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1, private rules: RegionRules = { defs: {}, buildRadius: 30 }) {
     this.patch = buildPatch(look);
@@ -653,6 +655,19 @@ export class RegionView {
       if (dist < r && dist < bd) { bd = dist; best = b.id; }
     }
     return best;
+  }
+
+  /** Fog of war: the ground, flora, grazers and deposits darken where the colony can't see. */
+  enableFog() {
+    this.fog = true;
+    addFog(this.patch.material as THREE.Material);
+    addFog(this.faunaMesh.material as THREE.Material);
+    this.flora?.group.traverse((o) => { if (o instanceof THREE.Mesh) addFog(o.material as THREE.Material); });
+    for (const g of this.deposits) this.fogObj(g);
+  }
+
+  private fogObj(g: THREE.Object3D) {
+    g.traverse((o) => { if (o instanceof THREE.Mesh) addFog(o.material as THREE.Material); });
   }
 
   /** Test hook: region heading a building (or a named part of it) faces. */
@@ -1020,6 +1035,7 @@ export class RegionView {
       let g = this.deposits[i];
       if (!g) {
         g = buildDeposit(i + 1);
+        if (this.fog) this.fogObj(g);
         orient(g, d.x, d.z, i * 1.7, 0);
         this.flora?.clear(d.x, d.z, 7);
         this.details.add(g);

@@ -426,7 +426,17 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
     `regionHeightRaw`, unchanged. The patch mesh re-levels just the vertices near a changed pad.
   - **Fixed:** turret heads aimed mirrored (a child's rotation.y of θ faces heading yaw − θ, not θ).
   - `debug` command can now `spawn` a pack at a point (tests). `tools/build-smoke.mjs` (18 checks).
-- **Not in M1 yet:** fog of war, sound.
+- **Fog of war (2026-11-16, overnight):** the sim keeps a 60×60 grid of 4 u cells: in sight now / explored
+  (saved as `SimState.explored`). Sight: buildings `sight` or the colony's `buildingSight` (26 u, or firing
+  range + 4 if longer; Core 52, Radar 60), drones `droneSight` (16), units `sight` or max(aggro, range) + 8;
+  sites under construction see just past their footprint. Predators and their effects are only sent to the
+  renderer when in sight; a powered radar sends every predator as a minimap blip (`blips`). The minimap draws
+  the fog (unexplored black, explored dim). Rendering: `src/world/fog.ts` adds a shader step to the ground,
+  flora, grazers, deposits and the globe (inside the region only) that darkens by an eased fog texture:
+  unexplored 10% brightness, explored 42%. It works out region coords from the world position, so it
+  stacks on the flora's own shader. Fog stays off during the landing cinematic and fades in after; `?fog=0`
+  turns it off. `tools/fog-smoke.mjs` (11 checks).
+- **Not in M1 yet:** sound.
 
 ## 8. Open questions
 

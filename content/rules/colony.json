@@ -9,6 +9,8 @@
   "droneBuildSeconds": 20,
   "maxDrones": 4,
   "maxUnits": 12,
+  "buildingSight": 26,
+  "droneSight": 16,
   "unitResponse": 45,
   "repairRate": 25,
   "buildRadius": 30,

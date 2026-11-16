@@ -11,5 +11,6 @@
   "range": 45,
   "fireRange": 20,
   "damage": 6,
-  "cooldown": 0.8
+  "cooldown": 0.8,
+  "sight": 52
 }

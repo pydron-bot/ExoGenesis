@@ -7,5 +7,6 @@
   "hp": 250,
   "powerMW": -3,
   "buildSeconds": 16,
-  "clearance": 9
+  "clearance": 9,
+  "sight": 60
 }
