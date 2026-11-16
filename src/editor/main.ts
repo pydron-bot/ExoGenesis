@@ -236,8 +236,8 @@ export function control(d: Record<string, unknown>, key: string, f: Field, onCha
     case 'choice':
     case 'ref': {
       let opts = f.kind === 'choice' ? [...f.values] : [...(idIndex()[f.to] ?? [])].sort();
-      // model fields only offer model assets
-      if (f.kind === 'ref' && f.to === 'assets') opts = opts.filter((id) => (files.get(pathOf('assets', id))?.data as AssetDef | undefined)?.kind === 'model');
+      // asset fields only offer assets of the right kind (models unless the field says otherwise)
+      if (f.kind === 'ref' && f.to === 'assets') opts = opts.filter((id) => (files.get(pathOf('assets', id))?.data as AssetDef | undefined)?.kind === (f.assetKind ?? 'model'));
       const el = h('select');
       if (f.optional || !opts.includes(d[key] as string)) el.append(h('option', { value: '', textContent: '—' }));
       for (const o of opts) el.append(h('option', { value: o, textContent: o }));
@@ -397,7 +397,7 @@ async function doDelete() {
   const asset = cur.coll === 'assets' ? (cur.saved as unknown as AssetDef) : null;
   const users = asset ? usedBy(cur.id) : [];
   const what = asset ? `content/${cur.path} and public/media/${asset.kind}/${asset.file}` : `content/${cur.path}`;
-  const warn = users.length ? `\n\nStill used by ${users.map((u) => u.name).join(', ')}: they'll show a content error until you change their Model.` : '';
+  const warn = users.length ? `\n\nStill used by ${users.map((u) => u.name).join(', ')}: they'll show a content error until you change their Model (or sound file).` : '';
   if (!confirm(`Delete ${what}? (Recoverable from git until you commit.)${warn}`)) return;
   try {
     await api('DELETE', '/__content/file', { path: cur.path, baseHash: cur.baseHash });
@@ -500,6 +500,8 @@ function usedBy(assetId: string): Usage[] {
       if (d?.model === assetId) out.push({ coll: c, id: r.id, name: titleOf(c, r.id, d) });
     }
   }
+  const snd = files.get(pathOf('sound', 'sound'))?.data as Record<string, unknown> | undefined;
+  if (snd && Object.values(snd).includes(assetId)) out.push({ coll: 'sound', id: 'sound', name: 'Sound rules' });
   return out;
 }
 

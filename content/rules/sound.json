@@ -1,0 +1,8 @@
+{
+  "master": 0.8,
+  "combat": 0.55,
+  "events": 0.7,
+  "alerts": 0.8,
+  "ui": 0.45,
+  "ambient": 0.35
+}

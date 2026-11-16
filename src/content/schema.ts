@@ -45,6 +45,8 @@ export interface RefField extends Base<string> {
   kind: 'ref';
   /** Collection the id must exist in. */
   to: string;
+  /** Asset refs: which kind of asset fits (model, image, audio). Default model. */
+  assetKind?: string;
 }
 export interface ColorField extends Base<string> {
   kind: 'color';

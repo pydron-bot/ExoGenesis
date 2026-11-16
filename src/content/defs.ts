@@ -93,6 +93,49 @@ export const threatRulesShape = {
 } satisfies Shape;
 export type ThreatRules = Infer<typeof threatRulesShape>;
 
+/**
+ * Sounds the game plays (src/audio), in mixer categories. Each is synthesised
+ * unless the sound rules name an audio asset for it.
+ */
+export const SOUNDS = {
+  turretShot: { label: 'Turret shot', cat: 'combat' },
+  roverShot: { label: 'Rover shot', cat: 'combat' },
+  tankShot: { label: 'Tank shot', cat: 'combat' },
+  bite: { label: 'Predator bite', cat: 'combat' },
+  deathSmall: { label: 'Small death', cat: 'combat' },
+  deathBig: { label: 'Big death', cat: 'combat' },
+  placed: { label: 'Building placed', cat: 'events' },
+  online: { label: 'Building online', cat: 'events' },
+  unitReady: { label: 'Unit ready', cat: 'events' },
+  droneReady: { label: 'Drone fabricated', cat: 'events' },
+  packCleared: { label: 'Pack destroyed', cat: 'events' },
+  lost: { label: 'Drone / unit lost', cat: 'events' },
+  warning: { label: 'Warning', cat: 'alerts' },
+  alarm: { label: 'Alarm', cat: 'alerts' },
+  tap: { label: 'UI tap', cat: 'ui' },
+  deny: { label: 'UI refused', cat: 'ui' },
+  wind: { label: 'Wind (loop)', cat: 'ambient' },
+} as const;
+export type SoundId = keyof typeof SOUNDS;
+export const SOUND_CATS = ['combat', 'events', 'alerts', 'ui', 'ambient'] as const;
+export type SoundCat = (typeof SOUND_CATS)[number];
+
+const vol = (label: string, help?: string) => num({ label, min: 0, max: 1, step: 0.05, help });
+const soundFile = (id: SoundId) => ref('assets', {
+  label: `${SOUNDS[id].label} · file`, optional: true, assetKind: 'audio',
+  help: `An audio asset to play instead of the built-in synthesised ${SOUNDS[id].label.toLowerCase()}.${id === 'wind' ? ' Loops; pitch and filter still follow day and night.' : ''}`,
+});
+export const soundRulesShape = {
+  master: vol('Master volume', 'Multiplies everything. Players set their own volume in the ⋯ menu on top of this.'),
+  combat: vol('Combat', 'Shots, bites, deaths. Quieter with distance from the camera.'),
+  events: vol('Events', 'Placed, online, unit ready, drone fabricated, pack destroyed, losses.'),
+  alerts: vol('Alerts', 'Predator warnings and alarms (cryo integrity, buildings destroyed).'),
+  ui: vol('Interface', 'Button taps, refused orders.'),
+  ambient: vol('Ambient', 'The wind bed.'),
+  ...(Object.fromEntries((Object.keys(SOUNDS) as SoundId[]).map((id) => [id, soundFile(id)])) as { [K in SoundId]: ReturnType<typeof soundFile> }),
+} satisfies Shape;
+export type SoundRules = Infer<typeof soundRulesShape>;
+
 export const ASSET_KINDS = ['model', 'image', 'audio'] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 /** Allowed file extensions per kind (lowercase, no dot). */
@@ -176,6 +219,7 @@ export const COLLECTIONS = {
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
+  sound: { path: 'rules/sound.json', kind: 'single', shape: soundRulesShape, label: 'Sound', group: 'Rules' },
 } satisfies Record<string, Collection>;
 
 export type CollectionName = keyof typeof COLLECTIONS;

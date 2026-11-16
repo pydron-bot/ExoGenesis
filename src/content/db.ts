@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type RegionDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type RegionDef, type SoundRules, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -12,6 +12,7 @@ export interface ContentDb {
   assets: Record<string, AssetDef>;
   colony: ColonyRules;
   threats: ThreatRules;
+  sound: SoundRules;
 }
 
 export interface FileIssue extends Issue {
@@ -48,6 +49,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     assets: recs.assets,
     colony: recs.colony.colony,
     threats: recs.threats.threats,
+    sound: recs.sound.sound,
   } as unknown as ContentDb;
   issues.push(...crossIssues(db0));
   return { db: db0, issues };
@@ -83,6 +85,12 @@ function crossIssues(db: ContentDb): FileIssue[] {
   };
   modelRef('units', db.units);
   modelRef('buildings', db.buildings);
+  // sound files must be audio
+  for (const [k, f] of Object.entries(COLLECTIONS.sound.shape)) {
+    const id = f.kind === 'ref' && db.sound ? (db.sound as Record<string, unknown>)[k] : undefined;
+    const a = typeof id === 'string' ? db.assets[id] : undefined;
+    if (a && a.kind !== 'audio') out.push({ path: COLLECTIONS.sound.path, field: k, msg: `"${id}" is ${a.kind === 'image' ? 'an image' : 'a model'}, not audio` });
+  }
   // each role's game logic needs its numbers
   const NEEDS: Record<string, string[]> = { core: ['range'], depot: ['range', 'mineRate'], battery: ['storage'], turret: ['fireRange', 'damage', 'cooldown'] };
   for (const [id, b] of Object.entries(db.buildings)) {

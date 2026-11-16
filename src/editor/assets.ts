@@ -13,7 +13,7 @@ import { applyImport, forgetModel, loadModel, modelStats } from '../assets/model
 import { ASSET_EXT, ASSET_KINDS, ID_RE, mediaUrl, type AssetDef, type AssetKind } from '../content/defs';
 
 export interface MediaInfo { hash: string; bytes: number }
-export interface Usage { coll: 'units' | 'buildings'; id: string; name: string }
+export interface Usage { coll: 'units' | 'buildings' | 'sound'; id: string; name: string }
 
 export interface AssetHost {
   /** Asset records currently on disk. */
@@ -23,7 +23,7 @@ export interface AssetHost {
   usedBy(assetId: string): Usage[];
   /** Record using this built-in (no model set), and the asset replacing it if any. */
   builtinUse(b: Builtin): { user?: Usage; replacedBy?: string };
-  openRecord(coll: 'assets' | 'units' | 'buildings', id: string): void;
+  openRecord(coll: 'assets' | 'units' | 'buildings' | 'sound', id: string): void;
   openBuiltin(id: string): void;
   api<T = Record<string, unknown>>(method: string, url: string, body?: unknown): Promise<T>;
   toast(msg: string, bad?: boolean): void;
