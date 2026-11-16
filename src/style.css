@@ -1,4 +1,7 @@
+/* --bar-h: the bottom button bar's measured height (main.ts keeps it current) */
 :root {
+  --bar-h: 46px;
+  --above-bar: calc(var(--bar-h) + 16px + env(safe-area-inset-bottom));
   --cyan: #5ff3ff;
   --cyan-dim: rgba(95, 243, 255, 0.55);
   --amber: #ffb547;
@@ -48,7 +51,7 @@ html, body {
 #layer { color: var(--cyan); letter-spacing: 0.16em; font-weight: 600; }
 #alt, #fps { opacity: 0.7; font-size: 11px; }
 #log {
-  position: absolute; left: 12px; bottom: calc(66px + env(safe-area-inset-bottom)); max-width: min(460px, 70vw);
+  position: absolute; left: 12px; bottom: var(--above-bar); max-width: min(460px, 70vw);
   display: flex; flex-direction: column; gap: 3px;
 }
 .ev { background: var(--panel); border-left: 2px solid var(--cyan); padding: 3px 8px; font-size: 12px; transition: opacity 1.2s; }
@@ -68,7 +71,7 @@ html, body {
 #hud button.on { background: rgba(95,243,255,.2); color: var(--cyan); }
 #hud button small { opacity: 0.6; font-size: 10px; }
 #help {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(60px + env(safe-area-inset-bottom));
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above-bar);
   font-size: 11px; opacity: 0.45; text-align: center; width: max-content; max-width: 90vw; transition: opacity 2s;
 }
 #help.gone { opacity: 0; }
@@ -80,7 +83,6 @@ html, body {
   #alt, #fps { font-size: 10px; }
   #hud button { padding: 8px 8px; min-width: 36px; }
   #help { display: none; }
-  #log { bottom: calc(110px + env(safe-area-inset-bottom)); }
 }
 
 /* ---------- skirmish ---------- */
@@ -155,7 +157,7 @@ body.menu-open #card { display: none !important; }
 }
 #minimap.on { display: block; }
 #build-menu {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(62px + env(safe-area-inset-bottom));
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above-bar);
   display: none; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: min(760px, 96vw); pointer-events: auto;
 }
 #build-menu.open { display: flex; }
@@ -168,7 +170,7 @@ body.menu-open #card { display: none !important; }
 #hud #build-menu button.poor { opacity: 0.5; }
 #hud #build-menu button.poor small.cost { color: var(--crimson); opacity: 1; }
 #card {
-  position: absolute; right: 12px; bottom: calc(62px + env(safe-area-inset-bottom)); width: 270px;
+  position: absolute; right: 12px; bottom: var(--above-bar); width: 270px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; display: none; pointer-events: auto;
 }
 #card.on { display: block; }
@@ -195,9 +197,16 @@ body.skirmish #goals, body.skirmish #minimap, body.skirmish #card, body.skirmish
 @media (max-width: 640px) {
   #goals { max-width: 200px; }
   #minimap { width: 112px; height: 112px; top: calc(70px + env(safe-area-inset-top)); }
-  #card { left: 8px; right: 8px; width: auto; bottom: calc(104px + env(safe-area-inset-bottom)); background: rgba(6,14,22,.94); }
+  #card { left: 8px; right: 8px; width: auto; background: rgba(6,14,22,.94); }
   body.card-open #log { display: none; }
   #hud #build-menu button { background: rgba(6,14,22,.94); }
   #hud #build-menu button { min-width: 0; padding: 6px 8px; }
-  #build-menu { bottom: calc(104px + env(safe-area-inset-bottom)); }
+}
+
+/* phones: Save / Load / Look / Skirmish live behind ⋯ so the bar stays two rows */
+.more-btn { display: none; }
+@media (max-width: 640px) {
+  .more-btn { display: flex; }
+  #bar .extra { display: none; }
+  body.more #bar .extra { display: flex; }
 }

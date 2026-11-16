@@ -24,6 +24,22 @@ import type { RegionUi } from './world/region';
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
+// ---------- loading screen (markup + styles are inline in index.html) ----------
+const loaderEl = $('loader');
+/** Show a loading step and let the browser paint it before the next chunk of work. */
+async function loadStep(text: string, pct: number) {
+  $('loader-step').textContent = text;
+  $('loader-bar').style.width = `${pct}%`;
+  await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+}
+function loaderError(msg: string) {
+  const step = $('loader-step');
+  step.className = 'step err';
+  step.textContent = `Something went wrong while loading: ${msg}`;
+}
+addEventListener('error', (e) => { if (!document.body.classList.contains('loaded')) loaderError(e.message); });
+addEventListener('unhandledrejection', (e) => { if (!document.body.classList.contains('loaded')) loaderError(String(e.reason?.message ?? e.reason)); });
+
 if (contentIssues.length) {
   // Bad content: say exactly what's wrong instead of starting a half-broken game.
   const el = document.createElement('pre');
@@ -32,9 +48,11 @@ if (contentIssues.length) {
     .map((i) => `${i.path}${i.field ? ` · ${i.field}` : ''}: ${i.msg}`)
     .join('\n')}`;
   document.body.appendChild(el);
+  loaderEl.remove();
   throw new Error(`content: ${contentIssues.length} issue(s)`);
 }
 const regionDef = content.regions.touchdown;
+await loadStep('Shaping the landing site…', 10);
 setRegionTerrain(regionDef);
 
 // ---------- renderer / scene ----------
@@ -53,7 +71,9 @@ const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.2, 1.
 const fog = new THREE.Fog('#8fb0ad', 400, 1200);
 scene.fog = fog;
 
+await loadStep('Charting the solar system…', 22);
 const system = new SolarSystem(scene, $('labels'));
+await loadStep('Forming the planet…', 34);
 const globe = buildGlobe(look);
 if (look === 'smooth') {
   // match the globe to the textured landing patch as seen from a distance
@@ -61,10 +81,12 @@ if (look === 'smooth') {
   (globe.material as THREE.MeshStandardMaterial).color.setRGB(m, m * 0.98, m * 0.96);
 }
 scene.add(globe);
+await loadStep('Mapping regions…', 50);
 const provinces = new Provinces(scene, globe, $('labels'));
 // atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
 const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
 scene.add(atmosphere);
+await loadStep(skirmishMode ? 'Raising the battlefield…' : 'Growing alien flora…', 64);
 const floraParam = params.get('flora');
 const region = new RegionView(
   scene, look,
@@ -73,6 +95,7 @@ const region = new RegionView(
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
 );
 const cam = new ZoomCamera(camera);
+await loadStep('Waking the cryo bank…', 84);
 
 // ---------- HUD ----------
 const hudEl = $('hud');
@@ -278,6 +301,21 @@ function updateHud(dt: number, now: number) {
   });
 }
 
+// ---------- reveal + layout ----------
+function reveal() {
+  $('loader-step').textContent = 'Ready';
+  $('loader-bar').style.width = '100%';
+  document.body.classList.add('loaded');
+  loaderEl.classList.add('done');
+  setTimeout(() => loaderEl.remove(), 700);
+}
+// panels sit above the bottom bar, whatever height it wraps to
+const barEl = $('bar');
+const syncBar = () => document.documentElement.style.setProperty('--bar-h', `${barEl.offsetHeight}px`);
+new ResizeObserver(syncBar).observe(barEl);
+syncBar();
+$('b-more').onclick = () => { document.body.classList.toggle('more'); $('b-more').classList.toggle('on'); };
+
 // ---------- frame loop ----------
 const skyDay = new THREE.Color('#8fb0ad');
 const skyNight = new THREE.Color('#0b1622');
@@ -312,7 +350,7 @@ function frame(now: number) {
   if (skirmish) {
     region.updateOverlay(cam.dist, t);
     skirmish.update(now, dt);
-    if (!ready && skirmish.ready) { ready = true; exo.ready = true; }
+    if (!ready && skirmish.ready) { ready = true; exo.ready = true; reveal(); }
   } else if (sim.prev && sim.cur) {
     const day = smoothstep(-0.15, 0.25, sunUp);
     landing?.update(dt, day);
@@ -325,7 +363,7 @@ function frame(now: number) {
     const alpha = sim.alpha(now);
     region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, new Map(), dt);
-    if (!ready) { ready = true; exo.ready = true; }
+    if (!ready) { ready = true; exo.ready = true; reveal(); }
   }
   updateHud(dt, now);
   renderer.render(scene, camera);
