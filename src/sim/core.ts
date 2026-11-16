@@ -968,6 +968,7 @@ export class Sim {
           }
           s.packs.push(pack);
         }
+        if (c.people) this.people.debug(c.people);
         if (c.hurt) {
           const b = s.buildings.find((x) => x.id === c.hurt!.id);
           if (b) { b.hp -= c.hurt.hp; if (b.hp <= 0) this.destroyBuilding(b); }

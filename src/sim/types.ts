@@ -185,7 +185,7 @@ export type Command =
   | { type: 'landing'; stage: LandingStage }
   | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, or damage a building. */
-  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number } };
+  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
 
 export type ToWorker =
   | { type: 'cmd'; cmd: Command }

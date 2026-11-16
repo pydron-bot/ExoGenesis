@@ -2,7 +2,7 @@
   "embryos": 120,
   "lineages": 24,
   "cryoSafe": 50,
-  "embryoLoss": 0.35,
+  "embryoLoss": 0.6,
   "podSols": 1,
   "podMW": 1.5,
   "podBiomass": 0.06,

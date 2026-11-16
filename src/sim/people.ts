@@ -30,8 +30,11 @@ const DEFS = content.buildings;
 const DT = 1 / TICK_HZ;
 /** Colonists outdoors run for shelter from predators this close. */
 const SHELTER_R = 30;
-/** Predators this close to a building with people in it put the colony on alert (everyone stays in). */
-const ALERT_R = 40;
+/** Predators this close to any building or anyone outdoors put the colony on alert (everyone stays in)... */
+const ALERT_R = 45;
+/** ...until none have been within this range for ALERT_HOLD seconds. */
+const ALERT_CLEAR_R = 60;
+const ALERT_HOLD = 10;
 /** Pods can be stopped (embryo back to the bank) only this early. */
 const UNPOD_BEFORE = 0.25;
 const SHIFTS = { short: [8, 16], standard: [7, 18], long: [6, 21] } as const;
@@ -62,6 +65,7 @@ export class People {
   /** Why each colonist feels as they do (refreshed with the mood). */
   private why = new Map<number, [string, number][]>();
   private alert = false;
+  private alertQuiet = 0;
   private lostPending = 0;
   private lostAt = 0;
   private packsSeen = 0;
@@ -150,10 +154,11 @@ export class People {
       this.lostPending++;
       this.lastLoss = 'cryo';
     }
-    if (this.lostPending && (this.secs - this.lostAt > 8 || this.embryos() === 0)) {
+    // the first loss is announced at once, then at most every 20 s (with the running count)
+    if (this.lostPending && (this.secs - this.lostAt > 20 || this.embryos() === 0)) {
       const n = this.lostPending;
       this.lostPending = 0; this.lostAt = this.secs;
-      this.emit(`Cryo bank too warm: ${n} embryo${n > 1 ? 's' : ''} lost · ${this.embryos()} left`, 'bad', 'alarm');
+      this.emit(`Cryo bank too warm: ${n} embryo${n > 1 ? 's' : ''} lost · ${this.embryos()} left${this.embryos() ? '. Restore power!' : ''}`, 'bad', 'alarm');
       this.shock(-Math.min(6, n * 0.5));
       this.s.grief += Math.min(8, n);
     }
@@ -198,6 +203,24 @@ export class People {
     this.emit(`${c.name} (${Math.floor(this.age(c))}) has died: ${cause}`, 'bad', 'lost');
     // deaths the AI might have prevented cost it trust
     if (cause !== 'old age') this.shock(cause.includes('starv') ? -3 : -1.5);
+  }
+
+  /** Tests / playtesting: colonists straight out of a pod at the first Civilian Center, biomass, everyone's stance or wellbeing. */
+  debug(d: { colonists?: number; biomass?: number; stance?: number; wb?: number }) {
+    const s = this.s;
+    if (d.biomass) s.biomass = clamp(s.biomass + d.biomass, 0, this.storage());
+    const b = this.sim.s.buildings.find((x) => def(x)?.role === 'civic' && x.progress >= 1) ?? this.sim.s.buildings.find((x) => x.kind === 'core');
+    for (let i = 0; i < (d.colonists ?? 0) && b; i++) {
+      const lineage = this.rarestLine();
+      if (lineage < 0) break;
+      s.bank[lineage]--;
+      const curr = (['charter', 'charter', 'heritage', 'unity'] as const)[i % 4];
+      this.decant({ b: b.id, lineage, specialty: SPECIALTIES[i % SPECIALTIES.length], curriculum: curr, progress: 1, dark: 0 }, b);
+    }
+    for (const c of s.colonists) {
+      if (d.stance !== undefined) c.stance = d.stance;
+      if (d.wb !== undefined) c.wb = d.wb;
+    }
   }
 
   // ---------- commands ----------
@@ -479,15 +502,19 @@ export class People {
   }
 
   // ---------- moving about ----------
+  /** Called once a second: is the colony on alert? */
   private underAttack() {
-    const hs = this.sim.s.hostiles;
-    if (!hs.length) return false;
-    const occupied = new Set(this.s.colonists.map((c) => c.at));
-    for (const h of hs) {
-      for (const b of this.sim.s.buildings) if (occupied.has(b.id) && Math.hypot(b.x - h.x, b.z - h.z) < ALERT_R + bodyR(b)) return true;
-      for (const c of this.s.colonists) if (c.at < 0 && Math.hypot(c.x - h.x, c.z - h.z) < ALERT_R) return true;
-    }
-    return false;
+    const near = (r: number) => {
+      for (const h of this.sim.s.hostiles) {
+        for (const b of this.sim.s.buildings) if (def(b)?.role !== 'wall' && Math.hypot(b.x - h.x, b.z - h.z) < r + bodyR(b)) return true;
+        for (const c of this.s.colonists) if (c.at < 0 && Math.hypot(c.x - h.x, c.z - h.z) < r) return true;
+      }
+      return false;
+    };
+    if (near(ALERT_R)) { this.alertQuiet = 0; return true; }
+    if (!this.alert) return false;
+    this.alertQuiet = near(ALERT_CLEAR_R) ? 0 : this.alertQuiet + 1;
+    return this.alertQuiet < ALERT_HOLD;
   }
 
   private building(id: number) { return id >= 0 ? this.sim.s.buildings.find((b) => b.id === id) : undefined; }
@@ -497,10 +524,10 @@ export class People {
     const bs = this.sim.s.buildings;
     const core = bs.find((b) => b.kind === 'core');
     const shelter = () => {
-      // nearest roof: home, any civic building, the Core
+      // the nearest roof of any kind (not a wall)
       let best = this.building(c.home) ?? core, bd = best ? Math.hypot(best.x - c.x, best.z - c.z) : Infinity;
       for (const b of bs) {
-        if (b.progress < 1 || (def(b)?.role !== 'civic' && b.kind !== 'core')) continue;
+        if (b.progress < 1 || def(b)?.role === 'wall') continue;
         const d = Math.hypot(b.x - c.x, b.z - c.z);
         if (d < bd) { bd = d; best = b; }
       }
@@ -543,7 +570,7 @@ export class People {
     }
     const p = c.path;
     while (p.length > 2 && Math.hypot(p[0] - c.x, p[1] - c.z) < 1) p.splice(0, 2);
-    const run = this.alert ? 1.7 : 1;
+    const run = this.alert ? 2.2 : 1;
     const [tx, tz] = p.length ? [p[0], p[1]] : door();
     const dx = tx - c.x, dz = tz - c.z, d = Math.hypot(dx, dz);
     const step = Math.min(d, P.walkSpeed * run * DT * (this.adult(c) ? 1 : 0.8));
@@ -767,7 +794,7 @@ export class People {
       return {
         id: c.id, name: c.name, lineage: lineName(c.lineage), age: Math.floor(this.age(c)), specialty: c.specialty, traits: [...c.traits],
         origin: c.origin, imprint: c.imprint, wb: c.wb, stance: c.stance, bloc: blocOf(c.stance), hp: c.hp / P.colonistHp,
-        home: name(c.home), job: name(c.job), doing, strike: !!c.strike, partner: pt?.name ?? null, why: (this.why.get(c.id) ?? []).slice(0, 6),
+        home: name(c.home), job: name(c.job), doing, strike: !!c.strike, partner: pt?.name ?? null, x: c.x, z: c.z, outdoors: c.at < 0, jobId: c.job, atId: c.at, why: (this.why.get(c.id) ?? []).slice(0, 6),
       };
     });
     const housing = bs.reduce((m, b) => m + (b.progress >= 1 && def(b)?.role === 'civic' ? def(b).housing ?? 0 : 0), 0);

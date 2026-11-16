@@ -365,7 +365,7 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
 |---|---|---|---|
 | **M0** ✅ (tech demo 2026-11-15) | Foundations | Vite + TS + Three.js scaffold; worker sim, fixed tick, command messaging; IndexedDB save/load; zoom prototype (region ↔ globe ↔ system) on desktop and a phone | Zoom feels good at 60 fps on a phone; a save round-trips |
 | **M1** 🛠 (playable 2026-11-15) | One region | Pod + worker drone start, building placement, solar, mining depot, energy flow, cryo bank power, radar, turrets, wild fauna attacks, vector-drag orders, combat units (Vehicle Bay, 2026-11-16) | **Are the first 20 minutes fun?** |
-| **M2** | People | Civilian Processing Center, growth pods, named colonists, lineages, diversity, compressed clock + ageing, blocs and Trust | Losing a colonist hurts; the colony has politics |
+| **M2** 🛠 (slice 1 playable 2026-11-16) | People | Civilian Processing Center, growth pods, named colonists, lineages, diversity, compressed clock + ageing, blocs and Trust | Losing a colonist hurts; the colony has politics |
 | **M3** | The planet | Multiple regions, planet layer, persistence and revisits, relic defenses, vehicle shop and tech lab, research tree, inhabitants | Holding territory is a strategy problem |
 | **M4** | Act 1 complete | Act 1 story, inhabitant contact paths, memorial, audio, mobile UX pass, onboarding | Act 1 playable start to finish |
 | **M5** | The system | System layer, radio contact, shipyard, shuttles, moon/asteroid outposts, rival probes (abstract sim) | Act 2 contact and travel work |
@@ -477,6 +477,63 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
     the recipes in `src/audio/synth.ts` are first guesses for Derek to tune by ear).
 - **Not in M1 yet:** nothing left on the list; next is a full M1 playtest.
 
+### M2 slice 1 as built (2026-11-16) — people, happiness, AI acceptance
+Code: `src/sim/people.ts` (+ `people-types.ts`, `names.ts`), HUD `src/people-hud.ts`, walkers
+`src/world/colonists.ts`. Numbers in `content/rules/people.json` (editor: Rules → People rules).
+Test: `tools/people-smoke.mjs`; headless: `node tools/balance.mjs --strategy people [--peaceful]
+[--imprint charter|heritage|unity] [--policy council=assembly,…]`.
+
+- **Clock:** 1 sol = 1 year (sol = 6 real minutes). Pod-grown colonists step out at 16; lifespan ~75.
+- **Cryo bank = 120 embryos in 24 lineages.** Integrity % stays the thermal buffer driven by power;
+  below 50% embryos die (faster the lower it goes, 0.6/s at 0%). Game over when there are no
+  embryos, no colonists and no pods left (or the Core falls). Idle colony now loses at ~8 min (was 6).
+- **Civilian Center** (role `civic`, 150◆, −1.5 MW): 2 growth pods, houses 6, 1 Medic slot.
+  **Hydroponics** (role `farm`, 60◆, −1.2 MW): biomass, 2 Botanist slots. Biomass is a new
+  stockpile (🌱); colonists eat it, pods eat it.
+- **Growth pods:** pick a **specialty** and an **imprint** (what the AI teaches):
+  *Charter* (partnership, stance ~58), *Heritage* (human self-reliance, ~24), *Unity* (AI as
+  guardian, ~88). The pod takes the rarest surviving lineage (keeps diversity up). 1 sol, 1.5 MW
+  + biomass the whole time; 60 s without power or biomass kills the child (×1.5 with a Medic at
+  work). Pods share the cryo bank's power priority. Stoppable only before 25%.
+- **Colonists walk.** Auto-housed, auto-staffed (specialists to matching buildings first), walk to
+  work during shift hours and home after; on alert (predators near any building) everyone shelters
+  in the nearest building and runs (6.6 u/s). Outdoors they can be killed; a destroyed building
+  hurts the people inside. Figures are coloured by bloc. Tap one for their card.
+- **Staffing bonus:** each worker present adds +15% (+10% more if specialty matches; Diligent ×1.5;
+  Devoted ×1.1) to the building's output: farm biomass, depot mining, solar MW, turret damage, bay
+  speed. Output follows the shift.
+- **Two meters per colonist.** *Wellbeing* (0–100) eases toward a target built from food,
+  rations, home (powered?), work hours, grief, fear, partner, medical care, injuries, traits, and
+  **whether the council/oversight policies suit their bloc**. *Stance* (AI acceptance, 0–100)
+  drifts with policy, misery (blamed on the AI), traits, housemates (social pull) and shocks
+  (preventable deaths −, packs beaten +). Contentment settles people toward partnership, not
+  devotion. Blocs: **Autonomists** < 35 ≤ **Partners** ≤ 75 < **Devoted**.
+- **Policies** (Colony panel): Work hours, Rations, Oversight, Council. Each bloc likes different
+  answers, so there's no setting that pleases everyone.
+- **Consequences:** wellbeing < 25 → strike (stops working). Angry Autonomists sabotage buildings
+  (Oversight Light ×1.5, Standard catches half, Total stops it but Autonomists hate it).
+  Autonomist majority + misery for half a sol → a third of them **walk out** to found their own
+  settlement (seed for Act 2 defections). 60%+ Partners and wellbeing 65+ for a sol →
+  **Breakthrough**: +25% output for half a sol. Devoted work harder and have few children.
+- **Families:** housemates of different lineages pair up; settled, happy couples with room have
+  children (born colonists lean toward autonomy, −15 from their parents). Couples move to a Center
+  with room. Children come of age at 16 and take the specialty with the most open jobs.
+- **Genetic diversity** (effective lineages / 24): below 60% new people may be *Frail*. A lineage
+  with no embryos and no one living is announced as gone. Memorial log keeps every loss.
+- **HUD:** strip shows ❄ embryos, 🌱 biomass (+/min), 👤 colonists (+pods), ☺ wellbeing ⚖ AI
+  acceptance; tapping 👤/☺ opens the Colony panel (Colony · People · Cryo bank · Memorial). New
+  goals: Hydroponics, Center + pod, first colonist.
+
+Headless results (90 min, no predators, bot keeps pods busy): Charter colonies stay Partner-led
+(stance ~62–74) and grow to ~40; Heritage colonies are Autonomist and, once food got short,
+spiralled through strikes (farms unstaffed) into starvation, sabotage and a walkout. With
+predators on, the people bot lost its Core at ~12 min because it spent on the colony instead of
+turrets: the people economy competes with defense — tune after a playtest.
+
+Not in slice 1 yet: an inhabitant/rival dimension to stance, natural-birth vs pod-born politics
+beyond the −15 lean, Devoted petitions, a dedicated Habitat building, research (Breakthroughs
+are just an output surge for now), aged colonists' retirement.
+
 ## 8. Open questions
 
 **Story**
@@ -497,9 +554,7 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
 - Is there a skirmish / sandbox mode outside the campaign?
 
 **Mechanics**
-- Clock speed — how many minutes per game year.
-- Pod speed and whether the speed-vs-quality trade-off is in.
-- Which blocs ship (probably three).
+- Pod speed-vs-quality trade-off: still open (pod cycle is 1 sol, no fast/fragile option yet).
 
 **Decided**
 - 2026-11-14: player is always the coop probe; all three land at the same time on different
@@ -515,6 +570,11 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
   then the whole planet opens with periodic story events. Failure = losing the Command Core,
   the cryo bank or the colonists.
 - 2026-11-15: campaign regions are **hand-authored** (map editor). Tooling plan in §6.4.
+- 2026-11-16 (M2): **1 sol = 1 year**; pod cycle 1 sol (first proposal was 2 sols, cut so the first
+  colonist arrives inside the first 20 minutes). **Two meters per colonist** — wellbeing and stance
+  (AI acceptance) — with blocs from stance: Partners / Autonomists / Devoted (Earthers dropped).
+  Colonists are **visible walkers who staff buildings**, never directly commanded. The cryo bank is
+  counted embryos by lineage; integrity stays as the power-driven buffer.
 
 ## 9. Proof-of-concept results (2026-11-15)
 

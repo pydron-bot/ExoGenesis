@@ -140,6 +140,10 @@ export interface ColonistSnap {
   id: number; name: string; lineage: string; age: number; specialty: Specialty | null; traits: Trait[];
   origin: 'pod' | 'born'; imprint?: Curriculum; wb: number; stance: number; bloc: Bloc; hp: number;
   home: string | null; job: string | null; doing: string; strike: boolean; partner: string | null;
+  /** Where they are (a building's centre when indoors). */
+  x: number; z: number; outdoors: boolean;
+  /** Building ids: job, and where they are (-1 outdoors). */
+  jobId: number; atId: number;
   /** Why their wellbeing is what it is (biggest effects first). */
   why: [string, number][];
 }
