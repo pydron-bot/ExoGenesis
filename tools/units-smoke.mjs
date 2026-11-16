@@ -120,6 +120,7 @@ check(true, 'units arrived, spread out around the point');
 s = await cur();
 const t = s.units.find((u) => u.unit === 'tank');
 await page.keyboard.press('Escape');
+await page.evaluate(() => __exo.sim.setSpeed(0)); // a natural pack arriving mid-drag made this flaky
 await wait(1200);
 p = await unitAt(t.id);
 await page.mouse.move(p.x, p.y);
@@ -129,7 +130,7 @@ await page.mouse.up();
 await wait(400);
 s = await cur();
 ids = await sel();
-check(ids?.length === 1 && ids[0] === t.id && s.units.find((u) => u.id === t.id).order === 'move', 'dragging from a unit orders just that unit');
+check(ids?.length === 1 && ids[0] === t.id && s.units.find((u) => u.id === t.id).order === 'move', `dragging from a unit orders just that unit${process.env.DBG ? ` (sel ${JSON.stringify(ids)} tank ${t.id} at ${JSON.stringify(p)} order ${s.units.find((u) => u.id === t.id)?.order} el ${await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id || document.elementFromPoint(x, y)?.tagName, [p.x, p.y])})` : ''}`);
 
 // 5. they fight
 await page.evaluate(() => __exo.sim.setSpeed(3));

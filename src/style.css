@@ -161,6 +161,9 @@ body.menu-open #card { display: none !important; }
   border: 1px solid var(--line); border-radius: 4px; background: var(--panel); pointer-events: auto; display: none;
 }
 #minimap.on { display: block; }
+#minimap.off { border-color: rgba(255,181,71,.5); }
+#bar .sm { display: none; }
+.r.dim { opacity: 0.5; }
 #build-menu {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above-bar);
   display: none; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: min(760px, 96vw); pointer-events: auto;
@@ -214,4 +217,48 @@ body.skirmish #goals, body.skirmish #minimap, body.skirmish #card, body.skirmish
   .more-btn { display: flex; }
   #bar .extra { display: none; }
   body.more #bar .extra { display: flex; }
+}
+
+/* ---------- phones: compact HUD ---------- */
+@media (max-width: 640px) {
+  #brand { display: none; }
+  #top { left: 6px; right: 6px; top: calc(4px + env(safe-area-inset-top)); gap: 4px; align-items: flex-start; }
+  /* one panel, fixed slots: nothing moves when a value appears or goes away */
+  #res {
+    /* fixed column widths sized for the widest values, so nothing shifts as numbers change */
+    display: grid; grid-template-columns: calc(12ch + 8px) calc(7ch + 8px) calc(7.5ch + 8px) calc(8.5ch + 8px); gap: 1px 2px; width: max-content; max-width: 100%;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px 3px; font-size: 11px;
+  }
+  #res .r { background: none; border: 0; padding: 2px 4px; white-space: nowrap; overflow: hidden; }
+  #res .r.bad { animation: blink 1s steps(2) infinite; }
+  #r-energy { grid-area: 1 / 1; } #r-battery { grid-area: 1 / 2; } #r-alloys { grid-area: 1 / 3; } #r-cryo { grid-area: 1 / 4; }
+  #r-clock { grid-area: 2 / 1 / 3 / 3; } #r-threat { grid-area: 2 / 3; } #r-army { grid-area: 2 / 4; }
+  #res .u, #res .w { display: none; }
+  #tele { background: none; border: 0; padding: 0; top: calc(6px + env(safe-area-inset-top)); right: 8px; max-width: none; }
+  #layer, #alt { display: none; }
+  #fps { font-size: 9px; opacity: 0.5; }
+  #minimap { width: 92px; height: 92px; top: calc(52px + env(safe-area-inset-top)); right: 6px; }
+  #goals { max-width: calc(100vw - 118px); padding: 3px 7px; }
+  #goals.min #goals-head { display: none; }
+  #goals.min #goals-list { margin: 0; padding-left: 0; list-style: none; }
+  #goals.min #goals-list li.now { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #goals.min #goals-list li.now::after { content: ' ▾'; opacity: 0.5; }
+  /* bottom bar on one row */
+  #bar { left: 4px; right: 4px; gap: 4px; flex-wrap: wrap; }
+  #bar .grp { padding: 1px; }
+  #hud #bar button { padding: 9px 6px; min-width: 32px; }
+  #bar .lg { display: none; }
+  #bar .sm { display: inline; }
+  /* build menu: 3-column grid of compact tiles above the bar */
+  #build-menu.open { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; left: 6px; right: 6px; transform: none; max-width: none; }
+  #hud #build-menu button { padding: 5px 6px; font-size: 11px; gap: 1px; }
+  #hud #build-menu button b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  #hud #build-menu .meta small { font-size: 10px; }
+  /* selection card */
+  #card { padding: 6px 8px; }
+  #card .row { font-size: 11px; line-height: 1.45; }
+  #card .row.tip { display: none; }
+  #card .grp { margin-top: 5px; }
+  #hud #card button { padding: 7px 8px; }
+  .ev { font-size: 11px; }
 }

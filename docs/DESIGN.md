@@ -401,6 +401,13 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
     are viable but not stronger than turrets. `tools/balance.mjs --trace` prints the Core, hostiles and units
     every 10 s.
   - Tests: `tools/units-smoke.mjs` (18 checks).
+- **Phone HUD pass (2026-11-16, from Derek's iPhone screenshots):** the top bar wrapped into 4 rows and items
+  appeared/vanished (radar browning out toggled the minimap and pack timer; battery/threat/army pills popped
+  in and reflowed the rest). Now: phones get one two-row strip with fixed-width slots; empty values dim
+  ("—") instead of disappearing; the HUD rides through radar brownouts of under 4 s and shows a dimmed
+  "RADAR OFFLINE" minimap beyond that; build menu = 3-column grid above the bar; bar on one row (Surf / Planet
+  / Sys); goal = one truncated line; card tips hidden. Commands while paused now update the screen at once.
+  `node tools/phone-shot.mjs <dir> [width]` screenshots the phone layout.
 - **Not in M1 yet:** fog of war, walls, building rotation, terrain flattening under buildings, sound.
 
 ## 8. Open questions

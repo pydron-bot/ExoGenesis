@@ -46,6 +46,12 @@ export class ColonyHud {
   private menuKey = '';
   private terrain: HTMLCanvasElement | null = null;
   private last = 0;
+  /**
+   * Radar as the HUD shows it. A radar that's short of power can flick on and
+   * off from tick to tick; the minimap and pack timer ride through short drops
+   * instead of blinking. `at` = game secs it was last powered.
+   */
+  private radar = { at: -1e9, next: null as number | null, built: false };
   cur: Snapshot | null = null;
 
   constructor(private d: HudDeps) {
@@ -106,6 +112,9 @@ export class ColonyHud {
   /** Call every frame; it redraws at ~6 Hz. */
   update(s: Snapshot, speed: number, now: number) {
     this.cur = s;
+    if (s.radar) { this.radar.at = s.secs; this.radar.next = s.nextPack; }
+    if (s.secs < this.radar.at) this.radar.at = -1e9; // new game / load
+    this.radar.built = s.buildings.some((b) => b.progress >= 1 && this.d.defs[b.kind]?.role === 'radar');
     if (now - this.last < 160) return;
     this.last = now;
     this.renderBar(s, speed);
@@ -116,19 +125,27 @@ export class ColonyHud {
     this.renderOver(s);
   }
 
+  /** Radar on (allowing a few seconds' brownout), and its pack timer. */
+  private radarView(s: Snapshot) {
+    const on = this.radar.built && s.secs - this.radar.at < 4;
+    const next = on ? (s.radar ? s.nextPack : this.radar.next === null ? null : Math.max(0, this.radar.next - (s.secs - this.radar.at))) : null;
+    return { on, next, offline: this.radar.built && !on };
+  }
+
   /** Force the card to rebuild (selection changed). */
   selected() { this.cardKey = ''; if (this.cur) this.renderCard(this.cur); }
 
   private renderBar(s: Snapshot, speed: number) {
     const e = this.el;
     const short = s.short > 0.01, draining = s.gen < s.draw && s.stored > 0;
-    e.energy.innerHTML = `⚡ <b>${s.gen.toFixed(1)}</b> / ${s.draw.toFixed(1)} MW`;
+    e.energy.innerHTML = `⚡ <b>${s.gen.toFixed(1)}</b>/${s.draw.toFixed(1)}<span class="u"> MW</span>`;
     e.energy.className = `r ${short ? 'bad' : draining || s.gen < s.draw ? 'warn' : ''}`;
     e.energy.title = short ? `Cryo bank short ${s.short.toFixed(1)} MW` : 'Power generated / wanted';
-    e.battery.style.display = s.storageMax > 0 ? '' : 'none';
+    // every slot stays put (dimmed when empty) so nothing jumps around on a phone
     const pct = s.storageMax > 0 ? (s.stored / s.storageMax) * 100 : 0;
-    e.battery.innerHTML = `🔋 <b>${pct.toFixed(0)}%</b>`;
-    e.battery.className = `r ${draining && pct < 25 ? 'warn' : ''}`;
+    e.battery.innerHTML = s.storageMax > 0 ? `🔋 <b>${pct.toFixed(0)}%</b>` : '🔋 <b>—</b>';
+    e.battery.className = `r ${s.storageMax <= 0 ? 'dim' : draining && pct < 25 ? 'warn' : ''}`;
+    e.battery.title = s.storageMax > 0 ? 'Battery charge' : 'No Battery Bank yet';
     e.alloys.innerHTML = `◆ <b>${Math.floor(s.alloys)}</b>`;
     e.cryo.innerHTML = `❄ <b>${s.cryo.toFixed(1)}%</b>`;
     e.cryo.className = `r ${s.cryo < 30 ? 'bad' : short ? 'warn' : ''}`;
@@ -137,13 +154,15 @@ export class ColonyHud {
     const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
     e.clock.textContent = `SOL ${sl} · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} ${s.daylight > 0.5 ? '☀' : '☾'}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;
     const seen = s.packs.filter((p) => p.seen);
-    if (seen.length) { e.threat.style.display = ''; e.threat.className = 'r bad'; e.threat.innerHTML = `⚠ <b>${seen.reduce((m, p) => m + p.alive, 0)}</b> predators`; }
-    else if (s.nextPack !== null) { e.threat.style.display = ''; e.threat.className = `r ${s.nextPack < 30 ? 'warn' : ''}`; e.threat.innerHTML = `⚠ next pack <b>${mmss(s.nextPack)}</b>`; }
-    else e.threat.style.display = 'none';
+    const rv = this.radarView(s);
+    if (seen.length) { e.threat.className = 'r bad'; e.threat.innerHTML = `⚠ <b>${seen.reduce((m, p) => m + p.alive, 0)}</b><span class="w"> predators</span>`; e.threat.title = 'Predators on the map'; }
+    else if (rv.next !== null) { e.threat.className = `r ${rv.next < 30 ? 'warn' : ''}`; e.threat.innerHTML = `⚠<span class="w"> next pack</span> <b>${mmss(rv.next)}</b>`; e.threat.title = 'Next predator pack (radar)'; }
+    else if (rv.offline) { e.threat.className = 'r warn'; e.threat.innerHTML = '⚠ <b>off</b><span class="w"> (radar)</span>'; e.threat.title = 'The radar has no power'; }
+    else { e.threat.className = 'r dim'; e.threat.innerHTML = '⚠ <b>—</b>'; e.threat.title = 'Build a Radar to see packs coming'; }
     const n = s.units.length;
-    e.army.style.display = n ? '' : 'none';
     e.army.innerHTML = `⚔ <b>${n}</b>`;
-    e.army.classList.toggle('on', this.d.ui.sel?.kind === 'units');
+    e.army.className = `r tap ${n ? '' : 'dim'} ${this.d.ui.sel?.kind === 'units' ? 'on' : ''}`;
+    e.army.title = n ? 'Combat units: tap to select them all' : 'No combat units yet (Vehicle Bay)';
   }
 
   private renderGoals(s: Snapshot) {
@@ -166,7 +185,7 @@ export class ColonyHud {
     this.menuKey = key;
     this.el.menu.innerHTML = items.map(([k, d]) => {
       const pw = d.powerMW > 0 ? `+${d.powerMW} MW${d.role === 'solar' ? ' by day' : ''}` : d.powerMW < 0 ? `${d.powerMW} MW` : d.role === 'battery' ? `${d.storage} MJ` : '';
-      return `<button data-kind="${k}" class="${alloys < d.cost ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><small class="cost">${d.cost}◆</small><small>${pw}</small></button>`;
+      return `<button data-kind="${k}" class="${alloys < d.cost ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">${d.cost}◆</small> <small>${pw}</small></span></button>`;
     }).join('');
   }
 
@@ -208,7 +227,7 @@ export class ColonyHud {
       rows.push(['Select', this.coarse() ? 'hold or double-tap: all of a type' : 'double-click: all of a type']);
       html = `<div class="t">${esc(title)}</div><div class="s ${fighting ? 'warn' : ''}">${st}</div>
         <div class="hp"><i style="width:${(hp * 100).toFixed(0)}%;background:${hp > 0.6 ? '#5bff9a' : hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+        ${rows.map(([k, v]) => `<div class="row ${k === 'Move' || k === 'Select' ? 'tip' : ''}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
         <div class="grp"><button data-act="stop" title="Stop and guard here (X)">Stop</button><button data-act="deselect">Done</button></div>`;
     } else if (sel.kind === 'drone') {
       const dr = s.drones.find((x) => x.id === sel.id);
@@ -217,7 +236,7 @@ export class ColonyHud {
       const task = { idle: 'Idle', move: 'Moving', build: 'Building', repair: 'Repairing' }[dr.task];
       html = `<div class="t">WORKER DRONE ${n}</div><div class="s">${task}${dr.manual ? ' (your order)' : ''}</div>
         <div class="hp"><i style="width:${(dr.hp * 100).toFixed(0)}%"></i></div>
-        <div class="row"><span>Tip</span><span>drag from it, or tap the ground</span></div>`;
+        <div class="row tip"><span>Tip</span><span>drag from it, or tap the ground</span></div>`;
     } else {
       const b = s.buildings.find((x) => x.id === sel.id);
       const d = b && this.d.defs[b.kind];
@@ -311,8 +330,10 @@ export class ColonyHud {
 
   private renderMini(s: Snapshot) {
     const cv = this.el.mini;
-    cv.classList.toggle('on', s.radar);
-    if (!s.radar) return;
+    const rv = this.radarView(s);
+    cv.classList.toggle('on', this.radar.built);
+    cv.classList.toggle('off', rv.offline);
+    if (!this.radar.built) return;
     const g = cv.getContext('2d')!, W = cv.width;
     const px = (x: number) => ((x / REGION_HALF + 1) / 2) * W, pz = (z: number) => ((-z / REGION_HALF + 1) / 2) * W;
     g.imageSmoothingEnabled = false;
@@ -332,7 +353,7 @@ export class ColonyHud {
     g.fillStyle = '#5ff3ff';
     for (const u of s.units) g.fillRect(px(u.x) - 1.5, pz(u.z) - 1.5, 3, 3);
     g.fillStyle = '#ff4d5e';
-    for (let i = 0; i < s.armySlots; i++) {
+    for (let i = 0; i < (rv.offline ? 0 : s.armySlots); i++) {
       const o = i * STRIDE;
       if (!s.army[o + F.ALIVE] || s.army[o + F.TYPE] < 2) continue; // 0/1 = our rovers/tanks
       g.fillRect(px(s.army[o + F.X]) - 1.5, pz(s.army[o + F.Z]) - 1.5, 3, 3);
@@ -340,6 +361,15 @@ export class ColonyHud {
     // where the camera is looking
     g.strokeStyle = 'rgba(255,255,255,.7)';
     g.strokeRect(px(this.d.cam.fx) - 10, pz(this.d.cam.fz) - 7, 20, 14);
+    if (rv.offline) {
+      g.fillStyle = 'rgba(5,10,16,.6)';
+      g.fillRect(0, 0, W, W);
+      g.fillStyle = '#ffb547';
+      g.font = `600 ${Math.round(W / 9)}px ui-monospace, monospace`;
+      g.textAlign = 'center';
+      g.fillText('RADAR', W / 2, W / 2 - 4);
+      g.fillText('OFFLINE', W / 2, W / 2 + W / 9);
+    }
   }
 
   private renderOver(s: Snapshot) {
