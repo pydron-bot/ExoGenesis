@@ -589,6 +589,58 @@ export function buildDeposit(seed: number): THREE.Group {
   return g;
 }
 
+/** Civilian Center: a domed habitat with two growth pods (named 'gpod', lit while running) and a lit window band. */
+export function buildCivic(): THREE.Group {
+  const g = new THREE.Group();
+  const hull = metal('#c9cfd4'), dark = metal('#454b52');
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(6.4, 6.8, 0.8, 10), dark);
+  plinth.position.y = 0.4;
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 5.6, 2.6, 10), hull);
+  wall.position.y = 2.1;
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(5.4, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hull);
+  dome.position.y = 3.4;
+  dome.scale.y = 0.62;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(5.62, 5.62, 0.35, 10, 1, true), glow('#ffe2a8', 1.6));
+  band.position.y = 2.5;
+  band.name = 'windows';
+  const skylight = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.3, 8), glow('#ffe2a8', 1.2));
+  skylight.position.y = 6.75;
+  g.add(plinth, wall, dome, band, skylight);
+  // growth pods: glass capsules on the south side, cyan while a child grows inside
+  for (const x of [-1.9, 1.9]) {
+    const cradle = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 1.6), dark);
+    cradle.position.set(x, 0.8, -6.1);
+    const pod = new THREE.Mesh(new THREE.CapsuleGeometry(0.62, 1.5, 3, 10), glow('#7ff7ff', 0.25));
+    pod.position.set(x, 2.2, -6.1);
+    pod.name = 'gpod';
+    g.add(cradle, pod);
+  }
+  return g;
+}
+
+/** Hydroponics: three greenhouse tunnels, green-lit inside. */
+export function buildFarm(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#4a4f55');
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.4, 7.4), dark);
+  slab.position.y = 0.2;
+  g.add(slab);
+  const glass = new THREE.MeshStandardMaterial({ color: '#bfefff', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.35, flatShading: true });
+  for (const x of [-2.7, 0, 2.7]) {
+    const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 6.6, 10, 1, false, 0, Math.PI), glass);
+    tunnel.rotation.set(Math.PI / 2, Math.PI / 2, 0);
+    tunnel.position.set(x, 0.4, 0);
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 6.2), glow('#5bff7a', 0.9));
+    bed.position.set(x, 0.7, 0);
+    bed.name = 'crop';
+    g.add(tunnel, bed);
+  }
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 2.4, 8), metal('#8fa0a8'));
+  tank.position.set(3.6, 1.6, -3.2);
+  g.add(tank);
+  return g;
+}
+
 /** Built-in models for particular building kinds (variants that share a role but not a look). */
 const KIND_MODELS: Record<string, () => THREE.Group> = { cannon: buildCannon, pointdefense: buildPointDefense };
 
@@ -610,6 +662,8 @@ export function buildForRole(role: string): THREE.Group {
     case 'radar': return buildRadar();
     case 'factory': return buildBay();
     case 'wall': return buildWall();
+    case 'civic': return buildCivic();
+    case 'farm': return buildFarm();
     default: return buildSolar();
   }
 }
@@ -693,7 +747,7 @@ class GroundRing {
 export interface BuildingLook { role: string; name: string; hp: number; clearance: number; fireRange?: number; range?: number; storage?: number }
 export interface RegionRules { defs: Record<string, BuildingLook>; buildRadius: number }
 
-export type Selection = { kind: 'drone' | 'building'; id: number } | { kind: 'units'; ids: number[] } | null;
+export type Selection = { kind: 'drone' | 'building' | 'colonist'; id: number } | { kind: 'units'; ids: number[] } | null;
 export interface RegionUi {
   sel: Selection;
   drag: { x: number; z: number } | null;
@@ -1164,6 +1218,18 @@ export class RegionView {
         if (role === 'geothermal') {
           const plume = e.obj.getObjectByName('plume');
           if (plume) { plume.visible = lit; plume.scale.set(1 + Math.sin(this.gameT * 1.7 + b.id) * 0.12, 1 + Math.sin(this.gameT * 1.1) * 0.15, 1); }
+        }
+        if (role === 'civic') {
+          // growth pods glow while a child grows inside (pulsing red when it's failing)
+          const pods = cur.people?.pods.find((p) => p.b === b.id)?.running ?? [];
+          let i = 0;
+          e.obj.traverse((o) => {
+            if (o.name !== 'gpod') return;
+            const p = pods[i++];
+            const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            m.emissive.set(p && p.dark > 0 ? '#ff5a4a' : '#7ff7ff');
+            m.emissiveIntensity = !p ? 0.15 : p.dark > 0 ? 0.6 + Math.max(0, Math.sin(this.gameT * 8)) * 2 : 1 + p.progress * 1.5 + Math.sin(this.gameT * 2 + i) * 0.3;
+          });
         }
         if (role === 'factory') {
           const door = e.obj.getObjectByName('door') as THREE.Mesh | undefined;

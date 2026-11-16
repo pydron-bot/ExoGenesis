@@ -11,7 +11,8 @@
   "weapon": "cannon",
   "radius": 1.3,
   "aggro": 26,
-  "modelScale": 1,
   "cost": 110,
-  "buildSeconds": 24
+  "buildSeconds": 24,
+  "model": "scout-tank",
+  "modelScale": 1
 }

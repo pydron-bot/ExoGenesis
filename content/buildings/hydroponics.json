@@ -1,0 +1,15 @@
+{
+  "name": "Hydroponics",
+  "description": "Grows biomass: food for colonists and growth pods. Runs on stored power at night. Botanists working here grow more.",
+  "role": "farm",
+  "buildable": true,
+  "cost": 60,
+  "hp": 220,
+  "powerMW": -1.2,
+  "buildSeconds": 12,
+  "clearance": 10,
+  "biomassRate": 0.12,
+  "biomassStorage": 60,
+  "staff": 2,
+  "specialty": "botanist"
+}

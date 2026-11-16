@@ -44,6 +44,8 @@ interface Handlers {
   toggleBuildMenu(): void;
   interacted(): void;
   say(text: string): void;
+  /** Colonist under a screen point (client px), or -1. */
+  colonistAt?(x: number, y: number): number;
 }
 
 type Mode = 'none' | 'pan' | 'orbit' | 'order' | 'pinch' | 'unit' | 'uorder';
@@ -357,6 +359,12 @@ export class Input {
     const drone = this.droneAt(x, y);
     if (drone >= 0) {
       this.ui.sel = this.ui.sel?.kind === 'drone' && this.ui.sel.id === drone ? null : { kind: 'drone', id: drone };
+      this.h.select();
+      return;
+    }
+    const col = this.h.colonistAt?.(x, y) ?? -1;
+    if (col >= 0) {
+      this.ui.sel = { kind: 'colonist', id: col };
       this.h.select();
       return;
     }

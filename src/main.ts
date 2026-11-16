@@ -17,6 +17,7 @@ import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
 import { FogView, addFog } from './world/fog';
 import { ArmyView } from './skirmish/view';
+import { ColonistView } from './world/colonists';
 import { DEFS as UNIT_DEFS, UT, type SkSnapshot } from './skirmish/types';
 import { gateSnap, linePoints, placeProblem } from './sim/rules';
 import { hourAt, sunAngle } from './sim/daylight';
@@ -373,7 +374,7 @@ function restartGame() {
   document.body.classList.remove('more');
 }
 const hud = new ColonyHud({
-  defs: content.buildings, units: content.units, rules: content.colony, ui, cam,
+  defs: content.buildings, units: content.units, rules: content.colony, people: content.people, ui, cam,
   command: (c) => sim.command(c),
   setBuild,
   restart: () => restartGame(),
@@ -464,6 +465,7 @@ if (previewModels) for (const [t, id] of [[UT.Rover, 'rover'], [UT.Tank, 'tank']
   if (a) UNIT_DEFS[t].model = a;
 }
 const army = skirmish ? null : new ArmyView(scene);
+const colonists = skirmish ? null : new ColonistView(region.details);
 const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {
   move: (drone, x, z) => sim.command({ type: 'move', drone, x, z }),
   build: (kind, x, z, yaw) => sim.command({ type: 'build', kind, x, z, yaw }),
@@ -497,6 +499,7 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   toggleBuildMenu: () => hud.toggleMenu(),
   interacted: () => { if (!helped) { helped = true; setTimeout(() => help.classList.add('gone'), 4000); } },
   say: (t) => { log(t, 'warn'); audio.play('deny'); },
+  colonistAt: (x, y) => (colonists && cam.dist < 400 ? colonists.pick(x, y, camera, renderer.domElement.getBoundingClientRect()) : -1),
 }, army);
 $('pl-rotate').onclick = () => input?.rotate();
 $('pl-done').onclick = () => setBuild(null);
@@ -679,6 +682,7 @@ function frame(now: number) {
     fogView.amount = landing || title ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt);
+    colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
     // sound: only the wind during the landing
     audio.quiet = !!landing || !!title;
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
@@ -720,6 +724,14 @@ const exo = {
     const u = sim.cur?.units.find((x) => x.id === id);
     if (!u || !army || !army.visible[u.slot]) return null;
     const v = new THREE.Vector3(army.wx[u.slot], army.wy[u.slot] + 1, army.wz[u.slot]).project(camera);
+    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+  },
+  colonists,
+  /** Screen position of a colonist drawn outdoors (by id), or null. */
+  colonistScreen: (id: number) => {
+    const c = colonists?.at.get(id);
+    if (!c) return null;
+    const v = c.world.clone().add(new THREE.Vector3(0, 0, 0)).project(camera);
     return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
   },
   /** Screen position of a region point on the ground. */

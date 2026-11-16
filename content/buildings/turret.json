@@ -11,5 +11,7 @@
   "fireRange": 28,
   "damage": 20,
   "cooldown": 0.5,
-  "weapon": "cannon"
+  "weapon": "cannon",
+  "staff": 1,
+  "specialty": "security"
 }

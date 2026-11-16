@@ -4,7 +4,8 @@
  * sends commands. Updated a few times a second, not every frame.
  */
 import type { ZoomCamera } from './camera';
-import type { BuildingDef, ColonyRules, UnitDef } from './content/defs';
+import type { BuildingDef, ColonyRules, PeopleRules, UnitDef } from './content/defs';
+import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
 import { FOG_N, REGION_HALF } from './sim/types';
@@ -16,6 +17,7 @@ interface HudDeps {
   defs: Record<string, BuildingDef>;
   units: Record<string, UnitDef>;
   rules: ColonyRules;
+  people: PeopleRules;
   ui: RegionUi;
   cam: ZoomCamera;
   command(c: Command): void;
@@ -53,8 +55,13 @@ export class ColonyHud {
    */
   private radar = { at: -1e9, next: null as number | null, built: false };
   cur: Snapshot | null = null;
+  readonly people: PeopleHud;
 
   constructor(private d: HudDeps) {
+    this.people = new PeopleHud({
+      defs: d.defs, rules: d.people, solSeconds: d.rules.solSeconds, ui: d.ui, cam: d.cam,
+      command: (c) => d.command(c), select: () => this.selected(),
+    });
     const has = (s: Snapshot, role: string) => s.buildings.some((b) => b.progress >= 1 && this.d.defs[b.kind]?.role === role);
     const sol = (s: Snapshot) => Math.floor(s.secs / this.d.rules.solSeconds) + 1;
     this.goals = [
@@ -66,6 +73,9 @@ export class ColonyHud {
       { id: 'bay', text: 'Build a Vehicle Bay and produce a combat unit', done: (s) => s.units.length > 0 },
       { id: 'radar', text: 'Build a Radar for early warning', done: (s) => has(s, 'radar') },
       { id: 'drone', text: 'Fabricate a second worker drone at the Core', done: (s) => s.drones.length >= 2 },
+      { id: 'farm', text: 'Build Hydroponics to grow biomass', done: (s) => has(s, 'farm') },
+      { id: 'civic', text: 'Build a Civilian Center and start a growth pod', done: (s) => (s.people?.pods.some((p) => p.running.length) ?? false) || (s.people?.adults ?? 0) > 0 },
+      { id: 'colonist', text: 'Welcome your first colonist', done: (s) => (s.people?.adults ?? 0) + (s.people?.children ?? 0) > 0 },
       { id: 'sol4', text: 'Keep the colony alive until Sol 4', done: (s) => sol(s) >= 4 },
     ];
     // phones start with just the current goal showing
@@ -133,7 +143,12 @@ export class ColonyHud {
   }
 
   /** Force the card to rebuild (selection changed). */
-  selected() { this.cardKey = ''; if (this.cur) this.renderCard(this.cur); }
+  selected() {
+    this.cardKey = '';
+    const sel = this.d.ui.sel;
+    this.people.deselected(sel?.kind === 'building' ? sel.id : null);
+    if (this.cur) this.renderCard(this.cur);
+  }
 
   private renderBar(s: Snapshot, speed: number) {
     const e = this.el;
@@ -147,8 +162,7 @@ export class ColonyHud {
     e.battery.className = `r ${s.storageMax <= 0 ? 'dim' : draining && pct < 25 ? 'warn' : ''}`;
     e.battery.title = s.storageMax > 0 ? 'Battery charge' : 'No Battery Bank yet';
     e.alloys.innerHTML = `◆ <b>${Math.floor(s.alloys)}</b>`;
-    e.cryo.innerHTML = `❄ <b>${s.cryo.toFixed(1)}%</b>`;
-    e.cryo.className = `r ${s.cryo < 30 ? 'bad' : short ? 'warn' : ''}`;
+    this.people.renderBar(s);
     const sol = this.d.rules.solSeconds;
     const sl = Math.floor(s.secs / sol) + 1, h = hourAt(s.secs, sol);
     const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
@@ -233,6 +247,10 @@ export class ColonyHud {
         <div class="hp"><i style="width:${(hp * 100).toFixed(0)}%;background:${hp > 0.6 ? '#5bff9a' : hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
         ${rows.map(([k, v]) => `<div class="row ${k === 'Move' || k === 'Select' ? 'tip' : ''}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
         <div class="grp"><button data-act="stop" title="Stop and guard here (X)">Stop</button><button data-act="deselect">Done</button></div>`;
+    } else if (sel.kind === 'colonist') {
+      const c = this.people.colonistCard(s, sel.id);
+      if (!c) { this.d.ui.sel = null; card.classList.remove('on'); return; }
+      html = c;
     } else if (sel.kind === 'drone') {
       const dr = s.drones.find((x) => x.id === sel.id);
       if (!dr) { this.d.ui.sel = null; card.classList.remove('on'); return; }
@@ -259,8 +277,10 @@ export class ColonyHud {
       }
       if (d.role === 'battery') rows.push(['Bank (all)', `${Math.round(s.stored)} / ${Math.round(s.storageMax)} MJ`]);
       if (d.role === 'radar') rows.push(['Next pack', s.nextPack !== null ? mmss(s.nextPack) : '—']);
+      const pe = this.people.buildingRows(s, b, d);
+      rows.push(...pe.rows);
       if (d.role === 'core') {
-        rows.push(['Cryo bank', `${s.cryo.toFixed(1)}%`]);
+        rows.push(['Cryo bank', `${s.people.embryos} embryos · ${s.cryo.toFixed(1)}%`]);
         rows.push(['Drones', `${s.drones.length} / ${this.d.rules.maxDrones}${s.fab.queued ? ` · fabricating ${Math.floor(s.fab.progress * 100)}%` : ''}`]);
       }
       const btn: string[] = [];
@@ -277,12 +297,13 @@ export class ColonyHud {
         }
         if (q.length) btn.push('<button data-act="unqueue" title="Cancel the last queued unit (full refund)">Cancel last</button>');
       }
+      btn.push(...pe.buttons);
       if (b.progress >= 1 && b.hp < d.hp) btn.push('<button data-act="repair">Repair</button>');
       if (d.role !== 'core' && b.progress >= 1) btn.push(`<button data-act="power">${b.on ? 'Switch off' : 'Switch on'}</button>`);
       if (d.role !== 'core') btn.push(`<button data-act="demolish">${b.progress < 1 ? 'Cancel' : 'Recycle'}</button>`);
       html = `<div class="t">${esc(d.name.toUpperCase())}</div><div class="s ${cls}">${esc(st)}</div>
         <div class="hp"><i style="width:${Math.min(100, (b.hp / d.hp) * 100).toFixed(0)}%;background:${b.hp / d.hp > 0.6 ? '#5bff9a' : b.hp / d.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${queue}
+        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${queue}${pe.html}
         <div class="grp">${btn.join('')}</div>`;
     }
     card.classList.add('on');
@@ -294,6 +315,12 @@ export class ColonyHud {
     const sel = this.d.ui.sel;
     if (!act || !sel || !this.cur) return;
     e.preventDefault();
+    if (sel.kind === 'colonist') {
+      if (act === 'deselect') this.d.ui.sel = null;
+      else this.people.act(act, undefined);
+      this.cardKey = '';
+      return;
+    }
     if (sel.kind === 'units') {
       if (act === 'stop') this.d.command({ type: 'stop', ids: sel.ids });
       if (act === 'deselect') this.d.ui.sel = null;
@@ -301,6 +328,7 @@ export class ColonyHud {
       return;
     }
     const b = this.cur.buildings.find((x) => x.id === sel.id);
+    if (this.people.act(act, b)) { this.cardKey = ''; this.renderCard(this.cur); return; }
     if (act === 'fab') this.d.command({ type: 'fab' });
     else if (b && act.startsWith('produce:')) this.d.command({ type: 'produce', id: b.id, unit: act.slice(8) });
     else if (b && act === 'unqueue') this.d.command({ type: 'unqueue', id: b.id });
@@ -393,9 +421,9 @@ export class ColonyHud {
     this.el.over.classList.toggle('on', on);
     if (!on) return;
     $('over-title').textContent = 'COLONY LOST';
-    $('over-sub').textContent = s.over === 'core' ? 'The Command Core was destroyed.' : 'The cryo bank failed. The embryos are gone.';
+    $('over-sub').textContent = s.over === 'core' ? 'The Command Core was destroyed.' : s.over === 'cryo' ? 'The cryo bank failed. The last embryos are gone, and no one is left to carry on.' : 'No colonists are left, and the cryo bank is empty.';
     const sol = Math.floor(s.secs / this.d.rules.solSeconds) + 1;
-    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · goals ${this.reached.size}/${this.goals.length}`;
+    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · goals ${this.reached.size}/${this.goals.length}${s.people ? `\n${s.people.stats.grown} grown · ${s.people.stats.births} born · ${s.people.stats.deaths} lost · ${s.people.stats.departed} left · ${s.people.embryos} embryos left` : ''}`;
   }
 
   /** Forget goal progress (new game). */

@@ -3,7 +3,8 @@
  * (sim/worker.ts) runs it at a fixed tick; tools/balance.mjs runs it headless.
  *
  * One tick: power → drones → fabrication + factories → mining → turrets →
- * repair pads → combat units → predators → waves → cryo bank → grazers.
+ * repair pads → combat units → predators → waves → cryo bank → people
+ * (src/sim/people.ts) → grazers.
  */
 import { content } from '../content';
 import type { BuildingDef, UnitDef, Weapon } from '../content/defs';
@@ -11,6 +12,8 @@ import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
 import { PathGrid } from './path';
+import { People } from './people';
+import type { Colonist } from './people-types';
 import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, wallsUnderGate, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
@@ -114,7 +117,10 @@ export class Sim {
   /** Power result of the last tick. */
   power = { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 };
 
-  constructor(private emit: EventSink, seed = 1337) {
+  /** Colonists, embryos, pods, food and Trust. */
+  readonly people: People = new People(this);
+
+  constructor(readonly emit: EventSink, seed = 1337) {
     this.newGame(seed);
   }
 
@@ -130,6 +136,7 @@ export class Sim {
       stats: { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 },
     };
     this.s = s;
+    this.people.init();
     s.buildings.push({ id: 1, kind: 'core', x: 0, z: 0, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
     s.drones.push({ id: s.nextId++, x: 0, z: -14, heading: Math.PI, hp: RULES.droneHp, task: { kind: 'idle' } });
     // herds come from the region map (content/regions/touchdown.json)
@@ -155,6 +162,7 @@ export class Sim {
     for (const b of state.buildings) if (b.queue) b.queue = b.queue.filter((k) => content.units[k]);
     for (const b of state.buildings) b.hp = Math.min(b.hp, DEFS[b.kind]?.hp ?? b.hp);
     this.s = state;
+    this.people.load();
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
     this.exp.fill(0);
@@ -176,8 +184,8 @@ export class Sim {
   get units(): Unit[] { return (this.s.units ??= []); }
   /** What placement rules see. */
   private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS }; }
-  private entity(id: number): Building | Drone | Unit | undefined {
-    return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id);
+  private entity(id: number): Building | Drone | Unit | Colonist | undefined {
+    return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id) ?? this.people.colonist(id);
   }
 
   // ---------- tick ----------
@@ -197,6 +205,7 @@ export class Sim {
       this.stepHostiles();
       this.stepWaves();
       this.stepCryo();
+      this.people.step();
     }
     if (s.tick % 5 === 0) this.stepFog();
     this.stepGrazers();
@@ -223,11 +232,12 @@ export class Sim {
       b.powered = false;
       if (b.progress < 1 || !b.on) continue;
       if (d.role === 'battery') { cap += d.storage ?? 0; b.powered = true; }
-      if (d.powerMW > 0) { gen += d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW; b.powered = true; }
+      if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
-        const rank = d.fireRange ? 0 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' ? 2 : 3;
+        // homes and growth pods share the cryo bank's priority; farms run with the radar
+        const rank = d.fireRange ? 0 : d.role === 'civic' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' ? 2 : 3;
         const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
-        loads.push({ b, mw: -d.powerMW * (idle ? STANDBY : 1), rank, battery: d.role !== 'depot' });
+        loads.push({ b, mw: -d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0), rank, battery: d.role !== 'depot' });
       } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
@@ -255,22 +265,30 @@ export class Sim {
     this.power.storageMax = cap;
   }
 
+  /**
+   * Cryo bank integrity is a thermal buffer: it falls while the bank is short of
+   * power and recovers when it isn't. Below the people rules' safe level the
+   * embryos themselves start dying (src/sim/people.ts).
+   */
   private stepCryo() {
     const s = this.s;
     const short = this.power.short;
     if (short <= 0.001) {
       s.cryo = Math.min(100, s.cryo + RULES.cryoRecover * DT);
       if (s.cryo >= 100) s.cryoWarn = 100;
-      return;
-    }
-    s.cryo = Math.max(0, s.cryo - short * RULES.cryoLossPerMW * DT);
-    for (const th of [75, 50, 25, 0]) {
-      if (s.cryo <= th && s.cryoWarn > th) {
-        s.cryoWarn = th;
-        this.emit(th === 0 ? 'Cryo bank failure. The embryos are lost.' : `Cryo bank integrity ${th}% — not enough power`, th <= 25 ? 'bad' : 'warn', 'alarm');
+    } else {
+      s.cryo = Math.max(0, s.cryo - short * RULES.cryoLossPerMW * DT);
+      for (const th of [75, 50, 25, 0]) {
+        if (s.cryo <= th && s.cryoWarn > th) {
+          s.cryoWarn = th;
+          const safe = content.people.cryoSafe;
+          const text = th === 0 ? 'Cryo bank at 0%: the embryos are dying fast'
+            : `Cryo bank integrity ${th}% — not enough power${th < safe ? ' · embryos are dying' : th - 25 < safe ? ' · embryos at risk below ' + safe + '%' : ''}`;
+          this.emit(text, th < safe ? 'bad' : 'warn', 'alarm');
+        }
       }
     }
-    if (s.cryo <= 0) this.lose('cryo');
+    this.people.cryo(s.cryo);
   }
 
   // ---------- fog of war ----------
@@ -440,7 +458,7 @@ export class Sim {
       if (def(b).role !== 'factory' || b.progress < 1 || !b.queue?.length || !b.powered) continue;
       const ud = content.units[b.queue[0]];
       if (!ud) { b.queue.shift(); b.prod = 0; continue; }
-      b.prod = Math.min(1, (b.prod ?? 0) + DT / Math.max(0.1, ud.buildSeconds ?? 10));
+      b.prod = Math.min(1, (b.prod ?? 0) + (DT * this.people.mult(b)) / Math.max(0.1, ud.buildSeconds ?? 10));
       if (b.prod < 1) continue;
       const slot = this.freeSlot();
       if (slot < 0) continue; // render pool full: hold the unit until one frees up
@@ -469,7 +487,7 @@ export class Sim {
       if (b.mining === undefined || b.mining < 0 || !s.deposits[b.mining] || s.deposits[b.mining].alloys <= 0) b.mining = depositFor(s, d, b.x, b.z);
       if (!b.powered || b.mining < 0) continue;
       const dep = s.deposits[b.mining];
-      const take = Math.min(dep.alloys, (d.mineRate ?? 0) * DT);
+      const take = Math.min(dep.alloys, (d.mineRate ?? 0) * this.people.mult(b) * DT);
       dep.alloys -= take;
       s.alloys += take;
       s.stats.mined += take;
@@ -542,7 +560,7 @@ export class Sim {
       b.aim = Math.atan2(best.x - b.x, best.z - b.z);
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
-      this.strike(b.x, b.z, best, d.damage ?? 0, weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash });
+      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash });
     }
   }
 
@@ -782,7 +800,7 @@ export class Sim {
     let best = -1, bd = Infinity;
     // underground, a burrower can't sense drones or units: it heads for the base (never a wall)
     if (!h.under) {
-      for (const d of [...s.drones, ...this.units]) {
+      for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
         const dist = Math.hypot(d.x - h.x, d.z - h.z);
         if (dist < u.aggro && dist < bd) { bd = dist; best = d.id; }
       }
@@ -811,8 +829,10 @@ export class Sim {
         tgt = this.entity(h.target);
         if (h.target !== was) { h.best = Infinity; h.stall = 0; }
       }
+      // a colonist who made it indoors is out of reach
+      if (tgt && 'lineage' in tgt && tgt.at >= 0) { h.target = -1; tgt = undefined; }
       if (!tgt) continue;
-      const isB = 'kind' in tgt, isU = 'order' in tgt;
+      const isB = 'kind' in tgt, isU = 'order' in tgt, isC = 'lineage' in tgt;
       const tr = isB ? bodyR(tgt as Building) : isU ? content.units[(tgt as Unit).unit].radius : 1;
       const dx = tgt.x - h.x, dz = tgt.z - h.z, dist = Math.hypot(dx, dz);
       if (h.under) {
@@ -837,7 +857,7 @@ export class Sim {
           h.cd = u.cooldown;
           tgt.hp -= u.damage;
           this.fx.push(weaponFx(unitWeapon(u), false), h.x, h.z, tgt.x, tgt.z);
-          if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : this.destroyDrone(tgt as Drone);
+          if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : isC ? this.people.kill(tgt as Colonist, 'killed by predators') : this.destroyDrone(tgt as Drone);
         }
         continue;
       }
@@ -911,7 +931,16 @@ export class Sim {
     this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
     this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
     for (const u of this.units) if (u.fix === b.id) u.fix = -1;
+    this.people.buildingLost(b);
     if (b.kind === 'core') this.lose('core');
+  }
+
+  /** People hooks: a building sabotaged to nothing, a death effect, a walking path. */
+  sabotaged(b: Building) { this.destroyBuilding(b); }
+  fxDeath(x: number, z: number) { this.fx.push(FX.DIE_SMALL, x, z, 0, 0); }
+  pathFor(ax: number, az: number, bx: number, bz: number) {
+    this.grid.setBodies(this.s.buildings.map((b) => ({ x: b.x, z: b.z, r: bodyR(b) })), PATH_PAD);
+    return this.grid.find(ax, az, bx, bz);
   }
 
   private destroyDrone(d: Drone) {
@@ -934,10 +963,10 @@ export class Sim {
     this.emit(`${content.units[u.unit].name} destroyed`, 'bad', 'lost');
   }
 
-  private lose(why: 'core' | 'cryo') {
+  lose(why: 'core' | 'cryo' | 'people') {
     if (this.s.over) return;
     this.s.over = why;
-    this.emit(why === 'core' ? 'The Command Core has fallen. The colony is lost.' : 'The cryo bank has failed. The colony is lost.', 'bad', 'alarm');
+    this.emit(why === 'core' ? 'The Command Core has fallen. The colony is lost.' : why === 'cryo' ? 'The last embryos are gone. The colony is lost.' : 'No one is left. The colony is lost.', 'bad', 'alarm');
   }
 
   // ---------- waves ----------
@@ -1106,14 +1135,19 @@ export class Sim {
         if (b && b.kind !== 'core') b.on = c.on;
         return;
       }
+      case 'grow': case 'unpod': case 'policy':
+        this.people.command(c);
+        return;
       case 'demolish': {
         const b = s.buildings.find((x) => x.id === c.id);
         if (!b || b.kind === 'core') return;
         const dd = def(b);
+        if (s.people?.pods.some((p) => p.b === b.id)) { this.emit(`Can't recycle the ${dd.name}: its growth pods are running`, 'warn', 'deny'); return; }
         const queued = (b.queue ?? []).reduce((m, k) => m + (content.units[k]?.cost ?? 0), 0);
         const refund = queued + (b.progress < 1 ? dd.cost * (1 - b.progress * 0.5) : dd.cost * 0.5 * (b.hp / dd.hp));
         s.alloys += refund;
         s.buildings.splice(s.buildings.indexOf(b), 1);
+        this.people.buildingLost(b, false);
         this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info');
         return;
       }
@@ -1141,6 +1175,7 @@ export class Sim {
             this.units.push({ id: s.nextId++, unit: sp.unit, slot, x, z, heading: 0, hp: ud.hp, cd: 0, order: { kind: 'idle' }, gx: x, gz: z, target: -1 });
           }
         }
+        if (c.people) this.people.debug(c.people);
         if (c.hurt) {
           const b = s.buildings.find((x) => x.id === c.hurt!.id);
           if (b) { b.hp -= c.hurt.hp; if (b.hp <= 0) this.destroyBuilding(b); }
@@ -1272,7 +1307,7 @@ export class Sim {
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,
-      fab: { queued: s.fab.queued, progress: s.fab.progress }, over: s.over, stats: { ...s.stats },
+      fab: { queued: s.fab.queued, progress: s.fab.progress }, people: this.people.snapshot(), over: s.over, stats: { ...s.stats },
     };
   }
 }

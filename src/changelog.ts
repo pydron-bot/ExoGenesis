@@ -15,23 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.10.2',
-    date: '2026-11-16',
-    title: 'Mouse rotation the right way round',
-    notes: [
-      'Rotating the view by right-dragging (or shift-dragging) left and right now turns it the other way. Touch is unchanged',
-    ],
-  },
-  {
-    version: '0.10.1',
-    date: '2026-11-16',
-    title: 'Drag orders on slow frames',
-    notes: [
-      'Dragging from a unit to order it no longer turns into "select all of this type" when the game is running slowly',
-    ],
-  },
-  {
-    version: '0.10.0',
+    version: '0.11.0',
     date: '2026-11-16',
     title: 'More units, more buildings, new predators',
     notes: [
@@ -41,6 +25,22 @@ export const CHANGELOG: Release[] = [
       'Repair Pad: park damaged units on it to mend them for free while it has power',
       'Geothermal vents glow in the ground. Build a Geothermal Tap on one for steady power all night',
       'New predators in later packs: Spitters attack from just beyond a Defense Turret\'s reach, and Burrowers tunnel under your walls and surface inside. Radar can see them coming',
+      'Rotating the view by right-dragging (or shift-dragging) left and right now turns it the other way. Touch is unchanged',
+      'Dragging from a unit to order it no longer turns into "select all of this type" when the game is running slowly',
+    ],
+  },
+  {
+    version: '0.10.0',
+    date: '2026-11-16',
+    title: 'People',
+    notes: [
+      'The cryo bank now holds 120 embryos from 24 family lines. Let it run warm (below 50% integrity) and embryos die',
+      'New buildings: Hydroponics grows biomass (food), and the Civilian Center houses colonists and runs growth pods',
+      'Grow colonists: choose their specialty and what the AI teaches them (Charter, Heritage or Unity). A pod needs power and food for a whole sol, or the child inside is lost',
+      'Colonists are named, age (one sol is one year), live and work in your buildings, walk the base, and run for cover when predators come. Staffed buildings work better',
+      'Everyone has two meters: wellbeing, and how far they accept the AI. They form blocs (Partners, Autonomists, Devoted) that want different things',
+      'Set work hours, rations, oversight and who runs the council from the new Colony panel (tap 👤). Unhappy colonists strike or sabotage, an angry Autonomist majority can walk out, and a colony in step with its AI gets Breakthroughs',
+      'Couples have children, lineages can die out, and the Memorial remembers everyone lost',
     ],
   },
   {

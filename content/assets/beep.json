@@ -1,0 +1,9 @@
+{
+  "name": "Beep",
+  "kind": "audio",
+  "file": "beep.wav",
+  "source": "other",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

@@ -3,6 +3,8 @@
  * structured-cloned to/from the worker and written straight into IndexedDB.
  */
 
+import type { PeopleCommand, PeopleSnap, PeopleState } from './people-types';
+
 export const TICK_HZ = 10;
 export const TICK_MS = 1000 / TICK_HZ;
 /** Half-width of the landing region, in world units (~1 unit = 10 m). */
@@ -160,8 +162,10 @@ export interface SimState {
   phase: 'descent' | 'landed' | 'deployed';
   /** Ticks of engine-noise panic left: grazers near the core bolt. */
   panic: number;
+  /** Colonists, embryos, pods, food, Trust (absent in saves from before people existed). */
+  people?: PeopleState;
   /** Set when the game is lost. */
-  over: null | 'core' | 'cryo';
+  over: null | 'core' | 'cryo' | 'people';
   stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number };
 }
 
@@ -183,8 +187,9 @@ export type Command =
   | { type: 'order'; ids: number[]; x: number; z: number }
   | { type: 'stop'; ids: number[] }
   | { type: 'landing'; stage: LandingStage }
+  | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
-  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number } };
+  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
 
 export type ToWorker =
   | { type: 'cmd'; cmd: Command }
@@ -246,6 +251,7 @@ export interface Snapshot {
   /** Packs on the map: centre, members alive, seen (radar or sight). */
   packs: { x: number; z: number; alive: number; seen: boolean }[];
   fab: { queued: number; progress: number };
+  people: PeopleSnap;
   over: SimState['over'];
   stats: SimState['stats'];
 }

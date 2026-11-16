@@ -2,7 +2,7 @@
  * Headless balance runs: plays the real sim (src/sim/core.ts) for N game
  * minutes with scripted strategies and prints a timeline, so tuning content/
  * numbers is measured, not guessed.
- *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed|fortress|combined] [--quiet]
+ *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed|fortress|combined|people] [--imprint charter|heritage|unity] [--peaceful] [--policy hours=long,council=directive] [--quiet]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -51,6 +51,8 @@ const STRATEGIES = {
   fortress: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['pointdefense', 'spawn'], ['radar'], ['depot', 'near'], ['pointdefense', 'guard'], ['geothermal', 'vent'], ['battery'], ['fab'], ['cannon', 'spawn'], ['solar'], ['turret', 'spawn'], ['cannon', 'spawn'], ['solar'], ['pointdefense', 'spawn'], ['cannon', 'guard']],
   // the mixed economy, with the new units: arc casters for swarms, artillery behind them, an engineer, a repair pad at home
   combined: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['bay'], ['arc'], ['turret', 'spawn'], ['radar'], ['depot', 'near'], ['artillery'], ['engineer'], ['solar'], ['battery'], ['arc'], ['pointdefense', 'spawn'], ['solar'], ['artillery'], ['arc'], ['repairpad']],
+  // the balanced build plus a Civilian Center and farms; the bot keeps the growth pods busy
+  people: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['hydroponics'], ['battery'], ['civic'], ['solar'], ['hydroponics'], ['turret', 'spawn'], ['battery'], ['radar'], ['solar'], ['depot', 'near'], ['hydroponics'], ['turret', 'spawn'], ['solar'], ['battery'], ['civic'], ['hydroponics'], ['solar'], ['battery'], ['turret', 'spawn'], ['turret', 'guard'], ['solar'], ['hydroponics'], ['solar'], ['battery'], ['hydroponics']],
   defensive: () => [['solar'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['turret', 'spawn'], ['solar'], ['radar'], ['battery'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn']],
 };
 
@@ -58,6 +60,9 @@ function run(name) {
   const events = [];
   const sim = new core.Sim((text, level) => events.push({ t: sim.secs, text, level }), seed);
   sim.command({ type: 'landing', stage: 'deploy' });
+  // --peaceful: no predators (to look at the economy and the colonists on their own)
+  if (process.argv.includes('--peaceful')) sim.s.waves.next = 1e12;
+  if (process.argv.includes('--policy')) for (const kv of arg('--policy', '').split(',')) { const [key, value] = kv.split('='); sim.command({ type: 'policy', key, value }); }
   const plan = STRATEGIES[name]();
   let spawnIdx = 0;
   const rows = [];
@@ -107,6 +112,26 @@ function run(name) {
         }
       }
     }
+    // people plan: when the plan runs out, grow the base with the colony
+    if (name === 'people' && !plan.length && tick % (30 * TICK_HZ) === 0 && s.people) {
+      const ppl = s.people.colonists.length, farms = count(s, 'hydroponics'), homes = count(s, 'civic');
+      if (ppl * 0.04 > farms * 0.16) plan.push(['hydroponics'], ['solar']);
+      else if (ppl >= homes * DEFS.civic.housing - 2) plan.push(['civic'], ['solar'], ['battery']);
+    }
+    // growth pods: keep them running (specialty the colony is shortest of, Charter imprint)
+    if (tick % (5 * TICK_HZ) === 0 && s.people) {
+      const want = ['botanist', 'engineer', 'medic', 'technician', 'security'];
+      for (const b of s.buildings) {
+        if (b.kind !== 'civic' || b.progress < 1) continue;
+        if (s.people.pods.filter((p) => p.b === b.id).length >= DEFS.civic.pods) continue;
+        if (s.people.biomass < 15) continue;
+        const housing = s.buildings.filter((x) => x.kind === 'civic' && x.progress >= 1).length * DEFS.civic.housing;
+        if (s.people.colonists.length + s.people.pods.length >= housing - 1) continue; // leave room for children
+        const have = (k) => s.people.colonists.filter((c) => c.specialty === k).length + s.people.pods.filter((p) => p.specialty === k).length;
+        const sp = [...want].sort((a, b) => have(a) - have(b))[0];
+        sim.command({ type: 'grow', id: b.id, specialty: sp, curriculum: arg('--imprint', 'charter') });
+      }
+    }
     // the army: idle units go after any hostile near the base, then come home
     if (tick % (3 * TICK_HZ) === 0 && s.units?.length) {
       const near = s.hostiles.filter((h) => s.buildings.some((b) => Math.hypot(b.x - h.x, b.z - h.z) < 45));
@@ -132,6 +157,9 @@ function run(name) {
         min: tick / 600, alloys: Math.floor(s.alloys), cryo: s.cryo.toFixed(0), gen: snap.gen.toFixed(1), draw: snap.draw.toFixed(1),
         stored: Math.round(s.stored), day: snap.daylight.toFixed(2), built: s.buildings.filter((b) => b.progress >= 1).length - 1,
         hostiles: s.hostiles.length, units: s.units?.length ?? 0, kills: s.stats.kills, lost: s.stats.buildingsLost, packs: s.waves.n,
+        embryos: snap.people.embryos, people: `${snap.people.adults}+${snap.people.children}`, pods: s.people.pods.length,
+        food: `${Math.round(snap.people.biomass)} ${(snap.people.food.made - snap.people.food.eaten).toFixed(2)}`, wb: snap.people.wellbeing.toFixed(0), stance: snap.people.stance.toFixed(0),
+        blocs: `${snap.people.blocs.partner}/${snap.people.blocs.autonomist}/${snap.people.blocs.devoted}`,
       });
     }
   }
@@ -143,6 +171,8 @@ function run(name) {
     const shown = events.filter((e) => e.level !== 'info' || /destroyed|online/.test(e.text)).slice(0, 60);
     for (const e of shown) console.log(`  ${(e.t / 60).toFixed(1).padStart(5)}m ${e.level.padEnd(4)} ${e.text}`);
   }
+  const ps = sim.snapshot().people;
+  console.log(`  people: ${ps.adults} adults + ${ps.children} children · embryos ${ps.embryos} · grown ${ps.stats.grown} · born ${ps.stats.births} · died ${ps.stats.deaths} · left ${ps.stats.departed} · diversity ${ps.diversity.toFixed(0)}% · wellbeing ${ps.wellbeing.toFixed(0)} · stance ${ps.stance.toFixed(0)}`);
   console.log(`  end: alloys ${Math.floor(s.alloys)} · cryo ${s.cryo.toFixed(0)}% · kills ${s.stats.kills} · buildings lost ${s.stats.buildingsLost} · drones lost ${s.stats.dronesLost} · units lost ${s.stats.unitsLost ?? 0} · packs ${s.waves.n} (beaten ${s.stats.packsBeaten}) · mined ${Math.round(s.stats.mined)}`);
   return s;
 }

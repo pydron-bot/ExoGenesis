@@ -41,7 +41,7 @@ export const unitShape = {
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -49,7 +49,7 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one).',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center). farm: grows biomass (Hydroponics).',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
@@ -68,6 +68,12 @@ export const buildingShape = {
   mineRate: num({ label: 'Mining rate', min: 0, max: 100, step: 0.05, unit: 'alloys/s', optional: true, help: 'Depots, while powered.' }),
   storage: num({ label: 'Storage', min: 0, max: 100000, unit: 'MJ', optional: true, help: 'Batteries. 1 MJ = 1 MW for 1 s.' }),
   sight: num({ label: 'Sight', min: 0, max: 240, unit: 'u', optional: true, help: 'How far it sees through the fog of war. Empty = the colony rule\'s building sight (or firing range + 4 if longer).' }),
+  housing: int({ label: 'Housing', min: 0, max: 100, optional: true, help: 'Colonists who can live here (civic).' }),
+  pods: int({ label: 'Growth pods', min: 0, max: 12, optional: true, help: 'Embryos it can mature at once (civic). Each pod draws the people rules\' pod power and biomass while running.' }),
+  biomassRate: num({ label: 'Biomass output', min: 0, max: 20, step: 0.01, unit: '/s', optional: true, help: 'Farms, while powered, before staffing bonuses.' }),
+  biomassStorage: num({ label: 'Biomass storage', min: 0, max: 100000, optional: true, help: 'Adds to how much biomass the colony can hold.' }),
+  staff: int({ label: 'Staff slots', min: 0, max: 12, optional: true, help: 'Colonists who can work here. Each one adds the people rules\' staff bonus to what it does (output, mining, damage, power).' }),
+  specialty: choice(['engineer', 'botanist', 'medic', 'technician', 'security'], { label: 'Best specialty', optional: true, help: 'Staff with this specialty add the extra specialty bonus and are assigned here first.' }),
   model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model. (The Command Core\'s is fixed: the landing cinematic animates it.)' }),
 } satisfies Shape;
 export type BuildingDef = Infer<typeof buildingShape>;
@@ -95,6 +101,39 @@ export const colonyRulesShape = {
   solSeconds: num({ label: 'Length of a sol', min: 10, max: 7200, unit: 's', help: 'Real seconds per game day.' }),
 } satisfies Shape;
 export type ColonyRules = Infer<typeof colonyRulesShape>;
+
+export const SPECIALTIES = ['engineer', 'botanist', 'medic', 'technician', 'security'] as const;
+export type Specialty = (typeof SPECIALTIES)[number];
+
+/** Colonists, the cryo bank, growth pods, food, mood and Trust (src/sim/people.ts). */
+export const peopleRulesShape = {
+  embryos: int({ label: 'Embryos at landing', min: 1, max: 1000 }),
+  lineages: int({ label: 'Lineages', min: 2, max: 40, help: 'Family lines the embryos are spread across. Genetic diversity is measured against this.' }),
+  cryoSafe: num({ label: 'Safe cryo integrity', min: 0, max: 100, unit: '%', help: 'Above this the embryos are safe. Below it they start dying, faster the lower it goes.' }),
+  embryoLoss: num({ label: 'Embryo loss at 0%', min: 0, max: 20, step: 0.01, unit: '/s', help: 'Embryos lost per second when integrity is at 0 (scales down to 0 at the safe level).' }),
+  podSols: num({ label: 'Pod cycle', min: 0.05, max: 20, step: 0.05, unit: 'sols', help: 'Time for a growth pod to mature an embryo into a young adult.' }),
+  podMW: num({ label: 'Pod power', min: 0, max: 20, step: 0.1, unit: 'MW', help: 'Each running pod. Pods share the cryo bank\'s top power priority.' }),
+  podBiomass: num({ label: 'Pod biomass', min: 0, max: 5, step: 0.01, unit: '/s', help: 'Each running pod.' }),
+  podGrace: num({ label: 'Pod blackout grace', min: 1, max: 600, unit: 's', help: 'How long a pod can go without power (or biomass) before the person inside dies.' }),
+  decantAge: int({ label: 'Age out of the pod', min: 1, max: 40, unit: 'years' }),
+  adultAge: int({ label: 'Adult at', min: 1, max: 40, unit: 'years', help: 'Children born in the colony work and vote from this age.' }),
+  lifespan: int({ label: 'Lifespan', min: 20, max: 200, unit: 'years', help: 'Typical age at death from old age. 1 sol = 1 year.' }),
+  eat: num({ label: 'Food per adult', min: 0, max: 5, step: 0.005, unit: '/s', help: 'Biomass. Children eat half.' }),
+  startBiomass: int({ label: 'Starting biomass', min: 0, max: 10000 }),
+  baseStorage: int({ label: 'Base biomass storage', min: 0, max: 10000, help: 'In the Core, before any storage buildings.' }),
+  starveGrace: num({ label: 'Starvation grace', min: 1, max: 3600, unit: 's', help: 'How long colonists last with no biomass before the weakest start dying.' }),
+  birthChance: num({ label: 'Birth chance', min: 0, max: 5, step: 0.01, unit: '/sol', help: 'Per settled couple per sol (both happy and housed with room to spare).' }),
+  moodRate: num({ label: 'Mood speed', min: 0.1, max: 50, step: 0.1, unit: '/sol', help: 'How quickly wellbeing moves toward what conditions say it should be.' }),
+  stanceRate: num({ label: 'Opinion speed', min: 0, max: 50, step: 0.1, unit: '/sol', help: 'Scales every pull on colonists\' opinion of the AI.' }),
+  strikeBelow: int({ label: 'Strike below', min: 0, max: 100, unit: 'wellbeing', help: 'Colonists this unhappy stop going to work.' }),
+  sabotageBelow: int({ label: 'Sabotage below', min: 0, max: 100, unit: 'wellbeing', help: 'Autonomists this unhappy may sabotage a building.' }),
+  sabotageChance: num({ label: 'Sabotage chance', min: 0, max: 5, step: 0.01, unit: '/sol', help: 'Per angry Autonomist, before Oversight.' }),
+  staffBonus: num({ label: 'Staff bonus', min: 0, max: 2, step: 0.01, help: 'Added output per colonist working a building (0.15 = +15%).' }),
+  specialtyBonus: num({ label: 'Specialty bonus', min: 0, max: 2, step: 0.01, help: 'Extra when their specialty is the building\'s best one.' }),
+  colonistHp: int({ label: 'Colonist hit points', min: 1, max: 1000 }),
+  walkSpeed: num({ label: 'Walking speed', min: 0.5, max: 20, step: 0.1, unit: 'u/s' }),
+} satisfies Shape;
+export type PeopleRules = Infer<typeof peopleRulesShape>;
 
 export const threatRulesShape = {
   graceSeconds: num({ label: 'Grace period', min: 0, max: 7200, unit: 's', help: 'No attacks before this.' }),
@@ -255,6 +294,7 @@ export const COLLECTIONS = {
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
+  people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },
   sound: { path: 'rules/sound.json', kind: 'single', shape: soundRulesShape, label: 'Sound', group: 'Rules' },
 } satisfies Record<string, Collection>;
 
