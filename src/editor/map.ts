@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { HEIGHT_SCALE, REGION_CELLS as NC, REGION_STEP, depositShape, herdShape, regionShape, spawnShape } from '../content/defs';
+import { HEIGHT_SCALE, REGION_CELLS as NC, REGION_STEP, depositShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
 import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
@@ -24,9 +24,9 @@ export interface MapHost {
   control(d: Record<string, unknown>, key: string, f: Field, onChange: () => void): HTMLElement;
 }
 
-type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn';
+type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent';
 const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
-  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit or spawn to select it; drag to move it' },
+  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn or vent to select it; drag to move it' },
   { id: 'raise', label: 'Raise', key: '1', tip: 'Raise ground (Shift: lower)' },
   { id: 'lower', label: 'Lower', key: '2', tip: 'Lower ground (Shift: raise)' },
   { id: 'smooth', label: 'Smooth', key: '3', tip: 'Even out bumps' },
@@ -36,14 +36,16 @@ const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'herd', label: 'Add herd', key: 'H', tip: 'Click the ground to place a grazer herd' },
   { id: 'deposit', label: 'Add deposit', key: 'D', tip: 'Click the ground to place an alloy deposit (mined by depots)' },
   { id: 'spawn', label: 'Add spawn', key: 'P', tip: 'Click the ground to place a predator spawn point (packs enter here)' },
+  { id: 'vent', label: 'Add vent', key: 'V', tip: 'Click the ground to place a geothermal vent (a Geothermal Tap can be built on it)' },
 ];
 
-type MKind = 'herds' | 'deposits' | 'spawns';
+type MKind = 'herds' | 'deposits' | 'spawns' | 'vents';
 type Marker = Record<string, number>;
 const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: Tool; make(x: number, z: number): Marker; summary(m: Marker): string; color: string; sel: string }> = {
   herds: { label: 'Grazer herds', one: 'Herd', shape: herdShape, tool: 'herd', make: (x, z) => ({ x, z, grazers: 20, roam: 40 }), summary: (m) => `${m.grazers} grazers`, color: '#c99a4a', sel: '#ffe08a' },
   deposits: { label: 'Alloy deposits', one: 'Deposit', shape: depositShape, tool: 'deposit', make: (x, z) => ({ x, z, alloys: 1000 }), summary: (m) => `${m.alloys} alloys`, color: '#e08a2c', sel: '#ffd08a' },
   spawns: { label: 'Predator spawns', one: 'Spawn', shape: spawnShape, tool: 'spawn', make: (x, z) => ({ x, z }), summary: () => 'packs enter here', color: '#d8414e', sel: '#ff9aa3' },
+  vents: { label: 'Geothermal vents', one: 'Vent', shape: ventShape, tool: 'vent', make: (x, z) => ({ x, z }), summary: () => 'a Geothermal Tap fits here', color: '#ff7a2a', sel: '#ffc08a' },
 };
 const MKINDS = Object.keys(MARKERS) as MKind[];
 
@@ -350,6 +352,14 @@ export class MapEditor {
             c.position.set(m.x + dx * sz * 0.6, y + sz * h * 0.5, -(m.z + dz * sz * 0.6));
             g.add(c);
           }
+        } else if (k === 'vents') {
+          const crack = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 7), mat);
+          crack.position.set(m.x, y + 0.4, -m.z);
+          crack.rotation.y = 0.4;
+          const plume = new THREE.Mesh(new THREE.ConeGeometry(1.6, 7, 8), mat);
+          plume.rotation.x = Math.PI;
+          plume.position.set(m.x, y + 4.5, -m.z);
+          g.add(crack, plume, this.terrainRing(m.x, m.z, 5, sel ? '#ffc08a' : '#ff7a2a', 0.8));
         } else {
           const cone = new THREE.Mesh(new THREE.ConeGeometry(2.2, 6, 4), mat);
           cone.rotation.x = Math.PI;
@@ -427,7 +437,7 @@ export class MapEditor {
   }
 
   private updateCursor() {
-    const brush = !['select', 'herd', 'deposit', 'spawn'].includes(prefs.tool);
+    const brush = !['select', 'herd', 'deposit', 'spawn', 'vent'].includes(prefs.tool);
     this.cursor.visible = !!this.hover && brush;
     if (!this.hover || !brush) return;
     const p = this.cursor.geometry.getAttribute('position') as THREE.BufferAttribute;

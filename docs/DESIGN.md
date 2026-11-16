@@ -200,9 +200,11 @@ Processing Center.
 | **Vehicle shop** | Combat and utility vehicles |
 | **Tech lab** | Research |
 | **Radar** | Minimap and long-range sensors; reveals threats approaching held regions |
-| **Defenses** | Turrets and walls early; shields later |
+| **Defenses** | Turrets, point defense, siege cannons, walls and gates early; shields later |
+| **Repair pad** | Mends combat units parked on it while powered |
+| **Geothermal tap** | Steady day-and-night power, only on a vent |
 
-Later: geothermal taps, deep-core mines (exotic isotopes), relay towers linking regions,
+Later: deep-core mines (exotic isotopes), relay towers linking regions,
 orbital shipyard (Act 2).
 
 ### 5.3 Resources
@@ -244,7 +246,8 @@ a stake in the argument.
 
 ### 5.6 Fauna, inhabitants and threats
 - **Wild fauna** — migration patterns, nests, escalating incursions; also a resource (biomass,
-  biology research).
+  biology research). M1 predators: swarmers (pack biters), brutes (heavy melee), spitters
+  (ranged, outreach a basic turret) and burrowers (tunnel under walls, surface at their target).
 - **Intelligent inhabitants** — remnants of failed experiments from earlier runs. Not just
   enemies: contact can go toward trade, alliance, coexistence, conflict or conquest. They
   react to how you expand and may treat the three probes very differently. They have seen the
@@ -475,7 +478,35 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
     the ringer switch is on silent — if there's no sound on the phone, check the switch first.
   - Tests: `tools/sound-smoke.mjs` (counts what started via `__exo.audio.stats()`; it can't judge how it sounds —
     the recipes in `src/audio/synth.ts` are first guesses for Derek to tune by ear).
-- **Not in M1 yet:** nothing left on the list; next is a full M1 playtest.
+- **More units and buildings (2026-11-16, v0.10.0):** from Derek's playtest ("challenging but engaging"), a
+  wider roster. All numbers are content (`content/units`, `content/buildings`); the editor shows the new fields.
+  - **Roster is data now:** any unit record is drawn (`src/skirmish/types.ts` ROSTER: the skirmish's four keep
+    types 0–3, the rest follow by id; `src/skirmish/models.ts` BUILTIN_UNITS has a procedural look per id, and a
+    record without one borrows the Rover's or Swarmer's). New unit fields: `minRange`, `chain`/`chainRange`,
+    `weapon` (bolt · cannon · shell · arc · pd · bite · spit: tracer + sound), `repairRate`, `burrows`, and for
+    fauna `packEvery`/`packFrom` (every Nth attacker of a pack, from pack N). Buildings gained `splash`,
+    `minRange`, `weapon`, `repairRate` and the roles `gate`, `repair`, `geothermal`.
+  - **Units** (Vehicle Bay, sorted by cost): **Scout Skimmer** (35◆, speed 13, sight 58, barely armed),
+    **Field Engineer** (80◆, unarmed, repairs units first then buildings within reach, at a drone's alloy rate),
+    **Arc Caster** (95◆, 10 u, each hit jumps to 4 more within 6 u at 70% per jump), **Artillery** (140◆,
+    10–46 u, splash 6, fragile; like everything it only fires at what the colony can see, so it needs a spotter).
+  - **Buildings:** **Point Defense** (80◆, 18 u, 60 dmg/s: the close-in specialist), **Siege Cannon** (160◆,
+    8–44 u, splash 5: outranges spitters), **Repair Pad** (100◆, heals units within 9 u, free, power rank with
+    the radar, standby when idle), **Gate** (30◆: dropped near a wall it snaps onto the line, centres between two
+    segments and replaces them, no gap; predators treat it as wall, units path through it), **Geothermal Tap**
+    (130◆, +7 MW day and night, only within 5 u of an untapped vent). Vents are a region list (`vents`), placed
+    in the map editor (V); Touchdown has three, each outside the starting build area.
+  - **Fauna:** **Spitter** (every 5th attacker from pack 4: 30 u spit, 70 hp, sits just outside a turret's 28 u)
+    and **Burrower** (every 7th from pack 7: underground it is undrawn and untargetable, ignores walls, water and
+    units, heads for the nearest non-wall building, surfaces 3 u out with a warning; radar still shows it).
+  - **Balance** (`tools/balance.mjs`, 5 seeds, 20 min): the new fauna make the old builds a bit harder
+    (`balanced` 5/5 → 4/5, `army` 2/5 → 0/5, `mixed` 1/5 → 1/5). New strategies: `fortress` (balanced economy
+    with point defense, cannons and geothermal) survives 4/5; `combined` (arc casters, artillery, an engineer, a
+    repair pad) 0/5 but lasts longer than `mixed` (mean 17.2 vs 14.5 min). Units are still weaker than
+    turrets in the bot's hands. Point Defense was first tuned like a turret and was strictly worse; now 60 dmg/s.
+  - `debug` command can drop in combat units (`units: { unit, x, z, n }`). Tests: `tools/roster-smoke.mjs`
+    (headless, 27 checks: every mechanic above on the real sim).
+- **Not in M1 yet:** nothing left on the list; next is a full M1 playtest with the wider roster.
 
 ## 8. Open questions
 

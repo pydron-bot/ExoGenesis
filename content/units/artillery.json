@@ -1,0 +1,19 @@
+{
+  "name": "Artillery",
+  "faction": "accord",
+  "description": "Lobs heavy shells far beyond turret range, with a wide blast. Can't hit anything close: keep it behind walls or other units.",
+  "hp": 140,
+  "speed": 3.6,
+  "range": 46,
+  "minRange": 10,
+  "damage": 50,
+  "cooldown": 3.5,
+  "splash": 6,
+  "weapon": "shell",
+  "radius": 1.2,
+  "aggro": 46,
+  "sight": 30,
+  "modelScale": 1,
+  "cost": 140,
+  "buildSeconds": 28
+}

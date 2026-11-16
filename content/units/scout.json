@@ -1,0 +1,16 @@
+{
+  "name": "Scout Skimmer",
+  "faction": "accord",
+  "description": "Very fast, sees far, barely armed. Clears the fog and finds where packs come from.",
+  "hp": 80,
+  "speed": 13,
+  "range": 10,
+  "damage": 4,
+  "cooldown": 0.45,
+  "radius": 0.8,
+  "aggro": 12,
+  "sight": 58,
+  "modelScale": 1,
+  "cost": 35,
+  "buildSeconds": 8
+}

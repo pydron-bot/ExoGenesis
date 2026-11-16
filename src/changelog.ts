@@ -15,6 +15,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.10.0',
+    date: '2026-11-16',
+    title: 'More units, more buildings, new predators',
+    notes: [
+      'Four new vehicles at the Vehicle Bay: the fast Scout Skimmer that sees far, the Field Engineer that repairs units and buildings in the field, the Arc Caster whose discharge jumps between targets, and long-range Artillery (it needs something to spot for it)',
+      'New defenses: Point Defense for anything that reaches the base, and the Siege Cannon that shells from far out',
+      'Gates: drop one onto a wall and it slots in. Your units drive through, predators can\'t',
+      'Repair Pad: park damaged units on it to mend them for free while it has power',
+      'Geothermal vents glow in the ground. Build a Geothermal Tap on one for steady power all night',
+      'New predators in later packs: Spitters attack from just beyond a Defense Turret\'s reach, and Burrowers tunnel under your walls and surface inside. Radar can see them coming',
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-11-16',
     title: 'A living planet, and version numbers',

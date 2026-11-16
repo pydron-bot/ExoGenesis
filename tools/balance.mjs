@@ -2,7 +2,7 @@
  * Headless balance runs: plays the real sim (src/sim/core.ts) for N game
  * minutes with scripted strategies and prints a timeline, so tuning content/
  * numbers is measured, not guessed.
- *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed] [--quiet]
+ *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed|fortress|combined] [--quiet]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -29,13 +29,14 @@ function spot(s, kind, px, pz) {
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2;
       const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
-      if (!rules.placeProblem(s, DEFS, RULES, kind, x, z)) return { x, z };
+      if (!rules.placeProblem({ ...s, vents: VENTS }, DEFS, RULES, kind, x, z)) return { x, z };
     }
   }
   return null;
 }
 const count = (s, kind) => s.buildings.filter((b) => b.kind === kind).length;
 const spawns = content.regions.touchdown.spawns;
+const VENTS = content.regions.touchdown.vents ?? [];
 
 const STRATEGIES = {
   idle: () => [],
@@ -46,6 +47,10 @@ const STRATEGIES = {
   army: () => [['solar'], ['solar'], ['depot', 'near'], ['battery'], ['bay'], ['rover'], ['rover'], ['solar'], ['turret', 'guard'], ['tank'], ['radar'], ['depot', 'near'], ['solar'], ['rover'], ['tank'], ['battery'], ['solar'], ['tank'], ['rover'], ['tank'], ['solar'], ['tank'], ['tank']],
   // the balanced build with a small army mixed in
   mixed: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['bay'], ['rover'], ['turret', 'spawn'], ['radar'], ['tank'], ['depot', 'near'], ['solar'], ['battery'], ['tank'], ['turret', 'spawn'], ['solar'], ['rover'], ['tank'], ['solar'], ['tank']],
+  // the balanced economy, with the new emplacements: point defense close in, siege cannons toward the spawns, geothermal for the nights
+  fortress: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['pointdefense', 'spawn'], ['radar'], ['depot', 'near'], ['pointdefense', 'guard'], ['geothermal', 'vent'], ['battery'], ['fab'], ['cannon', 'spawn'], ['solar'], ['turret', 'spawn'], ['cannon', 'spawn'], ['solar'], ['pointdefense', 'spawn'], ['cannon', 'guard']],
+  // the mixed economy, with the new units: arc casters for swarms, artillery behind them, an engineer, a repair pad at home
+  combined: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['bay'], ['arc'], ['turret', 'spawn'], ['radar'], ['depot', 'near'], ['artillery'], ['engineer'], ['solar'], ['battery'], ['arc'], ['pointdefense', 'spawn'], ['solar'], ['artillery'], ['arc'], ['repairpad']],
   defensive: () => [['solar'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['turret', 'spawn'], ['solar'], ['radar'], ['battery'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn']],
 };
 
@@ -84,6 +89,10 @@ function run(name) {
             const k = 10 / Math.hypot(sp.x - dep.x, sp.z - dep.z);
             target = { x: dep.x + (sp.x - dep.x) * k, z: dep.z + (sp.z - dep.z) * k };
           }
+        } else if (where === 'vent') {
+          const free = VENTS.filter((v) => !s.buildings.some((b) => b.kind === 'geothermal' && Math.hypot(b.x - v.x, b.z - v.z) < 6))
+            .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
+          if (free.length) target = free[0];
         } else if (where === 'spawn') {
           const sp = spawns[spawnIdx++ % spawns.length];
           const k = 34 / Math.hypot(sp.x, sp.z);
@@ -91,6 +100,11 @@ function run(name) {
         }
         const p = spot(s, kind, target.x, target.z);
         if (p) { sim.command({ type: 'build', kind, ...p }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
+        else if (where === 'vent' && s.alloys >= DEFS.solar.cost + DEFS[kind].cost) {
+          // the vent is outside the build area: reach toward it with a solar array first
+          const b = spot(s, 'solar', target.x * 0.55, target.z * 0.55);
+          if (b) sim.command({ type: 'build', kind: 'solar', ...b });
+        }
       }
     }
     // the army: idle units go after any hostile near the base, then come home

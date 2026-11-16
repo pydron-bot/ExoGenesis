@@ -56,6 +56,7 @@ npm run dev        # http://localhost:5176 (on hive1: systemd user unit exo-dev.
 npm run build
 node tools/smoke.mjs   # colony end-to-end: orders, build menu, placement, power switch, a fight, save/load, game over
 node tools/balance.mjs # headless 20-minute runs with scripted strategies (balance numbers)
+node tools/roster-smoke.mjs # headless checks for every unit, building and predator mechanic
 node tools/shot.mjs    # headless screenshots of each zoom level → shots/
 npm run content:check  # validate content/ against src/content/defs.ts
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)

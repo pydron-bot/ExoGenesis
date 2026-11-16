@@ -8,6 +8,7 @@
   "damage": 30,
   "cooldown": 1.5,
   "splash": 4,
+  "weapon": "cannon",
   "radius": 1.3,
   "aggro": 26,
   "modelScale": 1,

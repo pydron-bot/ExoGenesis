@@ -32,6 +32,8 @@ interface Handlers {
   lineStep(kind: string): number;
   /** Why `kind` can't go at (x, z), or null. */
   placeProblem(kind: string, x: number, z: number): string | null;
+  /** Where `kind` would really go near (x, z) if it snaps to something (a gate onto a wall). */
+  snap?(kind: string, x: number, z: number): { x: number; z: number; yaw: number } | null;
   buildings(): Building[];
   units(): UnitSnap[];
   order(ids: number[], x: number, z: number): void;
@@ -165,6 +167,8 @@ export class Input {
       return;
     }
     this.ui.ghostLine = null;
+    const sn = this.h.snap?.(kind, g.x, g.z);
+    if (sn) { this.ui.yaw = sn.yaw; g = sn; }
     this.ui.ghost = { x: g.x, z: g.z, ok: !this.h.placeProblem(kind, g.x, g.z) };
   }
 
@@ -329,7 +333,7 @@ export class Input {
       // touch: first tap previews, a tap on the preview places it
       const confirm = mouse || (this.ui.ghost && Math.hypot(this.ui.ghost.x - g.x, this.ui.ghost.z - g.z) < 6);
       if (!confirm) { this.ghostAt(g); return; }
-      const at = mouse ? g : this.ui.ghost!;
+      const at = mouse ? (this.h.snap?.(this.ui.build, g.x, g.z) ?? g) : this.ui.ghost!;
       const why = this.h.placeProblem(this.ui.build, at.x, at.z);
       if (why) { this.h.say(`Can't build there: ${why}`); this.ghostAt(at); return; }
       this.h.build(this.ui.build, at.x, at.z, this.ui.yaw ?? 0);

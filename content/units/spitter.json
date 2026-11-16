@@ -1,0 +1,16 @@
+{
+  "name": "Spitter",
+  "faction": "fauna",
+  "description": "Hangs back and spits acid from just beyond a Defense Turret's reach. Fragile up close.",
+  "hp": 70,
+  "speed": 5,
+  "range": 30,
+  "damage": 9,
+  "cooldown": 2,
+  "weapon": "spit",
+  "radius": 0.9,
+  "aggro": 30,
+  "modelScale": 1,
+  "packEvery": 5,
+  "packFrom": 4
+}

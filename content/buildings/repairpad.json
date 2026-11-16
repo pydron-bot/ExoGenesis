@@ -1,0 +1,13 @@
+{
+  "name": "Repair Pad",
+  "description": "Units parked within reach are repaired while it has power. Free; power is the cost.",
+  "role": "repair",
+  "buildable": true,
+  "cost": 100,
+  "hp": 400,
+  "powerMW": -2,
+  "buildSeconds": 14,
+  "clearance": 10,
+  "range": 9,
+  "repairRate": 15
+}

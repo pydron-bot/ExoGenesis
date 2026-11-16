@@ -1,0 +1,16 @@
+{
+  "name": "Field Engineer",
+  "faction": "accord",
+  "description": "Unarmed. Repairs damaged units and buildings nearby so the army can stay in the field. Repairs cost alloys.",
+  "hp": 200,
+  "speed": 6,
+  "range": 8,
+  "damage": 0,
+  "cooldown": 1,
+  "repairRate": 18,
+  "radius": 1,
+  "aggro": 30,
+  "modelScale": 1,
+  "cost": 80,
+  "buildSeconds": 16
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Geothermal Tap",
+  "description": "Steady power day and night, but only on top of a geothermal vent.",
+  "role": "geothermal",
+  "buildable": true,
+  "cost": 130,
+  "hp": 500,
+  "powerMW": 7,
+  "buildSeconds": 20,
+  "clearance": 9,
+  "range": 5
+}

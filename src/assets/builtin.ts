@@ -4,9 +4,9 @@
  * Editor only.
  */
 import * as THREE from 'three';
-import { buildBattery, buildCore, buildCreature, buildDeposit, buildDepot, buildDrone, buildRadar, buildBay, buildScaffold, buildSolar, buildTurret } from '../world/region';
+import { buildBattery, buildCannon, buildCore, buildCreature, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPointDefense, buildRadar, buildBay, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
-import { creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from '../skirmish/models';
+import { BUILTIN_UNITS, creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from '../skirmish/models';
 
 export interface Builtin {
   id: string;
@@ -46,6 +46,13 @@ export const BUILTINS: Builtin[] = [
   { id: 'turret', name: 'Defense Turret', group: 'Buildings', where: 'src/world/region.ts buildTurret()', usedBy: { coll: 'buildings', id: 'turret' }, swappable: true, note: 'An asset model won\'t aim: the built-in turns its "head" part toward targets.', build: buildTurret },
   { id: 'radar', name: 'Radar', group: 'Buildings', where: 'src/world/region.ts buildRadar()', usedBy: { coll: 'buildings', id: 'radar' }, swappable: true, note: 'An asset model won\'t spin: the built-in turns its "dish" part.', build: buildRadar },
   { id: 'bay', name: 'Vehicle Bay', group: 'Buildings', where: 'src/world/region.ts buildBay()', usedBy: { coll: 'buildings', id: 'bay' }, swappable: true, note: 'Units roll out of the door side (−Z).', build: buildBay },
+  { id: 'cannon', name: 'Siege Cannon', group: 'Buildings', where: 'src/world/region.ts buildCannon()', usedBy: { coll: 'buildings', id: 'cannon' }, swappable: true, note: 'An asset model won\'t aim: the built-in turns its "head" part.', build: buildCannon },
+  { id: 'pointdefense', name: 'Point Defense', group: 'Buildings', where: 'src/world/region.ts buildPointDefense()', usedBy: { coll: 'buildings', id: 'pointdefense' }, swappable: true, note: 'An asset model won\'t aim: the built-in turns its "head" part.', build: buildPointDefense },
+  { id: 'repairpad', name: 'Repair Pad', group: 'Buildings', where: 'src/world/region.ts buildRepairPad()', usedBy: { coll: 'buildings', id: 'repairpad' }, swappable: true, build: buildRepairPad },
+  { id: 'wall', name: 'Wall segment', group: 'Buildings', where: 'src/world/region.ts buildWall()', usedBy: { coll: 'buildings', id: 'wall' }, swappable: true, note: 'Runs along local Z, one Clearance long.', build: buildWall },
+  { id: 'gate', name: 'Gate', group: 'Buildings', where: 'src/world/region.ts buildGate()', usedBy: { coll: 'buildings', id: 'gate' }, swappable: true, note: 'Runs along local Z, one Clearance long.', build: buildGate },
+  { id: 'geothermal', name: 'Geothermal Tap', group: 'Buildings', where: 'src/world/region.ts buildGeothermal()', usedBy: { coll: 'buildings', id: 'geothermal' }, swappable: true, build: buildGeothermal },
+  { id: 'vent', name: 'Geothermal vent', group: 'Terrain', where: 'src/world/region.ts buildVent()', swappable: false, note: 'Placed with the map editor (Vents).', build: () => buildVent(1) },
   { id: 'deposit', name: 'Alloy deposit', group: 'Terrain', where: 'src/world/region.ts buildDeposit()', swappable: false, note: 'Placed with the map editor (Deposits).', build: () => buildDeposit(1) },
   { id: 'scaffold', name: 'Construction scaffold', group: 'Buildings', where: 'src/world/region.ts buildScaffold()', swappable: false, note: 'Shown while any building is under construction.', build: buildScaffold },
   { id: 'drone', name: 'Worker drone', group: 'Units', where: 'src/world/region.ts buildDrone()', swappable: false, note: 'Not a content record yet.', build: buildDrone },
@@ -53,6 +60,14 @@ export const BUILTINS: Builtin[] = [
   { id: 'tank', name: 'Tank', group: 'Units', where: 'src/skirmish/models.ts tankGeo()', usedBy: { coll: 'units', id: 'tank' }, swappable: true, build: () => unit(tankGeo(), unitMaterials()[1], tankGlow()) },
   { id: 'swarmer', name: 'Swarmer', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(false)', usedBy: { coll: 'units', id: 'swarmer' }, swappable: true, build: () => unit(creatureGeo(false), unitMaterials()[2]) },
   { id: 'brute', name: 'Brute', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(true)', usedBy: { coll: 'units', id: 'brute' }, swappable: true, build: () => unit(creatureGeo(true), unitMaterials()[3]) },
+  ...(['artillery', 'arc', 'engineer', 'scout'] as const).map((id): Builtin => ({
+    id, name: id[0].toUpperCase() + id.slice(1), group: 'Units', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
+    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+  })),
+  ...(['spitter', 'burrower'] as const).map((id): Builtin => ({
+    id, name: id[0].toUpperCase() + id.slice(1), group: 'Fauna', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
+    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material()),
+  })),
   {
     id: 'grazer', name: 'Grazer', group: 'Fauna', where: 'src/world/region.ts buildCreature()', swappable: false, note: 'Not a content record yet.',
     build: () => new THREE.Mesh(buildCreature(), new THREE.MeshStandardMaterial({ color: '#c78a5a', roughness: 0.8, flatShading: true, emissive: '#3a1a10', emissiveIntensity: 0.4 })),

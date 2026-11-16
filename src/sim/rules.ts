@@ -8,9 +8,14 @@ import { regionHeightRaw } from '../world/planet';
 import { REGION_HALF } from './types';
 
 export interface PlaceWorld {
-  buildings: { kind: string; x: number; z: number; progress: number }[];
+  buildings: { kind: string; x: number; z: number; progress: number; yaw?: number }[];
   deposits: { x: number; z: number; alloys: number }[];
+  /** Geothermal vents (from the region map). */
+  vents?: { x: number; z: number }[];
 }
+
+/** Line-placed or gate: blocks predators, doesn't extend the build area. */
+export const isBarrier = (role: string | undefined) => role === 'wall' || role === 'gate';
 
 export const DEPOSIT_RADIUS = 6;
 export const EDGE = REGION_HALF - 10;
@@ -33,6 +38,8 @@ export function placeProblem(
   for (const b of w.buildings) {
     const o = defs[b.kind];
     if (!o) continue;
+    // a gate goes onto a wall line, replacing the segments under it
+    if (d.role === 'gate' && o.role === 'wall') continue;
     if (Math.hypot(b.x - x, b.z - z) < (o.clearance + d.clearance) / 2) return `too close to the ${o.name}`;
   }
   for (const dep of w.deposits) {
@@ -44,12 +51,61 @@ export function placeProblem(
     const o = defs[b.kind];
     if (!o) continue;
     // walls don't extend the build area (no creeping a wall across the map)
-    const reach = o.role === 'core' ? (o.range ?? rules.buildRadius) : b.progress >= 1 && o.role !== 'wall' ? rules.buildRadius + o.clearance / 2 : 0;
+    const reach = o.role === 'core' ? (o.range ?? rules.buildRadius) : b.progress >= 1 && !isBarrier(o.role) ? rules.buildRadius + o.clearance / 2 : 0;
     if (Math.hypot(b.x - x, b.z - z) <= reach) { near = true; break; }
   }
   if (!near) return 'outside the build area: build closer to the Core or a finished building';
   if (d.role === 'depot' && depositFor(w, d, x, z) < 0) return `no alloy deposit within ${d.range} u`;
+  if (d.role === 'geothermal' && ventFor(w, defs, d, x, z) < 0) return 'must sit on a free geothermal vent';
   return null;
+}
+
+/** An untapped vent within a geothermal tap's range of (x, z), or -1. */
+export function ventFor(w: PlaceWorld, defs: Record<string, BuildingDef>, d: BuildingDef, x: number, z: number): number {
+  const reach = d.range ?? 5;
+  let best = -1, bd = Infinity;
+  (w.vents ?? []).forEach((v, i) => {
+    const dist = Math.hypot(v.x - x, v.z - z);
+    if (dist > reach || dist >= bd) return;
+    const taken = w.buildings.some((b) => defs[b.kind]?.role === 'geothermal' && Math.hypot(b.x - v.x, b.z - v.z) <= (defs[b.kind].range ?? 5) && (b.x !== x || b.z !== z));
+    if (!taken) { bd = dist; best = i; }
+  });
+  return best;
+}
+
+/**
+ * A gate near a wall snaps onto that wall's line and turns to match it. It
+ * centres between the segment under the cursor and its neighbour on the
+ * cursor's side, so it replaces exactly those two and leaves no gap (at the end
+ * of a line it centres on the last segment). Null if no wall is close.
+ */
+export function gateSnap(w: PlaceWorld, defs: Record<string, BuildingDef>, x: number, z: number): { x: number; z: number; yaw: number } | null {
+  let near: PlaceWorld['buildings'][number] | null = null, bd = 4;
+  for (const b of w.buildings) {
+    if (defs[b.kind]?.role !== 'wall') continue;
+    const dist = Math.hypot(b.x - x, b.z - z);
+    if (dist < bd) { bd = dist; near = b; }
+  }
+  if (!near) return null;
+  const yaw = near.yaw ?? 0, ux = Math.sin(yaw), uz = Math.cos(yaw);
+  const side = Math.sign((x - near.x) * ux + (z - near.z) * uz) || 1;
+  const step = defs[near.kind].clearance + 0.02;
+  const pair = (dir: number) => w.buildings.find((b) => b !== near && defs[b.kind]?.role === 'wall' && Math.abs(Math.sin((b.yaw ?? 0) - yaw)) < 0.05
+    && Math.hypot(b.x - (near!.x + ux * step * dir), b.z - (near!.z + uz * step * dir)) < 0.6);
+  const mate = pair(side) ?? pair(-side);
+  return mate ? { x: (near.x + mate.x) / 2, z: (near.z + mate.z) / 2, yaw } : { x: near.x, z: near.z, yaw };
+}
+
+/** Wall segments a gate at (x, z, yaw) replaces: centred on its line, within its length. */
+export function wallsUnderGate<B extends PlaceWorld['buildings'][number]>(list: B[], defs: Record<string, BuildingDef>, gate: BuildingDef, x: number, z: number, yaw: number): B[] {
+  const ux = Math.sin(yaw), uz = Math.cos(yaw), half = gate.clearance / 2;
+  return list.filter((b) => {
+    const o = defs[b.kind];
+    if (o?.role !== 'wall') return false;
+    const dx = b.x - x, dz = b.z - z;
+    const along = dx * ux + dz * uz, across = Math.abs(dx * uz - dz * ux);
+    return Math.abs(along) < half - 0.5 && across < 2.5;
+  });
 }
 
 /** Most segments in one wall line. */

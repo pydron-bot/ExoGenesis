@@ -86,6 +86,8 @@ export interface Hostile {
   pack: number;
   /** Stuck against something (a wall) and chewing through it: keep this target till it's gone. */
   chew?: boolean;
+  /** Burrower travelling underground: unseen (radar still shows it), untargetable, passes under walls. */
+  under?: boolean;
   best?: number;
   stall?: number;
 }
@@ -112,6 +114,8 @@ export interface Unit {
   gz: number;
   /** Hostile id it's shooting at (-1 none). */
   target: number;
+  /** Repairers: id of the unit or building being repaired (-1 none). */
+  fix?: number;
   /** Waypoints being followed (flat x, z pairs) toward `goal`; re-planned every few seconds. */
   path?: number[];
   goal?: [number, number];
@@ -179,8 +183,8 @@ export type Command =
   | { type: 'order'; ids: number[]; x: number; z: number }
   | { type: 'stop'; ids: number[] }
   | { type: 'landing'; stage: LandingStage }
-  /** Playtesting / tests: spawn the next pack now, add alloys, or damage a building. */
-  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number } };
+  /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
+  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number } };
 
 export type ToWorker =
   | { type: 'cmd'; cmd: Command }

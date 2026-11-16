@@ -10,5 +10,6 @@
   "clearance": 7,
   "fireRange": 28,
   "damage": 20,
-  "cooldown": 0.5
+  "cooldown": 0.5,
+  "weapon": "cannon"
 }

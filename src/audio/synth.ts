@@ -79,6 +79,45 @@ export const RECIPES: Record<Exclude<SoundId, 'wind'>, Recipe> = {
     hiss(c, o, t, 'lowpass', 1400 * p, 160 * p, 0.28, 0.4, 0.7, 0.002);
     return 0.34;
   },
+  shell(c, o, t, p) {
+    // a deep thump and a rolling boom
+    tone(c, o, t, 'sine', 95 * p, 30 * p, 0.6, 0.6, 0.002);
+    hiss(c, o, t, 'lowpass', 900 * p, 90 * p, 0.55, 0.45, 0.6, 0.002);
+    hiss(c, o, t + 0.04, 'bandpass', 2200 * p, 600 * p, 0.12, 0.2, 1.2);
+    return 0.62;
+  },
+  arc(c, o, t, p) {
+    // a crackling zap: buzzy saw with a fast wobble, plus sizzle
+    tone(c, o, t, 'sawtooth', 1600 * p, 380 * p, 0.12, 0.12);
+    tone(c, o, t + 0.03, 'square', 900 * p, 2400 * p, 0.06, 0.06);
+    hiss(c, o, t, 'highpass', 4200 * p, 2400 * p, 0.14, 0.22, 0.8);
+    return 0.16;
+  },
+  pdShot(c, o, t, p) {
+    // a short burst of three ticks
+    for (let i = 0; i < 3; i++) hiss(c, o, t + i * 0.022, 'bandpass', 3200 * p, 1800 * p, 0.02, 0.3, 2);
+    return 0.08;
+  },
+  spit(c, o, t, p) {
+    // a wet hock and a bubbling hiss
+    hiss(c, o, t, 'bandpass', 600 * p, 1400 * p, 0.09, 0.6, 3);
+    tone(c, o, t + 0.02, 'sine', 300 * p, 520 * p, 0.12, 0.12);
+    hiss(c, o, t + 0.08, 'highpass', 2600 * p, 5000 * p, 0.2, 0.12, 0.7);
+    return 0.3;
+  },
+  emerge(c, o, t, p) {
+    // ground breaking open: rumble rising into a crunch
+    hiss(c, o, t, 'lowpass', 120 * p, 700 * p, 0.45, 0.5, 1, 0.08);
+    tone(c, o, t, 'sine', 40 * p, 70 * p, 0.5, 0.4, 0.08);
+    hiss(c, o, t + 0.35, 'bandpass', 1500 * p, 600 * p, 0.2, 0.4, 1.5);
+    return 0.6;
+  },
+  repair(c, o, t, p) {
+    // a soft rising whirr
+    tone(c, o, t, 'triangle', 600 * p, 1100 * p, 0.25, 0.07, 0.04);
+    tone(c, o, t + 0.05, 'sine', 1200 * p, 1800 * p, 0.2, 0.04, 0.04);
+    return 0.3;
+  },
   bite(c, o, t, p) {
     hiss(c, o, t, 'bandpass', 900 * p, 500 * p, 0.05, 1.6, 2);
     hiss(c, o, t + 0.06, 'bandpass', 760 * p, 420 * p, 0.06, 1.3, 2);

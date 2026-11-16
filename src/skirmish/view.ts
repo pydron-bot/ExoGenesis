@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { placeMatrix, regionPoint } from '../world/heightGrid';
 import { flattenForInstancing, loadModel } from '../assets/models';
-import { creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from './models';
+import { builtinUnitLook } from './models';
 import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, type SkSnapshot } from './types';
 
 interface Pool { mesh: THREE.InstancedMesh; life: Float32Array; max: Float32Array; next: number; color: THREE.Color[]; size: Float32Array; pos: Float32Array }
@@ -26,6 +26,8 @@ function pool(geo: THREE.BufferGeometry, n: number): Pool {
 const C = {
   roverShot: new THREE.Color('#7ff8ff'), tankShot: new THREE.Color('#ffc46b'), bite: new THREE.Color('#ff6a4d'),
   dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
+  shell: new THREE.Color('#ff9a3d'), arc: new THREE.Color('#b9a6ff'), spit: new THREE.Color('#a6ff4d'),
+  emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'),
   glow: new THREE.Color('#5ff3ff'), glowSel: new THREE.Color('#ffd27a'), white: new THREE.Color('#e9eef2'), hurt: new THREE.Color('#ff5a4a'),
 };
 
@@ -38,6 +40,7 @@ export class ArmyView {
   readonly lz = new Float32Array(MAX_UNITS);
   readonly visible = new Uint8Array(MAX_UNITS);
   readonly type = new Uint8Array(MAX_UNITS);
+  private counts = new Int32Array(DEFS.length);
   slots = 0;
   private bodies: THREE.InstancedMesh[] = [];
   private glows: (THREE.InstancedMesh | null)[] = [];
@@ -54,17 +57,17 @@ export class ArmyView {
 
   constructor(scene: THREE.Scene) {
     scene.add(this.group);
-    const geos = [roverGeo(), tankGeo(), creatureGeo(false), creatureGeo(true)];
-    const mats = unitMaterials();
-    for (let t = 0; t < 4; t++) {
-      const im = new THREE.InstancedMesh(geos[t], mats[t], MAX_UNITS);
+    // one instanced draw per unit type, plus a glow layer for types that have one (player vehicles)
+    for (const d of DEFS) {
+      const look = builtinUnitLook(d.id, d.team === 0 ? 'accord' : 'fauna');
+      const im = new THREE.InstancedMesh(look.geo(), look.material(), MAX_UNITS);
       im.count = 0;
       im.frustumCulled = false;
-      if (t < 2) im.setColorAt(0, C.white);
+      if (d.team === 0) im.setColorAt(0, C.white);
       this.group.add(im);
       this.bodies.push(im);
-      if (t < 2) {
-        const g = new THREE.InstancedMesh(t === 0 ? roverGlow() : tankGlow(), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, fog: false }), MAX_UNITS);
+      if (look.glow) {
+        const g = new THREE.InstancedMesh(look.glow(), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, fog: false }), MAX_UNITS);
         g.count = 0;
         g.frustumCulled = false;
         g.setColorAt(0, C.glow);
@@ -98,7 +101,7 @@ export class ArmyView {
 
   update(prev: SkSnapshot, cur: SkSnapshot, alpha: number, selected: Map<number, number>, dt: number) {
     const a = prev.units, b = cur.units;
-    const counts = [0, 0, 0, 0];
+    const counts = this.counts.fill(0);
     let rings = 0;
     this.slots = cur.slots;
     const prevSlots = prev.slots;
@@ -123,7 +126,7 @@ export class ArmyView {
       this.wx[s] = this.m.elements[12]; this.wy[s] = this.m.elements[13]; this.wz[s] = this.m.elements[14];
       this.visible[s] = 1;
       this.type[s] = t;
-      if (t < 2) {
+      if (DEFS[t].team === 0) {
         const hp = b[o + F.HP];
         this.bodies[t].setColorAt(i, this.col.copy(C.hurt).lerp(C.white, Math.min(1, hp * 1.3)));
         const g = this.glows[t];
@@ -135,7 +138,7 @@ export class ArmyView {
         }
       }
     }
-    for (let t = 0; t < 4; t++) {
+    for (let t = 0; t < DEFS.length; t++) {
       const im = this.bodies[t];
       im.count = counts[t];
       im.instanceMatrix.needsUpdate = true;
@@ -157,31 +160,62 @@ export class ArmyView {
   private spawnFx(fx: Float32Array) {
     for (let i = 0; i < fx.length; i += FX_STRIDE) {
       const k = fx[i], x1 = fx[i + 1], z1 = fx[i + 2], x2 = fx[i + 3], z2 = fx[i + 4];
-      if (k === FX.ROVER_SHOT || k === FX.TANK_SHOT || k === FX.TURRET_SHOT || k === FX.BITE) {
-        const tank = k === FX.TANK_SHOT || k === FX.TURRET_SHOT;
-        regionPoint(x1, z1, tank ? 1.45 : 1.3, this.v1);
-        regionPoint(x2, z2, 1.0, this.v2);
-        const len = this.v1.distanceTo(this.v2);
-        if (len < 0.01) continue;
-        const p = this.tracers;
-        const j = p.next; p.next = (j + 1) % p.life.length;
-        p.mesh.count = Math.max(p.mesh.count, j + 1);
-        const w = tank ? 0.32 : k === FX.BITE ? 0.25 : 0.14;
-        this.m.lookAt(this.v1, this.v2, this.up.copy(this.v1).normalize());
-        this.m.scale(this.v2.set(w, w, k === FX.BITE ? Math.min(len, 1.2) : len));
-        this.m.setPosition(regionPoint(x1, z1, tank ? 1.45 : 1.3, this.v1));
-        p.mesh.setMatrixAt(j, this.m);
-        p.life[j] = p.max[j] = tank ? 0.22 : 0.12;
-        p.color[j].copy(tank ? C.tankShot : k === FX.BITE ? C.bite : C.roverShot);
-        if (tank) this.flash(x2, z2, 1.0, 0.25, C.tankShot);
-      } else if (k === FX.DIE_SMALL) this.flash(x1, z1, 1.3, 0.4, C.dieSmall);
-      else if (k === FX.DIE_BIG) this.flash(x1, z1, 2.6, 0.6, C.dieBig);
-      else if (k === FX.CORE_HIT) this.flash(x1, z1, 0.9, 0.25, C.coreHit);
+      switch (k) {
+        case FX.ROVER_SHOT: this.tracer(x1, z1, 1.3, x2, z2, 0.14, 0.12, C.roverShot); break;
+        case FX.TANK_SHOT: case FX.TURRET_SHOT:
+          this.tracer(x1, z1, 1.45, x2, z2, 0.32, 0.22, C.tankShot);
+          this.flash(x2, z2, 1.0, 0.25, C.tankShot);
+          break;
+        case FX.BITE: this.tracer(x1, z1, 1.3, x2, z2, 0.25, 0.12, C.bite, 1.2); break;
+        case FX.SHELL: {
+          // a lobbed round: two segments up to a peak and down, then a wide burst
+          const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2, peak = 4 + Math.hypot(x2 - x1, z2 - z1) * 0.18;
+          this.tracer(x1, z1, 2.4, mx, mz, 0.36, 0.3, C.shell, Infinity, peak);
+          this.tracer(mx, mz, peak, x2, z2, 0.36, 0.3, C.shell, Infinity, 1.0);
+          this.flash(x2, z2, 4.2, 0.55, C.shell);
+          break;
+        }
+        case FX.ARC: {
+          // a jagged bolt: two segments through a jittered midpoint
+          const mx = (x1 + x2) / 2 + (Math.random() - 0.5) * 2.2, mz = (z1 + z2) / 2 + (Math.random() - 0.5) * 2.2;
+          this.tracer(x1, z1, 1.6, mx, mz, 0.18, 0.16, C.arc, Infinity, 1.8);
+          this.tracer(mx, mz, 1.8, x2, z2, 0.18, 0.16, C.arc, Infinity, 1.0);
+          this.flash(x2, z2, 0.9, 0.2, C.arc);
+          break;
+        }
+        case FX.PD_SHOT: this.tracer(x1, z1, 2.0, x2, z2, 0.1, 0.07, C.pd); break;
+        case FX.SPIT:
+          this.tracer(x1, z1, 1.9, x2, z2, 0.3, 0.3, C.spit);
+          this.flash(x2, z2, 1.1, 0.35, C.spit);
+          break;
+        case FX.REPAIR: this.tracer(x1, z1, 1.6, x2, z2, 0.1, 0.35, C.repair); break;
+        case FX.EMERGE: this.flash(x1, z1, 3.4, 0.8, C.emerge); break;
+        case FX.DIE_SMALL: this.flash(x1, z1, 1.3, 0.4, C.dieSmall); break;
+        case FX.DIE_BIG: this.flash(x1, z1, 2.6, 0.6, C.dieBig); break;
+        case FX.CORE_HIT: this.flash(x1, z1, 0.9, 0.25, C.coreHit); break;
+      }
     }
     if (fx.length) {
       this.tracers.mesh.instanceMatrix.needsUpdate = true;
       this.flashes.mesh.instanceMatrix.needsUpdate = true;
     }
+  }
+
+  /** A glowing streak from (x1, z1) at height h1 to (x2, z2) at h2, `max` long at most. */
+  private tracer(x1: number, z1: number, h1: number, x2: number, z2: number, w: number, life: number, color: THREE.Color, max = Infinity, h2 = 1.0) {
+    regionPoint(x1, z1, h1, this.v1);
+    regionPoint(x2, z2, h2, this.v2);
+    const len = this.v1.distanceTo(this.v2);
+    if (len < 0.01) return;
+    const p = this.tracers;
+    const j = p.next; p.next = (j + 1) % p.life.length;
+    p.mesh.count = Math.max(p.mesh.count, j + 1);
+    this.m.lookAt(this.v1, this.v2, this.up.copy(this.v1).normalize());
+    this.m.scale(this.v2.set(w, w, Math.min(len, max)));
+    this.m.setPosition(regionPoint(x1, z1, h1, this.v1));
+    p.mesh.setMatrixAt(j, this.m);
+    p.life[j] = p.max[j] = life;
+    p.color[j].copy(color);
   }
 
   private flash(x: number, z: number, size: number, life: number, color: THREE.Color) {

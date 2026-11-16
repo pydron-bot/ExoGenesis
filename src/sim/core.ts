@@ -3,15 +3,15 @@
  * (sim/worker.ts) runs it at a fixed tick; tools/balance.mjs runs it headless.
  *
  * One tick: power → drones → fabrication + factories → mining → turrets →
- * combat units → predators → waves → cryo bank → grazers.
+ * repair pads → combat units → predators → waves → cryo bank → grazers.
  */
 import { content } from '../content';
-import type { BuildingDef, UnitDef } from '../content/defs';
-import { F, FX, STRIDE, UT } from '../skirmish/types';
+import type { BuildingDef, UnitDef, Weapon } from '../content/defs';
+import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
 import { PathGrid } from './path';
-import { compass, depositFor, linePoints, placeProblem } from './rules';
+import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, wallsUnderGate, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
@@ -71,7 +71,35 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const def = (b: Building): BuildingDef => DEFS[b.kind];
 const bodyR = (b: Building) => def(b).clearance / 2;
 const maxHp = (b: Building) => def(b).hp;
-const UNIT_TYPE: Record<string, number> = { rover: UT.Rover, tank: UT.Tank, swarmer: UT.Swarmer, brute: UT.Brute };
+/** Walls and gates: predators collide with them and chew through; gates let units by. */
+const barrier = (b: Building) => isBarrier(def(b).role);
+const VENTS = REGION.vents ?? [];
+/** Each chain jump does this fraction of the previous hit. */
+const CHAIN_FALLOFF = 0.7;
+/** Burrowers surface this far (beyond their reach) from their target. */
+const SURFACE_AT = 3;
+
+/** Default attack look for a unit record. */
+export function unitWeapon(d: UnitDef): Weapon {
+  return d.weapon ?? (d.faction === 'accord' ? (d.splash ? 'cannon' : 'bolt') : d.range > 4 ? 'spit' : 'bite');
+}
+/** Tracer/sound effect for a weapon; building cannons sound like turrets. */
+function weaponFx(w: Weapon, building: boolean): number {
+  switch (w) {
+    case 'bolt': return FX.ROVER_SHOT;
+    case 'cannon': return building ? FX.TURRET_SHOT : FX.TANK_SHOT;
+    case 'shell': return FX.SHELL;
+    case 'arc': return FX.ARC;
+    case 'pd': return FX.PD_SHOT;
+    case 'spit': return FX.SPIT;
+    default: return FX.BITE;
+  }
+}
+const dieFx = (radius: number) => (radius >= 1.2 ? FX.DIE_BIG : FX.DIE_SMALL);
+/** Fauna that join packs on their own (packEvery), in id order so runs are reproducible. */
+const PACK_EXTRAS = Object.entries(content.units)
+  .filter(([id, u]) => u.faction === 'fauna' && (u.packEvery ?? 0) > 0 && id !== 'swarmer')
+  .sort(([a], [b]) => a.localeCompare(b));
 
 export class Sim {
   s!: SimState;
@@ -81,6 +109,8 @@ export class Sim {
   private vis = new Uint8Array(FOG_N * FOG_N);
   private exp = new Uint8Array(FOG_N * FOG_N);
   private slotsUsed = 0;
+  /** Tick of the last "burrower surfaced" warning (so a pack doesn't spam it). */
+  private lastEmerge = -1e9;
   /** Power result of the last tick. */
   power = { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 };
 
@@ -144,6 +174,8 @@ export class Sim {
   get secs() { return this.s.tick / TICK_HZ; }
   get deployed() { return this.s.phase === 'deployed'; }
   get units(): Unit[] { return (this.s.units ??= []); }
+  /** What placement rules see. */
+  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS }; }
   private entity(id: number): Building | Drone | Unit | undefined {
     return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id);
   }
@@ -160,6 +192,7 @@ export class Sim {
       this.stepFactories();
       this.stepMining();
       this.stepTurrets();
+      this.stepRepairPads();
       this.stepUnits();
       this.stepHostiles();
       this.stepWaves();
@@ -192,8 +225,8 @@ export class Sim {
       if (d.role === 'battery') { cap += d.storage ?? 0; b.powered = true; }
       if (d.powerMW > 0) { gen += d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW; b.powered = true; }
       else if (d.powerMW < 0) {
-        const rank = d.fireRange ? 0 : d.role === 'radar' || d.role === 'factory' ? 2 : 3;
-        const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length);
+        const rank = d.fireRange ? 0 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' ? 2 : 3;
+        const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
         loads.push({ b, mw: -d.powerMW * (idle ? STANDBY : 1), rank, battery: d.role !== 'depot' });
       } else b.powered = true;
     }
@@ -353,6 +386,7 @@ export class Sim {
   private nearestHostile(x: number, z: number) {
     let best: Hostile | null = null, bd = Infinity;
     for (const h of this.s.hostiles) {
+      if (h.under) continue;
       const d = Math.hypot(h.x - x, h.z - z);
       if (d < bd) { bd = d; best = h; }
     }
@@ -447,25 +481,88 @@ export class Sim {
   // ---------- combat ----------
   private unitDef(h: Hostile): UnitDef { return content.units[h.unit]; }
 
+  /** Can the colony shoot at this hostile? Not while it's underground or out of sight. */
+  private targetable(h: Hostile) {
+    return !h.under && this.visible(h.x, h.z);
+  }
+
+  /**
+   * One hit on `tgt` from (fx, fz): splash does half damage around the target;
+   * a chain jumps on to the nearest unhit hostile within `chainRange`, losing
+   * 30% each jump. Effects are pushed here so every shooter looks the same.
+   */
+  private strike(fx: number, fz: number, tgt: Hostile, dmg: number, fxKind: number, o: { splash?: number; chain?: number; chainRange?: number } = {}) {
+    const s = this.s;
+    const tx = tgt.x, tz = tgt.z;
+    this.fx.push(fxKind, fx, fz, tx, tz);
+    tgt.hp -= dmg;
+    if (o.splash) {
+      for (const h of [...s.hostiles]) {
+        if (h !== tgt && !h.under && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.killHostile(h); }
+      }
+    }
+    if (o.chain && o.chainRange) {
+      const hit = new Set([tgt]);
+      let from = tgt, d = dmg;
+      for (let j = 0; j < o.chain; j++) {
+        let next: Hostile | null = null, bd = o.chainRange;
+        for (const h of s.hostiles) {
+          if (hit.has(h) || h.under) continue;
+          const dist = Math.hypot(h.x - from.x, h.z - from.z);
+          if (dist < bd) { bd = dist; next = h; }
+        }
+        if (!next) break;
+        d *= CHAIN_FALLOFF;
+        this.fx.push(FX.ARC, from.x, from.z, next.x, next.z);
+        next.hp -= d;
+        hit.add(next);
+        if (from !== tgt && from.hp <= 0) this.killHostile(from);
+        from = next;
+      }
+      for (const h of hit) if (h !== tgt && h.hp <= 0) this.killHostile(h);
+    }
+    if (tgt.hp <= 0) this.killHostile(tgt);
+  }
+
   private stepTurrets() {
     const s = this.s;
     for (const b of s.buildings) {
       const d = def(b);
       if (!d.fireRange || !d.damage || !d.cooldown || b.progress < 1) continue;
       b.cd = Math.max(0, (b.cd ?? 0) - DT);
+      const min = d.minRange ?? 0;
       let best: Hostile | null = null, bd = d.fireRange;
       for (const h of s.hostiles) {
+        if (!this.targetable(h)) continue;
         const dist = Math.hypot(h.x - b.x, h.z - b.z) - this.unitDef(h).radius;
-        if (dist <= bd) { bd = dist; best = h; }
+        if (dist <= bd && dist >= min) { bd = dist; best = h; }
       }
       b.engaged = !!best;
       if (!best || !b.powered) continue;
       b.aim = Math.atan2(best.x - b.x, best.z - b.z);
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
-      best.hp -= d.damage ?? 0;
-      this.fx.push(FX.TURRET_SHOT, b.x, b.z, best.x, best.z);
-      if (best.hp <= 0) this.killHostile(best);
+      this.strike(b.x, b.z, best, d.damage ?? 0, weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash });
+    }
+  }
+
+  /** Repair pads mend combat units parked within reach, while powered (free: power is the cost). */
+  private stepRepairPads() {
+    const s = this.s;
+    for (const b of s.buildings) {
+      const d = def(b);
+      if (d.role !== 'repair' || b.progress < 1) continue;
+      const reach = (d.range ?? 8) + bodyR(b);
+      let any = false;
+      for (const u of this.units) {
+        const ud = content.units[u.unit];
+        if (u.hp >= ud.hp || Math.hypot(u.x - b.x, u.z - b.z) > reach + ud.radius) continue;
+        any = true;
+        if (!b.powered) continue;
+        u.hp = Math.min(ud.hp, u.hp + (d.repairRate ?? 10) * DT);
+        if ((s.tick + u.id) % 8 === 0) this.fx.push(FX.REPAIR, b.x, b.z, u.x, u.z);
+      }
+      b.engaged = any;
     }
   }
 
@@ -521,36 +618,43 @@ export class Sim {
    */
   private stepUnits() {
     const s = this.s, us = this.units;
-    if (us.length) this.grid.setBodies(s.buildings.map((b) => ({ x: b.x, z: b.z, r: bodyR(b) })), PATH_PAD);
+    // gates are open to units: they aren't obstacles on the path grid
+    if (us.length) this.grid.setBodies(s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) })), PATH_PAD);
     for (const u of us) {
       const d = content.units[u.unit];
       u.cd = Math.max(0, u.cd - DT);
+      if (d.repairRate) { this.stepRepairer(u, d); continue; }
       const moving = u.order.kind === 'move';
       let tgt = u.target >= 0 ? s.hostiles.find((h) => h.id === u.target) : undefined;
+      if (tgt && !this.targetable(tgt)) tgt = undefined;
       const leash = Math.max(d.aggro * LEASH, RULES.unitResponse + 10);
+      const min = d.minRange ?? 0;
       if (!tgt || (s.tick + u.id) % 5 === 0) {
         const seek = moving ? d.range : d.aggro;
         let bd = Infinity;
         tgt = undefined;
         for (const h of s.hostiles) {
+          if (!this.targetable(h)) continue;
           const dist = Math.hypot(h.x - u.x, h.z - u.z) - this.unitDef(h).radius;
-          if (dist <= seek && dist < bd) { bd = dist; tgt = h; }
+          if (dist <= seek && dist >= min && dist < bd) { bd = dist; tgt = h; }
         }
         // idle: answer attacks on buildings near the guard post
         if (!tgt && !moving) {
           for (const h of s.hostiles) {
-            if (Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse) continue;
+            if (!this.targetable(h) || Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse) continue;
             const b = s.buildings.find((x) => x.id === h.target);
             if (!b || Math.hypot(b.x - h.x, b.z - h.z) > bodyR(b) + 12) continue;
             const dist = Math.hypot(h.x - u.x, h.z - u.z);
-            if (dist < bd) { bd = dist; tgt = h; }
+            if (dist < bd && dist - this.unitDef(h).radius >= min) { bd = dist; tgt = h; }
           }
         }
       }
       if (tgt && !moving && Math.hypot(tgt.x - u.gx, tgt.z - u.gz) > leash) tgt = undefined;
+      // too close for a gun with a minimum range: let it go (others deal with it)
+      if (tgt && min && Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.unitDef(tgt).radius < min) tgt = undefined;
       u.target = tgt?.id ?? -1;
       const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.unitDef(tgt).radius - d.radius : Infinity;
-      if (tgt && gap <= d.range) {
+      if (tgt && gap <= d.range && d.damage > 0) {
         if (!moving) {
           let dh = Math.atan2(tgt.x - u.x, tgt.z - u.z) - u.heading;
           dh = Math.atan2(Math.sin(dh), Math.cos(dh));
@@ -558,15 +662,9 @@ export class Sim {
         }
         if (u.cd <= 0) {
           u.cd = d.cooldown;
-          const tx = tgt.x, tz = tgt.z;
-          this.fx.push(d.splash ? FX.TANK_SHOT : FX.ROVER_SHOT, u.x, u.z, tx, tz);
-          tgt.hp -= d.damage;
-          if (d.splash) {
-            for (const h of [...s.hostiles]) {
-              if (h !== tgt && Math.hypot(h.x - tx, h.z - tz) < d.splash) { h.hp -= d.damage / 2; if (h.hp <= 0) this.killHostile(h); }
-            }
-          }
-          if (tgt.hp <= 0) { this.killHostile(tgt); u.target = -1; }
+          const dead = tgt.hp <= d.damage;
+          this.strike(u.x, u.z, tgt, d.damage, weaponFx(unitWeapon(d), false), d);
+          if (dead) u.target = -1;
         }
       }
       if (u.order.kind === 'move') {
@@ -591,10 +689,71 @@ export class Sim {
         }
       }
       for (const b of this.s.buildings) {
+        if (def(b).role === 'gate') continue;
         const dx = a.x - b.x, dz = a.z - b.z, dd = Math.hypot(dx, dz), min = bodyR(b) + ra;
         if (dd > 1e-3 && dd < min) { a.x = b.x + (dx / dd) * min; a.z = b.z + (dz / dd) * min; }
       }
       a.x = clamp(a.x, -LIMIT, LIMIT); a.z = clamp(a.z, -LIMIT, LIMIT);
+    }
+  }
+
+  /** Hit points and alloy cost of a repair target (unit or building). */
+  private patient(id: number): { e: Unit | Building; max: number; cost: number; r: number } | null {
+    const u = this.units.find((x) => x.id === id);
+    if (u) { const d = content.units[u.unit]; return { e: u, max: d.hp, cost: d.cost ?? 50, r: d.radius }; }
+    const b = this.s.buildings.find((x) => x.id === id);
+    if (b && b.progress >= 1) { const d = def(b); return { e: b, max: d.hp, cost: d.cost, r: bodyR(b) }; }
+    return null;
+  }
+
+  /**
+   * Field engineers: repair the most hurt unit (then building) near them or,
+   * when idle, near their guard post; repairs cost alloys at the same rate as a
+   * drone's. They don't fight; moving orders always come first.
+   */
+  private stepRepairer(u: Unit, d: UnitDef) {
+    const s = this.s, moving = u.order.kind === 'move';
+    let p = u.fix !== undefined && u.fix >= 0 ? this.patient(u.fix) : null;
+    if (p && p.e.hp >= p.max) p = null;
+    if (!p || (s.tick + u.id) % 10 === 0) {
+      const reach = moving ? d.range + 4 : d.aggro;
+      let best: number | null = null, bs = Infinity;
+      const consider = (id: number, x: number, z: number, frac: number, isUnit: boolean) => {
+        if (frac >= 0.98 || id === u.id) return;
+        const from = moving ? Math.hypot(x - u.x, z - u.z) : Math.min(Math.hypot(x - u.x, z - u.z), Math.hypot(x - u.gx, z - u.gz));
+        if (from > reach) return;
+        // units first, then the most hurt, then the nearest
+        const score = (isUnit ? 0 : 1000) + frac * 100 + from;
+        if (score < bs) { bs = score; best = id; }
+      };
+      for (const o of this.units) consider(o.id, o.x, o.z, o.hp / content.units[o.unit].hp, true);
+      for (const b of s.buildings) if (b.progress >= 1) consider(b.id, b.x, b.z, b.hp / maxHp(b), false);
+      u.fix = best ?? -1;
+      p = best !== null ? this.patient(best) : null;
+    }
+    u.target = -1;
+    const gap = p ? Math.hypot(p.e.x - u.x, p.e.z - u.z) - p.r - d.radius : Infinity;
+    if (p && gap <= d.range) {
+      if (!moving) {
+        let dh = Math.atan2(p.e.x - u.x, p.e.z - u.z) - u.heading;
+        dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+        u.heading += clamp(dh, -8 * DT, 8 * DT);
+      }
+      const hp = Math.min((d.repairRate ?? 0) * DT, p.max - p.e.hp);
+      const cost = (hp / p.max) * p.cost * 0.5;
+      if (hp > 0 && s.alloys >= cost) {
+        s.alloys -= cost;
+        p.e.hp += hp;
+        if ((s.tick + u.id) % 6 === 0) this.fx.push(FX.REPAIR, u.x, u.z, p.e.x, p.e.z);
+      }
+    }
+    if (moving) {
+      const o = u.order as { x: number; z: number };
+      if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed)) this.arrive(u);
+    } else if (p && gap > d.range) {
+      if (!this.goTo(u, p.e.x, p.e.z, d.speed)) u.fix = -1;
+    } else if (!p && Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5) {
+      if (!this.goTo(u, u.gx, u.gz, d.speed)) this.arrive(u);
     }
   }
 
@@ -604,7 +763,7 @@ export class Sim {
     if (i < 0) return;
     s.hostiles.splice(i, 1);
     s.stats.kills++;
-    this.fx.push(h.unit === 'brute' ? FX.DIE_BIG : FX.DIE_SMALL, h.x, h.z, 0, 0);
+    this.fx.push(dieFx(this.unitDef(h).radius), h.x, h.z, 0, 0);
     const p = s.packs.find((x) => x.id === h.pack);
     if (p && --p.alive <= 0) {
       s.packs.splice(s.packs.indexOf(p), 1);
@@ -621,13 +780,17 @@ export class Sim {
   private chooseTarget(h: Hostile, u: UnitDef) {
     const s = this.s;
     let best = -1, bd = Infinity;
-    for (const d of [...s.drones, ...this.units]) {
-      const dist = Math.hypot(d.x - h.x, d.z - h.z);
-      if (dist < u.aggro && dist < bd) { bd = dist; best = d.id; }
+    // underground, a burrower can't sense drones or units: it heads for the base (never a wall)
+    if (!h.under) {
+      for (const d of [...s.drones, ...this.units]) {
+        const dist = Math.hypot(d.x - h.x, d.z - h.z);
+        if (dist < u.aggro && dist < bd) { bd = dist; best = d.id; }
+      }
+      if (best >= 0) return best;
     }
-    if (best >= 0) return best;
     for (const b of s.buildings) {
-      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (def(b).role === 'wall' ? WALL_PENALTY : 0);
+      if (h.under && barrier(b)) continue;
+      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0);
       if (dist < bd) { bd = dist; best = b.id; }
     }
     return best;
@@ -652,12 +815,28 @@ export class Sim {
       const isB = 'kind' in tgt, isU = 'order' in tgt;
       const tr = isB ? bodyR(tgt as Building) : isU ? content.units[(tgt as Unit).unit].radius : 1;
       const dx = tgt.x - h.x, dz = tgt.z - h.z, dist = Math.hypot(dx, dz);
+      if (h.under) {
+        // tunnelling: straight at the target, under walls and water
+        if (dist - tr - u.radius <= u.range + SURFACE_AT) {
+          h.under = false;
+          this.fx.push(FX.EMERGE, h.x, h.z, 0, 0);
+          if (s.tick - this.lastEmerge > 5 * TICK_HZ) {
+            this.lastEmerge = s.tick;
+            this.emit(`${u.name} surfaced by the ${(tgt as Building).kind ? def(tgt as Building).name : 'base'}!`, 'bad', 'warning');
+          }
+        } else {
+          h.heading = Math.atan2(dx, dz);
+          const step = Math.min(u.speed * DT, dist);
+          h.x += (dx / dist) * step; h.z += (dz / dist) * step;
+        }
+        continue;
+      }
       if (dist - tr - u.radius <= u.range) {
         h.heading = Math.atan2(dx, dz);
         if (h.cd <= 0) {
           h.cd = u.cooldown;
           tgt.hp -= u.damage;
-          this.fx.push(FX.BITE, h.x, h.z, tgt.x, tgt.z);
+          this.fx.push(weaponFx(unitWeapon(u), false), h.x, h.z, tgt.x, tgt.z);
           if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : this.destroyDrone(tgt as Drone);
         }
         continue;
@@ -670,7 +849,7 @@ export class Sim {
         let block: Building | null = null, bd = u.radius + 2.5;
         for (const b of s.buildings) {
           let gap = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
-          if (def(b).role === 'wall') {
+          if (barrier(b)) {
             const w = wallEnds(b), lx = w.bx - w.ax, lz = w.bz - w.az;
             const t = clamp(((h.x - w.ax) * lx + (h.z - w.az) * lz) / (lx * lx + lz * lz), 0, 1);
             gap = Math.hypot(h.x - (w.ax + lx * t), h.z - (w.az + lz * t)) - WALL_HALF;
@@ -684,8 +863,10 @@ export class Sim {
     // separation, and keep out of building bodies
     for (let i = 0; i < hs.length; i++) {
       const a = hs[i], ra = this.unitDef(a).radius;
+      if (a.under) continue; // tunnelling: nothing above ground pushes it about
       for (let j = i + 1; j < hs.length; j++) {
         const b = hs[j], rb = this.unitDef(b).radius;
+        if (b.under) continue;
         const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = ra + rb;
         if (d > 1e-3 && d < min) {
           const push = (min - d) / 2;
@@ -695,7 +876,7 @@ export class Sim {
       }
       for (const b of s.buildings) {
         let cx = b.x, cz = b.z, min = bodyR(b) + ra;
-        if (def(b).role === 'wall') {
+        if (barrier(b)) {
           // walls are thick line segments: push out from the nearest point on the segment
           const w = wallEnds(b), lx = w.bx - w.ax, lz = w.bz - w.az;
           const t = clamp(((a.x - w.ax) * lx + (a.z - w.az) * lz) / (lx * lx + lz * lz), 0, 1);
@@ -708,7 +889,7 @@ export class Sim {
       // never end up on the other side of a wall this tick
       const [px, pz] = was[i];
       for (const b of s.buildings) {
-        if (def(b).role !== 'wall') continue;
+        if (!barrier(b)) continue;
         const w = wallEnds(b);
         if (crosses(px, pz, a.x, a.z, w.ax, w.az, w.bx, w.bz)) { a.x = px; a.z = pz; break; }
       }
@@ -729,6 +910,7 @@ export class Sim {
     s.stats.buildingsLost++;
     this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
     this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
+    for (const u of this.units) if (u.fix === b.id) u.fix = -1;
     if (b.kind === 'core') this.lose('core');
   }
 
@@ -748,7 +930,7 @@ export class Sim {
     if (i < 0) return;
     this.units.splice(i, 1);
     s.stats.unitsLost = (s.stats.unitsLost ?? 0) + 1;
-    this.fx.push(u.unit === 'tank' ? FX.DIE_BIG : FX.DIE_SMALL, u.x, u.z, 0, 0);
+    this.fx.push(dieFx(content.units[u.unit].radius), u.x, u.z, 0, 0);
     this.emit(`${content.units[u.unit].name} destroyed`, 'bad', 'lost');
   }
 
@@ -772,14 +954,17 @@ export class Sim {
     const sp = spawns[Math.floor(this.rnd() * spawns.length)];
     const pack = { id: s.nextId++, size, alive: 0, announced: false, from: compass(sp.x, sp.z) };
     for (let i = 0; i < size; i++) {
-      const brute = THREATS.bruteEvery > 0 && (++w.spawned % THREATS.bruteEvery === 0);
-      const unit = brute ? 'brute' : 'swarmer';
+      const k = ++w.spawned;
+      let unit = 'swarmer';
+      if (THREATS.bruteEvery > 0 && k % THREATS.bruteEvery === 0) unit = 'brute';
+      else for (const [id, x] of PACK_EXTRAS) if (w.n >= (x.packFrom ?? 0) && k % x.packEvery! === 0) { unit = id; break; }
       const slot = this.freeSlot();
       if (slot < 0) break;
       const a = this.rnd() * Math.PI * 2, r = Math.sqrt(this.rnd()) * 7;
       s.hostiles.push({
         id: s.nextId++, unit, slot, x: clamp(sp.x + Math.cos(a) * r, -LIMIT, LIMIT), z: clamp(sp.z + Math.sin(a) * r, -LIMIT, LIMIT),
         heading: Math.atan2(-sp.x, -sp.z), hp: content.units[unit].hp, target: -1, cd: this.rnd(), pack: pack.id,
+        under: content.units[unit].burrows || undefined,
       });
       pack.alive++;
     }
@@ -821,7 +1006,7 @@ export class Sim {
       const h = Math.floor(this.rnd() * s.herds.length);
       s.herds[h] = this.herdSpot(h);
     }
-    const scary = [...s.drones, ...this.units, ...s.hostiles];
+    const scary = [...s.drones, ...this.units, ...s.hostiles.filter((h) => !h.under)];
     for (const f of s.fauna) {
       let tx = f.tx, tz = f.tz, sp = WALK;
       const rc0 = Math.hypot(f.x, f.z);
@@ -870,11 +1055,23 @@ export class Sim {
         const dd = DEFS[c.kind];
         if (!dd || !dd.buildable) return;
         if (s.alloys < dd.cost) { this.emit(`Not enough alloys for a ${dd.name} (${dd.cost} needed)`, 'warn', 'deny'); return; }
-        const why = placeProblem(s, DEFS, RULES, c.kind, c.x, c.z);
+        let { x, z } = c, yaw = c.yaw ?? 0;
+        // a gate dropped by a wall snaps onto its line
+        const sn = dd.role === 'gate' ? gateSnap(this.world, DEFS, x, z) : null;
+        if (sn) ({ x, z, yaw } = sn);
+        const why = placeProblem(this.world, DEFS, RULES, c.kind, x, z);
         if (why) { this.emit(`Can't build there: ${why}`, 'warn', 'deny'); return; }
         s.alloys -= dd.cost;
-        s.buildings.push({ id: s.nextId++, kind: c.kind, x: c.x, z: c.z, yaw: c.yaw ?? 0, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
-        this.emit(`${dd.name} placed${s.drones.length ? '' : ' · waiting for a drone'}`, 'info', 'placed');
+        let swapped = 0;
+        if (dd.role === 'gate') {
+          for (const w of wallsUnderGate(s.buildings, DEFS, dd, x, z, yaw)) {
+            s.alloys += def(w).cost * 0.5 * (w.progress >= 1 ? w.hp / maxHp(w) : 1);
+            s.buildings.splice(s.buildings.indexOf(w), 1);
+            swapped++;
+          }
+        }
+        s.buildings.push({ id: s.nextId++, kind: c.kind, x, z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
+        this.emit(`${dd.name} placed${swapped ? ` · replaces ${swapped} wall segment${swapped > 1 ? 's' : ''}` : ''}${s.drones.length ? '' : ' · waiting for a drone'}`, 'info', 'placed');
         return;
       }
       case 'buildLine': {
@@ -884,7 +1081,7 @@ export class Sim {
         let placed = 0, skipped = 0, poor = false;
         for (const p of pts) {
           if (s.alloys < dd.cost) { poor = true; break; }
-          if (placeProblem(s, DEFS, RULES, c.kind, p.x, p.z)) { skipped++; continue; }
+          if (placeProblem(this.world, DEFS, RULES, c.kind, p.x, p.z)) { skipped++; continue; }
           s.alloys -= dd.cost;
           s.buildings.push({ id: s.nextId++, kind: c.kind, x: p.x, z: p.z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
           placed++;
@@ -929,10 +1126,20 @@ export class Sim {
           for (let i = 0; i < pack.size; i++) {
             const slot = this.freeSlot();
             if (slot < 0) break;
-            s.hostiles.push({ id: s.nextId++, unit: sp.unit, slot, x: sp.x + (i % 4) * 1.6, z: sp.z - Math.floor(i / 4) * 1.6, heading: 0, hp: content.units[sp.unit].hp, target: -1, cd: 0, pack: pack.id });
+            s.hostiles.push({ id: s.nextId++, unit: sp.unit, slot, x: sp.x + (i % 4) * 1.6, z: sp.z - Math.floor(i / 4) * 1.6, heading: 0, hp: content.units[sp.unit].hp, target: -1, cd: 0, pack: pack.id, under: content.units[sp.unit].burrows || undefined });
             pack.alive++;
           }
           s.packs.push(pack);
+        }
+        if (c.units && content.units[c.units.unit]?.faction === 'accord') {
+          // tests / playtesting: combat units right here, guarding where they land
+          const sp = c.units, ud = content.units[sp.unit];
+          for (let i = 0; i < (sp.n ?? 1); i++) {
+            const slot = this.freeSlot();
+            if (slot < 0) break;
+            const x = clamp(sp.x + (i % 4) * 3, -LIMIT, LIMIT), z = clamp(sp.z - Math.floor(i / 4) * 3, -LIMIT, LIMIT);
+            this.units.push({ id: s.nextId++, unit: sp.unit, slot, x, z, heading: 0, hp: ud.hp, cd: 0, order: { kind: 'idle' }, gx: x, gz: z, target: -1 });
+          }
         }
         if (c.hurt) {
           const b = s.buildings.find((x) => x.id === c.hurt!.id);
@@ -1016,17 +1223,17 @@ export class Sim {
     const blips = new Float32Array(radar ? s.hostiles.length * 2 : 0);
     s.hostiles.forEach((h, i) => { if (radar) { blips[i * 2] = h.x; blips[i * 2 + 1] = h.z; } });
     for (const h of s.hostiles) {
-      if (!this.visible(h.x, h.z)) continue; // in the fog: not drawn (radar shows it as a blip)
+      if (h.under || !this.visible(h.x, h.z)) continue; // underground or in the fog: not drawn (radar shows it as a blip)
       const o = h.slot * STRIDE;
       army[o + F.X] = h.x; army[o + F.Z] = h.z; army[o + F.HEADING] = h.heading;
-      army[o + F.TYPE] = UNIT_TYPE[h.unit] ?? UT.Swarmer;
+      army[o + F.TYPE] = unitType(h.unit);
       army[o + F.HP] = h.hp / this.unitDef(h).hp;
       army[o + F.GEN] = h.id & 0xffff; army[o + F.ALIVE] = 1;
     }
     const units: UnitSnap[] = this.units.map((u) => {
       const o = u.slot * STRIDE, d = content.units[u.unit];
       army[o + F.X] = u.x; army[o + F.Z] = u.z; army[o + F.HEADING] = u.heading;
-      army[o + F.TYPE] = UNIT_TYPE[u.unit] ?? UT.Rover;
+      army[o + F.TYPE] = unitType(u.unit);
       army[o + F.HP] = u.hp / d.hp;
       army[o + F.GEN] = u.id & 0xffff; army[o + F.ALIVE] = 1;
       const mv = u.order.kind === 'move' ? u.order : null;

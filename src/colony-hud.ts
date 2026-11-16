@@ -184,7 +184,7 @@ export class ColonyHud {
     if (key === this.menuKey) return;
     this.menuKey = key;
     this.el.menu.innerHTML = items.map(([k, d]) => {
-      const pw = d.powerMW > 0 ? `+${d.powerMW} MW${d.role === 'solar' ? ' by day' : ''}` : d.powerMW < 0 ? `${d.powerMW} MW` : d.role === 'battery' ? `${d.storage} MJ` : d.role === 'wall' ? `per ${d.clearance} u` : '';
+      const pw = d.powerMW > 0 ? `+${d.powerMW} MW${d.role === 'solar' ? ' by day' : ''}` : d.powerMW < 0 ? `${d.powerMW} MW` : d.role === 'battery' ? `${d.storage} MJ` : d.role === 'wall' ? `per ${d.clearance} u` : d.role === 'gate' ? 'on a wall' : '';
       return `<button data-kind="${k}" class="${alloys < d.cost ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">${d.cost}◆</small> <small>${pw}</small></span></button>`;
     }).join('');
   }
@@ -194,6 +194,8 @@ export class ColonyHud {
     if (!b.on) return ['Switched off', 'warn'];
     if (!b.powered && d.powerMW < 0) return ['No power (load shed)', 'bad'];
     if (d.role === 'depot' && (b.mining === undefined || b.mining < 0)) return ['Idle: no deposit in reach', 'warn'];
+    if (d.role === 'repair') return b.engaged ? ['Repairing units', ''] : ['Idle: park damaged units here', ''];
+    if (d.role === 'gate') return ['Closed to predators · open to your units', ''];
     if (d.role === 'factory') {
       if (!b.queue?.length) return ['Idle: queue a unit', ''];
       return [`Producing ${this.d.units[b.queue[0]]?.name ?? b.queue[0]} · ${Math.floor((b.prod ?? 0) * 100)}%`, ''];
@@ -220,7 +222,9 @@ export class ColonyHud {
       const rows: [string, string][] = [];
       if (us.length === 1) {
         const d = this.d.units[us[0].unit];
-        rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.range} u${d.splash ? ' · splash' : ''}`]);
+        if (d.repairRate) rows.push(['Repairs', `${d.repairRate} hp/s · reach ${d.range} u · costs alloys`]);
+        else rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.minRange ? `${d.minRange}–` : ''}${d.range} u${d.splash ? ' · splash' : ''}${d.chain ? ` · arcs to ${d.chain} more` : ''}`]);
+        if (d.sight && d.sight > 40) rows.push(['Sight', `${d.sight} u`]);
         rows.push(['Speed', `${d.speed} u/s`]);
       }
       rows.push(['Move', this.coarse() ? 'tap ground or drag from a unit' : 'click ground or drag from a unit']);
@@ -246,7 +250,8 @@ export class ColonyHud {
       rows.push(['Hit points', `${Math.ceil(b.hp)} / ${d.hp}`]);
       if (d.powerMW > 0) rows.push(['Power', d.role === 'solar' ? `+${(d.powerMW * (this.d.rules.nightSolar + (1 - this.d.rules.nightSolar) * s.daylight)).toFixed(1)} MW now` : `+${d.powerMW} MW`]);
       else if (d.powerMW < 0) rows.push(['Power', `${d.powerMW} MW${d.fireRange ? ' when firing' : ''}`]);
-      if (d.fireRange && d.damage && d.cooldown) rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.fireRange} u`]);
+      if (d.fireRange && d.damage && d.cooldown) rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.minRange ? `${d.minRange}–` : ''}${d.fireRange} u${d.splash ? ' · splash' : ''}`]);
+      if (d.role === 'repair') rows.push(['Repairs', `${d.repairRate} hp/s per unit within ${d.range} u`]);
       if (d.role === 'depot') {
         const dep = b.mining !== undefined && b.mining >= 0 ? s.deposits[b.mining] : undefined;
         rows.push(['Mining', `${d.mineRate} alloys/s`]);
@@ -266,7 +271,7 @@ export class ColonyHud {
         const total = s.units.length + s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
         rows.push(['Army', `${s.units.length} / ${this.d.rules.maxUnits}${total > s.units.length ? ` (+${total - s.units.length} queued)` : ''}`]);
         queue = q.length ? `<div class="q">${q.map((k, i) => `<i class="${i ? '' : 'now'}">${esc(this.d.units[k]?.name ?? k)}</i>`).join('')}</div>` : '';
-        for (const [k, u] of Object.entries(this.d.units)) {
+        for (const [k, u] of Object.entries(this.d.units).sort((a, b) => (a[1].cost ?? 0) - (b[1].cost ?? 0))) {
           if (u.faction !== 'accord' || u.cost === undefined) continue;
           btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆</small></button>`);
         }

@@ -4,7 +4,7 @@ import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input } from './input';
 import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
-import { TICK_HZ, type SimState } from './sim/types';
+import { TICK_HZ, type Building, type SimState, type Snapshot } from './sim/types';
 import { content, contentIssues } from './content';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, globeMesh, R, U, regionHeight, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
@@ -18,7 +18,7 @@ import { ColonyHud } from './colony-hud';
 import { FogView, addFog } from './world/fog';
 import { ArmyView } from './skirmish/view';
 import { DEFS as UNIT_DEFS, UT, type SkSnapshot } from './skirmish/types';
-import { linePoints, placeProblem } from './sim/rules';
+import { gateSnap, linePoints, placeProblem } from './sim/rules';
 import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
@@ -183,6 +183,7 @@ const region = new RegionView(
   regionDef.floraDensity,
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
 );
+if (!skirmishMode) region.setVents(regionDef.vents ?? []);
 const cam = new ZoomCamera(camera);
 // the globe and provinces were generated in a worker meanwhile
 await loadStep('Forming the planet…');
@@ -336,7 +337,13 @@ const canPlace = (kind: string, x: number, z: number) => {
   const c = sim.cur;
   if (!c) return 'not ready';
   if (c.alloys < content.buildings[kind].cost) return `not enough alloys (${content.buildings[kind].cost} needed)`;
-  return placeProblem(c, content.buildings, content.colony, kind, x, z);
+  return placeProblem(placeWorld(c), content.buildings, content.colony, kind, x, z);
+};
+/** What placement rules see: the colony plus the region's static features (vents). */
+const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: content.regions.touchdown.vents ?? [] });
+const snapGate = (kind: string, x: number, z: number) => {
+  const c = sim.cur;
+  return c && content.buildings[kind]?.role === 'gate' ? gateSnap(c, content.buildings, x, z) : null;
 };
 const isLine = (kind: string) => content.buildings[kind]?.role === 'wall';
 function setBuild(kind: string | null) {
@@ -350,6 +357,8 @@ function setBuild(kind: string | null) {
     if (cam.a > 0.3) cam.setView('surface');
     const d = content.buildings[kind];
     if (isLine(kind)) log(coarse ? `${d.name}: tap where it starts, tap where it ends, tap the end again to build · ✓ Done when finished` : `${d.name}: click where it starts, then where it ends · it chains on · Esc or ✓ Done to stop`);
+    else if (d.role === 'gate') log(coarse ? `${d.name}: tap on a wall to drop it in (it lines up and replaces the segments under it), tap again to build` : `${d.name}: hover over a wall line, it snaps in and replaces the segments under it · click to build`);
+    else if (d.role === 'geothermal') log(`${d.name}: only on a geothermal vent (the glowing cracks) · ${coarse ? 'tap one, then tap again to build' : 'click one to build'}`);
     else log(coarse ? `Tap the ground to preview the ${d.name}, tap it again to build · ⟳ rotates` : `Click to place the ${d.name} · R rotates · Shift-click to place several · Esc to stop`);
   }
 }
@@ -468,7 +477,7 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
     return {
       yaw,
       pts: pts.map((p) => {
-        const ok = !!c && alloys >= cost && !placeProblem(c, content.buildings, content.colony, kind, p.x, p.z);
+        const ok = !!c && alloys >= cost && !placeProblem(placeWorld(c), content.buildings, content.colony, kind, p.x, p.z);
         if (ok) alloys -= cost;
         return { ...p, ok };
       }),
@@ -477,6 +486,7 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   buildLine: (kind, x1, z1, x2, z2) => sim.command({ type: 'buildLine', kind, x1, z1, x2, z2 }),
   lineStep: (kind) => content.buildings[kind].clearance + 0.02,
   placeProblem: canPlace,
+  snap: snapGate,
   buildings: () => sim.cur?.buildings ?? [],
   units: () => sim.cur?.units ?? [],
   order: (ids, x, z) => sim.command({ type: 'order', ids, x, z }),

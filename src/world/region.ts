@@ -399,6 +399,179 @@ export function buildWall(): THREE.Group {
   return g;
 }
 
+/** Siege Cannon: a heavy armoured base with one long barrel on a turning head. */
+export function buildCannon(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#33383f'), hull = metal('#8c959d');
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.5, 1.4, 8), dark);
+  base.position.y = 0.7;
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.3, 0.9, 10), hull);
+  ring.position.y = 1.85;
+  const head = new THREE.Group();
+  head.name = 'head';
+  head.position.y = 3;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.6, 3.2), hull);
+  body.position.z = -0.3;
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 5.2, 8), dark);
+  barrel.rotation.x = Math.PI / 2 - 0.22;
+  barrel.position.set(0, 0.6, 2.6);
+  const brake = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.6, 8), dark);
+  brake.rotation.x = Math.PI / 2 - 0.22;
+  brake.position.set(0, 1.18, 5.1);
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.18, 0.1), glow('#ff9a3d', 3));
+  eye.position.set(0, 0.35, 1.32);
+  eye.name = 'eye';
+  head.add(body, barrel, brake, eye);
+  g.add(base, ring, head);
+  return g;
+}
+
+/** Point Defense: a low mount with a fast-turning twin gun pod. */
+export function buildPointDefense(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#b4bcc3');
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.2, 1, 6), dark);
+  base.position.y = 0.5;
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 1.4, 6), hull);
+  post.position.y = 1.7;
+  const head = new THREE.Group();
+  head.name = 'head';
+  head.position.y = 2.6;
+  const pod = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 6), hull);
+  pod.scale.set(1, 0.8, 1.1);
+  head.add(pod);
+  for (const x of [-0.35, 0.35]) {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.8, 5), dark);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(x, 0, 1.4);
+    head.add(barrel);
+  }
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.1), glow('#fff07a', 3));
+  eye.position.set(0, 0.35, 0.92);
+  eye.name = 'eye';
+  head.add(eye);
+  g.add(base, post, head);
+  return g;
+}
+
+/** Repair Pad: a flat landing pad with corner masts and a slow-turning glow ring. */
+export function buildRepairPad(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#9aa4ad');
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.8, 0.4, 8), dark);
+  pad.position.y = 0.2;
+  const deck = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.12, 8), hull);
+  deck.position.y = 0.46;
+  g.add(pad, deck);
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI / 4 + (i / 4) * Math.PI * 2;
+    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.35, 3.2, 0.35), dark);
+    mast.position.set(Math.cos(a) * 4.1, 1.6, Math.sin(a) * 4.1);
+    const lamp = new THREE.Mesh(new THREE.OctahedronGeometry(0.3), glow('#5bff9a', 2.5));
+    lamp.position.set(Math.cos(a) * 4.1, 3.35, Math.sin(a) * 4.1);
+    g.add(mast, lamp);
+  }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.12, 4, 24), glow('#5bff9a', 1.6));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.62;
+  ring.name = 'ring';
+  const cross = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 0.5), glow('#5bff9a', 1.2));
+  cross.position.y = 0.55;
+  const cross2 = cross.clone();
+  cross2.rotation.y = Math.PI / 2;
+  g.add(ring, cross, cross2);
+  return g;
+}
+
+/** Gate: two heavy posts and a lit bar between them, running along local Z (Clearance long). */
+export function buildGate(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#8f989f');
+  for (const z of [-3.6, 3.6]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(2, 3.4, 1.2), dark);
+    post.position.set(0, 1.7, z);
+    const cap = new THREE.Mesh(new THREE.OctahedronGeometry(0.4), glow(AMBER, 2.5));
+    cap.position.set(0, 3.7, z);
+    g.add(post, cap);
+  }
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 6.2), hull);
+  bar.position.y = 2.9;
+  const field = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 2.4), new THREE.MeshStandardMaterial({
+    color: '#000000', emissive: AMBER, emissiveIntensity: 0.9, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false,
+  }));
+  field.rotation.y = Math.PI / 2;
+  field.position.y = 1.4;
+  field.name = 'field';
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.15, 6.2), dark);
+  sill.position.y = 0.08;
+  g.add(bar, field, sill);
+  return g;
+}
+
+/** Geothermal Tap: a squat wellhead over the vent, pipes and a steam plume. */
+export function buildGeothermal(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#a3927a');
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.8, 0.8, 8), dark);
+  base.position.y = 0.4;
+  const well = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2, 3, 8), hull);
+  well.position.y = 2.3;
+  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 3, 8), dark);
+  stack.position.set(0, 5.2, 0);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(1.65, 1.65, 0.3, 8), glow('#ff7a3d', 2.4));
+  band.position.y = 2.9;
+  g.add(base, well, stack, band);
+  for (const a of [0.4, 2.5, 4.4]) {
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2.6, 6), dark);
+    pipe.rotation.z = Math.PI / 2;
+    pipe.position.set(Math.cos(a) * 2.4, 1.2, Math.sin(a) * 2.4);
+    pipe.rotation.y = -a;
+    g.add(pipe);
+  }
+  const plume = new THREE.Mesh(new THREE.ConeGeometry(1.4, 5, 8, 1, true), new THREE.MeshBasicMaterial({
+    color: '#dfe8ee', transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  plume.rotation.x = Math.PI;
+  plume.position.y = 9.2;
+  plume.name = 'plume';
+  g.add(plume);
+  return g;
+}
+
+/** Geothermal vent: a scorched patch with glowing cracks, a rim of rocks and a column of steam. */
+export function buildVent(seed: number): THREE.Group {
+  const g = new THREE.Group();
+  const rock = new THREE.MeshStandardMaterial({ color: '#3d332d', roughness: 0.95, flatShading: true });
+  const scorch = new THREE.Mesh(new THREE.CircleGeometry(4.6, 10), new THREE.MeshStandardMaterial({ color: '#2a2220', roughness: 1, flatShading: true }));
+  scorch.rotation.x = -Math.PI / 2;
+  scorch.position.y = 0.08;
+  g.add(scorch);
+  const hot = glow('#ff6a2a', 3.2);
+  let r = seed * 7919 + 13;
+  const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + rnd() * 0.5, d = 3.4 + rnd() * 1.4;
+    const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7 + rnd() * 0.8, 0), rock);
+    stone.position.set(Math.cos(a) * d, 0.2, Math.sin(a) * d);
+    stone.scale.y = 0.6;
+    g.add(stone);
+  }
+  for (const [x, z, l, yaw, w] of [[0, 0, 6, 0.3, 0.6], [1.2, 1.4, 3.2, 1.5, 0.4], [-1.4, -1.1, 2.8, -0.9, 0.4], [-0.6, 1.6, 2, 2.4, 0.3]]) {
+    const crack = new THREE.Mesh(new THREE.BoxGeometry(w, 0.16, l), hot);
+    crack.position.set(x, 0.14, z);
+    crack.rotation.y = yaw;
+    g.add(crack);
+  }
+  const steam = new THREE.Mesh(new THREE.ConeGeometry(1.6, 8, 8, 1, true), new THREE.MeshBasicMaterial({
+    color: '#e8eff4', transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  steam.rotation.x = Math.PI;
+  steam.position.y = 4.2;
+  steam.name = 'steam';
+  g.add(steam);
+  return g;
+}
+
 /** Alloy deposit: a cluster of metallic crystals. */
 export function buildDeposit(seed: number): THREE.Group {
   const g = new THREE.Group();
@@ -416,9 +589,20 @@ export function buildDeposit(seed: number): THREE.Group {
   return g;
 }
 
+/** Built-in models for particular building kinds (variants that share a role but not a look). */
+const KIND_MODELS: Record<string, () => THREE.Group> = { cannon: buildCannon, pointdefense: buildPointDefense };
+
+/** Built-in model for a building kind: its own if it has one, else its role's. */
+export function buildForKind(kind: string, role: string): THREE.Group {
+  return KIND_MODELS[kind]?.() ?? buildForRole(role);
+}
+
 /** Built-in model for a building kind's role. */
 export function buildForRole(role: string): THREE.Group {
   switch (role) {
+    case 'gate': return buildGate();
+    case 'repair': return buildRepairPad();
+    case 'geothermal': return buildGeothermal();
     case 'solar': return buildSolar();
     case 'depot': return buildDepot();
     case 'battery': return buildBattery();
@@ -544,6 +728,7 @@ export class RegionView {
   private faunaMesh: THREE.InstancedMesh;
   private buildings = new Map<number, BEntry>();
   private deposits: THREE.Group[] = [];
+  private vents: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
   /** Game-time seconds this frame (see update). */
   private gameT = 0;
@@ -666,6 +851,7 @@ export class RegionView {
     addFog(this.faunaMesh.material as THREE.Material);
     this.flora?.group.traverse((o) => { if (o instanceof THREE.Mesh) addFog(o.material as THREE.Material); });
     for (const g of this.deposits) this.fogObj(g);
+    for (const g of this.vents) this.fogObj(g);
   }
 
   private fogObj(g: THREE.Object3D) {
@@ -694,7 +880,7 @@ export class RegionView {
   private modelFor(kind: string): THREE.Group {
     const m = this.models[kind];
     if (m) { const g = new THREE.Group(); g.add(m.clone(true)); return g; }
-    return buildForRole(this.rules.defs[kind]?.role ?? 'solar');
+    return buildForKind(kind, this.rules.defs[kind]?.role ?? 'solar');
   }
 
   private ghostFor(kind: string): THREE.Group {
@@ -805,6 +991,7 @@ export class RegionView {
 
     this.syncBuildings(cur, t, ui, camera);
     this.syncDeposits(cur);
+    this.animateVents(cur.buildings);
 
     // grazers
     const pa = prev.fauna, pb = cur.fauna;
@@ -970,6 +1157,14 @@ export class RegionView {
           });
         }
         if (role === 'depot') this.hauler(b, cur, this.gameT);
+        if (role === 'repair') {
+          const ring = e.obj.getObjectByName('ring');
+          if (ring) ring.rotation.z = lit && b.engaged ? this.gameT * 2.5 : ring.rotation.z;
+        }
+        if (role === 'geothermal') {
+          const plume = e.obj.getObjectByName('plume');
+          if (plume) { plume.visible = lit; plume.scale.set(1 + Math.sin(this.gameT * 1.7 + b.id) * 0.12, 1 + Math.sin(this.gameT * 1.1) * 0.15, 1); }
+        }
         if (role === 'factory') {
           const door = e.obj.getObjectByName('door') as THREE.Mesh | undefined;
           if (door) (door.material as THREE.MeshStandardMaterial).emissiveIntensity = !lit ? 0.1 : b.queue?.length ? 1.2 + Math.max(0, Math.sin(this.gameT * 5)) * 2 : 0.5;
@@ -1035,6 +1230,30 @@ export class RegionView {
     const x = lerp(b.x, dep!.x, k), z = lerp(b.z, dep!.z, k);
     const toward = cyc < 0.5;
     orient(h, x, z, Math.atan2((dep!.x - b.x) * (toward ? 1 : -1), (dep!.z - b.z) * (toward ? 1 : -1)), 4 + Math.sin(k * Math.PI) * 2);
+  }
+
+  /** Geothermal vents from the region map (static). */
+  setVents(list: { x: number; z: number }[]) {
+    for (const g of this.vents) this.details.remove(g);
+    this.vents = list.map((v, i) => {
+      const g = buildVent(i + 1);
+      if (this.fog) this.fogObj(g);
+      orient(g, v.x, v.z, i * 2.1, 0);
+      this.flora?.clear(v.x, v.z, 6);
+      g.userData = { x: v.x, z: v.z };
+      this.details.add(g);
+      return g;
+    });
+  }
+
+  /** Vents drift their steam; a tapped vent hides under its building. */
+  private animateVents(list: Building[]) {
+    this.vents.forEach((g, i) => {
+      const tapped = list.some((b) => this.rules.defs[b.kind]?.role === 'geothermal' && Math.hypot(b.x - g.userData.x, b.z - g.userData.z) < 6);
+      g.visible = !tapped;
+      const steam = g.getObjectByName('steam');
+      if (steam) steam.scale.set(1 + Math.sin(this.gameT * 1.3 + i) * 0.15, 1 + Math.sin(this.gameT * 0.9 + i * 2) * 0.2, 1);
+    });
   }
 
   private syncDeposits(cur: Snapshot) {

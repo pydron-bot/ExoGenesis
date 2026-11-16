@@ -1,0 +1,11 @@
+{
+  "name": "Gate",
+  "description": "A wall section your units drive through and predators can't. Drop it onto a wall line to replace the segments under it.",
+  "role": "gate",
+  "buildable": true,
+  "cost": 30,
+  "hp": 600,
+  "powerMW": 0,
+  "buildSeconds": 6,
+  "clearance": 8
+}

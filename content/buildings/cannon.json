@@ -1,0 +1,17 @@
+{
+  "name": "Siege Cannon",
+  "description": "Long-range emplacement: slow, heavy shells that burst over an area. Can't hit anything right under it. Outranges spitters.",
+  "role": "turret",
+  "buildable": true,
+  "cost": 160,
+  "hp": 900,
+  "powerMW": -3,
+  "buildSeconds": 20,
+  "clearance": 9,
+  "fireRange": 44,
+  "minRange": 8,
+  "damage": 55,
+  "cooldown": 2.5,
+  "splash": 5,
+  "weapon": "shell"
+}

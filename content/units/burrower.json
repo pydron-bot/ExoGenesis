@@ -1,0 +1,16 @@
+{
+  "name": "Burrower",
+  "faction": "fauna",
+  "description": "Tunnels under walls and surfaces at its target. Unseen while underground, but radar picks it up.",
+  "hp": 180,
+  "speed": 4.2,
+  "range": 2.2,
+  "damage": 18,
+  "cooldown": 1.1,
+  "burrows": true,
+  "radius": 1.1,
+  "aggro": 12,
+  "modelScale": 1.2,
+  "packEvery": 7,
+  "packFrom": 7
+}

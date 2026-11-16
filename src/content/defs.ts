@@ -9,6 +9,10 @@
 import { REGION_HALF } from '../sim/types';
 import { bool, choice, grid, int, list, num, ref, str, type Infer, type Shape } from './schema';
 
+/** Attack looks: tracer + sound. */
+export const WEAPONS = ['bolt', 'cannon', 'shell', 'arc', 'pd', 'bite', 'spit'] as const;
+export type Weapon = (typeof WEAPONS)[number];
+
 export const unitShape = {
   name: str({ label: 'Name' }),
   faction: choice(['accord', 'fauna'], { label: 'Faction', help: 'Accord units are the player\'s; fauna attack them.' }),
@@ -19,6 +23,14 @@ export const unitShape = {
   damage: num({ label: 'Damage per hit', min: 0, max: 10000 }),
   cooldown: num({ label: 'Attack cooldown', min: 0.05, max: 30, step: 0.05, unit: 's' }),
   splash: num({ label: 'Splash radius', min: 0, max: 50, step: 0.1, unit: 'u', optional: true, help: 'Units inside take half damage.' }),
+  minRange: num({ label: 'Minimum range', min: 0, max: 200, step: 0.5, unit: 'u', optional: true, help: 'Can\'t fire at anything closer than this (artillery).' }),
+  chain: int({ label: 'Chain jumps', min: 0, max: 12, optional: true, help: 'Each hit arcs on to this many more hostiles, each within Chain range of the last, for 70% of the previous hit.' }),
+  chainRange: num({ label: 'Chain range', min: 0, max: 40, step: 0.5, unit: 'u', optional: true }),
+  weapon: choice(WEAPONS, { label: 'Weapon look', optional: true, help: 'How its attack looks and sounds. Empty = bolt (cannon if it has splash) for vehicles, bite (spit if Attack range > 4) for fauna.' }),
+  repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', optional: true, help: 'Accord units: repairs damaged units and buildings within Attack range instead of fighting (costs alloys, like a drone\'s repairs).' }),
+  burrows: bool({ label: 'Burrows', optional: true, help: 'Fauna: travels underground to its target, through walls and unseen (radar still shows it), then surfaces to attack.' }),
+  packEvery: int({ label: 'Joins packs: every', min: 0, max: 100, optional: true, help: 'Fauna: every Nth attacker in a pack is one of these (0 or empty = only if the threat rules name it).' }),
+  packFrom: int({ label: 'Joins packs: from pack', min: 0, max: 200, optional: true, help: 'Fauna: first pack (0 = the first) it can join.' }),
   radius: num({ label: 'Body radius', min: 0.1, max: 20, step: 0.1, unit: 'u', help: 'Collision and selection size.' }),
   aggro: num({ label: 'Aggro radius', min: 0, max: 200, unit: 'u', help: 'How far it notices enemies on its own.' }),
   sight: num({ label: 'Sight', min: 0, max: 240, unit: 'u', optional: true, help: 'How far it sees through the fog of war. Empty = its aggro or attack range (whichever is longer) + 8.' }),
@@ -29,7 +41,7 @@ export const unitShape = {
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -37,7 +49,7 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area.',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one).',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
@@ -45,10 +57,14 @@ export const buildingShape = {
   powerMW: num({ label: 'Power', min: -100, max: 100, step: 0.1, unit: 'MW', help: 'Positive generates (solar: at noon), negative draws.' }),
   buildSeconds: num({ label: 'Build time', min: 0, max: 600, step: 0.5, unit: 's' }),
   clearance: num({ label: 'Clearance', min: 0, max: 60, step: 0.5, unit: 'u', help: 'Nothing new may be placed closer than this. Half of it is the building\'s body radius.' }),
-  range: num({ label: 'Range', min: 0, max: 400, unit: 'u', optional: true, help: 'core: build radius · depot: how far it reaches for a deposit.' }),
+  range: num({ label: 'Range', min: 0, max: 400, unit: 'u', optional: true, help: 'core: build radius · depot: how far it reaches for a deposit · repair: how far it reaches to units · geothermal: how close to a vent it must be.' }),
   fireRange: num({ label: 'Firing range', min: 0, max: 400, unit: 'u', optional: true, help: 'Any building with a firing range, damage and cooldown shoots hostiles while powered (turrets; the Core\'s point defense).' }),
   damage: num({ label: 'Damage per shot', min: 0, max: 10000, optional: true }),
   cooldown: num({ label: 'Fire cooldown', min: 0.05, max: 30, step: 0.05, unit: 's', optional: true }),
+  splash: num({ label: 'Splash radius', min: 0, max: 50, step: 0.1, unit: 'u', optional: true, help: 'Shooters: hostiles this close to the target take half damage.' }),
+  minRange: num({ label: 'Minimum range', min: 0, max: 200, step: 0.5, unit: 'u', optional: true, help: 'Shooters: can\'t fire at anything closer than this.' }),
+  weapon: choice(WEAPONS, { label: 'Weapon look', optional: true, help: 'How its shots look and sound. Empty = cannon (shell if it has splash).' }),
+  repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', optional: true, help: 'Repair pads: hit points per second for each unit in Range, while powered.' }),
   mineRate: num({ label: 'Mining rate', min: 0, max: 100, step: 0.05, unit: 'alloys/s', optional: true, help: 'Depots, while powered.' }),
   storage: num({ label: 'Storage', min: 0, max: 100000, unit: 'MJ', optional: true, help: 'Batteries. 1 MJ = 1 MW for 1 s.' }),
   sight: num({ label: 'Sight', min: 0, max: 240, unit: 'u', optional: true, help: 'How far it sees through the fog of war. Empty = the colony rule\'s building sight (or firing range + 4 if longer).' }),
@@ -101,6 +117,12 @@ export const SOUNDS = {
   turretShot: { label: 'Turret shot', cat: 'combat' },
   roverShot: { label: 'Rover shot', cat: 'combat' },
   tankShot: { label: 'Tank shot', cat: 'combat' },
+  shell: { label: 'Artillery / cannon shell', cat: 'combat' },
+  arc: { label: 'Arc discharge', cat: 'combat' },
+  pdShot: { label: 'Point-defense burst', cat: 'combat' },
+  spit: { label: 'Spitter glob', cat: 'combat' },
+  emerge: { label: 'Burrower surfacing', cat: 'combat' },
+  repair: { label: 'Repair beam', cat: 'combat' },
   bite: { label: 'Predator bite', cat: 'combat' },
   deathSmall: { label: 'Small death', cat: 'combat' },
   deathBig: { label: 'Big death', cat: 'combat' },
@@ -188,6 +210,12 @@ export const depositShape = {
 } satisfies Shape;
 export type DepositDef = Infer<typeof depositShape>;
 
+export const ventShape = {
+  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+} satisfies Shape;
+export type VentDef = Infer<typeof ventShape>;
+
 export const spawnShape = {
   x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
   z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
@@ -204,6 +232,7 @@ export const regionShape = {
   herds: list(herdShape, { label: 'Grazer herds', max: 60 }),
   deposits: list(depositShape, { label: 'Alloy deposits', max: 60 }),
   spawns: list(spawnShape, { label: 'Predator spawns', max: 20 }),
+  vents: list(ventShape, { label: 'Geothermal vents', max: 20, optional: true }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 

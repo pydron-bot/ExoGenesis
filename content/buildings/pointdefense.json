@@ -1,0 +1,15 @@
+{
+  "name": "Point Defense",
+  "description": "Rapid-fire gun for close work: tears through swarms that reach the base. Short reach.",
+  "role": "turret",
+  "buildable": true,
+  "cost": 80,
+  "hp": 550,
+  "powerMW": -2,
+  "buildSeconds": 12,
+  "clearance": 7,
+  "fireRange": 18,
+  "damage": 6,
+  "cooldown": 0.1,
+  "weapon": "pd"
+}
