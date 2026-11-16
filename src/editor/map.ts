@@ -1,5 +1,6 @@
 /**
- * Region map editor: sculpt terrain, paint flora, place grazer herds.
+ * Region map editor: sculpt terrain, paint flora, place grazer herds, alloy
+ * deposits and predator spawn points.
  *
  * Heights use the same functions as the game (world/planet.ts), so the view
  * matches what loads in game, minus the planet's curvature (~2 u drop at the
@@ -8,9 +9,9 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { HEIGHT_SCALE, REGION_CELLS as NC, REGION_STEP, herdShape, regionShape, type HerdDef } from '../content/defs';
+import { HEIGHT_SCALE, REGION_CELLS as NC, REGION_STEP, depositShape, herdShape, regionShape, spawnShape } from '../content/defs';
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
-import type { Field } from '../content/schema';
+import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
 import {
   FLORA_PAINT_SHIFT, PAD_OUTER, SCULPT_FADE, floraAt, padBlend, padHeight, regionDir, regionProcBase, sculptFade, terrainColor,
@@ -23,9 +24,9 @@ export interface MapHost {
   control(d: Record<string, unknown>, key: string, f: Field, onChange: () => void): HTMLElement;
 }
 
-type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd';
+type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn';
 const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
-  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd to select it, drag to move it' },
+  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit or spawn to select it; drag to move it' },
   { id: 'raise', label: 'Raise', key: '1', tip: 'Raise ground (Shift: lower)' },
   { id: 'lower', label: 'Lower', key: '2', tip: 'Lower ground (Shift: raise)' },
   { id: 'smooth', label: 'Smooth', key: '3', tip: 'Even out bumps' },
@@ -33,7 +34,18 @@ const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'flora+', label: 'Flora +', key: '5', tip: 'More plants, lusher ground (Shift: clear)' },
   { id: 'flora-', label: 'Flora −', key: '6', tip: 'Fewer plants, barer ground (Shift: add)' },
   { id: 'herd', label: 'Add herd', key: 'H', tip: 'Click the ground to place a grazer herd' },
+  { id: 'deposit', label: 'Add deposit', key: 'D', tip: 'Click the ground to place an alloy deposit (mined by depots)' },
+  { id: 'spawn', label: 'Add spawn', key: 'P', tip: 'Click the ground to place a predator spawn point (packs enter here)' },
 ];
+
+type MKind = 'herds' | 'deposits' | 'spawns';
+type Marker = Record<string, number>;
+const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: Tool; make(x: number, z: number): Marker; summary(m: Marker): string; color: string; sel: string }> = {
+  herds: { label: 'Grazer herds', one: 'Herd', shape: herdShape, tool: 'herd', make: (x, z) => ({ x, z, grazers: 20, roam: 40 }), summary: (m) => `${m.grazers} grazers`, color: '#c99a4a', sel: '#ffe08a' },
+  deposits: { label: 'Alloy deposits', one: 'Deposit', shape: depositShape, tool: 'deposit', make: (x, z) => ({ x, z, alloys: 1000 }), summary: (m) => `${m.alloys} alloys`, color: '#e08a2c', sel: '#ffd08a' },
+  spawns: { label: 'Predator spawns', one: 'Spawn', shape: spawnShape, tool: 'spawn', make: (x, z) => ({ x, z }), summary: () => 'packs enter here', color: '#d8414e', sel: '#ff9aa3' },
+};
+const MKINDS = Object.keys(MARKERS) as MKind[];
 
 const MAX_OFF = 60; // units, matches the schema's ±600 tenths
 const N2 = NC * NC;
@@ -60,7 +72,7 @@ function precompute() {
   }
 }
 
-interface Snap { off: Float32Array; paint: Float32Array; herds: string }
+interface Snap { off: Float32Array; paint: Float32Array; markers: string }
 
 export class MapEditor {
   private scene = new THREE.Scene();
@@ -73,10 +85,10 @@ export class MapEditor {
   private hgt = new Float32Array(N2); // displayed (final) height per node
   private off: Float32Array;
   private paint: Float32Array;
-  private herds: HerdDef[];
-  private herdGroup = new THREE.Group();
+  private lists = {} as Record<MKind, Marker[]>;
+  private markerGroup = new THREE.Group();
   private cursor: THREE.LineLoop;
-  private selected = -1;
+  private selected: { k: MKind; i: number } | null = null;
   private undo: Snap[] = [];
   private redo: Snap[] = [];
   private raf = 0;
@@ -85,17 +97,17 @@ export class MapEditor {
   private ndc = new THREE.Vector2();
   private hover: { x: number; z: number } | null = null;
   private stroke: { tool: Tool; target: number; last: number } | null = null;
-  private dragHerd = -1;
+  private dragging: { k: MKind; i: number } | null = null;
   private shift = false;
   private disposed = false;
-  private asideEls: { tools: HTMLElement; herds: HTMLElement; herd: HTMLElement } = null!;
+  private asideEls: { tools: HTMLElement; lists: Record<MKind, HTMLElement>; form: Record<MKind, HTMLElement> } = null!;
 
   constructor(main: HTMLElement, private aside: HTMLElement, private host: MapHost) {
     precompute();
     const d = host.draft;
     this.off = Float32Array.from(decodeGrid(d.height as string[] | undefined, NC, NC), (v) => v * HEIGHT_SCALE);
     this.paint = Float32Array.from(decodeGrid(d.flora as string[] | undefined, NC, NC), (v) => v / 100);
-    this.herds = Array.isArray(d.herds) ? (d.herds as HerdDef[]) : (d.herds = []) as HerdDef[];
+    for (const k of MKINDS) this.lists[k] = Array.isArray(d[k]) ? (d[k] as Marker[]) : ((d[k] = []) as Marker[]);
 
     renderer ??= new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -154,8 +166,8 @@ export class MapEditor {
     this.cursor = new THREE.LineLoop(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(65 * 3), 3)), new THREE.LineBasicMaterial({ color: '#ffffff', depthTest: false, transparent: true }));
     this.cursor.renderOrder = 10;
     this.cursor.frustumCulled = false;
-    this.scene.add(this.cursor, this.herdGroup);
-    this.drawHerds();
+    this.scene.add(this.cursor, this.markerGroup);
+    this.drawMarkers();
 
     this.buildAside();
     this.bindInput();
@@ -278,7 +290,7 @@ export class MapEditor {
     this.geo.computeBoundingSphere();
     this.geo.computeBoundingBox();
     this.updateCore();
-    this.drawHerds();
+    this.drawMarkers();
     this.host.changed();
   }
 
@@ -289,7 +301,7 @@ export class MapEditor {
 
   // ---------- undo ----------
   private snap(): Snap {
-    return { off: this.off.slice(), paint: this.paint.slice(), herds: JSON.stringify(this.herds) };
+    return { off: this.off.slice(), paint: this.paint.slice(), markers: JSON.stringify(this.lists) };
   }
   private pushUndo() {
     this.undo.push(this.snap());
@@ -299,67 +311,86 @@ export class MapEditor {
   private restore(s: Snap) {
     this.off.set(s.off);
     this.paint.set(s.paint);
-    this.herds.splice(0, this.herds.length, ...JSON.parse(s.herds));
-    if (this.selected >= this.herds.length) this.selected = -1;
+    const m = JSON.parse(s.markers) as Record<MKind, Marker[]>;
+    for (const k of MKINDS) this.lists[k].splice(0, this.lists[k].length, ...(m[k] ?? []));
+    if (this.selected && this.selected.i >= this.lists[this.selected.k].length) this.selected = null;
     this.rebuild(0, N2);
     this.commitLayers();
-    this.renderHerdList();
+    this.renderLists();
   }
   undoStep() { const s = this.undo.pop(); if (s) { this.redo.push(this.snap()); this.restore(s); } }
   redoStep() { const s = this.redo.pop(); if (s) { this.undo.push(this.snap()); this.restore(s); } }
 
-  // ---------- herds ----------
-  private drawHerds() {
-    for (const o of [...this.herdGroup.children]) {
-      this.herdGroup.remove(o);
+  // ---------- markers: herds, deposits, spawns ----------
+  private drawMarkers() {
+    for (const o of [...this.markerGroup.children]) {
+      this.markerGroup.remove(o);
       o.traverse((m) => { (m as THREE.Mesh).geometry?.dispose(); ((m as THREE.Mesh).material as THREE.Material | undefined)?.dispose(); });
     }
-    this.herds.forEach((hd, n) => {
-      const sel = n === this.selected;
-      const g = new THREE.Group();
-      g.userData.herd = n;
-      const y = this.heightAt(hd.x, hd.z);
-      const size = 2 + Math.sqrt(hd.grazers) * 0.6;
-      const puck = new THREE.Mesh(new THREE.CylinderGeometry(size, size, 1.2, 16), new THREE.MeshStandardMaterial({ color: sel ? '#ffe08a' : '#c99a4a', emissive: sel ? '#6a4a00' : '#2a1a00' }));
-      puck.position.set(hd.x, y + 0.8, -hd.z);
-      puck.userData.herd = n;
-      const pole = new THREE.Mesh(new THREE.ConeGeometry(1.1, 6, 8), puck.material);
-      pole.position.set(hd.x, y + 4.5, -hd.z);
-      pole.userData.herd = n;
-      g.add(puck, pole);
-      if (hd.roam > 0) g.add(this.terrainRing(hd.x, hd.z, hd.roam, sel ? '#ffe08a' : '#f0cf8a', sel ? 0.95 : 0.6));
-      this.herdGroup.add(g);
-    });
+    for (const k of MKINDS) {
+      const spec = MARKERS[k];
+      this.lists[k].forEach((m, i) => {
+        const sel = this.selected?.k === k && this.selected.i === i;
+        const tag = { mk: k, i };
+        const y = this.heightAt(m.x, m.z);
+        const mat = new THREE.MeshStandardMaterial({ color: sel ? spec.sel : spec.color, emissive: sel ? '#5a3a00' : '#1a0d00', flatShading: true });
+        const g = new THREE.Group();
+        if (k === 'herds') {
+          const size = 2 + Math.sqrt(m.grazers) * 0.6;
+          const puck = new THREE.Mesh(new THREE.CylinderGeometry(size, size, 1.2, 16), mat);
+          puck.position.set(m.x, y + 0.8, -m.z);
+          const pole = new THREE.Mesh(new THREE.ConeGeometry(1.1, 6, 8), mat);
+          pole.position.set(m.x, y + 4.5, -m.z);
+          g.add(puck, pole);
+          if (m.roam > 0) g.add(this.terrainRing(m.x, m.z, m.roam, sel ? '#ffe08a' : '#f0cf8a', sel ? 0.95 : 0.6));
+        } else if (k === 'deposits') {
+          const sz = 1.2 + Math.sqrt(m.alloys / 1000) * 1.4;
+          for (const [dx, dz, h] of [[0, 0, 1.6], [1.6, 0.6, 1.1], [-1.3, 1, 0.9], [0.4, -1.5, 1.2]]) {
+            const c = new THREE.Mesh(new THREE.OctahedronGeometry(sz * 0.6 * h), mat);
+            c.position.set(m.x + dx * sz * 0.6, y + sz * h * 0.5, -(m.z + dz * sz * 0.6));
+            g.add(c);
+          }
+        } else {
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(2.2, 6, 4), mat);
+          cone.rotation.x = Math.PI;
+          cone.position.set(m.x, y + 5, -m.z);
+          g.add(cone, this.terrainRing(m.x, m.z, 7, sel ? '#ff9aa3' : '#d8414e', 0.8));
+        }
+        g.traverse((o) => { o.userData = { ...tag }; });
+        this.markerGroup.add(g);
+      });
+    }
   }
 
-  private pickHerd(): number {
-    const hits = this.ray.intersectObjects(this.herdGroup.children, true);
-    for (const hit of hits) if (typeof hit.object.userData.herd === 'number') return hit.object.userData.herd;
-    return -1;
+  private pickMarker(): { k: MKind; i: number } | null {
+    const hits = this.ray.intersectObjects(this.markerGroup.children, true);
+    for (const hit of hits) if (hit.object.userData.mk) return { k: hit.object.userData.mk, i: hit.object.userData.i };
+    return null;
   }
 
-  private selectHerd(n: number) {
-    this.selected = n;
-    this.drawHerds();
-    this.renderHerdList();
+  private select(sel: { k: MKind; i: number } | null) {
+    this.selected = sel;
+    this.drawMarkers();
+    this.renderLists();
   }
 
-  private addHerd(x: number, z: number) {
-    if (this.herds.length >= (regionShape.herds.max ?? 60)) return;
+  private addMarker(k: MKind, x: number, z: number) {
+    const list = this.lists[k];
+    if (list.length >= ((regionShape[k] as { max?: number }).max ?? 60)) return;
     this.pushUndo();
-    this.herds.push({ x: round1(x), z: round1(z), grazers: 20, roam: 40 });
-    this.selected = this.herds.length - 1;
+    list.push(MARKERS[k].make(round1(x), round1(z)));
+    this.selected = { k, i: list.length - 1 };
     this.commitLayers();
-    this.renderHerdList();
+    this.renderLists();
   }
 
-  private deleteHerd(n: number) {
-    if (n < 0 || n >= this.herds.length) return;
+  private deleteMarker(sel: { k: MKind; i: number } | null) {
+    if (!sel || sel.i >= this.lists[sel.k].length) return;
     this.pushUndo();
-    this.herds.splice(n, 1);
-    this.selected = -1;
+    this.lists[sel.k].splice(sel.i, 1);
+    this.selected = null;
     this.commitLayers();
-    this.renderHerdList();
+    this.renderLists();
   }
 
   // ---------- helpers for lines ----------
@@ -396,7 +427,7 @@ export class MapEditor {
   }
 
   private updateCursor() {
-    const brush = prefs.tool !== 'select' && prefs.tool !== 'herd';
+    const brush = !['select', 'herd', 'deposit', 'spawn'].includes(prefs.tool);
     this.cursor.visible = !!this.hover && brush;
     if (!this.hover || !brush) return;
     const p = this.cursor.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -433,8 +464,8 @@ export class MapEditor {
     if (tool) { this.setTool(tool.id); return; }
     if (e.key === '[') this.setRadius(prefs.radius / 1.2);
     else if (e.key === ']') this.setRadius(prefs.radius * 1.2);
-    else if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected >= 0) { e.preventDefault(); this.deleteHerd(this.selected); }
-    else if (e.key === 'Escape') this.selectHerd(-1);
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected) { e.preventDefault(); this.deleteMarker(this.selected); }
+    else if (e.key === 'Escape') this.select(null);
     else if (e.key.toLowerCase() === 'f') this.frameAll();
   };
   private onKeyUp = (e: KeyboardEvent) => { this.shift = e.shiftKey; };
@@ -446,10 +477,10 @@ export class MapEditor {
       this.shift = e.shiftKey;
       this.toNdc(e);
       this.hover = this.groundHit();
-      if (this.dragHerd >= 0 && this.hover) {
-        const hd = this.herds[this.dragHerd];
-        hd.x = round1(clampR(this.hover.x)); hd.z = round1(clampR(this.hover.z));
-        this.drawHerds();
+      if (this.dragging && this.hover) {
+        const m = this.lists[this.dragging.k][this.dragging.i];
+        m.x = round1(clampR(this.hover.x)); m.z = round1(clampR(this.hover.z));
+        this.drawMarkers();
       }
       this.updateReadout();
     };
@@ -459,17 +490,18 @@ export class MapEditor {
       this.toNdc(e);
       this.hover = this.groundHit();
       const tool = prefs.tool;
-      if (tool === 'select' || tool === 'herd') {
-        const n = this.pickHerd();
-        if (n >= 0) {
+      const adds = MKINDS.find((k) => MARKERS[k].tool === tool);
+      if (tool === 'select' || adds) {
+        const hit = this.pickMarker();
+        if (hit) {
           this.pushUndo();
-          this.dragHerd = n;
-          this.selectHerd(n);
+          this.dragging = hit;
+          this.select(hit);
           el.setPointerCapture(e.pointerId);
           return;
         }
-        if (tool === 'herd' && this.hover) this.addHerd(this.hover.x, this.hover.z);
-        else this.selectHerd(-1);
+        if (adds && this.hover) this.addMarker(adds, this.hover.x, this.hover.z);
+        else this.select(null);
         return;
       }
       if (!this.hover) return;
@@ -479,10 +511,10 @@ export class MapEditor {
       el.setPointerCapture(e.pointerId);
     };
     el.onpointerup = (e) => {
-      if (this.dragHerd >= 0) {
-        this.dragHerd = -1;
+      if (this.dragging) {
+        this.dragging = null;
         this.commitLayers();
-        this.renderHerdList();
+        this.renderLists();
       }
       if (this.stroke) {
         this.stroke = null;
@@ -535,7 +567,8 @@ export class MapEditor {
     const r = renderer!.domElement.getBoundingClientRect();
     return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
   }
-  get herdCount() { return this.herds.length; }
+  get herdCount() { return this.lists.herds.length; }
+  count(k: MKind) { return this.lists[k].length; }
 
   // ---------- side panel ----------
   private setTool(t: Tool) {
@@ -583,7 +616,8 @@ export class MapEditor {
     cb.onchange = () => { prefs.showPaint = cb.checked; this.rebuild(0, N2); };
     paintToggle.append(cb, ' Show flora paint (green more, pink less)');
     a.append(paintToggle);
-    this.asideEls = { tools, herds: el('div', 'herd-list'), herd: el('div', 'herd-form') };
+    this.asideEls = { tools, lists: {} as Record<MKind, HTMLElement>, form: {} as Record<MKind, HTMLElement> };
+    for (const k of MKINDS) { this.asideEls.lists[k] = el('div', 'herd-list'); this.asideEls.form[k] = el('div', 'herd-form'); }
     this.setTool(prefs.tool);
 
     sec('Region');
@@ -596,9 +630,11 @@ export class MapEditor {
       a.append(row);
     }
 
-    sec('Grazer herds');
-    a.append(this.asideEls.herds, this.asideEls.herd);
-    this.renderHerdList();
+    for (const k of MKINDS) {
+      sec(MARKERS[k].label);
+      a.append(this.asideEls.lists[k], this.asideEls.form[k]);
+    }
+    this.renderLists();
 
     sec('Layers');
     const clr = (label: string, fn: () => void) => { const b = el('button', '', label) as HTMLButtonElement; b.onclick = fn; return b; };
@@ -609,35 +645,44 @@ export class MapEditor {
 
     sec('Controls');
     a.append(el('div', 'help-block',
-      'Left drag: use tool · Right drag: orbit · Middle drag: pan · Wheel: zoom · [ ]: brush size · Shift: invert raise/lower and flora · Ctrl+Z / Ctrl+Shift+Z: undo / redo · F: frame region · Del: delete herd. ' +
+      'Left drag: use tool · Right drag: orbit · Middle drag: pan · Wheel: zoom · [ ]: brush size · Shift: invert raise/lower and flora · Ctrl+Z / Ctrl+Shift+Z: undo / redo · F: frame region · H / D / P: add herd / deposit / spawn · Del: delete the selected marker. ' +
       'The amber ring is the landing pad (kept flat; sculpting its centre raises or lowers the whole pad). Sculpting fades out inside the dashed line so the region meets the planet.'));
   }
 
-  private renderHerdList() {
-    const { herds: list, herd: form } = this.asideEls;
-    list.replaceChildren();
-    this.herds.forEach((hd, n) => {
-      const b = el('button', n === this.selected ? 'item on' : 'item', '') as HTMLButtonElement;
-      b.append(el('span', '', `Herd ${n + 1}`), el('small', '', `${hd.grazers} grazers · (${Math.round(hd.x)}, ${Math.round(hd.z)})`));
-      b.onclick = () => { this.selectHerd(n); this.controls.target.set(hd.x, this.heightAt(hd.x, hd.z), -hd.z); };
-      list.append(b);
-    });
-    const total = this.herds.reduce((s, hd) => s + hd.grazers, 0);
-    list.append(el('div', 'help', this.herds.length ? `${total} grazers in ${this.herds.length} herds. Add with H.` : 'No herds. Use Add herd (H) and click the ground.'));
-    form.replaceChildren();
-    const hd = this.herds[this.selected];
-    if (!hd) return;
-    form.append(el('div', 'sub', `Herd ${this.selected + 1}`));
-    for (const key of Object.keys(herdShape) as (keyof typeof herdShape)[]) {
-      const f = herdShape[key];
-      const row = el('label', 'mini-row');
-      row.append(el('span', 'lbl', f.label ?? key), this.host.control(hd as unknown as Record<string, unknown>, key, f, () => { this.drawHerds(); this.host.changed(); }));
-      if (f.help) row.append(el('span', 'help', f.help));
-      form.append(row);
+  private renderLists() {
+    for (const k of MKINDS) {
+      const spec = MARKERS[k];
+      const list = this.asideEls.lists[k], form = this.asideEls.form[k];
+      list.replaceChildren();
+      this.lists[k].forEach((m, i) => {
+        const on = this.selected?.k === k && this.selected.i === i;
+        const b = el('button', on ? 'item on' : 'item', '') as HTMLButtonElement;
+        b.append(el('span', '', `${spec.one} ${i + 1}`), el('small', '', `${spec.summary(m)} · (${Math.round(m.x)}, ${Math.round(m.z)})`));
+        b.onclick = () => { this.select({ k, i }); this.controls.target.set(m.x, this.heightAt(m.x, m.z), -m.z); };
+        list.append(b);
+      });
+      const key = TOOLS.find((t) => t.id === spec.tool)!.key;
+      let note = `None yet. Use ${TOOLS.find((t) => t.id === spec.tool)!.label} (${key}) and click the ground.`;
+      if (this.lists[k].length) {
+        if (k === 'herds') note = `${this.lists[k].reduce((s, m) => s + m.grazers, 0)} grazers in ${this.lists[k].length} herds. Add with ${key}.`;
+        else if (k === 'deposits') note = `${this.lists[k].reduce((s, m) => s + m.alloys, 0).toLocaleString()} alloys in ${this.lists[k].length} deposits. Add with ${key}.`;
+        else note = `Packs pick one of these at random. Add with ${key}.`;
+      } else if (k === 'spawns') note += ' Without any, packs come from the north-east corner.';
+      list.append(el('div', 'help', note));
+      form.replaceChildren();
+      const m = this.selected?.k === k ? this.lists[k][this.selected.i] : undefined;
+      if (!m) continue;
+      form.append(el('div', 'sub', `${spec.one} ${this.selected!.i + 1}`));
+      for (const [key, f] of Object.entries(spec.shape)) {
+        const row = el('label', 'mini-row');
+        row.append(el('span', 'lbl', f.label ?? key), this.host.control(m as unknown as Record<string, unknown>, key, f, () => { this.drawMarkers(); this.host.changed(); }));
+        if (f.help) row.append(el('span', 'help', f.help));
+        form.append(row);
+      }
+      const del = el('button', 'danger', `Delete ${spec.one.toLowerCase()}`) as HTMLButtonElement;
+      del.onclick = () => this.deleteMarker(this.selected);
+      form.append(del);
     }
-    const del = el('button', 'danger', 'Delete herd') as HTMLButtonElement;
-    del.onclick = () => this.deleteHerd(this.selected);
-    form.append(del);
   }
 }
 

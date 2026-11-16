@@ -13,13 +13,16 @@
     <canvas id="sk-overlay"></canvas>
     <div id="hud">
       <div id="top">
-        <div id="brand">EXO GENESIS <span>// ACCORD CARETAKER · M0</span></div>
+        <div id="brand">EXO GENESIS <span>// ACCORD CARETAKER · M1</span></div>
         <div id="res">
-          <span class="r" id="r-energy" title="Energy generation / draw">⚡ <b>0</b> / 0 MW</span>
+          <span class="r" id="r-energy" title="Power generated / wanted">⚡ <b>0</b> / 0 MW</span>
+          <span class="r" id="r-battery" title="Battery charge">🔋 <b>0</b></span>
           <span class="r" id="r-alloys" title="Alloys">◆ <b>0</b></span>
           <span class="r" id="r-cryo" title="Cryo bank integrity">❄ <b>100%</b></span>
-          <span class="r" id="r-clock">SOL 1 · 06:00</span>
+          <span class="r" id="r-clock">SOL 1 · 07:00</span>
+          <span class="r" id="r-threat" title="Predator packs"></span>
         </div>
+        <div id="goals"><div id="goals-head">GOALS</div><ol id="goals-list"></ol></div>
       </div>
       <div id="tele">
         <div id="layer">SURFACE</div>
@@ -27,10 +30,11 @@
         <div id="fps"></div>
         <div id="sk-simms"></div>
       </div>
+      <canvas id="minimap" width="160" height="160" title="Radar: tap to look there"></canvas>
       <div id="log"></div>
       <div id="bar">
         <div class="grp">
-          <button id="b-build" title="Build solar array (B)">☀ Solar <small>40◆</small></button>
+          <button id="b-build" title="Build (B)">⚒ Build</button>
         </div>
         <div class="grp">
           <button id="b-pause" title="Pause (Space)">❚❚</button>
@@ -85,7 +89,10 @@
         <div id="cine-sub"></div>
         <button id="cine-skip" title="Skip (Esc)">Skip ▸▸</button>
       </div>
-      <div id="help">Drag from the drone to send it · tap the drone, then tap ground · drag to pan · pinch / wheel to zoom · two fingers or right-drag to rotate</div>
+      <div id="build-menu"></div>
+      <div id="card"></div>
+      <div id="over"><div id="over-title"></div><div id="over-sub"></div><div id="over-stats"></div><div class="grp"><button id="over-restart">New game</button><button id="over-load">Load save</button></div></div>
+      <div id="help">Tap a drone or building to select · drag from a drone to send it · ⚒ Build to place buildings · drag to pan · pinch / wheel to zoom · two fingers or right-drag to rotate</div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

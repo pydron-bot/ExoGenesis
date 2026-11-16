@@ -255,6 +255,123 @@ export function buildScaffold(): THREE.Group {
   return g;
 }
 
+export function buildDepot(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#4a4f55'), hull = metal('#a3927a');
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(7, 0.6, 6), dark);
+  slab.position.y = 0.3;
+  const hopper = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.1, 3.2, 6), hull);
+  hopper.position.set(-1.6, 2.2, 0.6);
+  const shed = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.6, 3.4), hull);
+  shed.position.set(1.7, 1.9, -0.6);
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4.5, 0.4), dark);
+  mast.position.set(1.7, 4.5, -0.6);
+  const boom = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 5), dark);
+  boom.position.set(1.7, 6.6, 1.4);
+  const lamp = new THREE.Mesh(new THREE.OctahedronGeometry(0.35), glow(AMBER, 3));
+  lamp.position.set(1.7, 7.0, -0.6);
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.15, 0.1), glow(AMBER, 2));
+  strip.position.set(1.7, 2.6, 1.15);
+  g.add(slab, hopper, shed, mast, boom, lamp, strip);
+  return g;
+}
+
+export function buildBattery(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), shell = metal('#c7ced4');
+  const base = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 3.6), dark);
+  base.position.y = 0.25;
+  g.add(base);
+  for (const x of [-1.5, 0, 1.5]) {
+    const cell = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 2.6, 10), shell);
+    cell.position.set(x, 1.8, 0);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.3, 10), glow(CYAN, 2));
+    band.position.set(x, 2.2, 0);
+    band.name = 'charge';
+    g.add(cell, band);
+  }
+  return g;
+}
+
+export function buildTurret(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#9aa4ad');
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 1.2, 8), dark);
+  base.position.y = 0.6;
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 1.6, 8), hull);
+  neck.position.y = 2;
+  const head = new THREE.Group();
+  head.name = 'head';
+  head.position.y = 3.1;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 2.4), hull);
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.2, 0.1), glow('#ff6a4d', 3));
+  eye.position.set(0, 0.2, 1.22);
+  eye.name = 'eye';
+  head.add(body, eye);
+  for (const x of [-0.5, 0.5]) {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 2.4, 6), dark);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(x, -0.1, 2.2);
+    head.add(barrel);
+  }
+  g.add(base, neck, head);
+  return g;
+}
+
+export function buildRadar(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#c7ced4');
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 6, 0.35), dark);
+    leg.position.set(Math.cos(a) * 1.4, 3, Math.sin(a) * 1.4);
+    leg.rotation.set(Math.sin(a) * 0.22, 0, -Math.cos(a) * 0.22);
+    g.add(leg);
+  }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.8, 8), dark);
+  hub.position.y = 6.2;
+  const dish = new THREE.Group();
+  dish.name = 'dish';
+  dish.position.y = 7;
+  const bowl = new THREE.Mesh(new THREE.SphereGeometry(2.6, 12, 6, 0, Math.PI * 2, 0, 0.9), hull);
+  bowl.rotation.x = -Math.PI / 2 - 0.5;
+  bowl.material = metal('#c7ced4', { side: THREE.DoubleSide });
+  const feed = new THREE.Mesh(new THREE.OctahedronGeometry(0.3), glow(CYAN, 3));
+  feed.position.set(0, 0.6, 1.6);
+  dish.add(bowl, feed);
+  g.add(hub, dish);
+  return g;
+}
+
+/** Alloy deposit: a cluster of metallic crystals. */
+export function buildDeposit(seed: number): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: '#c98b3c', roughness: 0.35, metalness: 0.8, emissive: '#5a2e08', emissiveIntensity: 0.5, flatShading: true });
+  let r = seed * 9301 + 49297;
+  const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  for (let i = 0; i < 9; i++) {
+    const a = rnd() * Math.PI * 2, d = rnd() * 3.6;
+    const h = 1.2 + rnd() * 2.6;
+    const c = new THREE.Mesh(new THREE.ConeGeometry(0.5 + rnd() * 0.6, h, 5), mat);
+    c.position.set(Math.cos(a) * d, h / 2 - 0.2, Math.sin(a) * d);
+    c.rotation.set((rnd() - 0.5) * 0.6, rnd() * 3, (rnd() - 0.5) * 0.6);
+    g.add(c);
+  }
+  return g;
+}
+
+/** Built-in model for a building kind's role. */
+export function buildForRole(role: string): THREE.Group {
+  switch (role) {
+    case 'solar': return buildSolar();
+    case 'depot': return buildDepot();
+    case 'battery': return buildBattery();
+    case 'turret': return buildTurret();
+    case 'radar': return buildRadar();
+    default: return buildSolar();
+  }
+}
+
 export function buildCreature(): THREE.BufferGeometry {
   // low-poly six-legged grazer, merged into one geometry for instancing
   const parts: THREE.BufferGeometry[] = [];
@@ -305,28 +422,80 @@ function glowSprite(color: string): THREE.Sprite {
   }));
 }
 
+/** Terrain-following circle (rebuilt when its centre/radius change). */
+class GroundRing {
+  readonly line: THREE.LineLoop;
+  private key = '';
+  constructor(color: THREE.ColorRepresentation, opacity: number) {
+    this.line = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color, transparent: true, opacity, fog: false, depthWrite: false }));
+    this.line.frustumCulled = false;
+    this.line.visible = false;
+  }
+  set(x: number, z: number, r: number) {
+    this.line.visible = true;
+    const key = `${x.toFixed(1)},${z.toFixed(1)},${r.toFixed(1)}`;
+    if (key === this.key) return;
+    this.key = key;
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i < 72; i++) {
+      const a = (i / 72) * Math.PI * 2;
+      const px = Math.max(-HALF, Math.min(HALF, x + Math.cos(a) * r)), pz = Math.max(-HALF, Math.min(HALF, z + Math.sin(a) * r));
+      pts.push(regionToWorld(px, pz, 0.6));
+    }
+    this.line.geometry.dispose();
+    this.line.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+  }
+  hide() { this.line.visible = false; }
+}
+
+export interface BuildingLook { role: string; name: string; hp: number; clearance: number; fireRange?: number; range?: number; storage?: number }
+export interface RegionRules { defs: Record<string, BuildingLook>; buildRadius: number }
+
+export type Selection = { kind: 'drone' | 'building'; id: number } | null;
+export interface RegionUi {
+  sel: Selection;
+  drag: { x: number; z: number } | null;
+  /** Building kind being placed, and where the ghost is. */
+  build: string | null;
+  ghost: { x: number; z: number; ok: boolean } | null;
+}
+
+interface BEntry { kind: string; done: boolean; obj: THREE.Group; powered: boolean; emissive: [THREE.MeshStandardMaterial, number][]; bar: THREE.Group }
+
 export class RegionView {
   readonly patch: THREE.Mesh;
   readonly details = new THREE.Group();
+  /** The first drone's model (the landing cinematic flies it out of the Core). */
   readonly drone: THREE.Group;
   readonly droneWorld = new THREE.Vector3();
-  droneLocal = { x: 0, z: 0 };
-  /** While true, the landing cinematic owns the drone's transform. */
+  /** While true, the landing cinematic owns the first drone's transform. */
   droneHeld = false;
   readonly flora: Flora | null;
   readonly core: THREE.Group;
+  /** Interpolated drone positions this frame (for picking and HUD). */
+  readonly drones = new Map<number, { obj: THREE.Group; x: number; z: number; world: THREE.Vector3 }>();
   private faunaMesh: THREE.InstancedMesh;
-  private buildings = new Map<number, { kind: 'solar'; done: boolean; obj: THREE.Group }>();
+  private buildings = new Map<number, BEntry>();
+  private deposits: THREE.Group[] = [];
+  private haulers = new Map<number, THREE.Group>();
   private orderRibbon = new Ribbon(CYAN, 0.45);
   private targetRibbon = new Ribbon(CYAN, 0.18);
   private selRing: THREE.Mesh;
   private targetRing: THREE.Mesh;
-  private ghost: THREE.Group;
+  private rangeRing = new GroundRing(CYAN, 0.7);
+  private reachRing = new GroundRing(AMBER, 0.6);
+  private areaRings: GroundRing[] = [];
+  private ghosts = new Map<string, THREE.Group>();
+  private ghostOk = new THREE.MeshBasicMaterial({ color: '#5bff9a', transparent: true, opacity: 0.4, depthWrite: false });
+  private ghostBad = new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.4, depthWrite: false });
   private border: THREE.LineLoop;
   private marker: THREE.Sprite;
   private raycaster = new THREE.Raycaster();
+  private models: Record<string, THREE.Object3D> = {};
+  private firstDrone = -1;
+  private coreAlive = true;
 
-  constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1) {
+  constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1, private rules: RegionRules = { defs: {}, buildRadius: 30 }) {
     this.patch = buildPatch(look);
     scene.add(this.patch);
     scene.add(this.details);
@@ -352,12 +521,8 @@ export class RegionView {
     ringGeo.rotateX(-Math.PI / 2);
     this.selRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide }));
     this.targetRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide }));
-    this.details.add(this.selRing, this.targetRing, this.orderRibbon.mesh, this.targetRibbon.mesh);
+    this.details.add(this.selRing, this.targetRing, this.orderRibbon.mesh, this.targetRibbon.mesh, this.rangeRing.line, this.reachRing.line);
     (this.targetRibbon.mesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
-
-    this.ghost = this.makeGhost();
-    this.ghost.visible = false;
-    this.details.add(this.ghost);
 
     // region border: the territory outline seen from orbit
     const pts: THREE.Vector3[] = [];
@@ -391,11 +556,11 @@ export class RegionView {
     (beacon.material as THREE.MeshStandardMaterial).emissiveIntensity = 2 + Math.max(0, Math.sin(t * 4)) * 4;
   }
 
-  /** Skirmish mode: keep terrain + core, hide the landing demo's drone and grazers. */
+  /** Skirmish mode: keep terrain + core, hide the colony's drones, grazers and overlays. */
   hideLandingEntities() {
-    for (const o of [this.drone, this.faunaMesh, this.selRing, this.targetRing, this.ghost, this.orderRibbon.mesh, this.targetRibbon.mesh]) o.visible = false;
+    for (const o of [this.drone, this.faunaMesh, this.selRing, this.targetRing, this.orderRibbon.mesh, this.targetRibbon.mesh]) o.visible = false;
     if (this.flora) this.flora.group.visible = false;
-    this.details.remove(this.drone, this.faunaMesh, this.selRing, this.targetRing, this.ghost);
+    this.details.remove(this.drone, this.faunaMesh, this.selRing, this.targetRing);
   }
 
   /** Ground point under a screen position (NDC), or null. */
@@ -408,47 +573,128 @@ export class RegionView {
     return p;
   }
 
-  update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: {
-    selected: boolean; drag: { x: number; z: number } | null; ghost: { x: number; z: number } | null;
-  }, dist: number, surface: number) {
-    void surface;
+  /** Building under a ground point (by footprint), or null. */
+  buildingAt(x: number, z: number, list: Building[]): number | null {
+    let best: number | null = null, bd = Infinity;
+    for (const b of list) {
+      const d = this.rules.defs[b.kind];
+      const r = (d?.clearance ?? 8) / 2 + 1.5;
+      const dist = Math.hypot(b.x - x, b.z - z);
+      if (dist < r && dist < bd) { bd = dist; best = b.id; }
+    }
+    return best;
+  }
+
+  /** Use an asset model for a building kind instead of the built-in (null = built-in). */
+  setBuildingModel(kind: string, obj: THREE.Object3D | null) {
+    if (obj) this.models[kind] = obj; else delete this.models[kind];
+    const g = this.ghosts.get(kind);
+    if (g) { this.details.remove(g); this.ghosts.delete(kind); }
+    for (const [id, e] of this.buildings) if (e.kind === kind && e.done) { this.details.remove(e.obj); this.buildings.delete(id); }
+  }
+
+  private modelFor(kind: string): THREE.Group {
+    const m = this.models[kind];
+    if (m) { const g = new THREE.Group(); g.add(m.clone(true)); return g; }
+    return buildForRole(this.rules.defs[kind]?.role ?? 'solar');
+  }
+
+  private ghostFor(kind: string): THREE.Group {
+    let g = this.ghosts.get(kind);
+    if (!g) {
+      g = this.modelFor(kind);
+      g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = this.ghostOk; });
+      this.ghosts.set(kind, g);
+      this.details.add(g);
+    }
+    return g;
+  }
+
+  update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: RegionUi, dist: number, camera: THREE.Camera) {
     this.updateOverlay(dist, t);
 
-    // drone (interpolated)
-    const a = prev.drone, b = cur.drone;
-    const x = lerp(a.x, b.x, alpha), z = lerp(a.z, b.z, alpha);
-    let dh = b.heading - a.heading;
-    dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-    const bob = Math.sin(t * 3) * 0.15;
-    if (!this.droneHeld) orient(this.drone, x, z, a.heading + dh * alpha, 2.4 + bob);
-    this.droneWorld.copy(this.drone.position);
-    this.droneLocal = { x, z };
+    // drones (interpolated)
+    const seen = new Set<number>();
+    for (const b of cur.drones) {
+      seen.add(b.id);
+      const a = prev.drones.find((d) => d.id === b.id) ?? b;
+      let e = this.drones.get(b.id);
+      if (!e) {
+        if (this.firstDrone < 0) this.firstDrone = b.id;
+        const obj = b.id === this.firstDrone ? this.drone : buildDrone();
+        if (obj !== this.drone) this.details.add(obj);
+        e = { obj, x: b.x, z: b.z, world: new THREE.Vector3() };
+        this.drones.set(b.id, e);
+      }
+      const x = lerp(a.x, b.x, alpha), z = lerp(a.z, b.z, alpha);
+      let dh = b.heading - a.heading;
+      dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+      const bob = Math.sin(t * 3 + b.id) * 0.15;
+      const held = this.droneHeld && b.id === this.firstDrone;
+      if (!held) orient(e.obj, x, z, a.heading + dh * alpha, 2.4 + bob);
+      e.x = x; e.z = z;
+      e.world.copy(e.obj.position);
+      if (b.id === this.firstDrone) this.droneWorld.copy(e.obj.position);
+    }
+    for (const [id, e] of this.drones) {
+      if (seen.has(id)) continue;
+      if (e.obj === this.drone) this.drone.visible = false; else this.details.remove(e.obj);
+      this.drones.delete(id);
+    }
 
-    orient(this.selRing, x, z, 0, 0.3);
-    this.selRing.visible = ui.selected;
-    this.selRing.scale.setScalar(1 + Math.sin(t * 5) * 0.06);
-
-    if (b.moving && !ui.drag) {
+    // selection, orders
+    const selDrone = ui.sel?.kind === 'drone' ? this.drones.get(ui.sel.id) : undefined;
+    const selDroneSnap = selDrone ? cur.drones.find((d) => d.id === ui.sel!.id) : undefined;
+    const selB = ui.sel?.kind === 'building' ? cur.buildings.find((b) => b.id === ui.sel!.id) : undefined;
+    this.selRing.visible = !!selDrone || !!selB;
+    if (selDrone) {
+      orient(this.selRing, selDrone.x, selDrone.z, 0, 0.3);
+      this.selRing.scale.setScalar(1 + Math.sin(t * 5) * 0.06);
+    } else if (selB) {
+      orient(this.selRing, selB.x, selB.z, 0, 0.3);
+      this.selRing.scale.setScalar(((this.rules.defs[selB.kind]?.clearance ?? 8) / 2 + 1) / 2 * (1 + Math.sin(t * 5) * 0.03));
+    }
+    if (selDrone && selDroneSnap?.moving && !ui.drag) {
+      const b = selDroneSnap;
       this.targetRing.visible = true;
       orient(this.targetRing, b.tx, b.tz, t, 0.35);
-      this.targetRing.scale.setScalar(b.building ? 2.6 : 0.8 + (t % 1) * 0.6);
-      this.targetRibbon.mesh.visible = Math.hypot(b.tx - x, b.tz - z) > 3;
-      this.targetRibbon.set(x, z, b.tx, b.tz);
+      this.targetRing.scale.setScalar(b.working ? 2.6 : 0.8 + (t % 1) * 0.6);
+      this.targetRibbon.mesh.visible = Math.hypot(b.tx - selDrone.x, b.tz - selDrone.z) > 3;
+      this.targetRibbon.set(selDrone.x, selDrone.z, b.tx, b.tz);
     } else {
       this.targetRing.visible = false;
       this.targetRibbon.mesh.visible = false;
     }
-    this.orderRibbon.mesh.visible = !!ui.drag;
-    if (ui.drag) this.orderRibbon.set(x, z, ui.drag.x, ui.drag.z);
+    this.orderRibbon.mesh.visible = !!ui.drag && !!selDrone;
+    if (ui.drag && selDrone) this.orderRibbon.set(selDrone.x, selDrone.z, ui.drag.x, ui.drag.z);
 
-    this.ghost.visible = !!ui.ghost;
-    if (ui.ghost) orient(this.ghost, ui.ghost.x, ui.ghost.z, 0, 0);
+    // placement ghost and range rings
+    for (const [k, g] of this.ghosts) g.visible = ui.build === k && !!ui.ghost;
+    this.rangeRing.hide();
+    this.reachRing.hide();
+    if (ui.build && ui.ghost) {
+      const g = this.ghostFor(ui.build);
+      g.visible = true;
+      orient(g, ui.ghost.x, ui.ghost.z, 0, 0);
+      const mat = ui.ghost.ok ? this.ghostOk : this.ghostBad;
+      g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = mat; });
+      const d = this.rules.defs[ui.build];
+      if (d?.fireRange) this.rangeRing.set(ui.ghost.x, ui.ghost.z, d.fireRange);
+      if (d?.role === 'depot' && d.range) this.reachRing.set(ui.ghost.x, ui.ghost.z, d.range);
+    } else if (selB) {
+      const d = this.rules.defs[selB.kind];
+      if (d?.fireRange) this.rangeRing.set(selB.x, selB.z, d.fireRange);
+      if (d?.role === 'depot' && d.range) this.reachRing.set(selB.x, selB.z, d.range);
+      if (d?.role === 'core' && d.range) this.reachRing.set(selB.x, selB.z, d.range);
+    }
+    this.syncAreaRings(ui.build ? cur.buildings : []);
 
-    this.syncBuildings(cur.buildings, t);
+    this.syncBuildings(cur, t, ui, camera);
+    this.syncDeposits(cur);
 
-    // fauna
+    // grazers
     const pa = prev.fauna, pb = cur.fauna;
-    const n = pb.length / 3;
+    const n = Math.min(pb.length, pa.length) / 3;
     this.faunaMesh.count = n;
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(1, 1, 1);
     const tmp = new THREE.Object3D();
@@ -464,68 +710,177 @@ export class RegionView {
     this.faunaMesh.instanceMatrix.needsUpdate = true;
   }
 
-  private models: { solar?: THREE.Object3D } = {};
-
-  /** Swap a building's built-in model for an asset model (null = back to built-in). */
-  setBuildingModel(kind: 'solar', obj: THREE.Object3D | null) {
-    if (obj) this.models[kind] = obj; else delete this.models[kind];
-    const vis = this.ghost.visible;
-    this.details.remove(this.ghost);
-    this.ghost = this.makeGhost();
-    this.ghost.visible = vis;
-    this.details.add(this.ghost);
-    for (const e of this.buildings.values()) {
-      if (e.kind !== kind || !e.done) continue;
-      const next = this.solarModel();
-      next.position.copy(e.obj.position);
-      next.quaternion.copy(e.obj.quaternion);
-      this.details.remove(e.obj);
-      this.details.add(next);
-      e.obj = next;
-    }
-  }
-
-  private solarModel(): THREE.Group {
-    const m = this.models.solar;
-    if (!m) return buildSolar();
-    const g = new THREE.Group();
-    g.add(m.clone(true));
-    return g;
-  }
-
-  private makeGhost(): THREE.Group {
-    const g = this.solarModel();
-    g.traverse((o) => {
-      if (o instanceof THREE.Mesh) o.material = new THREE.MeshBasicMaterial({ color: CYAN, transparent: true, opacity: 0.35, depthWrite: false });
-    });
-    return g;
-  }
-
-  private syncBuildings(list: Building[], t: number) {
-    const seen = new Set<number>();
+  /** While placing: faint rings showing where building is allowed. */
+  private syncAreaRings(list: Building[]) {
+    const want: [number, number, number][] = [];
     for (const b of list) {
-      if (b.kind !== 'solar') continue;
+      const d = this.rules.defs[b.kind];
+      if (!d) continue;
+      if (d.role === 'core') want.push([b.x, b.z, d.range ?? this.rules.buildRadius]);
+      else if (b.progress >= 1) want.push([b.x, b.z, this.rules.buildRadius + d.clearance / 2]);
+    }
+    while (this.areaRings.length < want.length) {
+      const r = new GroundRing('#9fd8ff', 0.22);
+      this.details.add(r.line);
+      this.areaRings.push(r);
+    }
+    this.areaRings.forEach((r, i) => (want[i] ? r.set(...want[i]) : r.hide()));
+  }
+
+  private syncBuildings(cur: Snapshot, t: number, ui: RegionUi, camera: THREE.Camera) {
+    const seen = new Set<number>();
+    let coreSeen = false;
+    const charge = cur.storageMax > 0 ? cur.stored / cur.storageMax : 0;
+    for (const b of cur.buildings) {
+      const d = this.rules.defs[b.kind];
+      if (b.kind === 'core') { coreSeen = true; this.hpBar(b, d, ui, camera, null); continue; }
       seen.add(b.id);
       const done = b.progress >= 1;
-      let entry = this.buildings.get(b.id);
-      if (!entry || entry.done !== done) {
-        if (entry) this.details.remove(entry.obj);
-        else this.flora?.clear(b.x, b.z, 6.5);
-        const obj = done ? this.solarModel() : buildScaffold();
+      let e = this.buildings.get(b.id);
+      if (!e || e.done !== done) {
+        if (e) { this.details.remove(e.obj, e.bar); }
+        else this.flora?.clear(b.x, b.z, (d?.clearance ?? 8) / 2 + 2);
+        const obj = done ? this.modelFor(b.kind) : buildScaffold();
+        if (!done) {
+          // scale the construction frame to the footprint
+          const k = (d?.clearance ?? 8) / 9;
+          obj.scale.set(k, 1, k * 1.6);
+        }
         orient(obj, b.x, b.z, 0, 0);
         this.details.add(obj);
-        entry = { kind: 'solar', done, obj };
-        this.buildings.set(b.id, entry);
+        const emissive: [THREE.MeshStandardMaterial, number][] = [];
+        obj.traverse((o) => {
+          const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+          if (mm && 'emissiveIntensity' in mm) {
+            // own copy so dimming one building doesn't dim the others
+            const c = mm.clone();
+            (o as THREE.Mesh).material = c;
+            emissive.push([c, c.emissiveIntensity]);
+          }
+        });
+        e = { kind: b.kind, done, obj, powered: true, emissive, bar: makeBar() };
+        this.details.add(e.bar);
+        this.buildings.set(b.id, e);
       }
       if (!done) {
-        const fill = entry.obj.getObjectByName('fill') as THREE.Mesh;
+        const fill = e.obj.getObjectByName('fill') as THREE.Mesh;
         fill.scale.y = Math.max(0.02, b.progress);
         fill.position.y = 1.5 * Math.max(0.02, b.progress);
         (fill.material as THREE.MeshBasicMaterial).opacity = 0.12 + Math.sin(t * 6) * 0.05;
+      } else {
+        // unpowered or switched off: lights go dark
+        const lit = b.powered;
+        if (lit !== e.powered) {
+          e.powered = lit;
+          for (const [mm, base] of e.emissive) mm.emissiveIntensity = lit ? base : base * 0.08;
+        }
+        const role = d?.role;
+        if (role === 'turret' && b.aim !== undefined) {
+          const head = e.obj.getObjectByName('head');
+          if (head) {
+            let dh = b.aim - head.rotation.y;
+            dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+            head.rotation.y += dh * 0.25;
+          }
+        }
+        if (role === 'radar' && lit) {
+          const dish = e.obj.getObjectByName('dish');
+          if (dish) dish.rotation.y = t * 1.2;
+        }
+        if (role === 'battery') {
+          e.obj.traverse((o) => {
+            if (o.name === 'charge') ((o as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = lit ? 0.3 + charge * 3 : 0.1;
+          });
+        }
+        if (role === 'depot') this.hauler(b, cur, t);
       }
+      this.hpBar(b, d, ui, camera, e.bar);
     }
     for (const [id, e] of this.buildings) {
-      if (!seen.has(id)) { this.details.remove(e.obj); this.buildings.delete(id); }
+      if (seen.has(id)) continue;
+      this.details.remove(e.obj, e.bar);
+      this.buildings.delete(id);
+      const h = this.haulers.get(id);
+      if (h) { this.details.remove(h); this.haulers.delete(id); }
+    }
+    if (this.coreAlive !== coreSeen) {
+      this.coreAlive = coreSeen;
+      this.core.visible = coreSeen;
     }
   }
+
+  private coreBar: THREE.Group | null = null;
+  private hpBar(b: Building, d: BuildingLook | undefined, ui: RegionUi, camera: THREE.Camera, bar: THREE.Group | null) {
+    if (!bar) {
+      this.coreBar ??= makeBar();
+      if (!this.coreBar.parent) this.details.add(this.coreBar);
+      bar = this.coreBar;
+    }
+    const max = d?.hp ?? 1;
+    const frac = Math.max(0, Math.min(1, b.hp / max));
+    const sel = ui.sel?.kind === 'building' && ui.sel.id === b.id;
+    bar.visible = b.progress >= 1 && (frac < 0.995 || sel);
+    if (!bar.visible) return;
+    const lift = b.kind === 'core' ? 20 : 9;
+    regionToWorld(b.x, b.z, lift, bar.position);
+    bar.quaternion.copy(camera.quaternion);
+    const w = Math.max(4, (d?.clearance ?? 8) * 0.8);
+    bar.scale.set(w, w, 1);
+    const fill = bar.children[1] as THREE.Mesh;
+    fill.scale.x = Math.max(0.001, frac);
+    fill.position.x = -(1 - frac) / 2;
+    (fill.material as THREE.MeshBasicMaterial).color.set(frac > 0.6 ? '#5bff9a' : frac > 0.3 ? '#ffb547' : '#ff5a4a');
+  }
+
+  /** Cosmetic ore hauler shuttling between a working depot and its deposit. */
+  private hauler(b: Building, cur: Snapshot, t: number) {
+    let h = this.haulers.get(b.id);
+    const dep = b.mining !== undefined && b.mining >= 0 ? cur.deposits[b.mining] : undefined;
+    const active = b.powered && dep && dep.alloys > 0;
+    if (!active) { if (h) h.visible = false; return; }
+    if (!h) {
+      h = buildDrone();
+      h.scale.setScalar(0.7);
+      h.traverse((o) => {
+        const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+        if (mm?.emissive && mm.emissiveIntensity > 1) { const c = mm.clone(); c.emissive.set(AMBER); (o as THREE.Mesh).material = c; }
+      });
+      this.haulers.set(b.id, h);
+      this.details.add(h);
+    }
+    h.visible = true;
+    const cyc = (t * 0.12 + b.id * 0.37) % 1;
+    const k = smoothstep(0, 0.45, cyc) * (1 - smoothstep(0.55, 1, cyc));
+    const x = lerp(b.x, dep!.x, k), z = lerp(b.z, dep!.z, k);
+    const toward = cyc < 0.5;
+    orient(h, x, z, Math.atan2((dep!.x - b.x) * (toward ? 1 : -1), (dep!.z - b.z) * (toward ? 1 : -1)), 4 + Math.sin(k * Math.PI) * 2);
+  }
+
+  private syncDeposits(cur: Snapshot) {
+    cur.deposits.forEach((d, i) => {
+      let g = this.deposits[i];
+      if (!g) {
+        g = buildDeposit(i + 1);
+        orient(g, d.x, d.z, i * 1.7, 0);
+        this.flora?.clear(d.x, d.z, 7);
+        this.details.add(g);
+        this.deposits[i] = g;
+      }
+      const f = d.max > 0 ? d.alloys / d.max : 0;
+      g.visible = f > 0;
+      const s = 0.35 + 0.65 * Math.sqrt(f);
+      g.scale.set(s, s, s);
+    });
+  }
+}
+
+function makeBar(): THREE.Group {
+  const g = new THREE.Group();
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.12), new THREE.MeshBasicMaterial({ color: '#05080d', transparent: true, opacity: 0.7, depthTest: false, fog: false }));
+  const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.08), new THREE.MeshBasicMaterial({ color: '#5bff9a', depthTest: false, fog: false, toneMapped: false }));
+  fill.position.z = 0.001;
+  bg.renderOrder = 20; fill.renderOrder = 21;
+  g.add(bg, fill);
+  g.visible = false;
+  return g;
 }

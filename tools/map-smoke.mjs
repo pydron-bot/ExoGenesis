@@ -29,6 +29,7 @@ try {
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   const h0 = await game.evaluate(([x, z]) => __exo.height(x, z), [P.x, P.z]);
   const f0 = await game.evaluate(() => __exo.sim.cur.fauna.length / 3);
+  const dep0 = await game.evaluate(() => __exo.sim.cur.deposits.length);
 
   const ed = await ctx.newPage();
   ed.on('pageerror', (e) => errors.push(`editor: ${e.message}`));
@@ -37,7 +38,7 @@ try {
   await ed.waitForSelector('.map-wrap canvas');
   await wait(1500);
   const screen = (x, z) => ed.evaluate(([x, z]) => __editor.map.screenOf(x, z), [x, z]);
-  const draft = () => ed.evaluate(() => ({ height: !!__editor.cur.draft.height, flora: !!__editor.cur.draft.flora, herds: __editor.cur.draft.herds.length }));
+  const draft = () => ed.evaluate(() => ({ height: !!__editor.cur.draft.height, flora: !!__editor.cur.draft.flora, herds: __editor.cur.draft.herds.length, deposits: __editor.cur.draft.deposits.length, spawns: __editor.cur.draft.spawns.length }));
   const stroke = async (x, z, ms) => {
     const s = await screen(x, z);
     await ed.mouse.move(s.x, s.y);
@@ -68,7 +69,19 @@ try {
   const hs = await screen(-30, 60);
   await ed.mouse.click(hs.x, hs.y);
   check((await draft()).herds === 8, 'Add herd + click placed an 8th herd');
-  check(await ed.locator('.herd-form').count() === 1 && (await ed.textContent('.herd-form .sub')) === 'Herd 8', 'new herd selected in the side panel');
+  check((await ed.textContent('.herd-form:not(:empty) .sub')) === 'Herd 8', 'new herd selected in the side panel');
+  const d0 = await draft();
+
+  // 3b. a deposit and a spawn point
+  await ed.keyboard.press('d');
+  const ds = await screen(-60, -30);
+  await ed.mouse.click(ds.x, ds.y);
+  await ed.keyboard.press('p');
+  const ps = await screen(90, -40);
+  await ed.mouse.click(ps.x, ps.y);
+  const d1 = await draft();
+  check(d1.deposits === d0.deposits + 1 && d1.spawns === d0.spawns + 1, `Add deposit (D) and Add spawn (P) placed markers (${d1.deposits} deposits, ${d1.spawns} spawns)`);
+  check((await ed.textContent('.herd-form:not(:empty) .sub')) === `Spawn ${d1.spawns}`, 'new spawn selected');
 
   // 4. flora paint
   await ed.keyboard.press('5');
@@ -80,6 +93,7 @@ try {
   await wait(1000);
   const reg = await readRegion();
   check(Array.isArray(reg.height) && reg.height.length === 121 && Array.isArray(reg.flora) && reg.herds.length === 8, 'saved file has height + flora grids and 8 herds');
+  check(reg.deposits.length === d0.deposits + 1 && reg.spawns.length === d0.spawns + 1, 'saved file has the new deposit and spawn');
   check(reg.height.filter((r) => r !== '0*121').length < 40, `only touched rows differ (${reg.height.filter((r) => r !== '0*121').length} of 121)`);
   let valid = true;
   try { execFileSync('node', [path.join(root, 'tools/content-check.mjs')], { stdio: 'pipe' }); } catch { valid = false; }
@@ -92,6 +106,8 @@ try {
   const f1 = await game.evaluate(() => __exo.sim.cur.fauna.length / 3);
   check(h1 > h0 + 1, `game terrain raised at (${P.x}, ${P.z}): ${h0.toFixed(1)} → ${h1.toFixed(1)}`);
   check(f1 === f0 + 20, `game has the new herd's grazers (${f0} → ${f1})`);
+  const dep1 = await game.evaluate(() => __exo.sim.cur.deposits.length);
+  check(dep1 === dep0 + 1, `game has the new deposit (${dep0} → ${dep1})`);
 } finally {
   await fs.writeFile(file, original);
 }

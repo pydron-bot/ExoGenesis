@@ -42,6 +42,7 @@ export class SimClient {
   command(cmd: Command) { this.worker.postMessage({ type: 'cmd', cmd }); }
   setSpeed(speed: number) { this.worker.postMessage({ type: 'speed', speed }); }
   load(state: SimState) { this.worker.postMessage({ type: 'load', state }); }
+  newGame(seed: number) { this.worker.postMessage({ type: 'new', seed }); }
 
   save(): Promise<SimState> {
     const reqId = ++this.reqId;

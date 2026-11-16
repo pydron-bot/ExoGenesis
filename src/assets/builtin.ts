@@ -4,7 +4,7 @@
  * Editor only.
  */
 import * as THREE from 'three';
-import { buildCore, buildCreature, buildDrone, buildScaffold, buildSolar } from '../world/region';
+import { buildBattery, buildCore, buildCreature, buildDeposit, buildDepot, buildDrone, buildRadar, buildScaffold, buildSolar, buildTurret } from '../world/region';
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
 import { creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from '../skirmish/models';
 
@@ -41,6 +41,11 @@ function floraSpecies(index: number): THREE.Object3D {
 export const BUILTINS: Builtin[] = [
   { id: 'core', name: 'Command Core', group: 'Buildings', where: 'src/world/region.ts buildCore()', usedBy: { coll: 'buildings', id: 'core' }, swappable: false, note: 'Fixed: the landing cinematic animates its parts.', build: buildCore },
   { id: 'solar', name: 'Solar Array', group: 'Buildings', where: 'src/world/region.ts buildSolar()', usedBy: { coll: 'buildings', id: 'solar' }, swappable: true, build: buildSolar },
+  { id: 'depot', name: 'Mining Depot', group: 'Buildings', where: 'src/world/region.ts buildDepot()', usedBy: { coll: 'buildings', id: 'depot' }, swappable: true, build: buildDepot },
+  { id: 'battery', name: 'Battery Bank', group: 'Buildings', where: 'src/world/region.ts buildBattery()', usedBy: { coll: 'buildings', id: 'battery' }, swappable: true, build: buildBattery },
+  { id: 'turret', name: 'Defense Turret', group: 'Buildings', where: 'src/world/region.ts buildTurret()', usedBy: { coll: 'buildings', id: 'turret' }, swappable: true, note: 'An asset model won\'t aim: the built-in turns its "head" part toward targets.', build: buildTurret },
+  { id: 'radar', name: 'Radar', group: 'Buildings', where: 'src/world/region.ts buildRadar()', usedBy: { coll: 'buildings', id: 'radar' }, swappable: true, note: 'An asset model won\'t spin: the built-in turns its "dish" part.', build: buildRadar },
+  { id: 'deposit', name: 'Alloy deposit', group: 'Terrain', where: 'src/world/region.ts buildDeposit()', swappable: false, note: 'Placed with the map editor (Deposits).', build: () => buildDeposit(1) },
   { id: 'scaffold', name: 'Construction scaffold', group: 'Buildings', where: 'src/world/region.ts buildScaffold()', swappable: false, note: 'Shown while any building is under construction.', build: buildScaffold },
   { id: 'drone', name: 'Worker drone', group: 'Units', where: 'src/world/region.ts buildDrone()', swappable: false, note: 'Not a content record yet.', build: buildDrone },
   { id: 'rover', name: 'Rover', group: 'Units', where: 'src/skirmish/models.ts roverGeo()', usedBy: { coll: 'units', id: 'rover' }, swappable: true, build: () => unit(roverGeo(), unitMaterials()[0], roverGlow()) },

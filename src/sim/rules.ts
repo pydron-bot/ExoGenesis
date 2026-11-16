@@ -14,8 +14,6 @@ export interface PlaceWorld {
 
 export const DEPOSIT_RADIUS = 6;
 export const EDGE = REGION_HALF - 10;
-/** Order in which loads lose power when there isn't enough (first = shed first). */
-export const SHED_ORDER = ['radar', 'depot', 'turret', 'battery', 'solar', 'core'];
 
 /** Why `kind` can't go at (x, z), or null if it can. */
 export function placeProblem(
@@ -31,7 +29,7 @@ export function placeProblem(
     lo = Math.min(lo, h); hi = Math.max(hi, h);
   }
   if (lo < 0.6) return 'can’t build in water';
-  if (hi - lo > Math.max(3, r * 0.5)) return 'ground too steep';
+  if (hi - lo > Math.max(4, r * 1.1)) return 'ground too steep';
   for (const b of w.buildings) {
     const o = defs[b.kind];
     if (!o) continue;

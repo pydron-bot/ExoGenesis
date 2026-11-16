@@ -54,7 +54,8 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 npm install
 npm run dev        # http://localhost:5176 (on hive1: systemd user unit exo-dev.service)
 npm run build
-node tools/smoke.mjs   # end-to-end input + save/load test (Playwright)
+node tools/smoke.mjs   # colony end-to-end: orders, build menu, placement, power switch, a fight, save/load, game over
+node tools/balance.mjs # headless 20-minute runs with scripted strategies (balance numbers)
 node tools/shot.mjs    # headless screenshots of each zoom level → shots/
 npm run content:check  # validate content/ against src/content/defs.ts
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)

@@ -1,26 +1,31 @@
 /**
- * Unified touch + mouse input. No box-select: tap to select, drag a vector from
- * the drone to order it, drag elsewhere to pan, pinch/wheel to zoom, two-finger
- * twist or right-drag to rotate.
+ * Unified touch + mouse input for the colony.
+ *   - tap a drone or building to select it; tap empty ground with a drone
+ *     selected to send it there; drag a vector from a drone to order it
+ *   - placing a building: on desktop the ghost follows the mouse and a click
+ *     places it; on touch the first tap shows the ghost, a second tap on it places
+ *   - drag elsewhere pans, pinch/wheel zooms, two-finger twist or right-drag rotates
  */
 import * as THREE from 'three';
 import type { ZoomCamera, ViewName } from './camera';
-import type { RegionView } from './world/region';
+import type { RegionUi, RegionView } from './world/region';
+import type { Building } from './sim/types';
 
-export interface UiState {
-  selected: boolean;
-  buildMode: boolean;
-  drag: { x: number; z: number } | null;
-  ghost: { x: number; z: number } | null;
-}
+export type UiState = RegionUi;
 
 interface Handlers {
-  move(x: number, z: number): void;
-  build(x: number, z: number): void;
-  setBuildMode(on: boolean): void;
+  move(drone: number, x: number, z: number): void;
+  build(kind: string, x: number, z: number): void;
+  /** Why `kind` can't go at (x, z), or null. */
+  placeProblem(kind: string, x: number, z: number): string | null;
+  buildings(): Building[];
+  setBuild(kind: string | null): void;
+  select(): void;
   view(v: ViewName): void;
   togglePause(): void;
+  toggleBuildMenu(): void;
   interacted(): void;
+  say(text: string): void;
 }
 
 type Mode = 'none' | 'pan' | 'orbit' | 'order' | 'pinch';
@@ -33,6 +38,7 @@ export class Input {
   private mode: Mode = 'none';
   private pinch = { d: 0, ang: 0, my: 0 };
   private ndc = new THREE.Vector2();
+  private orderDrone = -1;
 
   constructor(
     private el: HTMLElement,
@@ -60,12 +66,24 @@ export class Input {
     return this.region.pick(this.ndc, this.cam.camera);
   }
 
-  private droneScreenDist(x: number, y: number) {
-    if (this.cam.dist > 400) return Infinity;
+  /** Nearest drone to a screen point within the pick radius, or -1. */
+  private droneAt(x: number, y: number) {
+    if (this.cam.dist > 400) return -1;
     const r = this.el.getBoundingClientRect();
-    const v = this.region.droneWorld.clone().project(this.cam.camera);
-    if (v.z > 1) return Infinity;
-    return Math.hypot(((v.x + 1) / 2) * r.width + r.left - x, ((1 - v.y) / 2) * r.height + r.top - y);
+    let best = -1, bd = DRONE_PICK_PX;
+    const v = new THREE.Vector3();
+    for (const [id, d] of this.region.drones) {
+      v.copy(d.world).project(this.cam.camera);
+      if (v.z > 1) continue;
+      const dist = Math.hypot(((v.x + 1) / 2) * r.width + r.left - x, ((1 - v.y) / 2) * r.height + r.top - y);
+      if (dist < bd) { bd = dist; best = id; }
+    }
+    return best;
+  }
+
+  private ghostAt(g: { x: number; z: number } | null) {
+    if (!g || !this.ui.build) { this.ui.ghost = null; return; }
+    this.ui.ghost = { x: g.x, z: g.z, ok: !this.h.placeProblem(this.ui.build, g.x, g.z) };
   }
 
   private down(e: PointerEvent) {
@@ -80,8 +98,9 @@ export class Input {
     }
     if (this.pts.size > 2) return;
     const surface = this.cam.a < 0.5;
-    if (e.button === 2 || e.shiftKey || !surface) this.mode = 'orbit';
-    else if (!this.ui.buildMode && this.droneScreenDist(e.clientX, e.clientY) < DRONE_PICK_PX) this.mode = 'order';
+    if (e.button === 2 || e.shiftKey || !surface) { this.mode = 'orbit'; return; }
+    const drone = this.ui.build ? -1 : this.droneAt(e.clientX, e.clientY);
+    if (drone >= 0) { this.mode = 'order'; this.orderDrone = drone; }
     else this.mode = 'pan';
   }
 
@@ -92,9 +111,7 @@ export class Input {
 
   private moveEv(e: PointerEvent) {
     const p = this.pts.get(e.pointerId);
-    if (this.ui.buildMode && e.pointerType === 'mouse' && this.pts.size === 0) {
-      this.ui.ghost = this.ground(e.clientX, e.clientY);
-    }
+    if (this.ui.build && e.pointerType === 'mouse' && this.pts.size === 0) this.ghostAt(this.ground(e.clientX, e.clientY));
     if (!p) return;
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX;
@@ -112,8 +129,10 @@ export class Input {
     if (!moved) return;
     if (this.mode === 'pan') this.cam.pan(dx, dy, this.el.clientHeight);
     else if (this.mode === 'orbit') this.cam.rotate(-dx * 0.005, dy * 0.004);
-    else if (this.mode === 'order') this.ui.drag = this.ground(e.clientX, e.clientY) ?? this.ui.drag;
-    if (this.ui.buildMode && e.pointerType !== 'mouse') this.ui.ghost = null;
+    else if (this.mode === 'order') {
+      if (this.ui.sel?.kind !== 'drone' || this.ui.sel.id !== this.orderDrone) { this.ui.sel = { kind: 'drone', id: this.orderDrone }; this.h.select(); }
+      this.ui.drag = this.ground(e.clientX, e.clientY) ?? this.ui.drag;
+    }
   }
 
   private up(e: PointerEvent) {
@@ -126,10 +145,9 @@ export class Input {
     }
     const tap = Math.hypot(e.clientX - p.sx, e.clientY - p.sy) <= TAP_PX && performance.now() - p.t < 450;
     if (this.mode === 'order' && this.ui.drag) {
-      this.h.move(this.ui.drag.x, this.ui.drag.z);
-      this.ui.selected = true;
+      this.h.move(this.orderDrone, this.ui.drag.x, this.ui.drag.z);
     } else if (tap && e.button !== 2) {
-      this.tap(e.clientX, e.clientY);
+      this.tap(e.clientX, e.clientY, e.pointerType === 'mouse', e.shiftKey);
     }
     this.ui.drag = null;
     this.mode = 'none';
@@ -141,20 +159,35 @@ export class Input {
     this.mode = 'none';
   }
 
-  private tap(x: number, y: number) {
+  private tap(x: number, y: number, mouse: boolean, keep: boolean) {
     if (this.cam.a >= 0.5) return;
     const g = this.ground(x, y);
-    if (this.ui.buildMode) {
-      if (g) this.h.build(g.x, g.z);
-      this.h.setBuildMode(false);
+    if (this.ui.build) {
+      if (!g) return;
+      // touch: first tap previews, a tap on the preview places it
+      const confirm = mouse || (this.ui.ghost && Math.hypot(this.ui.ghost.x - g.x, this.ui.ghost.z - g.z) < 6);
+      if (!confirm) { this.ghostAt(g); return; }
+      const at = mouse ? g : this.ui.ghost!;
+      const why = this.h.placeProblem(this.ui.build, at.x, at.z);
+      if (why) { this.h.say(`Can't build there: ${why}`); this.ghostAt(at); return; }
+      this.h.build(this.ui.build, at.x, at.z);
+      if (!keep) this.h.setBuild(null);
       return;
     }
-    if (this.droneScreenDist(x, y) < DRONE_PICK_PX) {
-      this.ui.selected = !this.ui.selected;
+    const drone = this.droneAt(x, y);
+    if (drone >= 0) {
+      this.ui.sel = this.ui.sel?.kind === 'drone' && this.ui.sel.id === drone ? null : { kind: 'drone', id: drone };
+      this.h.select();
       return;
     }
-    if (this.ui.selected && g) this.h.move(g.x, g.z);
-    else this.ui.selected = false;
+    const b = g ? this.region.buildingAt(g.x, g.z, this.h.buildings()) : null;
+    if (b !== null) {
+      this.ui.sel = { kind: 'building', id: b };
+      this.h.select();
+      return;
+    }
+    if (this.ui.sel?.kind === 'drone' && g) this.h.move(this.ui.sel.id, g.x, g.z);
+    else { this.ui.sel = null; this.h.select(); }
   }
 
   private key(e: KeyboardEvent) {
@@ -172,8 +205,8 @@ export class Input {
       case '1': this.h.view('surface'); break;
       case '2': this.h.view('planet'); break;
       case '3': this.h.view('system'); break;
-      case 'b': this.h.setBuildMode(!this.ui.buildMode); break;
-      case 'Escape': this.h.setBuildMode(false); this.ui.selected = false; break;
+      case 'b': this.h.toggleBuildMenu(); break;
+      case 'Escape': this.h.setBuild(null); this.ui.sel = null; this.h.select(); break;
       case ' ': e.preventDefault(); this.h.togglePause(); break;
       default: return;
     }

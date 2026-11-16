@@ -122,7 +122,9 @@ export type Command =
   | { type: 'power'; id: number; on: boolean }
   | { type: 'demolish'; id: number }
   | { type: 'fab' }
-  | { type: 'landing'; stage: LandingStage };
+  | { type: 'landing'; stage: LandingStage }
+  /** Playtesting / tests: spawn the next pack now, add alloys, or damage a building. */
+  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number } };
 
 export type ToWorker =
   | { type: 'cmd'; cmd: Command }

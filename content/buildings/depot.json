@@ -1,6 +1,6 @@
 {
   "name": "Mining Depot",
-  "description": "Mines alloys from the nearest deposit in range while powered.",
+  "description": "Mines alloys from the nearest deposit in range. Runs on live generation only: batteries don't power it, so mining pauses at night unless you have surplus.",
   "role": "depot",
   "buildable": true,
   "cost": 60,

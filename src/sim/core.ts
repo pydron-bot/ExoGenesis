@@ -10,7 +10,7 @@ import type { BuildingDef, UnitDef } from '../content/defs';
 import { F, FX, STRIDE, UT } from '../skirmish/types';
 import { regionHeightRaw, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
-import { SHED_ORDER, compass, depositFor, placeProblem } from './rules';
+import { compass, depositFor, placeProblem } from './rules';
 import {
   MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot,
@@ -124,40 +124,51 @@ export class Sim {
     return RULES.nightSolar + (1 - RULES.nightSolar) * this.power.daylight;
   }
 
-  /** Generation, battery, then loads in priority; whatever the cryo bank can't get is `short`. */
+  /**
+   * Power allocation, most protected first: shooters → cryo bank + drones →
+   * radar → depots (and anything else). Each load takes live generation first,
+   * then the battery, except depots, which only run on live generation (so
+   * mining pauses at night unless there's surplus). What the cryo bank can't
+   * get is `short`; spare generation charges the battery.
+   */
   private stepPower() {
     const s = this.s;
     this.power.daylight = daylight(this.secs, RULES.solSeconds);
     let gen = 0, cap = 0;
-    const loads: { b: Building; mw: number; rank: number }[] = [];
+    const loads: { b: Building | null; mw: number; rank: number; battery: boolean }[] = [];
     for (const b of s.buildings) {
       const d = def(b);
       b.powered = false;
       if (b.progress < 1 || !b.on) continue;
       if (d.role === 'battery') { cap += d.storage ?? 0; b.powered = true; }
       if (d.powerMW > 0) { gen += d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW; b.powered = true; }
-      else if (d.powerMW < 0) loads.push({ b, mw: -d.powerMW * (d.fireRange && !b.engaged ? STANDBY : 1), rank: SHED_ORDER.indexOf(d.role) });
-      else b.powered = true;
+      else if (d.powerMW < 0) {
+        const rank = d.fireRange ? 0 : d.role === 'radar' ? 2 : 3;
+        loads.push({ b, mw: -d.powerMW * (d.fireRange && !b.engaged ? STANDBY : 1), rank, battery: d.role !== 'depot' });
+      } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
     const essential = RULES.cryoDrawMW + drones;
-    const want = essential + loads.reduce((m, l) => m + l.mw, 0);
-    s.stored = Math.min(s.stored, cap);
-    let avail = gen + s.stored / DT; // the battery can cover any rate for one tick
-    // shed loads in SHED_ORDER (radar first) until the rest fit; essentials are never shed
+    loads.push({ b: null, mw: essential, rank: 1, battery: true });
     loads.sort((a, b) => a.rank - b.rank);
-    let need = want;
+    s.stored = Math.min(s.stored, cap);
+    let live = gen, bank = s.stored / DT, want = 0, short = 0;
     for (const l of loads) {
-      if (need > avail) need -= l.mw;
-      else l.b.powered = true;
+      want += l.mw;
+      const fromLive = Math.min(live, l.mw);
+      const fromBank = l.battery ? Math.min(bank, l.mw - fromLive) : 0;
+      const got = fromLive + fromBank;
+      if (l.b) {
+        if (got < l.mw - 1e-6) continue; // not enough for this load: it stays off, takes nothing
+        l.b.powered = true;
+      } else short = l.mw - got; // the cryo bank takes whatever there is
+      live -= fromLive;
+      bank -= fromBank;
     }
-    const used = Math.min(need, avail);
-    const short = Math.max(0, need - avail);
-    if (gen >= used) s.stored = Math.min(cap, s.stored + (gen - used) * DT);
-    else s.stored = Math.max(0, s.stored - (used - gen) * DT);
+    s.stored = Math.min(cap, bank * DT + live * DT);
     this.power.gen = gen;
     this.power.draw = want;
-    this.power.short = Math.min(essential, short);
+    this.power.short = Math.max(0, short);
     this.power.storageMax = cap;
   }
 
@@ -607,6 +618,15 @@ export class Sim {
         s.alloys += refund;
         s.buildings.splice(s.buildings.indexOf(b), 1);
         this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info');
+        return;
+      }
+      case 'debug': {
+        if (c.alloys) s.alloys += c.alloys;
+        if (c.wave) s.waves.next = s.tick;
+        if (c.hurt) {
+          const b = s.buildings.find((x) => x.id === c.hurt!.id);
+          if (b) { b.hp -= c.hurt.hp; if (b.hp <= 0) this.destroyBuilding(b); }
+        }
         return;
       }
       case 'fab': {

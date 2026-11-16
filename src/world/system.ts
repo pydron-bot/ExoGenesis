@@ -139,6 +139,8 @@ function belt(count: number, r0: number, r1: number, thick: number, size: [numbe
 
 export class SolarSystem {
   readonly starPos = new THREE.Vector3();
+  /** Where the sun (and light) is drawn: follows the day near the surface. */
+  readonly sunPos = new THREE.Vector3();
   readonly group = new THREE.Group();
   private bodies: Body[] = [];
   private star: THREE.Group;
@@ -303,13 +305,20 @@ export class SolarSystem {
     return out.set(center.x + Math.cos(th) * r, center.y + Math.sin(th) * r * Math.sin(b.incl), center.z + Math.sin(th) * r * Math.cos(b.incl));
   }
 
-  /** `t` in seconds; `sys` 0..1 = how far into the system view the camera is. */
-  update(t: number, camera: THREE.PerspectiveCamera, sys: number, surface: number, width: number, height: number) {
+  /**
+   * `t` in seconds; `sys` 0..1 = how far into the system view the camera is.
+   * `sunAngle` (optional): where the planet's day puts the sun, as an angle in
+   * the xz-plane. Near the surface the sun and light follow it (so day/night
+   * matches the sim's clock); in the system view the star sits at its orbit.
+   */
+  update(t: number, camera: THREE.PerspectiveCamera, sys: number, surface: number, width: number, height: number, sunAngle?: number) {
     const ha = HOME_PHASE + (t / HOME_PERIOD) * Math.PI * 2;
     // home orbits the star; we keep home at the origin, so the star sits at -homeOrbit
     this.starPos.set(-Math.cos(ha) * HOME_ORBIT, 0, -Math.sin(ha) * HOME_ORBIT);
-    this.star.position.copy(this.starPos);
-    this.light.position.copy(this.starPos);
+    if (sunAngle === undefined) this.sunPos.copy(this.starPos);
+    else this.sunPos.set(Math.cos(sunAngle) * HOME_ORBIT, 0, Math.sin(sunAngle) * HOME_ORBIT).lerp(this.starPos, smoothstep(0.05, 0.5, sys));
+    this.star.position.copy(this.sunPos);
+    this.light.position.copy(this.sunPos);
     this.belts[0].rotation.y = t * 0.0004;
     this.belts[1].rotation.y = t * 0.00008;
 

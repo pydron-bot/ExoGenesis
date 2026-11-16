@@ -1,19 +1,25 @@
 import * as THREE from 'three';
 import './style.css';
 import { VIEWS, ZoomCamera, type ViewName } from './camera';
-import { Input, type UiState } from './input';
+import { Input } from './input';
 import { getSave, putSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type SimState } from './sim/types';
 import { content, contentIssues } from './content';
 import { lerp, smoothstep } from './world/noise';
-import { buildAtmosphere, buildGlobe, R, U, regionHeight, setRegionTerrain } from './world/planet';
+import { buildAtmosphere, buildGlobe, R, U, regionHeight, regionToWorld, setRegionTerrain } from './world/planet';
 import { Provinces } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 import { startSkirmish } from './skirmish/mode';
 import { Landing } from './landing';
 import { loadModel } from './assets/models';
+import { ColonyHud } from './colony-hud';
+import { ArmyView } from './skirmish/view';
+import type { SkSnapshot } from './skirmish/types';
+import { placeProblem } from './sim/rules';
+import { sunAngle } from './sim/daylight';
+import type { RegionUi } from './world/region';
 
 const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -64,12 +70,13 @@ const region = new RegionView(
   scene, look,
   skirmishMode || floraParam === 'off' ? null : Number(floraParam ?? regionDef.floraSeed) || regionDef.floraSeed,
   regionDef.floraDensity,
+  { defs: content.buildings, buildRadius: content.colony.buildRadius },
 );
 const cam = new ZoomCamera(camera);
 
 // ---------- HUD ----------
-const hud = $('hud');
-if (params.get('ui') === '0') hud.classList.add('hidden');
+const hudEl = $('hud');
+if (params.get('ui') === '0') hudEl.classList.add('hidden');
 const logEl = $('log');
 const heldLog: [string, 'info' | 'warn' | 'bad'][] = [];
 function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
@@ -85,7 +92,9 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
 }
 
 const sim = new SimClient(log, !skirmishMode);
-const ui: UiState = { selected: true, buildMode: false, drag: null, ghost: null };
+const ui: RegionUi = { sel: null, drag: null, build: null, ghost: null };
+/** Select the first drone once the landing hands over control. */
+let selectFirstDrone = true;
 
 // ---------- landing cinematic ----------
 const cineEl = $('cine');
@@ -94,7 +103,6 @@ if (!skirmishMode) {
   if (params.get('intro') === '0' || params.get('view')) {
     sim.command({ type: 'landing', stage: 'deploy' });
   } else {
-    ui.selected = false;
     document.body.classList.add('cine');
     landing = new Landing(scene, region, cam, {
       stage: (s) => sim.command({ type: 'landing', stage: s }),
@@ -105,7 +113,7 @@ if (!skirmishMode) {
       done: () => {
         document.body.classList.remove('cine');
         cineEl.classList.add('gone');
-        ui.selected = true;
+        selectFirstDrone = true;
         landing = null;
         for (const [text, level] of heldLog.splice(0)) log(text, level);
       },
@@ -116,26 +124,52 @@ $('cine-skip').onclick = () => landing?.skip();
 addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
 
 // asset models assigned in content replace built-in building models once loaded
-const solarModel = content.buildings.solar.model;
-if (solarModel && content.assets[solarModel]) {
-  loadModel(content.assets[solarModel]).then(
-    (m) => region.setBuildingModel('solar', m),
-    (e) => console.warn('solar model failed to load; keeping the built-in', e),
+for (const [kind, d] of Object.entries(content.buildings)) {
+  if (!d.model || !content.assets[d.model] || d.role === 'core') continue;
+  loadModel(content.assets[d.model]).then(
+    (m) => region.setBuildingModel(kind, m),
+    (e) => console.warn(`${kind} model failed to load; keeping the built-in`, e),
   );
 }
 
-const buildBtn = $<HTMLButtonElement>('b-build');
-buildBtn.querySelector('small')!.textContent = `${content.buildings.solar.cost}◆`;
-function setBuildMode(on: boolean) {
-  ui.buildMode = on;
+const canPlace = (kind: string, x: number, z: number) => {
+  const c = sim.cur;
+  if (!c) return 'not ready';
+  if (c.alloys < content.buildings[kind].cost) return `not enough alloys (${content.buildings[kind].cost} needed)`;
+  return placeProblem(c, content.buildings, content.colony, kind, x, z);
+};
+function setBuild(kind: string | null) {
+  ui.build = kind;
   ui.ghost = null;
-  buildBtn.classList.toggle('on', on);
-  if (on) {
+  if (kind) {
     if (cam.a > 0.3) cam.setView('surface');
-    log(coarse ? 'Tap the ground to place the solar array' : 'Click the ground to place the solar array');
+    const d = content.buildings[kind];
+    log(coarse ? `Tap the ground to preview the ${d.name}, tap it again to build` : `Click to place the ${d.name} · Shift-click to place several · Esc to stop`);
   }
 }
-buildBtn.onclick = () => setBuildMode(!ui.buildMode);
+const hud = new ColonyHud({
+  defs: content.buildings, rules: content.colony, ui, cam,
+  command: (c) => sim.command(c),
+  setBuild,
+  restart: () => {
+    sim.newGame(Date.now() % 100000);
+    sim.command({ type: 'landing', stage: 'deploy' });
+    hud.reset();
+    ui.sel = null; setBuild(null);
+    selectFirstDrone = true;
+  },
+  load: () => $('b-load').click(),
+  log,
+});
+$('b-build').onclick = () => hud.toggleMenu();
+
+// playtesting: ?debug=1 → F8 summons the next predator pack now, F9 adds 500 alloys
+if (params.get('debug') === '1') {
+  addEventListener('keydown', (e) => {
+    if (e.key === 'F8') { e.preventDefault(); sim.command({ type: 'debug', wave: true }); log('Debug: pack summoned', 'warn'); }
+    if (e.key === 'F9') { e.preventDefault(); sim.command({ type: 'debug', alloys: 500 }); log('Debug: +500 alloys', 'warn'); }
+  });
+}
 
 let speed = 1;
 const speedBtns = { 0: $('b-pause'), 1: $('b-play'), 3: $('b-fast') } as Record<number, HTMLElement>;
@@ -195,13 +229,20 @@ $('b-skirmish').onclick = () => {
 const help = $('help');
 let helped = false;
 if (!skirmish) new Input(renderer.domElement, cam, region, ui, {
-  move: (x, z) => sim.command({ type: 'move', x, z }),
-  build: (x, z) => sim.command({ type: 'build', kind: 'solar', x, z }),
-  setBuildMode,
+  move: (drone, x, z) => sim.command({ type: 'move', drone, x, z }),
+  build: (kind, x, z) => sim.command({ type: 'build', kind, x, z }),
+  placeProblem: canPlace,
+  buildings: () => sim.cur?.buildings ?? [],
+  setBuild,
+  select: () => hud.selected(),
   view: (v) => cam.setView(v),
   togglePause: () => setSpeed(speed === 0 ? 1 : 0),
+  toggleBuildMenu: () => hud.toggleMenu(),
   interacted: () => { if (!helped) { helped = true; setTimeout(() => help.classList.add('gone'), 4000); } },
+  say: (t) => log(t, 'warn'),
 });
+const army = skirmish ? null : new ArmyView(scene);
+const asArmy = (s: NonNullable<typeof sim.cur>) => ({ units: s.army, slots: s.armySlots, fx: s.fx, tick: s.tick } as unknown as SkSnapshot);
 
 const initial = params.get('view') as ViewName | null;
 if (initial && initial in VIEWS) cam.setView(initial, true);
@@ -213,10 +254,7 @@ addEventListener('resize', () => {
 });
 
 // ---------- HUD refresh ----------
-const el = {
-  energy: $('r-energy'), alloys: $('r-alloys'), cryo: $('r-cryo'), clock: $('r-clock'),
-  layer: $('layer'), alt: $('alt'), fps: $('fps'),
-};
+const el = { layer: $('layer'), alt: $('alt'), fps: $('fps') };
 function fmtAlt(u: number) {
   const km = u * 0.01; // 1 unit ≈ 10 m
   if (km < 10) return `${km.toFixed(2)} km`;
@@ -224,21 +262,9 @@ function fmtAlt(u: number) {
   return `${(km / 1000).toFixed(1)}k km`;
 }
 let fpsAcc = 0, fpsN = 0, fpsShown = 0;
-function updateHud(dt: number) {
+function updateHud(dt: number, now: number) {
   const s = sim.cur;
-  if (s && !skirmish) {
-    const ok = s.gen >= s.draw;
-    el.energy.innerHTML = `⚡ <b>${s.gen.toFixed(1)}</b> / ${s.draw.toFixed(1)} MW`;
-    el.energy.className = `r ${ok ? '' : 'warn'}`;
-    el.alloys.innerHTML = `◆ <b>${Math.floor(s.alloys)}</b>`;
-    el.cryo.innerHTML = `❄ <b>${s.cryo.toFixed(1)}%</b>`;
-    el.cryo.className = `r ${s.cryo < 30 ? 'bad' : s.cryo < 100 && !ok ? 'warn' : ''}`;
-    const secs = s.tick / TICK_HZ;
-    const SOL_SECONDS = content.colony.solSeconds;
-    const sol = Math.floor(secs / SOL_SECONDS) + 1;
-    const dayMin = Math.floor(((secs % SOL_SECONDS) / SOL_SECONDS) * 1440 + 360) % 1440;
-    el.clock.textContent = `SOL ${sol} · ${String(Math.floor(dayMin / 60)).padStart(2, '0')}:${String(dayMin % 60).padStart(2, '0')}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;
-  }
+  if (s && !skirmish) hud.update(s, speed, now);
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
   el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
     ? `${provinces.landCount} REGIONS · ALT ${fmtAlt(cam.altitude())}`
@@ -266,14 +292,15 @@ function frame(now: number) {
   last = now;
   const t = (now - t0) / 1000;
 
-  system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, innerHeight);
+  const simSecs = sim.cur && !skirmish ? sim.cur.secs + sim.alpha(now) * (speed / TICK_HZ) : undefined;
+  system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, innerHeight, simSecs === undefined ? undefined : sunAngle(simSecs, content.colony.solSeconds, U.x, U.z));
   cam.update(dt, system.starPos);
   (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = 1.25 * smoothstep(300, 1400, cam.altitude());
   atmosphere.visible = cam.altitude() > 300;
   provinces.update(camera, cam.dist, innerWidth, innerHeight);
 
   // sky: day/night at the landing site, fading to space as we climb
-  const sunUp = system.starPos.clone().normalize().dot(U);
+  const sunUp = system.sunPos.clone().normalize().dot(U);
   bg.copy(skyNight).lerp(skyDay, smoothstep(-0.15, 0.25, sunUp));
   // cam.dist alone undercounts during the landing chase (close to the probe, high above the ground)
   const air = 1 - smoothstep(90, 420, Math.max(cam.dist, cam.altitude() * 0.8));
@@ -290,10 +317,17 @@ function frame(now: number) {
     const day = smoothstep(-0.15, 0.25, sunUp);
     landing?.update(dt, day);
     region.flora?.update(t, 1 - smoothstep(-0.2, 0.15, sunUp), camera);
-    region.update(sim.prev, sim.cur, sim.alpha(now), t, ui, cam.dist, 1 - cam.a);
+    if (selectFirstDrone && !landing && sim.cur.deployed && sim.cur.drones.length) {
+      selectFirstDrone = false;
+      ui.sel = { kind: 'drone', id: sim.cur.drones[0].id };
+      hud.selected();
+    }
+    const alpha = sim.alpha(now);
+    region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera);
+    army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, new Map(), dt);
     if (!ready) { ready = true; exo.ready = true; }
   }
-  updateHud(dt);
+  updateHud(dt, now);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -310,10 +344,20 @@ const exo = {
   region,
   get landing() { return landing; },
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
-  droneScreen: () => {
-    const v = region.droneWorld.clone().project(camera);
+  hud,
+  ui,
+  army,
+  droneScreen: (id?: number) => {
+    const d = id === undefined ? null : region.drones.get(id);
+    const v = (d ? d.world : region.droneWorld).clone().project(camera);
     return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
   },
+  /** Screen position of a region point on the ground. */
+  screenOf: (x: number, z: number, lift = 0) => {
+    const v = regionToWorld(x, z, lift).project(camera);
+    return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * innerHeight };
+  },
+  canPlace,
   capture: () => { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
   height: regionHeight,
 };

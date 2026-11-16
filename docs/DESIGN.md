@@ -349,12 +349,38 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
 | # | Goal | Contents | Exit test |
 |---|---|---|---|
 | **M0** ✅ (tech demo 2026-11-15) | Foundations | Vite + TS + Three.js scaffold; worker sim, fixed tick, command messaging; IndexedDB save/load; zoom prototype (region ↔ globe ↔ system) on desktop and a phone | Zoom feels good at 60 fps on a phone; a save round-trips |
-| **M1** | One region | Pod + worker drone start, building placement, solar, mining depot, energy flow, cryo bank power, radar, turrets, wild fauna attacks, vector-drag orders | **Are the first 20 minutes fun?** |
+| **M1** 🛠 (playable 2026-11-15) | One region | Pod + worker drone start, building placement, solar, mining depot, energy flow, cryo bank power, radar, turrets, wild fauna attacks, vector-drag orders | **Are the first 20 minutes fun?** |
 | **M2** | People | Civilian Processing Center, growth pods, named colonists, lineages, diversity, compressed clock + ageing, blocs and Trust | Losing a colonist hurts; the colony has politics |
 | **M3** | The planet | Multiple regions, planet layer, persistence and revisits, relic defenses, vehicle shop and tech lab, research tree, inhabitants | Holding territory is a strategy problem |
 | **M4** | Act 1 complete | Act 1 story, inhabitant contact paths, memorial, audio, mobile UX pass, onboarding | Act 1 playable start to finish |
 | **M5** | The system | System layer, radio contact, shipyard, shuttles, moon/asteroid outposts, rival probes (abstract sim) | Act 2 contact and travel work |
 | **M6** | The struggle | Rival diplomacy and conflict, defection, archive comparison, ASI reveal, endings | Full game playable |
+
+### M1 as built (2026-11-15) — first playtest build
+
+- **Loop:** land → solar to stop the cryo bank draining (it fails in ~6 min on Core power alone) → Mining
+  Depot on a deposit → first night at ~2.75 min (sol = 6 min; solar falls to 8%) → predator packs from
+  ~5 min, every ~110 s, growing, bigger at night → turrets, repairs, radar, more drones. Goals panel
+  (8 goals, ending "alive until Sol 4" ≈ 18 min). Loss: Core destroyed or cryo bank at 0%.
+- **Buildings are data with a role** (`content/buildings/*.json`): core (build radius, weak point
+  defense), solar (follows the sun), depot (mines nearest deposit in Range), battery (storage), turret
+  (anything with fireRange/damage/cooldown shoots), radar (warnings, next-pack timer, minimap). New
+  variants are new records. Placement: inside the Core's range or `buildRadius` of a finished building;
+  not in water, too steep, overlapping, or on a deposit; depots need a deposit in reach.
+- **Power priority** (most protected first): shooters → cryo bank + drones → radar → depots. Batteries
+  cover all but depots, so mining pauses at night without surplus generation. Shooters draw 15% on
+  standby. Brownouts drain cryo integrity (`cryoLossPerMW`).
+- **Drones:** build queue (idle drones take unfinished sites, then repair damaged buildings; repairs cost
+  alloys), back off from predators unless ordered, Core fabricates more (and a free one if all die).
+- **Threats** (`content/rules/threats.json`): grace, interval ± jitter, size growth, brute share, night
+  boost, sight range without radar. Packs use the swarmer/brute unit records and the region's spawn
+  points (map editor), target the nearest building or a drone in aggro range, slide around water.
+- **Balance harness:** `node tools/balance.mjs` plays the real sim headless with scripted strategies.
+  With the current numbers (5 seeds): idle loses the cryo bank at 6 min; economy-only falls at ~10–12;
+  all-turrets browns out the cryo bank at ~8–10; balanced survives 20 min on 4/5 seeds (one fell at 18).
+- **Debug:** `?debug=1` → F8 summons the next pack, F9 +500 alloys.
+- **Not in M1 yet:** fog of war, unit production / player combat units, walls, building rotation, terrain
+  flattening under buildings, sound.
 
 ## 8. Open questions
 
