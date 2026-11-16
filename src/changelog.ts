@@ -15,6 +15,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.10.0',
+    date: '2026-11-16',
+    title: 'People',
+    notes: [
+      'The cryo bank now holds 120 embryos from 24 family lines. Let it run warm (below 50% integrity) and embryos die',
+      'New buildings: Hydroponics grows biomass (food), and the Civilian Center houses colonists and runs growth pods',
+      'Grow colonists: choose their specialty and what the AI teaches them (Charter, Heritage or Unity). A pod needs power and food for a whole sol, or the child inside is lost',
+      'Colonists are named, age (one sol is one year), live and work in your buildings, walk the base, and run for cover when predators come. Staffed buildings work better',
+      'Everyone has two meters: wellbeing, and how far they accept the AI. They form blocs (Partners, Autonomists, Devoted) that want different things',
+      'Set work hours, rations, oversight and who runs the council from the new Colony panel (tap 👤). Unhappy colonists strike or sabotage, an angry Autonomist majority can walk out, and a colony in step with its AI gets Breakthroughs',
+      'Couples have children, lineages can die out, and the Memorial remembers everyone lost',
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-11-16',
     title: 'A living planet, and version numbers',
