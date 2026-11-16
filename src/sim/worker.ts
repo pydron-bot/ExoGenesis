@@ -8,7 +8,7 @@ import { TICK_MS, type FromWorker, type ToWorker } from './types';
 
 const ctx = self as unknown as Worker;
 const post = (msg: FromWorker, transfer: Transferable[] = []) => ctx.postMessage(msg, transfer);
-const sim = new Sim((text, level) => post({ type: 'event', text, level }));
+const sim = new Sim((text, level, cue) => post({ type: 'event', text, level, cue }));
 let speed = 1;
 let autosave = false;
 let saving = false;

@@ -1,4 +1,4 @@
-import { TICK_MS, type Command, type FromWorker, type SimState, type Snapshot } from './types';
+import { TICK_MS, type Command, type EventCue, type FromWorker, type SimState, type Snapshot } from './types';
 
 /** Main-thread handle on the simulation worker, with snapshot interpolation. */
 export class SimClient {
@@ -10,7 +10,7 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad') => void, enabled = true) {
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue) => void, enabled = true) {
     // disabled (skirmish mode): a stub that never produces snapshots
     this.worker = enabled
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
@@ -29,7 +29,7 @@ export class SimClient {
         this.pending.get(m.reqId)?.(m.state);
         this.pending.delete(m.reqId);
       } else if (m.type === 'event') {
-        this.onEvent(m.text, m.level);
+        this.onEvent(m.text, m.level, m.cue);
       }
     };
   }

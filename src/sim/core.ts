@@ -14,7 +14,7 @@ import { PathGrid } from './path';
 import { compass, depositFor, linePoints, placeProblem } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
-  type Building, type Command, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
+  type Building, type Command, type EventCue, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
 } from './types';
 
 const RULES = content.colony;
@@ -65,7 +65,7 @@ function crosses(px: number, pz: number, qx: number, qz: number, ax: number, az:
 }
 
 export type Level = 'info' | 'warn' | 'bad';
-export type EventSink = (text: string, level: Level) => void;
+export type EventSink = (text: string, level: Level, cue?: EventCue) => void;
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const def = (b: Building): BuildingDef => DEFS[b.kind];
@@ -234,7 +234,7 @@ export class Sim {
     for (const th of [75, 50, 25, 0]) {
       if (s.cryo <= th && s.cryoWarn > th) {
         s.cryoWarn = th;
-        this.emit(th === 0 ? 'Cryo bank failure. The embryos are lost.' : `Cryo bank integrity ${th}% — not enough power`, th <= 25 ? 'bad' : 'warn');
+        this.emit(th === 0 ? 'Cryo bank failure. The embryos are lost.' : `Cryo bank integrity ${th}% — not enough power`, th <= 25 ? 'bad' : 'warn', 'alarm');
       }
     }
     if (s.cryo <= 0) this.lose('cryo');
@@ -331,7 +331,7 @@ export class Sim {
           site.hp = Math.min(dd.hp, site.hp + (site.progress - before) * dd.hp * 0.9);
           if (site.progress >= 1) {
             site.hp = Math.max(site.hp, dd.hp * 0.999);
-            this.emit(`${dd.name} online${dd.powerMW > 0 ? ` · +${dd.powerMW} MW${dd.role === 'solar' ? ' at noon' : ''}` : ''}`, 'info');
+            this.emit(`${dd.name} online${dd.powerMW > 0 ? ` · +${dd.powerMW} MW${dd.role === 'solar' ? ' at noon' : ''}` : ''}`, 'info', 'online');
             d.task = { kind: 'idle' }; d.manual = false;
           }
         }
@@ -386,7 +386,7 @@ export class Sim {
     const s = this.s, f = s.fab;
     if (!s.drones.length && !f.queued) {
       f.queued = 1; f.progress = 0; f.free = true;
-      this.emit('No worker drones left. The Core is fabricating a replacement.', 'warn');
+      this.emit('No worker drones left. The Core is fabricating a replacement.', 'warn', 'warning');
     }
     if (!f.queued) return;
     const core = s.buildings.find((b) => b.kind === 'core');
@@ -395,7 +395,7 @@ export class Sim {
     if (f.progress >= 1) {
       f.queued--; f.progress = 0; f.free = false;
       s.drones.push({ id: s.nextId++, x: core.x + 6, z: core.z - 12, heading: Math.PI, hp: RULES.droneHp, task: { kind: 'idle' } });
-      this.emit(`Worker drone fabricated (${s.drones.length} active)`, 'info');
+      this.emit(`Worker drone fabricated (${s.drones.length} active)`, 'info', 'droneReady');
     }
   }
 
@@ -422,7 +422,7 @@ export class Sim {
         id: s.nextId++, unit: kind, slot, x: b.x + fx * out, z: b.z + fz * out, heading: yaw + Math.PI, hp: ud.hp, cd: 0,
         order: { kind: 'move', x: gx, z: gz }, gx, gz, target: -1,
       });
-      this.emit(`${ud.name} ready${b.queue.length ? ` · ${b.queue.length} more queued` : ''}`, 'info');
+      this.emit(`${ud.name} ready${b.queue.length ? ` · ${b.queue.length} more queued` : ''}`, 'info', 'unitReady');
     }
   }
 
@@ -464,7 +464,7 @@ export class Sim {
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
       best.hp -= d.damage ?? 0;
-      this.fx.push(FX.TANK_SHOT, b.x, b.z, best.x, best.z);
+      this.fx.push(FX.TURRET_SHOT, b.x, b.z, best.x, best.z);
       if (best.hp <= 0) this.killHostile(best);
     }
   }
@@ -609,7 +609,7 @@ export class Sim {
     if (p && --p.alive <= 0) {
       s.packs.splice(s.packs.indexOf(p), 1);
       s.stats.packsBeaten++;
-      this.emit(`Pack from the ${p.from} destroyed (${s.stats.packsBeaten} so far)`, 'info');
+      this.emit(`Pack from the ${p.from} destroyed (${s.stats.packsBeaten} so far)`, 'info', 'packCleared');
     }
   }
 
@@ -717,7 +717,7 @@ export class Sim {
     for (const p of s.packs) {
       if (p.announced) continue;
       const near = hs.some((h) => h.pack === p.id && s.buildings.some((b) => Math.hypot(b.x - h.x, b.z - h.z) < THREATS.sightRange));
-      if (near) { p.announced = true; this.emit(`Contact! Predators at the ${p.from} perimeter`, 'bad'); }
+      if (near) { p.announced = true; this.emit(`Contact! Predators at the ${p.from} perimeter`, 'bad', 'warning'); }
     }
   }
 
@@ -728,7 +728,7 @@ export class Sim {
     s.buildings.splice(i, 1);
     s.stats.buildingsLost++;
     this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
-    this.emit(`${def(b).name} destroyed`, 'bad');
+    this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
     if (b.kind === 'core') this.lose('core');
   }
 
@@ -739,7 +739,7 @@ export class Sim {
     s.drones.splice(i, 1);
     s.stats.dronesLost++;
     this.fx.push(FX.DIE_SMALL, d.x, d.z, 0, 0);
-    this.emit('Worker drone destroyed', 'bad');
+    this.emit('Worker drone destroyed', 'bad', 'lost');
   }
 
   private destroyUnit(u: Unit) {
@@ -749,13 +749,13 @@ export class Sim {
     this.units.splice(i, 1);
     s.stats.unitsLost = (s.stats.unitsLost ?? 0) + 1;
     this.fx.push(u.unit === 'tank' ? FX.DIE_BIG : FX.DIE_SMALL, u.x, u.z, 0, 0);
-    this.emit(`${content.units[u.unit].name} destroyed`, 'bad');
+    this.emit(`${content.units[u.unit].name} destroyed`, 'bad', 'lost');
   }
 
   private lose(why: 'core' | 'cryo') {
     if (this.s.over) return;
     this.s.over = why;
-    this.emit(why === 'core' ? 'The Command Core has fallen. The colony is lost.' : 'The cryo bank has failed. The colony is lost.', 'bad');
+    this.emit(why === 'core' ? 'The Command Core has fallen. The colony is lost.' : 'The cryo bank has failed. The colony is lost.', 'bad', 'alarm');
   }
 
   // ---------- waves ----------
@@ -787,7 +787,7 @@ export class Sim {
       s.packs.push(pack);
       if (this.radarPowered()) {
         pack.announced = true;
-        this.emit(`Radar: pack of ${pack.alive} approaching from the ${pack.from}`, 'warn');
+        this.emit(`Radar: pack of ${pack.alive} approaching from the ${pack.from}`, 'warn', 'warning');
       }
     }
     w.n++;
@@ -869,12 +869,12 @@ export class Sim {
       case 'build': {
         const dd = DEFS[c.kind];
         if (!dd || !dd.buildable) return;
-        if (s.alloys < dd.cost) { this.emit(`Not enough alloys for a ${dd.name} (${dd.cost} needed)`, 'warn'); return; }
+        if (s.alloys < dd.cost) { this.emit(`Not enough alloys for a ${dd.name} (${dd.cost} needed)`, 'warn', 'deny'); return; }
         const why = placeProblem(s, DEFS, RULES, c.kind, c.x, c.z);
-        if (why) { this.emit(`Can't build there: ${why}`, 'warn'); return; }
+        if (why) { this.emit(`Can't build there: ${why}`, 'warn', 'deny'); return; }
         s.alloys -= dd.cost;
         s.buildings.push({ id: s.nextId++, kind: c.kind, x: c.x, z: c.z, yaw: c.yaw ?? 0, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
-        this.emit(`${dd.name} placed${s.drones.length ? '' : ' · waiting for a drone'}`, 'info');
+        this.emit(`${dd.name} placed${s.drones.length ? '' : ' · waiting for a drone'}`, 'info', 'placed');
         return;
       }
       case 'buildLine': {
@@ -889,8 +889,8 @@ export class Sim {
           s.buildings.push({ id: s.nextId++, kind: c.kind, x: p.x, z: p.z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
           placed++;
         }
-        if (placed) this.emit(`${placed} ${dd.name} segment${placed > 1 ? 's' : ''} placed${skipped ? ` · ${skipped} spots blocked` : ''}${poor ? ' · ran out of alloys' : ''}`, 'info');
-        else this.emit(poor ? `Not enough alloys for a ${dd.name} (${dd.cost} each)` : `Can't build a ${dd.name} there`, 'warn');
+        if (placed) this.emit(`${placed} ${dd.name} segment${placed > 1 ? 's' : ''} placed${skipped ? ` · ${skipped} spots blocked` : ''}${poor ? ' · ran out of alloys' : ''}`, 'info', 'placed');
+        else this.emit(poor ? `Not enough alloys for a ${dd.name} (${dd.cost} each)` : `Can't build a ${dd.name} there`, 'warn', 'deny');
         return;
       }
       case 'repair': {
@@ -945,8 +945,8 @@ export class Sim {
         const ud = content.units[c.unit];
         if (!b || def(b).role !== 'factory' || b.progress < 1 || !ud || ud.faction !== 'accord' || ud.cost === undefined) return;
         const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
-        if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn'); return; }
-        if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn'); return; }
+        if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }
+        if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn', 'deny'); return; }
         s.alloys -= ud.cost;
         (b.queue ??= []).push(c.unit);
         if (b.queue.length === 1) b.prod = 0;
@@ -978,8 +978,8 @@ export class Sim {
         return;
       }
       case 'fab': {
-        if (s.drones.length + s.fab.queued >= RULES.maxDrones) { this.emit(`Drone limit reached (${RULES.maxDrones})`, 'warn'); return; }
-        if (s.alloys < RULES.droneCost) { this.emit(`Not enough alloys for a drone (${RULES.droneCost} needed)`, 'warn'); return; }
+        if (s.drones.length + s.fab.queued >= RULES.maxDrones) { this.emit(`Drone limit reached (${RULES.maxDrones})`, 'warn', 'deny'); return; }
+        if (s.alloys < RULES.droneCost) { this.emit(`Not enough alloys for a drone (${RULES.droneCost} needed)`, 'warn', 'deny'); return; }
         s.alloys -= RULES.droneCost;
         s.fab.queued++;
         this.emit('Drone fabrication started', 'info');

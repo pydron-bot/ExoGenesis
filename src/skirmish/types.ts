@@ -14,7 +14,8 @@ export const F = { X: 0, Z: 1, HEADING: 2, TYPE: 3, HP: 4, GEN: 5, ALIVE: 6 } as
 
 /** Per-event floats in the effects buffer: kind, x1, z1, x2, z2. */
 export const FX_STRIDE = 5;
-export const FX = { ROVER_SHOT: 0, TANK_SHOT: 1, BITE: 2, DIE_SMALL: 3, DIE_BIG: 4, CORE_HIT: 5 } as const;
+/** TURRET_SHOT draws like TANK_SHOT; it's separate so it can sound different. */
+export const FX = { ROVER_SHOT: 0, TANK_SHOT: 1, BITE: 2, DIE_SMALL: 3, DIE_BIG: 4, CORE_HIT: 5, TURRET_SHOT: 6 } as const;
 
 export const UT = { Rover: 0, Tank: 1, Swarmer: 2, Brute: 3 } as const;
 export const TYPE_NAMES = ROSTER.map((id) => content.units[id].name);

@@ -156,8 +156,8 @@ export class ArmyView {
   private spawnFx(fx: Float32Array) {
     for (let i = 0; i < fx.length; i += FX_STRIDE) {
       const k = fx[i], x1 = fx[i + 1], z1 = fx[i + 2], x2 = fx[i + 3], z2 = fx[i + 4];
-      if (k === FX.ROVER_SHOT || k === FX.TANK_SHOT || k === FX.BITE) {
-        const tank = k === FX.TANK_SHOT;
+      if (k === FX.ROVER_SHOT || k === FX.TANK_SHOT || k === FX.TURRET_SHOT || k === FX.BITE) {
+        const tank = k === FX.TANK_SHOT || k === FX.TURRET_SHOT;
         regionPoint(x1, z1, tank ? 1.45 : 1.3, this.v1);
         regionPoint(x2, z2, 1.0, this.v2);
         const len = this.v1.distanceTo(this.v2);

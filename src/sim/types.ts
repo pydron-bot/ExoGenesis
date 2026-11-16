@@ -246,7 +246,13 @@ export interface Snapshot {
   stats: SimState['stats'];
 }
 
+/**
+ * What an event sounds like (src/audio). Sent alongside the event text so the
+ * client doesn't have to match on wording; events without one stay silent.
+ */
+export type EventCue = 'placed' | 'online' | 'unitReady' | 'droneReady' | 'packCleared' | 'lost' | 'deny' | 'warning' | 'alarm';
+
 export type FromWorker =
   | Snapshot
   | { type: 'saved'; reqId: number; state: SimState }
-  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad' };
+  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue };
