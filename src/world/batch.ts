@@ -1,7 +1,9 @@
 /**
  * Instanced drawing for finished buildings of one kind: one InstancedMesh per
  * material, however many buildings there are (instead of ~6 draw calls per
- * building). Only for kinds without animated parts (walls, solar arrays).
+ * building). A kind may have one moving part (a defence's aiming `head`, the
+ * radar `dish`): that part is a second batch whose instances the game re-places
+ * each frame (`setPart`).
  *
  * Unpowered buildings dim their lights: every glowing material gets a second,
  * dimmed pool, and a building's glowing parts live in exactly one of the two
@@ -10,8 +12,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-/** Kinds drawn instanced once finished. */
-export const BATCHED_KINDS = new Set(['wall', 'solar', 'gate', 'hydroponics', 'battery']);
+/** Kinds drawn instanced once finished (`?batch=0` turns batching off, to compare). */
+export const BATCHED_KINDS = new Set(typeof location !== 'undefined' && new URLSearchParams(location.search).get('batch') === '0' ? []
+  : ['wall', 'solar', 'gate', 'hydroponics', 'battery', 'turret', 'pointdefense', 'cannon', 'radar']);
+
+/** Names of parts the game turns per building; the first one a model has becomes its moving batch. */
+export const MOVING_PARTS = ['head', 'dish'];
 
 /**
  * Named parts whose glow the game drives per frame (battery `charge`: the
@@ -48,14 +54,31 @@ export class BuildingBatch {
   private slot = new Map<number, number>();
   private mats: THREE.Matrix4[] = [];
   private powered: boolean[] = [];
+  /** The moving part's own batch, its name, and its rest pose relative to the building. */
+  private sub: BuildingBatch | null = null;
+  readonly partName: string | null = null;
+  readonly partRest = new THREE.Matrix4();
+  private tmp = new THREE.Matrix4();
 
-  constructor(template: THREE.Object3D, capacity = 32) {
+  /** `movable`: look for a MOVING_PARTS part and batch it separately. */
+  constructor(template: THREE.Object3D, capacity = 32, movable = true) {
     template.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(template.matrixWorld).invert();
+    let part: THREE.Object3D | undefined;
+    if (movable) for (const n of MOVING_PARTS) if ((part = template.getObjectByName(n))) break;
+    if (part) {
+      this.partName = part.name;
+      this.partRest.multiplyMatrices(inv, part.matrixWorld);
+      this.sub = new BuildingBatch(part, capacity, false);
+    }
+    const inPart = (o: THREE.Object3D) => {
+      for (let p: THREE.Object3D | null = o; p && p !== template; p = p.parent) if (p === part) return true;
+      return false;
+    };
     const byKey = new Map<string, { mat: THREE.Material; tag: string; geos: THREE.BufferGeometry[] }>();
     template.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (!m.isMesh || !m.visible) return;
+      if (!m.isMesh || !m.visible || (part && inPart(m))) return;
       const local = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld);
       const src = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
       src.applyMatrix4(local);
@@ -96,7 +119,7 @@ export class BuildingBatch {
 
   get count() { return this.ids.length; }
   /** Draw calls this batch costs (for tests). */
-  get drawCalls() { return this.parts.reduce((n, p) => n + (p.dark ? 2 : 1), 0); }
+  get drawCalls(): number { return this.parts.reduce((n, p) => n + (p.dark ? 2 : 1), 0) + (this.sub?.drawCalls ?? 0); }
 
   has(id: number) { return this.slot.has(id); }
 
@@ -115,10 +138,24 @@ export class BuildingBatch {
     this.powered[i] = powered;
     this.write(i);
     this.sync();
+    // the moving part starts at rest
+    this.sub?.set(id, this.tmp.multiplyMatrices(matrix, this.partRest), powered);
+  }
+
+  /** Place building `id`'s moving part: `matrix` relative to the batch's parent (building matrix × part matrix). */
+  setPart(id: number, matrix: THREE.Matrix4) {
+    const s = this.sub;
+    if (!s) return;
+    const i = s.slot.get(id);
+    if (i === undefined) return;
+    s.mats[i].copy(matrix);
+    s.write(i);
+    s.dirty();
   }
 
   /** Glow of a tagged part: `lit` on powered buildings, `dark` on unpowered ones. */
   setTagGlow(tag: string, lit: number, dark: number) {
+    this.sub?.setTagGlow(tag, lit, dark);
     for (const p of this.parts) {
       if (p.tag !== tag) continue;
       (p.lit.material as THREE.MeshStandardMaterial).emissiveIntensity = lit;
@@ -127,6 +164,7 @@ export class BuildingBatch {
   }
 
   setPowered(id: number, powered: boolean) {
+    this.sub?.setPowered(id, powered);
     const i = this.slot.get(id);
     if (i === undefined || this.powered[i] === powered) return;
     this.powered[i] = powered;
@@ -135,6 +173,7 @@ export class BuildingBatch {
   }
 
   remove(id: number) {
+    this.sub?.remove(id);
     const i = this.slot.get(id);
     if (i === undefined) return;
     const last = this.ids.length - 1;
@@ -155,6 +194,7 @@ export class BuildingBatch {
   }
 
   dispose() {
+    this.sub?.dispose();
     for (const p of this.parts) for (const m of [p.lit, p.dark]) {
       if (!m) continue;
       m.geometry.dispose();
@@ -181,6 +221,14 @@ export class BuildingBatch {
       if (!p.dark) { p.lit.setMatrixAt(i, this.mats[i]); continue; }
       p.lit.setMatrixAt(i, on ? this.mats[i] : ZERO);
       p.dark.setMatrixAt(i, on ? ZERO : this.mats[i]);
+    }
+  }
+
+  /** Instance matrices changed, count didn't. */
+  private dirty() {
+    for (const p of this.parts) {
+      p.lit.instanceMatrix.needsUpdate = true;
+      if (p.dark) p.dark.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -211,5 +259,6 @@ export class BuildingBatch {
         this.group.add(m);
       }
     }
+    if (this.sub) this.group.add(this.sub.group);
   }
 }

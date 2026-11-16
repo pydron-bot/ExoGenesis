@@ -56,7 +56,7 @@ try {
   await ed.evaluate(() => (window.__marker = 1));
   const hp0 = (await readRover()).hp;
   check((await ed.inputValue('.row[data-key=hp] input')) === String(hp0), `rover form shows hp ${hp0}`);
-  check(await ed.locator('#side .item', { hasText: 'Brute' }).count() === 1, 'sidebar lists units');
+  check(await ed.locator('#side .item span', { hasText: /^Brute$/ }).count() === 1, 'sidebar lists units'); // ("Brute (Blender v2)" is an asset)
 
   // 1. edit + save
   await ed.fill('.row[data-key=hp] input', '75');

@@ -8,5 +8,9 @@
   "powerMW": -3,
   "buildSeconds": 16,
   "clearance": 9,
-  "sight": 60
+  "sight": 60,
+  "lightColor": "#7ff7ff",
+  "lightRadius": 8,
+  "lightIntensity": 0.6,
+  "model": "exo-radar"
 }

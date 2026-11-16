@@ -8,5 +8,10 @@
   "powerMW": 7,
   "buildSeconds": 20,
   "clearance": 9,
-  "range": 5
+  "range": 5,
+  "lightColor": "#ff8a3d",
+  "lightRadius": 13,
+  "lightIntensity": 1,
+  "lightFlicker": true,
+  "model": "exo-geothermal"
 }

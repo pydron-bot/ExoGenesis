@@ -10,6 +10,7 @@
   "weapon": "bolt",
   "radius": 0.9,
   "aggro": 18,
+  "model": "exo-rover",
   "modelScale": 1,
   "cost": 50,
   "buildSeconds": 12

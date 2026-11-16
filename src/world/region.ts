@@ -784,6 +784,7 @@ export class RegionView {
   private buildings = new Map<number, BEntry>();
   /** Instanced finished buildings, per kind in BATCHED_KINDS. */
   private batches = new Map<string, BuildingBatch>();
+  private partM = new THREE.Matrix4();
   private deposits: THREE.Group[] = [];
   private vents: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
@@ -1187,6 +1188,13 @@ export class RegionView {
         // batched kinds: an empty placeholder (it keeps the pose for facing()); the batch draws the model
         const batch = done ? this.batchFor(b.kind) : null;
         const obj = batch ? new THREE.Group() : done ? this.modelFor(b.kind) : buildScaffold();
+        if (batch?.partName) {
+          // the moving part keeps a stand-in so aiming and facing() work as before; the batch draws it
+          const stand = new THREE.Object3D();
+          stand.name = batch.partName;
+          batch.partRest.decompose(stand.position, stand.quaternion, stand.scale);
+          obj.add(stand);
+        }
         if (!done) {
           // scale the construction frame to the footprint
           const k = (d?.clearance ?? 8) / 9;
@@ -1235,6 +1243,14 @@ export class RegionView {
         if (role === 'radar' && lit) {
           const dish = e.obj.getObjectByName('dish');
           if (dish) dish.rotation.y = this.gameT * 1.2;
+        }
+        const batch = this.batches.get(b.kind);
+        if (batch?.partName) {
+          const part = e.obj.getObjectByName(batch.partName);
+          if (part) {
+            part.updateMatrix();
+            batch.setPart(b.id, this.partM.multiplyMatrices(e.obj.matrix, part.matrix));
+          }
         }
         if (role === 'battery') {
           this.batches.get(b.kind)?.setTagGlow('charge', 0.3 + charge * 3, 0.1);

@@ -12,5 +12,9 @@
   "pods": 2,
   "biomassStorage": 80,
   "staff": 1,
-  "specialty": "medic"
+  "specialty": "medic",
+  "lightColor": "#ffc98a",
+  "lightRadius": 18,
+  "lightIntensity": 1,
+  "model": "exo-civic"
 }

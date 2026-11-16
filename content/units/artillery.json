@@ -13,6 +13,7 @@
   "radius": 1.2,
   "aggro": 46,
   "sight": 30,
+  "model": "exo-artillery",
   "modelScale": 1,
   "cost": 140,
   "buildSeconds": 28

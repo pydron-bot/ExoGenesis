@@ -10,5 +10,6 @@
   "weapon": "bite",
   "radius": 1.5,
   "aggro": 16,
+  "model": "exo-brute",
   "modelScale": 2.1
 }

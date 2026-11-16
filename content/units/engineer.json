@@ -10,6 +10,7 @@
   "repairRate": 18,
   "radius": 1,
   "aggro": 30,
+  "model": "exo-engineer",
   "modelScale": 1,
   "cost": 80,
   "buildSeconds": 16

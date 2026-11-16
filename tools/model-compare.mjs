@@ -1,5 +1,5 @@
 /**
- * Side-by-side shots of the built-in models and the Blender set (?models=new):
+ * Side-by-side shots of the built-in models (?models=builtin) and the Blender set (?models=new):
  * builds the same base in both, then an overview and a close-up of each model.
  *   node tools/model-compare.mjs <outDir> [--url http://localhost:5176/]
  * Writes <outDir>/<builtin|new>-<name>.png.
@@ -12,7 +12,7 @@ const errors = [];
 for (const set of ['builtin', 'new']) {
   const page = await browser.newPage({ viewport: { width: 900, height: 640 } });
   page.on('pageerror', (e) => errors.push(`${set}: ${e.message}`));
-  await page.goto(`${url}?intro=0&new=1&look=smooth&fog=0&ui=0${set === 'new' ? '&models=new' : ''}`);
+  await page.goto(`${url}?intro=0&new=1&look=smooth&fog=0&ui=0&models=${set}`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   // same layout every time: commands at fixed spots (searching outward for a legal one)
   const placed = await page.evaluate(() => {

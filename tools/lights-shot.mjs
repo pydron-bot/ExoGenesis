@@ -1,6 +1,6 @@
 /**
- * Colony lights prototype: stages a night colony (injected buildings, vehicles, a pack) and shoots it
- * with ?lights=1 and without. node tools/lights-shot.mjs [--out shots/lights] [--hour 23]
+ * Colony lights: stages a night colony (injected buildings, vehicles, a pack) and shoots it
+ * with lights on and with ?lights=0. node tools/lights-shot.mjs [--out shots/lights] [--hour 23]
  */
 import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -24,7 +24,7 @@ for (const mode of modes) {
   const page = await browser.newPage({ viewport: { width: Number(a.w ?? 1280), height: Number(a.h ?? 720) } });
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));
   page.on('console', (m) => { if (m.type() === 'error') console.log('[err]', m.text().slice(0, 300)); });
-  await page.goto(`http://localhost:5176/?intro=0&new=1&ui=0&fog=0&sw=0${mode === 'on' ? '&lights=1' : ''}`);
+  await page.goto(`http://localhost:5176/?intro=0&new=1&ui=0&fog=0&sw=0${mode === 'on' ? '&lights=1' : '&lights=0'}`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
   await page.evaluate(async ([ring, hour]) => {
     const s = await __exo.sim.save();

@@ -9,5 +9,9 @@
   "buildSeconds": 18,
   "clearance": 13,
   "staff": 1,
-  "specialty": "engineer"
+  "specialty": "engineer",
+  "lightColor": "#e4f2ff",
+  "lightRadius": 16,
+  "lightIntensity": 1.1,
+  "model": "exo-bay"
 }

@@ -11,5 +11,9 @@
   "biomassRate": 0.12,
   "biomassStorage": 60,
   "staff": 2,
-  "specialty": "botanist"
+  "specialty": "botanist",
+  "lightColor": "#ff7ad9",
+  "lightRadius": 12,
+  "lightIntensity": 1,
+  "model": "exo-hydroponics"
 }

@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.13.0',
+    date: '2026-11-16',
+    title: 'Lights, new models, night battles',
+    notes: [
+      'Colony lights are on for everyone: floodlights, headlights, gunfire and explosions light up the ground at night, and nights are darker. Turn them off under ⋯ → ✦ Lights',
+      'New, more detailed models for every building (except the Command Core), every vehicle and every predator',
+      'Turrets, point defense, siege cannons and radars cost far less to draw, so heavily defended bases stay smooth',
+      'Skirmish: a ☀ Day / ☾ Night button (or the N key) to fight at noon or at midnight',
+    ],
+  },
+  {
     version: '0.12.4',
     date: '2026-11-16',
     title: 'Colony lights (experimental)',

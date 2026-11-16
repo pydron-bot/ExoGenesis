@@ -7,5 +7,9 @@
   "hp": 600,
   "powerMW": 0,
   "buildSeconds": 6,
-  "clearance": 8
+  "clearance": 8,
+  "lightColor": "#ffb547",
+  "lightRadius": 9,
+  "lightIntensity": 0.7,
+  "model": "exo-gate"
 }

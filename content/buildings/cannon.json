@@ -13,5 +13,9 @@
   "damage": 55,
   "cooldown": 2.5,
   "splash": 5,
-  "weapon": "shell"
+  "weapon": "shell",
+  "lightColor": "#ffd27a",
+  "lightRadius": 10,
+  "lightIntensity": 0.7,
+  "model": "exo-cannon"
 }

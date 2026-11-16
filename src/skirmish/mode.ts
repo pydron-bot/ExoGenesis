@@ -11,6 +11,15 @@ import { SkInput, type SkUi } from './input';
 import { DEFS, F, SK_TICK_MS, STRIDE, TYPE_NAMES, type SkFromWorker, type SkSnapshot, type SkToWorker } from './types';
 import { ArmyView } from './view';
 
+/** localStorage that tolerates private mode. */
+function store(k: string, v?: string) {
+  try {
+    if (v === undefined) return localStorage.getItem(k);
+    localStorage.setItem(k, v);
+  } catch { /* storage unavailable */ }
+  return null;
+}
+
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export interface SkirmishEnv {
@@ -147,6 +156,19 @@ export function startSkirmish(env: SkirmishEnv) {
     u.searchParams.set('units', String(next));
     location.href = u.toString();
   };
+  // day / night: the sun runs forward to noon or midnight (a quick dusk or dawn), then holds there
+  const timeBtn = $<HTMLButtonElement>('sk-time');
+  let night = params.get('time') === 'night' || (params.get('time') !== 'day' && store('exo.skirmish.time') === 'night');
+  let hour = night ? 0 : 12;
+  const setNight = (n: boolean) => {
+    night = n;
+    timeBtn.textContent = n ? '☾ Night' : '☀ Day';
+    timeBtn.classList.toggle('on', n);
+    store('exo.skirmish.time', n ? 'night' : 'day');
+  };
+  setNight(night);
+  timeBtn.onclick = () => setNight(!night);
+  addEventListener('keydown', (e) => { if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement)) setNight(!night); });
   $('sk-landing').onclick = () => {
     const u = new URL(location.href);
     u.searchParams.delete('mode');
@@ -180,6 +202,9 @@ export function startSkirmish(env: SkirmishEnv) {
   let hudAcc = 0;
   return {
     get ready() { return !!(prev && cur); },
+    /** Local hour (0..24) of the skirmish's fixed day or night; the renderer puts the sun there. */
+    get hour() { return hour; },
+    get night() { return night; },
     army,
     ui,
     send,
@@ -190,6 +215,13 @@ export function startSkirmish(env: SkirmishEnv) {
       return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH(), type: army.type[slot] };
     },
     update(now: number, dt: number) {
+      // 12 hours in ~2.5 s, always forward, stopping at the target
+      const target = night ? 24 : 12;
+      const h = hour < 12 && night ? hour + 24 : hour;
+      if (Math.abs(h - target) > 0.01) {
+        const ahead = (((target - h) % 24) + 24) % 24;
+        hour = (h + Math.min(ahead, dt * 4.8)) % 24;
+      }
       if (!prev || !cur) return;
       const alpha = Math.min(1, (now - curAt) / SK_TICK_MS);
       pruneSelection();

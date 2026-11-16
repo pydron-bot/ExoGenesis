@@ -7,5 +7,6 @@
   "hp": 350,
   "powerMW": 0,
   "buildSeconds": 3,
-  "clearance": 4
+  "clearance": 4,
+  "model": "exo-wall"
 }

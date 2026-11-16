@@ -12,6 +12,7 @@
   "weapon": "arc",
   "radius": 1,
   "aggro": 20,
+  "model": "exo-arc",
   "modelScale": 1,
   "cost": 95,
   "buildSeconds": 18

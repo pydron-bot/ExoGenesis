@@ -364,7 +364,14 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   habitat, airlock at the front, growth pods at the back as `gpod_a` / `gpod_b`, each with its own material (the
   game now matches any part whose name starts with `gpod`). **Hydroponics** (2,008 tris, 115 KB): glass tunnels,
   crop beds, magenta grow lights; batched like the built-in. Every building and unit now has a Blender model except
-  the Command Core (procedural on purpose: the landing animates it). Not assigned yet either.
+  the Command Core (procedural on purpose: the landing animates it). Assigned in v0.13.0 (next).
+- **Blender models assigned (v0.13.0):** every unit and every building except the Command Core now has its
+  `exo-<id>` model set in content.
+  `node tools/model-gallery.mjs [dir] [--only …] [--q …]` stages one of everything in daylight and shoots built-in
+  vs Blender close-ups (faster than `model-compare.mjs`, and it covers the whole roster). The only fix-up:
+  `exo-solar` is imported at yaw 180° so its panels tilt toward the usual camera, like the built-in's.
+  `?models=builtin` shows the procedural models again (game and skirmish); `?models=new` still forces the set.
+  Assigned unit models drop the built-ins' extra glow strip. `?batch=0` turns building batching off, to compare.
 - **Instanced buildings (v0.12.2, proof of concept):** finished walls and solar arrays draw through
   `src/world/batch.ts`: one InstancedMesh per material per kind, however many are built (a building's own
   object stays as an empty placeholder holding its pose). Glowing materials get a dimmed twin; an unpowered
@@ -373,8 +380,28 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   animated parts (`head`, `dish`, `ring`, `door`, `plume`) need those parts kept per building first.
   **v0.12.3** added gate, hydroponics and battery. Look-alike materials share a draw (the built-ins make a fresh
   glow material per part). Parts named in the batch's `TAGS` (battery `charge`) get their own draw so the game
-  can set their glow each frame: the battery charge glow is colony-wide, one value per batch. Next candidates:
-  the defences (turret, point defense, cannon), with the aiming `head` as a second, per-frame-updated batch.
+  can set their glow each frame: the battery charge glow is colony-wide, one value per batch.
+  **v0.13.0** added the defences (turret, point defense, cannon) and the radar. A batch may have one moving part
+  (`MOVING_PARTS`: the first of `head`, `dish` a model has), drawn as a second batch whose instances are re-placed
+  each frame (building matrix × part matrix). The building's placeholder keeps an empty stand-in with the part's
+  name and rest pose, so the aiming code and `facing()` work unchanged. A moving part must be a direct child of
+  the model's root for its spin to match the per-building path. On a 21-building test base (3 each of 7 kinds),
+  218 → 168 draw calls; the saving grows with every defence built. Test: `tools/batch-smoke.mjs`. Not batched yet:
+  depot (hauler), bay (`door`), repair pad (`ring`), geothermal (`plume`), civic (`gpod`).
+- **Colony lights (v0.12.4 prototype → v0.13.0 on by default):** `src/world/lights.ts`. Every light source
+  (floodlights, the Core and its beacon, construction lights, drone and vehicle headlights, muzzle flashes,
+  explosions) is a soft additive blob in a 256² top-down HDR light map of the region, redrawn each frame; every
+  lit material samples it (patched on first draw). Where in the map and how high above the ground is worked out
+  per vertex (the ground height comes from a vertex texture read), so the fragment does one texture read; light
+  is softly capped so a parked army's headlights don't white out. Desktop also hands 2 real point lights to the
+  biggest explosions; phones get none. Floodlights are building fields (`lightColor`, `lightRadius`,
+  `lightIntensity`, `lightFlicker`; editor: Buildings). Nights get darker while lights are on.
+  Cost, phone-sized SwiftShader, dpr 1, daytime base: ~100 ms/frame off; prototype +40% for the light map and +60%
+  more for its 4 point lights; now +15% (no point lights). The ⋯ menu's **✦ Lights** turns them off (remembered);
+  `?lights=0` leaves them out entirely; `?lreal=N` sets the point-light count. Needs a real-phone check.
+- **Skirmish day / night (v0.13.0):** a ☀ Day / ☾ Night button (key N) holds the skirmish at noon or midnight;
+  switching runs the sun forward through a ~2.5 s dusk or dawn. Remembered; `?time=day|night` overrides. At night
+  the colony lights carry the battle (headlights, gunfire, explosions).
 
 | Tool | Edits | Lands with |
 |---|---|---|

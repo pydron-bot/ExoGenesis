@@ -22,7 +22,7 @@ import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
 import { DEFS as UNIT_DEFS, type SkSnapshot } from './skirmish/types';
 import { gateSnap, linePoints, placeProblem } from './sim/rules';
-import { hourAt, sunAngle } from './sim/daylight';
+import { START_HOUR, hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
 import { TitleScreen } from './title';
@@ -176,8 +176,14 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, innerWidth / viewH(), 0.2, 1.2e7);
 const fog = new THREE.Fog('#8fb0ad', 400, 1200);
 scene.fog = fog;
-// colony lights (prototype): floodlights, headlights, flashes via a top-down light map; ?lights=1
-const lights = params.get('lights') === '1' ? enableColonyLights(scene) : null;
+// colony lights: floodlights, headlights, flashes via a top-down light map (src/world/lights.ts).
+// On unless ?lights=0 (then never built); the ⋯ menu's Lights button turns them off and on, remembered.
+const LIGHTS_KEY = 'exo.lights';
+const lights = params.get('lights') === '0' ? null : enableColonyLights(scene);
+if (lights) {
+  lights.setLooks(content.buildings);
+  try { lights.enabled = params.get('lights') === '1' || localStorage.getItem(LIGHTS_KEY) !== 'off'; } catch { /* private mode */ }
+}
 
 await loadStep('Charting the solar system…');
 const system = new SolarSystem(scene, $('labels'));
@@ -326,10 +332,12 @@ $('cine-skip').onclick = () => landing?.skip();
 addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
 
 // asset models assigned in content replace built-in building models once loaded.
-// ?models=new previews the Blender set (content/assets/exo-<kind>.json) without
-// assigning it in content.
+// ?models=new forces the Blender set (content/assets/exo-<kind>.json) where a kind
+// has one; ?models=builtin shows the built-in procedural models (to compare).
 const previewModels = params.get('models') === 'new';
-const modelFor = (kind: string, assigned?: string) => (previewModels && content.assets[`exo-${kind}`] ? `exo-${kind}` : assigned);
+const builtinModels = params.get('models') === 'builtin';
+const modelFor = (kind: string, assigned?: string) =>
+  (builtinModels ? undefined : previewModels && content.assets[`exo-${kind}`] ? `exo-${kind}` : assigned);
 for (const [kind, d] of Object.entries(content.buildings)) {
   const id = modelFor(kind, d.model);
   if (!id || !content.assets[id] || d.role === 'core') continue;
@@ -453,6 +461,11 @@ lookBtn.onclick = () => {
   location.href = u.toString();
 };
 
+if (previewModels || builtinModels) for (const d of UNIT_DEFS) {
+  const a = content.assets[`exo-${d.id}`];
+  if (builtinModels) d.model = undefined;
+  else if (a) d.model = a;
+}
 const skirmish = skirmishMode ? startSkirmish({ scene, renderer, cam, region, log, params }) : null;
 $('b-news').textContent = `v${VERSION}`;
 $('brand-ver').textContent = `v${VERSION}`;
@@ -465,10 +478,6 @@ $('b-skirmish').onclick = () => {
 
 const help = $('help');
 let helped = false;
-if (previewModels) for (const d of UNIT_DEFS) {
-  const a = content.assets[`exo-${d.id}`];
-  if (a) d.model = a;
-}
 const army = skirmish ? null : new ArmyView(scene);
 const colonists = skirmish ? null : new ColonistView(region.details);
 const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {
@@ -590,6 +599,19 @@ function syncSound() {
 soundBtn.onclick = () => { audio.setOn(!audio.on); syncSound(); };
 volEl.oninput = () => { audio.setVolume(Number(volEl.value) / 100); if (!audio.on) audio.setOn(true); syncSound(); };
 syncSound();
+const lightsBtn = $<HTMLButtonElement>('b-lights');
+function syncLights() {
+  lightsBtn.textContent = !lights ? '✦ Off (URL)' : lights.enabled ? '✦ Lights' : '✦ Lights off';
+  lightsBtn.classList.toggle('on', !!lights?.enabled);
+  lightsBtn.disabled = !lights;
+}
+lightsBtn.onclick = () => {
+  if (!lights) return;
+  lights.enabled = !lights.enabled;
+  try { localStorage.setItem(LIGHTS_KEY, lights.enabled ? 'on' : 'off'); } catch { /* private mode */ }
+  syncLights();
+};
+syncLights();
 // a soft tick for HUD buttons
 hudEl.addEventListener('pointerdown', (e) => { if ((e.target as Element).closest?.('button')) audio.play('tap'); });
 /** World sounds: quieter away from the camera focus and when zoomed out; panned by screen x. */
@@ -648,7 +670,10 @@ function frame(now: number) {
   const t = (now - t0) / 1000;
 
   const simSecs = sim.cur && !skirmish ? sim.cur.secs + sim.alpha(now) * (speed / TICK_HZ) : undefined;
-  system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, viewH(), simSecs === undefined ? undefined : sunAngle(simSecs, content.colony.solSeconds, U.x, U.z));
+  // skirmish holds a fixed day or night (its ☀/☾ button): the sim clock at that hour
+  const sol = content.colony.solSeconds;
+  const sunSecs = skirmish ? ((skirmish.hour - START_HOUR) / 24) * sol : simSecs;
+  system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, viewH(), sunSecs === undefined ? undefined : sunAngle(sunSecs, sol, U.x, U.z));
   cam.update(dt, system.starPos);
   (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = 1.25 * smoothstep(300, 1400, cam.altitude());
   atmosphere.visible = cam.altitude() > 300;
@@ -696,8 +721,8 @@ function frame(now: number) {
     if (!ready) { ready = true; exo.ready = true; reveal(); }
   }
   if (lights) {
-    // darker nights so the lights read; steady lights fade out by day
-    const night = 1 - smoothstep(-0.2, 0.15, sunUp);
+    // darker nights so the lights read (only while they're on); steady lights fade out by day
+    const night = lights.enabled ? 1 - smoothstep(-0.2, 0.15, sunUp) : 0;
     lights.night = night;
     system.fill.intensity = lerp(0.7, 0.32, night);
     system.ambient.intensity = lerp(0.12, 0.07, night);

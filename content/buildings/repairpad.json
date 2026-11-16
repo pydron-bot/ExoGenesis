@@ -9,5 +9,9 @@
   "buildSeconds": 14,
   "clearance": 10,
   "range": 9,
-  "repairRate": 15
+  "repairRate": 15,
+  "lightColor": "#5bff9a",
+  "lightRadius": 10,
+  "lightIntensity": 0.8,
+  "model": "exo-repairpad"
 }

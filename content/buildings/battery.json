@@ -8,5 +8,9 @@
   "powerMW": 0,
   "buildSeconds": 10,
   "clearance": 7,
-  "storage": 600
+  "storage": 600,
+  "lightColor": "#7ff7ff",
+  "lightRadius": 7,
+  "lightIntensity": 0.5,
+  "model": "exo-battery"
 }

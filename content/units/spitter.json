@@ -10,6 +10,7 @@
   "weapon": "spit",
   "radius": 0.9,
   "aggro": 30,
+  "model": "exo-spitter",
   "modelScale": 1,
   "packEvery": 5,
   "packFrom": 4

@@ -11,5 +11,9 @@
   "range": 30,
   "mineRate": 1.2,
   "staff": 1,
-  "specialty": "engineer"
+  "specialty": "engineer",
+  "lightColor": "#ffd9a0",
+  "lightRadius": 16,
+  "lightIntensity": 1.1,
+  "model": "exo-depot"
 }

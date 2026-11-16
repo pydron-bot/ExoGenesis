@@ -11,5 +11,9 @@
   "fireRange": 18,
   "damage": 6,
   "cooldown": 0.1,
-  "weapon": "pd"
+  "weapon": "pd",
+  "lightColor": "#ffd27a",
+  "lightRadius": 8,
+  "lightIntensity": 0.6,
+  "model": "exo-pointdefense"
 }

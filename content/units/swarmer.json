@@ -10,5 +10,6 @@
   "weapon": "bite",
   "radius": 0.7,
   "aggro": 16,
+  "model": "exo-swarmer",
   "modelScale": 0.9
 }

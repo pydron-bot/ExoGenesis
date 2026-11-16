@@ -9,5 +9,6 @@
   "buildSeconds": 8,
   "clearance": 9,
   "staff": 1,
-  "specialty": "technician"
+  "specialty": "technician",
+  "model": "exo-solar"
 }

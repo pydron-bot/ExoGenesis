@@ -7,7 +7,7 @@
  * knob that does nothing.
  */
 import { REGION_HALF } from '../sim/types';
-import { bool, choice, grid, int, list, num, ref, str, type Infer, type Shape } from './schema';
+import { bool, choice, color, grid, int, list, num, ref, str, type Infer, type Shape } from './schema';
 
 /** Attack looks: tracer + sound. */
 export const WEAPONS = ['bolt', 'cannon', 'shell', 'arc', 'pd', 'bite', 'spit'] as const;
@@ -74,6 +74,10 @@ export const buildingShape = {
   biomassStorage: num({ label: 'Biomass storage', min: 0, max: 100000, optional: true, help: 'Adds to how much biomass the colony can hold.' }),
   staff: int({ label: 'Staff slots', min: 0, max: 12, optional: true, help: 'Colonists who can work here. Each one adds the people rules\' staff bonus to what it does (output, mining, damage, power).' }),
   specialty: choice(['engineer', 'botanist', 'medic', 'technician', 'security'], { label: 'Best specialty', optional: true, help: 'Staff with this specialty add the extra specialty bonus and are assigned here first.' }),
+  lightColor: color({ label: 'Floodlight colour', optional: true, help: 'Colony lights: the pool of light it throws on the ground around it while powered (brightest at night). Empty = no floodlight.' }),
+  lightRadius: num({ label: 'Floodlight radius', min: 0, max: 60, step: 0.5, unit: 'u', optional: true }),
+  lightIntensity: num({ label: 'Floodlight strength', min: 0, max: 4, step: 0.05, optional: true, default: 1 }),
+  lightFlicker: bool({ label: 'Floodlight flickers', optional: true, help: 'Like firelight (geothermal vents).' }),
   model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model. (The Command Core\'s is fixed: the landing cinematic animates it.)' }),
 } satisfies Shape;
 export type BuildingDef = Infer<typeof buildingShape>;

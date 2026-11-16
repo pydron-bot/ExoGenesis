@@ -1,5 +1,5 @@
 /**
- * Colony lighting (prototype, `?lights=1`).
+ * Colony lighting (on by default; `?lights=0` leaves it out, the ⋯ menu turns it off).
  *
  * Two layers:
  *  1. A light map: every light source (floodlights, the core and its beacon,
@@ -9,9 +9,12 @@
  *     hundreds of lights cost one tiny render pass plus one texture read. No
  *     shadows, and no light direction beyond "facing up gets more" — fine from an
  *     RTS camera.
- *  2. A few real point lights (fixed count, so shaders never recompile) handed
- *     each frame to the biggest live explosions, for proper highlights on the
- *     sides of things.
+ *  2. On desktop, two real point lights (fixed count, so shaders never
+ *     recompile) handed each frame to the biggest live explosions, for proper
+ *     highlights on the sides of things. Phones get none (see REAL).
+ *
+ * Floodlights come from the building records (lightColor, lightRadius,
+ * lightIntensity, lightFlicker; editable in the editor).
  *
  * Materials are patched lazily on first draw (a Mesh.onBeforeRender hook), so
  * models that load later light up without anyone having to remember to call
@@ -26,8 +29,11 @@ import { GRID_N, rawGrid, regionPoint } from './heightGrid';
 const RES = 256;
 const MAX_BLOBS = 2048;
 const MAX_FLASHES = 384;
-/** Real point lights for the biggest flashes. */
-const REAL = 4;
+/**
+ * Real point lights for the biggest flashes. Every lit shader pays for each one on every pixel, so phones
+ * (fill-bound) get none and rely on the light map alone. `?lreal=N` overrides.
+ */
+const REAL = Number(new URLSearchParams(location.search).get('lreal') ?? (matchMedia('(pointer: coarse)').matches ? 0 : 2));
 
 const rt = new THREE.WebGLRenderTarget(RES, RES, {
   type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false,
@@ -72,38 +78,49 @@ export function addLights(mat: THREE.Material) {
     prev.call(mat, sh, r);
     if (!LIT.test(sh.fragmentShader)) return;
     Object.assign(sh.uniforms, lightUniforms);
+    // everything positional (where in the light map, how high above the ground) is worked out per vertex;
+    // the fragment does one texture read
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vLmW;`)
+        uniform sampler2D uLmH;
+        uniform float uLmR, uLmHalf;
+        uniform vec3 uLmU, uLmE, uLmN;
+        varying vec2 vLmUv;
+        varying float vLmK;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
-        vec4 lmW4 = vec4(transformed, 1.0);
-        #ifdef USE_INSTANCING
-          lmW4 = instanceMatrix * lmW4;
-        #endif
-        vLmW = (modelMatrix * lmW4).xyz;`);
+        {
+          vec4 lmW4 = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+            lmW4 = instanceMatrix * lmW4;
+          #endif
+          vec3 lmW = (modelMatrix * lmW4).xyz;
+          float lmRad = length(lmW);
+          vec3 fd = lmW / lmRad;
+          float up = dot(fd, uLmU);
+          vec2 rp = uLmR * vec2(dot(fd, uLmE), dot(fd, uLmN)) / max(up, 0.5);
+          vLmUv = (rp + uLmHalf) / (2.0 * uLmHalf);
+          vLmK = 0.0;
+          if (lmRad < uLmR + 400.0 && up > 0.5 && abs(rp.x) < uLmHalf && abs(rp.y) < uLmHalf) {
+            float g = texture2D(uLmH, (rp + uLmHalf + 0.5) / (2.0 * uLmHalf + 1.0)).r;
+            float lift = max(0.0, lmRad - uLmR - g);
+            // pools on the ground: tall things catch less the higher they reach
+            vLmK = 1.0 / (1.0 + lift * lift * 0.006);
+          }
+        }`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vLmW;
-        uniform sampler2D uLmTex, uLmH;
-        uniform float uLmOn, uLmR, uLmHalf;
-        uniform vec3 uLmU, uLmE, uLmN, uLmUpV;`)
+        uniform sampler2D uLmTex;
+        uniform float uLmOn;
+        uniform vec3 uLmUpV;
+        varying vec2 vLmUv;
+        varying float vLmK;`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-        {
-          float lmRad = length(vLmW);
-          if (uLmOn > 0.001 && lmRad < uLmR + 400.0) {
-            vec3 fd = vLmW / lmRad;
-            float up = dot(fd, uLmU);
-            vec2 rp = uLmR * vec2(dot(fd, uLmE), dot(fd, uLmN)) / max(up, 0.5);
-            if (up > 0.5 && abs(rp.x) < uLmHalf && abs(rp.y) < uLmHalf) {
-              vec3 L = texture2D(uLmTex, (rp + uLmHalf) / (2.0 * uLmHalf)).rgb;
-              float g = texture2D(uLmH, (rp + uLmHalf + 0.5) / (2.0 * uLmHalf + 1.0)).r;
-              float lift = max(0.0, lmRad - uLmR - g);
-              // pools on the ground: tall things catch less the higher they reach; tops more than sides
-              float k = uLmOn / (1.0 + lift * lift * 0.006);
-              k *= 0.45 + 0.55 * max(dot(normal, uLmUpV), 0.0);
-              reflectedLight.indirectDiffuse += diffuseColor.rgb * L * k;
-            }
-          }
+        if (uLmOn > 0.001 && vLmK > 0.002) {
+          vec3 L = texture2D(uLmTex, vLmUv).rgb;
+          L /= 1.0 + 0.35 * dot(L, vec3(0.333)); // soft cap: a parked army's headlights shouldn't white out
+          // tops catch more than sides
+          float k = uLmOn * vLmK * (0.45 + 0.55 * max(dot(normal, uLmUpV), 0.0));
+          reflectedLight.indirectDiffuse += diffuseColor.rgb * L * k;
         }`);
   };
   mat.customProgramCacheKey = () => `${prevKey()}|lm`;
@@ -155,25 +172,9 @@ interface Flash { x: number; z: number; r: number; i: number; col: THREE.Color; 
 /** Colour and strength of a light source. */
 export interface LightLook { color: string; radius: number; intensity: number; flicker?: boolean }
 
-/**
- * Floodlights per building kind. Prototype table; these would move into the
- * building JSON (`light: { color, radius, intensity }`) if we keep the feature.
- */
-export const BUILDING_LIGHTS: Record<string, LightLook> = {
-  depot: { color: '#ffd9a0', radius: 16, intensity: 1.1 },
-  bay: { color: '#e4f2ff', radius: 16, intensity: 1.1 },
-  civic: { color: '#ffc98a', radius: 18, intensity: 1.0 },
-  hydroponics: { color: '#ff7ad9', radius: 12, intensity: 1.0 },
-  geothermal: { color: '#ff8a3d', radius: 13, intensity: 1.0, flicker: true },
-  repairpad: { color: '#5bff9a', radius: 10, intensity: 0.8 },
-  radar: { color: '#7ff7ff', radius: 8, intensity: 0.6 },
-  battery: { color: '#7ff7ff', radius: 7, intensity: 0.5 },
-  turret: { color: '#ffd27a', radius: 9, intensity: 0.7 },
-  cannon: { color: '#ffd27a', radius: 10, intensity: 0.7 },
-  pointdefense: { color: '#ffd27a', radius: 8, intensity: 0.6 },
-  gate: { color: '#ffb547', radius: 9, intensity: 0.7 },
-};
-const CORE_LIGHT: LightLook = { color: '#d8f4ff', radius: 28, intensity: 1.4 };
+/** Floodlight fields of a building record (content/buildings/*.json). */
+export interface LightFields { lightColor?: string; lightRadius?: number; lightIntensity?: number; lightFlicker?: boolean }
+
 const BEACON = new THREE.Color('#ffb547');
 const SCAFFOLD = new THREE.Color('#ffc46b');
 const HEADLIGHT = new THREE.Color('#e6f6ff');
@@ -206,6 +207,9 @@ export class ColonyLights {
   private real: THREE.PointLight[] = [];
   private armies: { army: ArmyLights; team: (type: number) => number }[] = [];
   private colors = new Map<string, THREE.Color>();
+  /** Floodlight per building kind, from the building records. */
+  private looks: Record<string, LightLook> = {};
+  private on = true;
   /** 0 day .. 1 night: steady lights are faint by day. */
   night = 0;
   /** Count of blobs drawn last frame (debug / tests). */
@@ -239,6 +243,23 @@ export class ColonyLights {
     // patch every lit material the first time it's drawn
     THREE.Mesh.prototype.onBeforeRender = function (this: THREE.Mesh, _r, _s, _c, _g, mat) { addLights(mat); };
     scene.traverse(patchObject);
+  }
+
+  /** Floodlights per building kind from the building records (lightColor, lightRadius, …). */
+  setLooks(defs: Record<string, LightFields>) {
+    this.looks = {};
+    for (const [kind, d] of Object.entries(defs)) {
+      if (!d.lightColor || !(d.lightRadius! > 0)) continue;
+      this.looks[kind] = { color: d.lightColor, radius: d.lightRadius!, intensity: d.lightIntensity ?? 1, flicker: d.lightFlicker };
+    }
+  }
+
+  /** Lights on or off (the ⋯ menu): off skips the light map in every shader and the pass itself. */
+  get enabled() { return this.on; }
+  set enabled(v: boolean) {
+    this.on = v;
+    lightUniforms.uLmOn.value = v ? 1 : 0;
+    if (!v) for (const l of this.real) l.intensity = 0;
   }
 
   /** Register an army so its player vehicles get headlights. `team(type)` → 0 player, 1 fauna. */
@@ -314,6 +335,7 @@ export class ColonyLights {
     drones?: { x: number; z: number; heading: number }[];
   }) {
     this.n = 0;
+    if (!this.on) return;
     const steady = (0.12 + 0.88 * this.night) * 0.75;
     // floodlights
     for (const b of src.buildings ?? []) {
@@ -323,14 +345,15 @@ export class ColonyLights {
         this.blob(b.x, b.z, 9, SCAFFOLD, 0.55 * steady * (0.85 + 0.15 * Math.sin(t * 9 + b.x)));
         continue;
       }
-      const l = BUILDING_LIGHTS[b.kind];
+      const l = this.looks[b.kind];
       if (!l || !b.powered) continue;
       const f = l.flicker ? 0.85 + 0.15 * Math.sin(t * 5.3 + b.z) * Math.sin(t * 2.1 + b.x) : 1;
       this.blob(b.x, b.z, l.radius, this.color(l.color), l.intensity * steady * f);
     }
     if (src.core) {
       const c = src.core;
-      this.blob(c.x, c.z, CORE_LIGHT.radius, this.color(CORE_LIGHT.color), CORE_LIGHT.intensity * steady);
+      const l = this.looks.core;
+      if (l) this.blob(c.x, c.z, l.radius, this.color(l.color), l.intensity * steady);
       // the beacon: a slow amber pulse washing a wide circle
       this.blob(c.x, c.z, 34, BEACON, c.beacon * 0.18 * steady);
     }
@@ -395,7 +418,7 @@ const FXC = {
   emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'),
 };
 
-/** The live instance, when `?lights=1`. Renderers that make light (ArmyView) check this. */
+/** The live instance (null with `?lights=0`). Renderers that make light (ArmyView) check this. */
 export let colonyLights: ColonyLights | null = null;
 export function enableColonyLights(scene: THREE.Scene) {
   colonyLights ??= new ColonyLights(scene);

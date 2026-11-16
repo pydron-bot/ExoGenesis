@@ -10,6 +10,7 @@
   "burrows": true,
   "radius": 1.1,
   "aggro": 12,
+  "model": "exo-burrower",
   "modelScale": 1.2,
   "packEvery": 7,
   "packFrom": 7
