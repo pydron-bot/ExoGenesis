@@ -403,7 +403,388 @@ def tank(M):
     export("tank", [join(parts, "body")])
 
 
-MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank}
+# ---------------------------------------------------------------- set v2 helpers
+
+def glow_mat(name, color, strength):
+    return mat(name, "#000000", 0.0, 0.4, emit=color, strength=strength)
+
+
+def veil(name, color, emit, strength, alpha):
+    """A see-through, double-sided material (gate field, steam plume)."""
+    m = MATS.get(name)
+    if m:
+        return m
+    m = mat(name, color, 0.0, 0.9, emit=emit, strength=strength)
+    m.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = alpha
+    m.surface_render_method = "BLENDED"
+    m.use_backface_culling = False
+    return m
+
+
+def strut(a, b, r, m, verts=6, r2=None, bevel=0.0):
+    """A cylinder (or cone, with r2) from point a to point b."""
+    a, b = Vector(a), Vector(b)
+    d = b - a
+    rot = d.to_track_quat("Z", "Y").to_euler()
+    return cyl(r, d.length, tuple((a + b) / 2), m, verts=verts, rot=tuple(rot), bevel=bevel, r2=r2)
+
+
+def poly(verts, faces, m, name="poly"):
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    me.update()
+    o = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(o)
+    o.data.materials.append(m)
+    return o
+
+
+def blob(r, loc, m, scale=(1, 1, 1), sub=1, rot=(0, 0, 0)):
+    """Low-poly organic lump (icosphere), for fauna."""
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=sub, radius=r, location=loc, rotation=rot)
+    o = bpy.context.active_object
+    o.scale = scale
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    return _finish(o, m, 0)
+
+
+def spinning(o, name):
+    """For a part the game spins with rotation.z (Repair Pad ring): bake the mesh
+    upright and tip the node flat, so the node's local Z is the ring's axis."""
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.select_all(action="DESELECT")
+    o.select_set(True)
+    o.rotation_euler = (-math.pi / 2, 0, 0)
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+    o.rotation_euler = (math.pi / 2, 0, 0)
+    o.name = name
+    return o
+
+
+def wheels(xs, ys, r, w, z, M, verts=10):
+    return [cyl(r, w, (x, y, z), M["black"], verts=verts, rot=(0, math.pi / 2, 0), bevel=0.03) for x in xs for y in ys] + \
+           [cyl(r * 0.5, w + 0.04, (x, y, z), M["hull2"], verts=6, rot=(0, math.pi / 2, 0), bevel=0) for x in xs for y in ys]
+
+
+def tracks(sx_list, length, z, M, width=0.5, height=0.6, wheels_n=4, xoff=1.0):
+    parts = []
+    for sx in sx_list:
+        x = sx * xoff
+        parts.append(box((width, length, height), (x, 0, z), M["black"], bevel=0.14))
+        for k in range(wheels_n):
+            y = -length / 2 + 0.45 + k * (length - 0.9) / (wheels_n - 1)
+            parts.append(cyl(0.2, width + 0.06, (x, y, z - 0.08), M["dark"], verts=8, rot=(0, math.pi / 2, 0), bevel=0))
+        parts.append(box((width + 0.1, length - 0.1, 0.1), (x, 0, z + height / 2 + 0.05), M["hull2"], bevel=0.03))
+    return parts
+
+
+# ---------------------------------------------------------------- set v2: buildings
+
+def cannon(M):
+    parts, head = [], []
+    orange = glow_mat("orange", "#ff9a3d", 3.0)
+    parts.append(cyl(3.5, 1.4, (0, 0, 0.7), M["dark"], verts=8, r2=3.0, bevel=0.12))
+    ring(8, 3.05, 0, lambda i, a, x, y, z: parts.append(box((0.9, 0.5, 1.3), (x, y, 0.85), M["hull2"], rot=(0, 0, a + math.pi / 2))))
+    parts.append(cyl(2.3, 0.9, (0, 0, 1.85), M["hull2"], verts=10, r2=2.1))
+    parts.append(cyl(1.9, 0.3, (0, 0, 2.4), M["dark"], verts=10))
+    # head on its pivot; front is −Y, barrel raised 0.22 rad
+    P, T = 3.0, 0.22
+    head.append(box((2.6, 3.2, 1.6), (0, 0.3, P), M["hull"], bevel=0.16))
+    head.append(box((2.3, 0.9, 1.0), (0, -1.45, P + 0.15), M["hull2"], bevel=0.14, rot=(-0.5, 0, 0)))   # sloped glacis
+    head.append(box((2.0, 1.8, 0.5), (0, 0.7, P + 1.0), M["hull2"], bevel=0.1))
+    for sx in (-1, 1):
+        head.append(box((0.5, 2.0, 1.0), (sx * 1.5, 0.6, P - 0.1), M["dark"], bevel=0.08))    # ammo boxes
+    axis = Vector((0, -math.cos(T), math.sin(T)))
+    root = Vector((0, -1.2, P + 0.35))
+    rot = (math.pi / 2 - T, 0, 0)
+    head.append(cyl(0.55, 1.4, tuple(root + axis * 0.6), M["dark"], verts=10, rot=rot))      # mantlet sleeve
+    head.append(cyl(0.3, 4.4, tuple(root + axis * 3.0), M["dark"], verts=10, rot=rot, r2=0.26))
+    head.append(cyl(0.38, 0.35, tuple(root + axis * 2.6), M["hull2"], verts=10, rot=rot))   # bore evacuator
+    head.append(cyl(0.46, 0.65, tuple(root + axis * 5.3), M["black"], verts=8, rot=rot))    # muzzle brake
+    head.append(box((1.8, 0.1, 0.18), (0, -1.36, P + 0.62), orange, bevel=0))
+    head.append(box((0.3, 0.3, 0.9), (-0.8, 1.2, P + 1.6), M["dark"]))   # sensor mast
+    head.append(sphere(0.13, (-0.8, 1.2, P + 2.1), orange, seg=6, rings=4))
+    export("cannon", [join(parts, "body"), join(head, "head", pivot=(0, 0, P))])
+
+
+def pointdefense(M):
+    parts, head = [], []
+    yellow = glow_mat("yellow", "#fff07a", 3.0)
+    parts.append(cyl(2.2, 1.0, (0, 0, 0.5), M["dark"], verts=6, r2=1.8, bevel=0.1))
+    ring(6, 1.35, 0, lambda i, a, x, y, z: parts.append(box((0.3, 0.55, 0.1), (x, y, 1.03), M["hull2"], rot=(0, 0, a))))
+    parts.append(cyl(0.7, 1.4, (0, 0, 1.7), M["hull"], verts=6, r2=0.5))
+    parts.append(cyl(0.75, 0.2, (0, 0, 2.15), M["dark"], verts=8))
+    P = 2.6
+    head.append(sphere(0.9, (0, 0.1, P), M["hull"], seg=10, rings=7, scale=(1, 1.1, 0.8)))
+    head.append(box((1.4, 0.6, 0.35), (0, 0.6, P + 0.55), M["hull2"], bevel=0.08))
+    for sx in (-1, 1):
+        head.append(cyl(0.38, 0.5, (sx * 0.95, 0.15, P - 0.05), M["dark"], verts=8, rot=(0, math.pi / 2, 0)))   # ammo drums
+        x = sx * 0.35
+        head.append(cyl(0.19, 0.6, (x, -0.85, P - 0.05), M["hull2"], verts=8, rot=(math.pi / 2, 0, 0)))
+        head.append(cyl(0.1, 1.5, (x, -1.75, P - 0.05), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+        head.append(cyl(0.14, 0.25, (x, -2.45, P - 0.05), M["black"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    head.append(box((0.9, 0.08, 0.14), (0, -0.86, P + 0.38), yellow, bevel=0))
+    head.append(sphere(0.18, (0, 0.2, P + 0.85), M["glass"], seg=8, rings=4))
+    export("pointdefense", [join(parts, "body"), join(head, "head", pivot=(0, 0, P))])
+
+
+def repairpad(M):
+    parts, rng = [], []
+    green = glow_mat("green", "#5bff9a", 2.5)
+    green_soft = glow_mat("green_soft", "#5bff9a", 1.2)
+    parts.append(cyl(4.8, 0.4, (0, 0, 0.2), M["dark"], verts=8, r2=4.6, bevel=0.1, rot=(0, 0, math.pi / 8)))
+    parts.append(cyl(3.8, 0.12, (0, 0, 0.46), M["hull"], verts=8, bevel=0.03, rot=(0, 0, math.pi / 8)))
+    parts.append(cyl(1.2, 0.06, (0, 0, 0.53), M["hull2"], verts=8, bevel=0, rot=(0, 0, math.pi / 8)))
+    for r in (0, math.pi / 2):
+        parts.append(box((2.2, 0.5, 0.06), (0, 0, 0.56), green_soft, bevel=0, rot=(0, 0, r)))
+    # hazard chevrons on the rim and four masts with emitter arms
+    ring(16, 4.2, 0, lambda i, a, x, y, z: parts.append(box((0.5, 0.25, 0.05), (x, y, 0.42), M["accent"] if i % 2 else M["black"], bevel=0, rot=(0, 0, a + math.pi / 2))))
+    for i in range(4):
+        a = math.pi / 4 + i / 4 * math.tau
+        c, s = math.cos(a), math.sin(a)
+        parts.append(box((0.45, 0.45, 0.5), (c * 4.1, s * 4.1, 0.6), M["hull2"], rot=(0, 0, a)))
+        parts.append(box((0.35, 0.35, 3.2), (c * 4.1, s * 4.1, 1.6), M["dark"], rot=(0, 0, a)))
+        parts.append(strut((c * 4.1, s * 4.1, 2.9), (c * 3.3, s * 3.3, 2.5), 0.12, M["hull2"], verts=6))
+        parts.append(cyl(0.18, 0.3, (c * 3.2, s * 3.2, 2.42), M["black"], verts=6, bevel=0))
+        parts.append(sphere(0.3, (c * 4.1, s * 4.1, 3.4), green, seg=6, rings=4))
+    # the ring (spins while repairing): glow band with dark clamps so the turn reads
+    bpy.ops.mesh.primitive_torus_add(major_radius=2.8, minor_radius=0.12, major_segments=24, minor_segments=4, location=(0, 0, 0.62))
+    rng.append(_finish(bpy.context.active_object, green_soft, 0))
+    ring(6, 2.8, 0, lambda i, a, x, y, z: rng.append(box((0.5, 0.36, 0.22), (x, y, 0.64), M["dark"], bevel=0.04, rot=(0, 0, a + math.pi / 2))))
+    export("repairpad", [join(parts, "body"), spinning(join(rng, "ring_tmp", pivot=(0, 0, 0.62)), "ring")])
+
+
+def gate(M):
+    parts, field = [], []
+    amber_field = veil("amber_field", "#000000", "#ffb547", 0.9, 0.28)
+    # runs along Y, like the wall; posts at both ends
+    parts.append(box((1.4, 6.2, 0.15), (0, 0, 0.08), M["dark"], bevel=0.03))
+    for sy in (-1, 1):
+        y = sy * 3.6
+        parts.append(box((2.4, 1.6, 0.4), (0, y, 0.2), M["dark"], bevel=0.08))
+        parts.append(box((2.0, 1.2, 3.4), (0, y, 1.9), M["dark"], bevel=0.12))
+        parts.append(box((2.1, 1.0, 0.8), (0, y, 1.3), M["hull2"], bevel=0.08))
+        parts.append(box((1.6, 1.3, 0.25), (0, y, 3.65), M["hull2"], bevel=0.06))
+        parts.append(box((0.5, 0.06, 2.4), (0, y - sy * 0.63, 1.5), M["amber"], bevel=0))   # emitter strip, inner face
+        parts.append(sphere(0.35, (0, y, 4.05), M["amber"], seg=6, rings=4))
+    parts.append(box((0.8, 6.2, 0.5), (0, 0, 2.9), M["hull"], bevel=0.08))
+    for k in range(7):
+        parts.append(box((0.84, 0.35, 0.52), (0, -2.6 + k * 0.87, 2.9), M["accent"] if k % 2 else M["black"], bevel=0))
+    bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 0, 1.45), rotation=(0, math.pi / 2, 0))
+    f = bpy.context.active_object
+    f.scale = (2.5, 6.0, 1)
+    field.append(_finish(f, amber_field, 0))
+    export("gate", [join(parts, "body"), join(field, "field", pivot=(0, 0, 1.45))])
+
+
+def geothermal(M):
+    parts, plume = [], []
+    magma = glow_mat("magma", "#ff7a3d", 2.4)
+    steam = veil("steam", "#dfe8ee", "#dfe8ee", 0.15, 0.22)
+    parts.append(cyl(3.8, 0.8, (0, 0, 0.4), M["dark"], verts=8, r2=3.4, bevel=0.1))
+    parts.append(cyl(2.0, 3.0, (0, 0, 2.3), M["rust"], verts=8, r2=1.6, bevel=0.08))
+    for z in (1.2, 3.55):
+        parts.append(cyl(2.05 - (z - 0.8) * 0.13, 0.22, (0, 0, z), M["dark"], verts=8))
+    parts.append(cyl(1.68, 0.3, (0, 0, 2.9), magma, verts=8, bevel=0))
+    parts.append(cyl(1.0, 0.4, (0, 0, 3.9), M["hull2"], verts=8))
+    parts.append(cyl(0.9, 3.0, (0, 0, 5.2), M["dark"], verts=8, r2=0.7))
+    parts.append(cyl(0.85, 0.3, (0, 0, 6.6), M["hull2"], verts=8))
+    for a in (0.4, 2.5, 4.4):
+        c, s = math.cos(a), -math.sin(a)
+        parts.append(strut((c * 1.5, s * 1.5, 1.2), (c * 3.7, s * 3.7, 1.2), 0.3, M["dark"], verts=8))
+        parts.append(cyl(0.42, 0.18, (c * 2.6, s * 2.6, 1.2), M["hull2"], verts=8, rot=(0, math.pi / 2, -a), bevel=0))
+        parts.append(box((0.5, 0.5, 0.9), (c * 3.6, s * 3.6, 0.9), M["hull2"], rot=(0, 0, -a)))
+        parts.append(cyl(0.22, 0.1, (c * 2.6, s * 2.6, 1.65), M["accent"], verts=8, bevel=0))      # valve wheel
+    # gauge cabinet and a lamp
+    parts.append(box((1.0, 0.6, 1.2), (0, 2.4, 1.4), M["hull2"], bevel=0.06))
+    parts.append(box((0.5, 0.06, 0.3), (0, 2.08, 1.6), magma, bevel=0))
+    # steam plume (game sways it, hides it when unpowered)
+    P = 9.2
+    for r1, r2, d in ((0.6, 1.6, 5.0), (0.4, 1.1, 3.6)):
+        bpy.ops.mesh.primitive_cone_add(vertices=10, radius1=r1, radius2=r2, depth=d, end_fill_type="NOTHING", location=(0, 0, P - (5.0 - d) / 2))
+        plume.append(_finish(bpy.context.active_object, steam, 0))
+    export("geothermal", [join(parts, "body"), join(plume, "plume", pivot=(0, 0, P))])
+
+
+# ---------------------------------------------------------------- set v2: units (front is −Y)
+
+def artillery(M):
+    parts = tracks((-1, 1), 2.8, 0.42, M, width=0.45, height=0.55)
+    parts.append(box((1.8, 2.6, 0.6), (0, 0, 0.75), M["hull"], bevel=0.1))
+    parts.append(box((1.3, 1.2, 0.8), (0, 0.45, 1.4), M["hull2"], bevel=0.1))      # cab, rear
+    parts.append(box((1.0, 0.06, 0.25), (0, -0.16, 1.55), M["glass"], bevel=0, rot=(-0.4, 0, 0)))
+    parts.append(box((0.8, 0.9, 0.6), (0, -0.4, 1.4), M["dark"], bevel=0.08))     # breech
+    T = 0.55
+    axis = Vector((0, -math.cos(T), math.sin(T)))
+    root = Vector((0, -0.4, 1.55))
+    rot = (math.pi / 2 - T, 0, 0)
+    parts.append(cyl(0.26, 0.9, tuple(root + axis * 0.5), M["hull2"], verts=8, rot=rot))
+    parts.append(cyl(0.16, 2.8, tuple(root + axis * 1.9), M["dark"], verts=8, rot=rot, r2=0.14))
+    parts.append(cyl(0.22, 0.35, tuple(root + axis * 3.3), M["black"], verts=8, rot=rot))
+    for sx in (-1, 1):
+        parts.append(strut((sx * 0.75, 1.2, 0.9), (sx * 0.85, 1.75, 0.08), 0.1, M["dark"], verts=6))   # stabilisers
+        parts.append(box((0.4, 0.4, 0.08), (sx * 0.85, 1.78, 0.06), M["dark"], bevel=0))
+    parts.append(box((1.35, 0.06, 0.1), (0, -0.16, 1.82), M["cyan"], bevel=0))
+    parts.append(box((1.85, 0.08, 0.08), (0, 1.32, 0.9), M["red"], bevel=0))
+    export("artillery", [join(parts, "body")])
+
+
+def arc(M):
+    parts = wheels((-0.8, 0.8), (-0.8, 0, 0.8), 0.3, 0.26, 0.35, M)
+    parts.append(box((1.4, 2.2, 0.55), (0, 0, 0.75), M["hull"], bevel=0.1))
+    parts.append(box((1.0, 1.0, 0.45), (0, 0.4, 1.2), M["hull2"], bevel=0.1))
+    parts.append(box((0.85, 0.06, 0.25), (0, -0.12, 1.22), M["glass"], bevel=0, rot=(-0.5, 0, 0)))
+    for sx in (-1, 1):
+        parts.append(cyl(0.2, 0.9, (sx * 0.5, 0.65, 1.55), M["dark"], verts=8, rot=(math.pi / 2, 0, 0)))   # capacitors
+    # coil mast with copper windings and the emitter ball
+    parts.append(cyl(0.3, 0.3, (0, -0.45, 1.15), M["dark"], verts=8))
+    parts.append(cyl(0.28, 1.4, (0, -0.45, 1.7), M["dark"], verts=8, r2=0.18))
+    for z in (1.3, 1.65, 2.0):
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.36 - (z - 1.3) * 0.12, minor_radius=0.08, major_segments=10, minor_segments=4, location=(0, -0.45, z))
+        parts.append(_finish(bpy.context.active_object, M["accent"], 0))
+    parts.append(sphere(0.42, (0, -0.45, 2.55), M["cyan"], seg=8, rings=5))
+    parts.append(box((1.05, 0.06, 0.08), (0, -1.12, 0.88), M["cyan"], bevel=0))
+    export("arc", [join(parts, "body")])
+
+
+def engineer(M):
+    green = glow_mat("green", "#5bff9a", 2.5)
+    parts = wheels((-0.78, 0.78), (-0.85, 0.75), 0.34, 0.26, 0.36, M)
+    parts.append(box((1.4, 2.2, 0.9), (0, 0.1, 1.0), M["hull"], bevel=0.12))
+    parts.append(box((1.3, 0.8, 0.6), (0, -1.25, 0.85), M["hull2"], bevel=0.12))
+    parts.append(box((1.2, 0.06, 0.45), (0, -0.98, 1.3), M["glass"], bevel=0, rot=(-0.35, 0, 0)))
+    parts.append(box((1.5, 0.12, 0.3), (0, -1.68, 0.65), M["dark"], bevel=0.04))         # bumper
+    for sx in (-1, 1):
+        parts.append(box((0.08, 1.4, 0.5), (sx * 0.72, 0.4, 0.95), M["dark"], bevel=0.02))  # tool lockers
+    parts.append(box((0.08, 0.4, 0.4), (-0.75, 0.0, 1.05), green, bevel=0))
+    # crane: turret on the roof, boom up and forward, repair head
+    parts.append(cyl(0.3, 0.25, (0.35, 0.7, 1.55), M["dark"], verts=8))
+    parts.append(strut((0.35, 0.7, 1.65), (0.35, -0.2, 2.45), 0.11, M["accent"], verts=6))
+    parts.append(strut((0.35, -0.2, 2.45), (0.35, -0.95, 2.15), 0.09, M["accent"], verts=6))
+    parts.append(box((0.3, 0.3, 0.28), (0.35, -1.0, 2.0), M["dark"], bevel=0.05))
+    parts.append(box((0.24, 0.1, 0.1), (0.35, -1.0, 1.82), green, bevel=0))
+    parts.append(box((1.42, 0.06, 0.1), (0, 1.22, 1.35), M["cyan"], bevel=0))
+    parts.append(cyl(0.08, 0.15, (-0.45, 0.8, 1.52), M["amber"], verts=6, bevel=0))      # beacon
+    export("engineer", [join(parts, "body")])
+
+
+def scout(M):
+    parts = []
+    # arrowhead hull: nose at −Y, keel below, a raised spine
+    v = [(0, -1.35, 1.0), (-1.0, 1.05, 0.95), (1.0, 1.05, 0.95), (0, 0.9, 1.22), (0, 0.6, 0.78), (-0.35, -0.2, 1.12), (0.35, -0.2, 1.12)]
+    f = [(0, 5, 1), (0, 2, 6), (5, 3, 1), (6, 2, 3), (5, 6, 3), (0, 6, 5), (0, 1, 4), (0, 4, 2), (1, 3, 4), (2, 4, 3)]
+    parts.append(poly(v, f, M["hull"], "hull"))
+    parts.append(box((0.5, 0.8, 0.3), (0, 0.35, 1.25), M["glass"], bevel=0.12))         # canopy
+    parts.append(box((1.8, 0.5, 0.08), (0, 0.75, 0.95), M["hull2"], bevel=0.03))         # rear wing
+    parts.append(box((0.08, 0.4, 0.5), (0, 0.9, 1.4), M["dark"], bevel=0.02))            # fin
+    for sx in (-1, 1):
+        parts.append(cyl(0.2, 0.7, (sx * 0.75, 0.55, 0.85), M["dark"], verts=8, rot=(math.pi / 2, 0, 0)))   # hover pods
+        parts.append(cyl(0.16, 0.06, (sx * 0.75, 0.55, 0.72), M["cyan"], verts=8, bevel=0))
+    parts.append(box((1.4, 0.1, 0.06), (0, 0.6, 0.75), M["cyan"], bevel=0))
+    parts.append(box((0.3, 0.3, 0.1), (0, 0.2, 1.42), M["cyan"], bevel=0))
+    export("scout", [join(parts, "body")])
+
+
+# ---------------------------------------------------------------- set v2: fauna (front is −Y)
+
+def fauna_mats(skin, emit, plate, eye):
+    return {
+        "skin": mat("skin", skin, 0.0, 0.8, emit=emit, strength=0.6),
+        "plate": mat("plate", plate, 0.1, 0.6),
+        "claw": mat("claw", "#1e1a18", 0.1, 0.5),
+        "eye": glow_mat("eye", eye, 3.0),
+    }
+
+
+def legs(F, xs_ys, hip_z, foot_out, knee_up=0.4, r=0.08):
+    """Arachnid legs: thigh up and out to a high knee, shin down to a dark claw tip."""
+    parts = []
+    for x, y in xs_ys:
+        sx = 1 if x > 0 else -1
+        splay = 0.12 if y > 0.1 else -0.12 if y < -0.1 else 0
+        hip = Vector((x, y, hip_z))
+        knee = Vector((x + sx * foot_out * 0.5, y + splay, hip_z + knee_up))
+        ankle = Vector((x + sx * foot_out * 0.9, y + splay * 2, 0.25))
+        foot = Vector((x + sx * foot_out, y + splay * 2.3, 0.0))
+        parts.append(strut(hip, knee, r, F["skin"], verts=5, r2=r * 0.8))
+        parts.append(strut(knee, ankle, r * 0.8, F["skin"], verts=5, r2=r * 0.55))
+        parts.append(strut(ankle, foot, r * 0.55, F["claw"], verts=4, r2=0.01))
+    return parts
+
+
+def swarmer(M):
+    F = fauna_mats("#c0563a", "#5a1408", "#7a2e1c", "#ffd23a")
+    parts = [blob(0.7, (0, 0.05, 1.0), F["skin"], scale=(0.85, 1.4, 0.6))]
+    for k in range(3):
+        parts.append(blob(0.42, (0, 0.55 - k * 0.45, 1.33 - abs(k - 1) * 0.05), F["plate"], scale=(1.3, 0.8, 0.45), sub=1))
+    parts.append(blob(0.34, (0, -1.0, 1.05), F["skin"], scale=(1, 1.2, 0.85)))
+    for sx in (-1, 1):
+        parts.append(strut((sx * 0.15, -1.25, 1.0), (sx * 0.08, -1.65, 0.85), 0.07, F["claw"], verts=4, r2=0.01))   # mandibles
+        parts.append(sphere(0.07, (sx * 0.16, -1.25, 1.18), F["eye"], seg=6, rings=4))
+    parts.append(strut((0, 0.9, 1.0), (0, 1.5, 0.75), 0.18, F["skin"], verts=5, r2=0.04))      # tail
+    parts += legs(F, [(sx * 0.4, y) for sx in (-1, 1) for y in (-0.55, 0.0, 0.55)], 0.85, 0.75)
+    export("swarmer", [join(parts, "body")])
+
+
+def brute(M):
+    F = fauna_mats("#8a3550", "#3a0a1c", "#4a1a2a", "#ff6a4d")
+    parts = [blob(0.7, (0, 0.05, 1.0), F["skin"], scale=(0.95, 1.4, 0.7))]
+    parts.append(blob(0.55, (0, -0.5, 1.25), F["skin"], scale=(1.1, 0.9, 0.8)))           # shoulder hump
+    for k in range(3):
+        parts.append(blob(0.45, (0, 0.5 - k * 0.5, 1.45), F["plate"], scale=(1.3, 0.85, 0.45)))
+        parts.append(strut((0, 0.5 - k * 0.5, 1.5), (0, 0.6 - k * 0.5, 2.15), 0.16, F["plate"], verts=4, r2=0.01))   # spikes
+    parts.append(blob(0.38, (0, -1.1, 1.0), F["skin"], scale=(1.05, 1.1, 0.9)))
+    for sx in (-1, 1):
+        parts.append(strut((sx * 0.25, -1.3, 1.1), (sx * 0.4, -1.6, 1.4), 0.09, F["claw"], verts=4, r2=0.01))   # tusks
+        parts.append(sphere(0.07, (sx * 0.2, -1.38, 1.2), F["eye"], seg=6, rings=4))
+    parts += legs(F, [(sx * 0.45, y) for sx in (-1, 1) for y in (-0.6, 0.0, 0.6)], 0.85, 0.8, r=0.11)
+    export("brute", [join(parts, "body")])
+
+
+def spitter(M):
+    F = fauna_mats("#6f8a2e", "#2a4008", "#3e5218", "#d8ff5a")
+    sac = glow_mat("venom", "#b6ff3a", 1.4)
+    parts = [blob(0.7, (0, 0.1, 1.0), F["skin"], scale=(0.8, 1.1, 0.6))]
+    parts.append(blob(0.62, (0, 0.9, 1.35), sac, scale=(1, 1.1, 0.95), sub=2))              # venom sac
+    for k in range(3):
+        a = k / 3 * math.tau
+        parts.append(strut((math.cos(a) * 0.5, 0.9 + math.sin(a) * 0.5, 1.2), (math.cos(a) * 0.62, 0.9 + math.sin(a) * 0.6, 1.6), 0.05, F["plate"], verts=4))
+    parts.append(strut((0, -0.4, 1.2), (0, -0.9, 1.9), 0.17, F["skin"], verts=6, r2=0.12))   # neck
+    parts.append(blob(0.3, (0, -1.05, 1.95), F["skin"], scale=(0.9, 1.3, 0.8)))
+    parts.append(strut((0, -1.3, 1.95), (0, -1.55, 1.8), 0.12, F["plate"], verts=6, r2=0.06))  # spout
+    for sx in (-1, 1):
+        parts.append(sphere(0.06, (sx * 0.15, -1.2, 2.08), F["eye"], seg=6, rings=4))
+    parts += legs(F, [(sx * 0.42, y) for sx in (-1, 1) for y in (-0.4, 0.5)], 0.85, 0.7)
+    export("spitter", [join(parts, "body")])
+
+
+def burrower(M):
+    F = fauna_mats("#7a5a3a", "#2e1a08", "#4a3420", "#ff8a3a")
+    parts = []
+    for i in range(5):
+        r = 0.62 - abs(i - 1.5) * 0.08
+        y, z = 1.6 - i * 0.75, 0.62 + math.sin(i * 0.9) * 0.12
+        parts.append(blob(r, (0, y, z), F["skin"], scale=(1, 1.1, 0.85)))
+        parts.append(blob(r * 1.02, (0, y + 0.08, z + r * 0.25), F["plate"], scale=(1.05, 0.55, 0.7)))   # ring plate
+        for sx in (-1, 1):
+            parts.append(strut((sx * r * 0.8, y, z - r * 0.4), (sx * r * 1.15, y - 0.1, 0.02), 0.04, F["claw"], verts=4, r2=0.01))
+    # drill head: a cone of grinding teeth
+    parts.append(cyl(0.5, 1.2, (0, -2.0, 0.7), F["plate"], verts=6, rot=(math.pi / 2, 0, 0), r2=0.08, bevel=0))
+    for k in range(3):   # spiral grinding ridges
+        parts.append(cyl(0.48 - k * 0.13, 0.12, (0, -1.6 - k * 0.35, 0.7), F["claw"], verts=6, rot=(math.pi / 2, 0, k * 0.5), bevel=0))
+    parts.append(strut((0, -2.5, 0.7), (0, -2.75, 0.7), 0.08, F["claw"], verts=4, r2=0.01))
+    for a in (0, 2.1, 4.2):
+        parts.append(strut((math.sin(a) * 0.45, -1.45, 0.7 + math.cos(a) * 0.45), (math.sin(a) * 0.62, -2.0, 0.7 + math.cos(a) * 0.62), 0.12, F["claw"], verts=3, r2=0.01))
+    for a in (1.05, 3.15, 5.25):
+        parts.append(sphere(0.06, (math.sin(a) * 0.42, -1.45, 0.7 + math.cos(a) * 0.42), F["eye"], seg=6, rings=4))
+    export("burrower", [join(parts, "body")])
+
+
+MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
+          "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
+          "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
+          "swarmer": swarmer, "brute": brute, "spitter": spitter, "burrower": burrower}
+V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":
     a = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

@@ -349,6 +349,11 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   game uses (`head`, `dish`, `door`, `charge`), so aiming, spinning and glow dimming keep working. **Not assigned
   in content yet**: `?models=new` previews the whole set in-game; adopting one = set the Model field in the
   editor. `node tools/model-compare.mjs <dir>` shoots built-in vs Blender pairs (same base, camera, daylight).
+- **Blender set v2 (2026-11-16):** the rest of the swappable roster, same script and conventions: cannon and
+  point defense (`head` aims), repair pad (`ring`, tipped flat so rotation.z spins it in place), gate (`field`,
+  see-through), geothermal (`plume`, see-through steam), artillery, arc, engineer, scout, and the fauna swarmer,
+  brute, spitter and burrower (own skin colours; fauna get no instance tint). 380–1,600 tris, 26–92 KB each.
+  Still **not assigned**; `?models=new` now previews every unit with an `exo-<id>` record, not just rover and tank.
 
 | Tool | Edits | Lands with |
 |---|---|---|

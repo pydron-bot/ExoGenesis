@@ -19,7 +19,7 @@ import { ColonyHud } from './colony-hud';
 import { FogView, addFog } from './world/fog';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
-import { DEFS as UNIT_DEFS, UT, type SkSnapshot } from './skirmish/types';
+import { DEFS as UNIT_DEFS, type SkSnapshot } from './skirmish/types';
 import { gateSnap, linePoints, placeProblem } from './sim/rules';
 import { hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
@@ -462,9 +462,9 @@ $('b-skirmish').onclick = () => {
 
 const help = $('help');
 let helped = false;
-if (previewModels) for (const [t, id] of [[UT.Rover, 'rover'], [UT.Tank, 'tank']] as const) {
-  const a = content.assets[`exo-${id}`];
-  if (a) UNIT_DEFS[t].model = a;
+if (previewModels) for (const d of UNIT_DEFS) {
+  const a = content.assets[`exo-${d.id}`];
+  if (a) d.model = a;
 }
 const army = skirmish ? null : new ArmyView(scene);
 const colonists = skirmish ? null : new ColonistView(region.details);
