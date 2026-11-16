@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import { contentServer } from './devtools/content-server';
 
 export default defineConfig({
+  // '/' locally, '/ExoGenesis/' when the Pages workflow builds it for deeek.org/ExoGenesis/.
+  base: process.env.EXO_BASE ?? '/',
   plugins: [contentServer()],
   server: { host: true, port: 5176, strictPort: true, allowedHosts: ['hive1', '.ts.net'] },
   preview: { host: true, port: 4176 },

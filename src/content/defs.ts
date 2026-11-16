@@ -145,7 +145,9 @@ export const ASSET_EXT: Record<AssetKind, readonly string[]> = {
   audio: ['ogg', 'mp3', 'wav'],
 };
 /** Where an asset's file lives, relative to the site root (public/ in the repo). */
-export const mediaUrl = (a: { kind: string; file: string }) => `/media/${a.kind}/${a.file}`;
+/** Site base ('/' locally, '/ExoGenesis/' on deeek.org); undefined under plain node (content-check). */
+const BASE: string = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/';
+export const mediaUrl = (a: { kind: string; file: string }) => `${BASE}media/${a.kind}/${a.file}`;
 
 export const assetShape = {
   name: str({ label: 'Name' }),
