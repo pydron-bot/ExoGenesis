@@ -27,9 +27,66 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 // ---------- loading screen (markup + styles are inline in index.html) ----------
 const loaderEl = $('loader');
 /** Show a loading step and let the browser paint it before the next chunk of work. */
-async function loadStep(text: string, pct: number) {
+/**
+ * Loading steps with typical durations (ms, measured on hive1). Only the
+ * proportions matter: the bar's share of each step comes from these, and the
+ * time it takes to creep across a step is scaled by how fast this device did the
+ * steps so far, so it keeps moving smoothly instead of jumping.
+ */
+const STEPS: [string, number][] = [
+  ['Shaping the landing site…', 40],
+  ['Charting the solar system…', 175],
+  ['Forming the planet…', 365],
+  ['Mapping regions…', 230],
+  ['Growing alien flora…', 165],
+  ['Building the base…', 120],
+  ['Warming up shaders…', 60],
+  ['Starting the simulation…', 210],
+];
+/** Where the bar was when the code finished loading (the CSS-only creep before that). */
+let loadFrom = 0.02;
+const REF_TOTAL = STEPS.reduce((m, s) => m + s[1], 0);
+const loadTimes: [string, number][] = [['code loaded', performance.now()]];
+(window as unknown as { __loadTimes: typeof loadTimes }).__loadTimes = loadTimes;
+let stepIdx = -1, refDone = 0, firstStepAt = 0;
+const barI = $('loader-bar');
+/**
+ * The bar moves linearly, so where it is at any moment is known exactly here
+ * even though the compositor animates it while this thread is busy. (Reading it
+ * back from the browser after a long task can be stale, which made it jump back.)
+ */
+const bar = { from: 0.02, to: 0.02, start: 0, dur: 1 };
+const barAt = (now: number) => bar.from + (bar.to - bar.from) * Math.min(1, Math.max(0, (now - bar.start) / bar.dur));
+function barTo(frac: number, ms: number) {
+  const now = performance.now();
+  const from = barAt(now);
+  barI.style.animation = 'none';
+  barI.style.transition = 'none';
+  barI.style.transform = `scaleX(${from.toFixed(4)})`;
+  void barI.offsetWidth; // commit the start before animating from it
+  Object.assign(bar, { from, to: Math.max(from, frac), start: now, dur: Math.max(1, ms) });
+  barI.style.transition = `transform ${Math.round(ms)}ms linear`;
+  barI.style.transform = `scaleX(${bar.to.toFixed(4)})`;
+}
+/** Show the next loading step and let the browser paint it before the work starts. */
+async function loadStep(text: string) {
+  const now = performance.now();
+  loadTimes.push([text, now]);
+  if (stepIdx < 0) {
+    // take over from the CSS-only creep (main thread is idle here, so this read is accurate)
+    const m = getComputedStyle(barI).transform.match(/matrix\(([^,]+)/);
+    const v = m ? Math.max(Number(m[1]), 0.02) : 0.02;
+    Object.assign(bar, { from: v, to: v, start: now, dur: 1 });
+    loadFrom = v;
+    firstStepAt = now;
+  } else refDone += STEPS[stepIdx][1];
+  stepIdx = Math.min(stepIdx + 1, STEPS.length - 1); // steps run in STEPS order (labels may differ, e.g. skirmish)
+  // how much slower (or faster) than hive1 this device has been so far
+  const speed = refDone > 0 ? Math.min(20, Math.max(0.5, (now - firstStepAt) / refDone)) : 1;
+  const ref = STEPS[stepIdx][1];
+  const end = loadFrom + (1 - loadFrom) * ((refDone + ref) / REF_TOTAL) * 0.985;
   $('loader-step').textContent = text;
-  $('loader-bar').style.width = `${pct}%`;
+  barTo(end, ref * speed * 1.2);
   await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 }
 function loaderError(msg: string) {
@@ -52,7 +109,7 @@ if (contentIssues.length) {
   throw new Error(`content: ${contentIssues.length} issue(s)`);
 }
 const regionDef = content.regions.touchdown;
-await loadStep('Shaping the landing site…', 10);
+await loadStep('Shaping the landing site…');
 setRegionTerrain(regionDef);
 
 // ---------- renderer / scene ----------
@@ -71,9 +128,9 @@ const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.2, 1.
 const fog = new THREE.Fog('#8fb0ad', 400, 1200);
 scene.fog = fog;
 
-await loadStep('Charting the solar system…', 22);
+await loadStep('Charting the solar system…');
 const system = new SolarSystem(scene, $('labels'));
-await loadStep('Forming the planet…', 34);
+await loadStep('Forming the planet…');
 const globe = buildGlobe(look);
 if (look === 'smooth') {
   // match the globe to the textured landing patch as seen from a distance
@@ -81,12 +138,12 @@ if (look === 'smooth') {
   (globe.material as THREE.MeshStandardMaterial).color.setRGB(m, m * 0.98, m * 0.96);
 }
 scene.add(globe);
-await loadStep('Mapping regions…', 50);
+await loadStep('Mapping regions…');
 const provinces = new Provinces(scene, globe, $('labels'));
 // atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
 const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
 scene.add(atmosphere);
-await loadStep(skirmishMode ? 'Raising the battlefield…' : 'Growing alien flora…', 64);
+await loadStep(skirmishMode ? 'Raising the battlefield…' : 'Growing alien flora…');
 const floraParam = params.get('flora');
 const region = new RegionView(
   scene, look,
@@ -95,7 +152,7 @@ const region = new RegionView(
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
 );
 const cam = new ZoomCamera(camera);
-await loadStep('Waking the cryo bank…', 84);
+await loadStep('Building the base…');
 
 // ---------- HUD ----------
 const hudEl = $('hud');
@@ -303,8 +360,9 @@ function updateHud(dt: number, now: number) {
 
 // ---------- reveal + layout ----------
 function reveal() {
+  loadTimes.push(['first frame', performance.now()]);
   $('loader-step').textContent = 'Ready';
-  $('loader-bar').style.width = '100%';
+  barTo(1, 200);
   document.body.classList.add('loaded');
   loaderEl.classList.add('done');
   setTimeout(() => loaderEl.remove(), 700);
@@ -369,6 +427,10 @@ function frame(now: number) {
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
+// compile every shader now rather than stalling on the first frame
+await loadStep('Warming up shaders…');
+await renderer.compileAsync(scene, camera).catch(() => {});
+await loadStep('Starting the simulation…');
 requestAnimationFrame(frame);
 
 // ---------- debug / screenshot hooks ----------

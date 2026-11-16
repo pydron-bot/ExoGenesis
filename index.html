@@ -19,7 +19,12 @@
       #loader .t { font-size: 18px; letter-spacing: 0.32em; color: #5ff3ff; text-shadow: 0 0 12px rgba(95,243,255,.5); padding-left: 0.32em; }
       #loader .s { letter-spacing: 0.14em; opacity: 0.6; font-size: 10px; }
       #loader .bar { width: min(260px, 60vw); height: 3px; background: rgba(95,243,255,.15); border-radius: 2px; overflow: hidden; }
-      #loader .bar i { display: block; height: 100%; width: 4%; background: #5ff3ff; box-shadow: 0 0 8px #5ff3ff; transition: width 0.35s; }
+      /* scaled (not resized) so the compositor keeps animating it while the page is busy building the world */
+      #loader .bar i {
+        display: block; height: 100%; width: 100%; background: #5ff3ff; box-shadow: 0 0 8px #5ff3ff;
+        transform-origin: left center; transform: scaleX(0.02); animation: boot 6s linear forwards;
+      }
+      @keyframes boot { to { transform: scaleX(0.18); } }
       #loader .step { min-height: 1.4em; opacity: 0.8; letter-spacing: 0.06em; }
       #loader .err { color: #ff8a7a; max-width: 80vw; text-align: center; }
     </style>
@@ -29,7 +34,7 @@
       <div class="t">EXO GENESIS</div>
       <div class="s">ACCORD CARETAKER · SEED PROBE ONLINE</div>
       <div class="bar"><i id="loader-bar"></i></div>
-      <div class="step" id="loader-step">Waking up…</div>
+      <div class="step" id="loader-step">Loading game code…</div>
     </div>
     <div id="app"></div>
     <div id="labels"></div>
