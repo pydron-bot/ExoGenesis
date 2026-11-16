@@ -146,7 +146,9 @@ body.cine #bar, body.cine #res, body.cine #help, body.cine #log { display: none;
 #goals-list { margin: 2px 0 0; padding-left: 18px; font-size: 11px; line-height: 1.5; }
 #goals-list li.done { opacity: 0.45; text-decoration: line-through; }
 #goals-list li.now { color: #fff; }
-#goals.min #goals-list { display: none; }
+#goals.min #goals-list li:not(.now) { display: none; }
+#goals.min #goals-head::after { content: ' ▸ tap for all'; opacity: 0.5; letter-spacing: 0.04em; }
+body.menu-open #card { display: none !important; }
 #minimap {
   position: absolute; right: 12px; top: calc(78px + env(safe-area-inset-top)); width: 160px; height: 160px;
   border: 1px solid var(--line); border-radius: 4px; background: var(--panel); pointer-events: auto; display: none;
@@ -193,7 +195,9 @@ body.skirmish #goals, body.skirmish #minimap, body.skirmish #card, body.skirmish
 @media (max-width: 640px) {
   #goals { max-width: 200px; }
   #minimap { width: 112px; height: 112px; top: calc(70px + env(safe-area-inset-top)); }
-  #card { left: 8px; right: 8px; width: auto; bottom: calc(104px + env(safe-area-inset-bottom)); }
+  #card { left: 8px; right: 8px; width: auto; bottom: calc(104px + env(safe-area-inset-bottom)); background: rgba(6,14,22,.94); }
+  body.card-open #log { display: none; }
+  #hud #build-menu button { background: rgba(6,14,22,.94); }
   #hud #build-menu button { min-width: 0; padding: 6px 8px; }
   #build-menu { bottom: calc(104px + env(safe-area-inset-bottom)); }
 }

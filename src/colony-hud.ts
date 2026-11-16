@@ -58,6 +58,8 @@ export class ColonyHud {
       { id: 'drone', text: 'Fabricate a second worker drone at the Core', done: (s) => s.drones.length >= 2 },
       { id: 'sol4', text: 'Keep the colony alive until Sol 4', done: (s) => sol(s) >= 4 },
     ];
+    // phones start with just the current goal showing
+    if (innerWidth < 640) this.el.goals.classList.add('min');
     this.el.goals.onclick = () => this.el.goals.classList.toggle('min');
     this.el.card.addEventListener('pointerdown', (e) => this.act(e));
     this.el.menu.addEventListener('pointerdown', (e) => {
@@ -80,6 +82,7 @@ export class ColonyHud {
   toggleMenu(open?: boolean) {
     const on = open ?? !this.el.menu.classList.contains('open');
     this.el.menu.classList.toggle('open', on);
+    document.body.classList.toggle('menu-open', on);
     if (on) { this.menuKey = ''; this.renderMenu(); }
   }
 
@@ -128,7 +131,7 @@ export class ColonyHud {
       this.d.log(`Goal complete: ${g.text}`);
     }
     const first = this.goals.find((g) => !this.reached.has(g.id));
-    const html = this.goals.map((g) => `<li class="${this.reached.has(g.id) ? 'done' : g === first ? 'now' : ''}">${esc(g.text)}</li>`).join('');
+    const html = this.goals.map((g, i) => `<li value="${i + 1}" class="${this.reached.has(g.id) ? 'done' : g === first ? 'now' : ''}">${esc(g.text)}</li>`).join('');
     if (this.el.goalsList.innerHTML !== html) this.el.goalsList.innerHTML = html;
   }
 
@@ -156,6 +159,7 @@ export class ColonyHud {
   private renderCard(s: Snapshot) {
     const sel = this.d.ui.sel;
     const card = this.el.card;
+    document.body.classList.toggle('card-open', !!sel);
     if (!sel) { card.classList.remove('on'); this.cardKey = ''; return; }
     let html = '';
     if (sel.kind === 'drone') {
