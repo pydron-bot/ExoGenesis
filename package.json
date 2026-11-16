@@ -1,6 +1,6 @@
 {
   "name": "exogenesis",
-  "version": "0.12.2",
+  "version": "0.12.3",
   "private": true,
   "description": "Exo Genesis: browser base-building RTS with a strategy layer, in one solar system.",
   "type": "module",

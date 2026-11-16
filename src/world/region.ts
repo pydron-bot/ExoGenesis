@@ -1237,6 +1237,7 @@ export class RegionView {
           if (dish) dish.rotation.y = this.gameT * 1.2;
         }
         if (role === 'battery') {
+          this.batches.get(b.kind)?.setTagGlow('charge', 0.3 + charge * 3, 0.1);
           e.obj.traverse((o) => {
             if (o.name === 'charge') ((o as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = lit ? 0.3 + charge * 3 : 0.1;
           });

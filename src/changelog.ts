@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.12.3',
+    date: '2026-11-16',
+    title: 'Smoother big bases, part 2',
+    notes: [
+      'Gates, Hydroponics and Battery Banks now cost far less to draw too, so sprawling colonies stay smooth',
+    ],
+  },
+  {
     version: '0.12.2',
     date: '2026-11-16',
     title: 'Smoother big bases',

@@ -359,7 +359,11 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   object stays as an empty placeholder holding its pose). Glowing materials get a dimmed twin; an unpowered
   building's glow parts sit in the dimmed pool. Measured on a ~90-building base: ~6 draw calls per building
   otherwise, the base's main render cost (triangles barely matter). Extend with `BATCHED_KINDS`; kinds with
-  animated parts (`head`, `dish`, `ring`, `door`, `charge`, `plume`) need those parts kept per building first.
+  animated parts (`head`, `dish`, `ring`, `door`, `plume`) need those parts kept per building first.
+  **v0.12.3** added gate, hydroponics and battery. Look-alike materials share a draw (the built-ins make a fresh
+  glow material per part). Parts named in the batch's `TAGS` (battery `charge`) get their own draw so the game
+  can set their glow each frame: the battery charge glow is colony-wide, one value per batch. Next candidates:
+  the defences (turret, point defense, cannon), with the aiming `head` as a second, per-frame-updated batch.
 
 | Tool | Edits | Lands with |
 |---|---|---|

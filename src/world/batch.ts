@@ -11,13 +11,33 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /** Kinds drawn instanced once finished. */
-export const BATCHED_KINDS = new Set(['wall', 'solar']);
+export const BATCHED_KINDS = new Set(['wall', 'solar', 'gate', 'hydroponics', 'battery']);
+
+/**
+ * Named parts whose glow the game drives per frame (battery `charge`: the
+ * colony's stored power, the same for every battery). They get their own
+ * draw so setting them doesn't touch other parts that share the material.
+ */
+const TAGS = ['charge'];
+
+/** Materials that look the same share a draw (the built-ins make a fresh glow material per part). */
+function signature(m: THREE.Material): string {
+  const s = m as THREE.MeshStandardMaterial;
+  if (!(s as { isMeshStandardMaterial?: boolean }).isMeshStandardMaterial || s.map) return m.uuid;
+  return [m.type, s.color.getHex(), s.emissive.getHex(), s.emissiveIntensity, s.roughness, s.metalness, s.flatShading,
+    m.transparent, m.opacity, m.side, m.depthWrite, m.blending].join('|');
+}
+
+function tagOf(o: THREE.Object3D, root: THREE.Object3D): string {
+  for (let p: THREE.Object3D | null = o; p && p !== root; p = p.parent) if (TAGS.includes(p.name)) return p.name;
+  return '';
+}
 
 /** Emissive multiplier for an unpowered building (same as the per-building path). */
 const DIM = 0.08;
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
-interface Part { lit: THREE.InstancedMesh; dark: THREE.InstancedMesh | null }
+interface Part { tag: string; lit: THREE.InstancedMesh; dark: THREE.InstancedMesh | null }
 
 export class BuildingBatch {
   readonly group = new THREE.Group();
@@ -32,7 +52,7 @@ export class BuildingBatch {
   constructor(template: THREE.Object3D, capacity = 32) {
     template.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(template.matrixWorld).invert();
-    const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    const byKey = new Map<string, { mat: THREE.Material; tag: string; geos: THREE.BufferGeometry[] }>();
     template.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh || !m.visible) return;
@@ -40,6 +60,7 @@ export class BuildingBatch {
       const src = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
       src.applyMatrix4(local);
       const mats = Array.isArray(m.material) ? m.material : [m.material];
+      const tag = tagOf(m, template);
       const groups = src.groups.length ? src.groups : [{ start: 0, count: src.getAttribute('position').count, materialIndex: 0 }];
       for (const gr of groups) {
         const g = new THREE.BufferGeometry();
@@ -49,20 +70,26 @@ export class BuildingBatch {
         }
         if (!g.getAttribute('normal')) g.computeVertexNormals();
         const mat = mats[gr.materialIndex ?? 0] ?? mats[0];
-        byMat.set(mat, [...(byMat.get(mat) ?? []), g]);
+        const key = `${tag}#${signature(mat)}`;
+        const entry = byKey.get(key) ?? { mat, tag, geos: [] };
+        entry.geos.push(g);
+        byKey.set(key, entry);
       }
     });
-    for (const [mat, geos] of byMat) {
+    for (const entry of byKey.values()) {
+      const { tag, geos } = entry;
+      let mat = entry.mat;
       const geo = mergeGeometries(geos)!;
       // only materials that actually glow need a dimmed twin (glTF and built-ins default to intensity 1 on black)
       const sm = mat as THREE.MeshStandardMaterial;
       const glows = 'emissiveIntensity' in sm && sm.emissiveIntensity > 0 && !!sm.emissive && sm.emissive.getHex() !== 0;
       let darkMat: THREE.Material | null = null;
+      if (tag) mat = mat.clone(); // its glow gets set per frame; keep the template's own material untouched
       if (glows) {
         darkMat = mat.clone();
         (darkMat as THREE.MeshStandardMaterial).emissiveIntensity *= DIM;
       }
-      this.parts.push({ lit: this.mesh(geo, mat), dark: darkMat ? this.mesh(geo, darkMat) : null });
+      this.parts.push({ tag, lit: this.mesh(geo, mat), dark: darkMat ? this.mesh(geo, darkMat) : null });
     }
     this.grow(capacity);
   }
@@ -88,6 +115,15 @@ export class BuildingBatch {
     this.powered[i] = powered;
     this.write(i);
     this.sync();
+  }
+
+  /** Glow of a tagged part: `lit` on powered buildings, `dark` on unpowered ones. */
+  setTagGlow(tag: string, lit: number, dark: number) {
+    for (const p of this.parts) {
+      if (p.tag !== tag) continue;
+      (p.lit.material as THREE.MeshStandardMaterial).emissiveIntensity = lit;
+      if (p.dark) (p.dark.material as THREE.MeshStandardMaterial).emissiveIntensity = dark;
+    }
   }
 
   setPowered(id: number, powered: boolean) {
@@ -124,7 +160,10 @@ export class BuildingBatch {
       m.geometry.dispose();
       m.dispose();
     }
-    for (const p of this.parts) if (p.dark) (p.dark.material as THREE.Material).dispose();
+    for (const p of this.parts) {
+      if (p.dark) (p.dark.material as THREE.Material).dispose();
+      if (p.tag) (p.lit.material as THREE.Material).dispose(); // our own clone
+    }
     this.group.clear();
   }
 
