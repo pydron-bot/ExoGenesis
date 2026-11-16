@@ -1256,7 +1256,7 @@ export class RegionView {
           const pods = cur.people?.pods.find((p) => p.b === b.id)?.running ?? [];
           let i = 0;
           e.obj.traverse((o) => {
-            if (o.name !== 'gpod') return;
+            if (!o.name.startsWith('gpod')) return; // built-in: 'gpod'; Blender: gpod_a, gpod_b
             const p = pods[i++];
             const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
             m.emissive.set(p && p.dark > 0 ? '#ff5a4a' : '#7ff7ff');

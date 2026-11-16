@@ -780,10 +780,129 @@ def burrower(M):
     export("burrower", [join(parts, "body")])
 
 
+# ---------------------------------------------------------------- set v3: people buildings
+
+def half_below(o, keep_above=-0.05):
+    """Delete the vertices of `o` whose local y is below `keep_above` (a cylinder or torus
+    rotated about X keeps its upper half: local y is world z)."""
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for v in o.data.vertices:
+        v.select = v.co.y < keep_above
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.delete(type="VERT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return o
+
+
+def civic(M):
+    """Civilian Center: domed habitat, airlock at the front (−Y = game +Z), two growth pods
+    at the back (+Y = game −Z) as separate nodes `gpod_a` / `gpod_b`, each with its own
+    material (the game lights each one while a child grows inside, red when it's failing)."""
+    parts, pods = [], []
+    warm = glow_mat("warm", "#ffe2a8", 1.6)
+    # plinth and habitat drum
+    parts.append(cyl(6.8, 0.8, (0, 0, 0.4), M["dark"], verts=10, r2=6.4, bevel=0.12))
+    parts.append(cyl(5.6, 2.6, (0, 0, 2.1), M["hull"], verts=10, r2=5.4, bevel=0.08))
+    parts.append(cyl(5.7, 0.25, (0, 0, 0.92), M["hull2"], verts=10, bevel=0.04))
+    # window band: ten warm panes between dark mullions
+    ring(10, 5.52, 0, lambda i, a, x, y, z: parts.append(
+        box((2.4, 0.1, 0.45), (x, y, 2.55), warm, bevel=0, rot=(0, 0, a + math.pi / 2))))
+    ring(10, 5.58, 0, lambda i, a, x, y, z: parts.append(
+        box((0.22, 0.14, 0.7), (math.cos(a + math.pi / 10) * 5.58, math.sin(a + math.pi / 10) * 5.58, 2.55), M["dark"],
+            bevel=0, rot=(0, 0, a + math.pi / 10 + math.pi / 2))))
+    # dome with ribs, a skylight and a comms mast
+    parts.append(sphere(5.4, (0, 0, 3.4), M["hull"], seg=20, rings=10, scale=(1, 1, 0.62)))
+    for k in range(5):
+        bpy.ops.mesh.primitive_torus_add(major_radius=5.45, minor_radius=0.1, major_segments=24, minor_segments=4,
+                                         location=(0, 0, 3.4), rotation=(math.pi / 2, 0, k / 5 * math.pi))
+        t = bpy.context.active_object
+        t.scale = (1, 0.62, 1)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        parts.append(_finish(half_below(t), M["hull2"], 0))
+    parts.append(cyl(1.3, 0.35, (0, 0, 6.72), M["dark"], verts=10, bevel=0.04))
+    parts.append(cyl(1.1, 0.12, (0, 0, 6.95), warm, verts=10, bevel=0))
+    parts.append(cyl(0.12, 2.2, (2.2, 1.2, 6.6), M["dark"], verts=6, bevel=0))
+    parts.append(sphere(0.2, (2.2, 1.2, 7.75), M["red"], seg=6, rings=4))
+    # airlock vestibule at the front, door lights, medical cross
+    parts.append(box((2.8, 2.4, 2.6), (0, -5.6, 1.7), M["hull2"], bevel=0.12))
+    parts.append(box((3.0, 2.6, 0.3), (0, -5.6, 3.1), M["dark"], bevel=0.06))
+    parts.append(box((1.5, 0.1, 2.0), (0, -6.82, 1.4), M["dark"], bevel=0.02))
+    parts.append(box((1.6, 0.1, 0.12), (0, -6.84, 2.55), M["amber"], bevel=0))
+    for sx in (-1, 1):
+        parts.append(box((0.12, 0.1, 1.6), (sx * 1.2, -6.84, 1.4), M["cyan"], bevel=0))
+    parts.append(box((0.9, 0.06, 0.3), (0, -6.83, 2.95), M["red"], bevel=0))
+    parts.append(box((0.3, 0.06, 0.9), (0, -6.83, 2.95), M["red"], bevel=0))
+    # side utility pods: air scrubbers
+    for sx in (-1, 1):
+        parts.append(box((1.6, 2.4, 1.6), (sx * 5.7, 0.8, 1.4), M["hull2"], bevel=0.1, rot=(0, 0, sx * 0.15)))
+        for k in range(3):
+            parts.append(box((0.08, 1.8, 0.12), (sx * 6.52, 0.8 + sx * 0.12, 0.95 + k * 0.4), M["black"], bevel=0, rot=(0, 0, sx * 0.15)))
+    # growth pod bay at the back: deck, cradles, struts, hoses back into the hull
+    parts.append(box((6.4, 2.6, 0.5), (0, 6.1, 0.55), M["dark"], bevel=0.1))
+    for i, x in enumerate((-1.9, 1.9)):
+        parts.append(box((1.7, 1.7, 0.6), (x, 6.1, 1.1), M["hull2"], bevel=0.08))
+        parts.append(cyl(0.9, 0.3, (x, 6.1, 1.5), M["dark"], verts=12, bevel=0.03))
+        parts.append(cyl(0.75, 0.25, (x, 6.1, 3.85), M["dark"], verts=12, bevel=0.03))
+        for a in (0.5, 2.6, 4.7):
+            parts.append(strut((x + math.cos(a) * 0.78, 6.1 + math.sin(a) * 0.78, 1.6),
+                               (x + math.cos(a) * 0.68, 6.1 + math.sin(a) * 0.68, 3.75), 0.07, M["hull"], verts=6))
+        parts.append(strut((x, 6.1, 4.0), (x * 0.6, 4.6, 4.6), 0.13, M["hull2"], verts=6))
+        parts.append(strut((x * 1.25, 5.3, 1.3), (x * 1.1, 4.9, 2.2), 0.12, M["black"], verts=6))
+        n = f"gpod_{'ab'[i]}"
+        pods.append((n, sphere(0.62, (x, 6.1, 2.65), mat(n, "#1b3a44", 0.1, 0.15, emit="#7ff7ff", strength=0.25),
+                               seg=12, rings=8, scale=(1, 1, 1.75))))
+    export("civic", [join(parts, "body")] + [join([o], n, pivot=(o.location.x, 6.1, 2.65)) for n, o in pods])
+
+
+def hydroponics(M):
+    """Hydroponics: three glass tunnels over glowing crop beds, magenta grow lights,
+    a nutrient tank and pumps. No animated parts (it's batched)."""
+    parts = []
+    crop = glow_mat("crop", "#5bff7a", 0.9)
+    grow = glow_mat("grow", "#ff7ad9", 2.0)
+    glass = veil("tunnel_glass", "#bfefff", "#000000", 0.0, 0.3)
+    parts.append(box((8.6, 7.4, 0.4), (0, 0, 0.2), M["dark"], bevel=0.1))
+    for x in (-2.75, 0, 2.75):
+        # low stem wall, the bed, crop rows
+        parts.append(box((2.6, 6.8, 0.35), (x, 0, 0.57), M["hull2"], bevel=0.05))
+        parts.append(box((2.0, 6.3, 0.2), (x, 0, 0.82), M["black"], bevel=0))
+        for k in range(3):
+            parts.append(box((0.42, 6.0, 0.32), (x - 0.6 + k * 0.6, 0, 1.0), crop, bevel=0.06))
+        # glass half-pipe and its ribs
+        bpy.ops.mesh.primitive_cylinder_add(vertices=14, radius=1.25, depth=6.6, location=(x, 0, 0.75),
+                                            rotation=(math.pi / 2, 0, 0), end_fill_type="NOTHING")
+        parts.append(_finish(half_below(bpy.context.active_object), glass, 0))
+        for k in range(5):
+            bpy.ops.mesh.primitive_torus_add(major_radius=1.28, minor_radius=0.07, major_segments=14, minor_segments=4,
+                                             location=(x, -3.2 + k * 1.6, 0.75), rotation=(math.pi / 2, 0, 0))
+            parts.append(_finish(half_below(bpy.context.active_object), M["dark"], 0))
+        # grow-light strip along the crown, end caps, a hatch at the front end
+        parts.append(box((0.16, 6.2, 0.06), (x, 0, 1.9), grow, bevel=0))
+        for sy in (-1, 1):
+            bpy.ops.mesh.primitive_cylinder_add(vertices=14, radius=1.25, depth=0.12, location=(x, sy * 3.33, 0.75),
+                                                rotation=(math.pi / 2, 0, 0))
+            parts.append(_finish(half_below(bpy.context.active_object), M["hull"], 0))
+        parts.append(box((0.7, 0.08, 0.9), (x, -3.4, 1.05), M["dark"], bevel=0))
+    # nutrient tank, pump housing and feed pipe along the back
+    parts.append(cyl(0.8, 2.4, (3.6, 3.0, 1.6), M["hull"], verts=10, bevel=0.05))
+    parts.append(cyl(0.85, 0.2, (3.6, 3.0, 2.85), M["dark"], verts=10))
+    parts.append(box((0.4, 0.06, 1.4), (3.6, 2.18, 1.6), crop, bevel=0))
+    parts.append(box((1.0, 0.9, 0.9), (-3.6, 3.15, 0.85), M["hull2"], bevel=0.08))
+    parts.append(box((0.5, 0.06, 0.18), (-3.6, 2.68, 1.0), M["cyan"], bevel=0))
+    parts.append(cyl(0.12, 7.0, (0, 3.55, 0.6), M["accent"], verts=6, rot=(0, math.pi / 2, 0), bevel=0))
+    for x in (-2.75, 0, 2.75):
+        parts.append(strut((x, 3.55, 0.6), (x, 3.2, 0.75), 0.09, M["accent"], verts=6))
+    export("hydroponics", [join(parts, "body")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
-          "swarmer": swarmer, "brute": brute, "spitter": spitter, "burrower": burrower}
+          "swarmer": swarmer, "brute": brute, "spitter": spitter, "burrower": burrower,
+          "civic": civic, "hydroponics": hydroponics}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":
