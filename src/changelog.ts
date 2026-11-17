@@ -15,6 +15,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.18.0',
+    date: '2026-11-17',
+    title: 'Story events',
+    notes: [
+      'The story begins: a briefing from Mission Control when you land, a warning as the first night falls, and more as the colony grows',
+      'Something is carved on the ridge east of the landing site. Send a drone to look',
+      'Your first colonist will have a question for you, and how you answer matters',
+      'Some story moments ask you to choose. Your answers can change how colonists feel about the AI',
+      'Editor: new Story events (Story group). Pick a trigger, write the card and its choices, add effects, see a live preview and play-test it straight away. Region maps get story sites',
+      'Editor: lists like choices and effects are now edited right in the form, and fields show only when they apply',
+    ],
+  },
+  {
     version: '0.17.0',
     date: '2026-11-17',
     title: 'Smoke on the horizon',
