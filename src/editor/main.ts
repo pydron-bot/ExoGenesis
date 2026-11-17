@@ -289,7 +289,8 @@ function renderForm() {
       host,
     );
     const at = cur;
-    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control });
+    const inhabitants = Object.fromEntries([...(idIndex().inhabitants ?? [])].map((id) => [id, files.get(pathOf('inhabitants', id))?.data as { land?: number }]));
+    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control, inhabitants });
     changed();
     return;
   }

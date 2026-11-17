@@ -12,6 +12,8 @@ export interface PlaceWorld {
   deposits: { x: number; z: number; alloys: number }[];
   /** Geothermal vents (from the region map). */
   vents?: { x: number; z: number }[];
+  /** Inhabitant camps still lived in: nothing may be built on the camp itself (r = its radius). */
+  campSites?: { x: number; z: number; r: number; name: string }[];
 }
 
 /** Line-placed or gate: blocks predators, doesn't extend the build area. */
@@ -41,6 +43,9 @@ export function placeProblem(
     // a gate goes onto a wall line, replacing the segments under it
     if (d.role === 'gate' && o.role === 'wall') continue;
     if (Math.hypot(b.x - x, b.z - z) < (o.clearance + d.clearance) / 2) return `too close to the ${o.name}`;
+  }
+  for (const c of w.campSites ?? []) {
+    if (Math.hypot(c.x - x, c.z - z) < c.r + r) return `on ${c.name}'s camp`;
   }
   for (const dep of w.deposits) {
     if (dep.alloys > 0 && Math.hypot(dep.x - x, dep.z - z) < DEPOSIT_RADIUS + r) return 'on top of a deposit';

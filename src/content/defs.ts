@@ -242,6 +242,42 @@ export const assetShape = {
 } satisfies Shape;
 export type AssetDef = Infer<typeof assetShape>;
 
+/**
+ * An inhabitant group (STORY.md §5): remnants of earlier runs living in camps a
+ * region map places. Neutral; their regard for the colony rises and falls with
+ * how you treat them and their land.
+ */
+export const inhabitantShape = {
+  name: str({ label: 'Name', help: 'What the log calls them ("the Vell").' }),
+  description: str({ label: 'Description', multiline: true, optional: true }),
+  centre: ref('assets', { label: 'Camp centre model', help: 'Placed at the camp\'s spot (fire circle, pylon).' }),
+  dwelling: ref('assets', { label: 'Dwelling model', optional: true, help: 'Placed in a ring around the centre.' }),
+  dwellings: int({ label: 'Dwellings', min: 0, max: 12, default: 0 }),
+  ring: num({ label: 'Dwelling ring', min: 4, max: 40, step: 0.5, unit: 'u', default: 13, help: 'How far the dwellings stand from the centre.' }),
+  walker: ref('assets', { label: 'Walker model', help: 'The people who move about the camp.' }),
+  walkers: int({ label: 'Walkers', min: 0, max: 40 }),
+  elder: ref('assets', { label: 'Elder model', optional: true, help: 'One figure who stays by the centre (the song-keeper, the cantor).' }),
+  roam: num({ label: 'Roam radius', min: 4, max: 120, unit: 'u', help: 'How far walkers wander from the centre.' }),
+  ritual: bool({ label: 'Ritual loops', optional: true, help: 'Walkers circle the centre at the roam radius instead of wandering (the Choir).' }),
+  speed: num({ label: 'Walking speed', min: 0.2, max: 10, step: 0.1, unit: 'u/s', default: 1.6 }),
+  land: num({ label: 'Their land', min: 10, max: 160, unit: 'u', help: 'Your buildings inside this radius of the centre wear down their regard.' }),
+  regard: int({ label: 'Starting regard', min: 0, max: 100, help: '0–100. They leave at 0.' }),
+  trustAt: int({ label: 'Trust at', min: 1, max: 100, help: 'At this regard they trust you: the trust story plays, they warn of packs and share what they see of their land.' }),
+  encroach: num({ label: 'Encroaching', min: 0, max: 200, step: 0.5, unit: '/sol', help: 'Regard lost per sol for each of your buildings on their land.' }),
+  recover: num({ label: 'Recovering', min: 0, max: 200, step: 0.5, unit: '/sol', help: 'Regard regained per sol while none of your buildings are on their land (up to the starting regard, or all the way once you approached them).' }),
+  approach: int({ label: 'Approach: regard', min: 0, max: 100, help: 'Added when you choose to approach them at first contact.' }),
+  contactTitle: str({ label: 'First contact: title' }),
+  contactText: str({ label: 'First contact: text', multiline: true }),
+  approachText: str({ label: 'After approaching', multiline: true }),
+  avoidText: str({ label: 'After keeping away', multiline: true }),
+  driveText: str({ label: 'After driving them off', multiline: true }),
+  uneasyText: str({ label: 'Uneasy (regard below 25)', multiline: true }),
+  trustTitle: str({ label: 'Trust: title' }),
+  trustText: str({ label: 'Trust: text', multiline: true }),
+  leaveText: str({ label: 'They leave', multiline: true }),
+} satisfies Shape;
+export type InhabitantDef = Infer<typeof inhabitantShape>;
+
 /** Region paint grids: one sample every REGION_STEP units across the whole region. */
 export const REGION_STEP = 2;
 export const REGION_CELLS = (REGION_HALF * 2) / REGION_STEP + 1; // 121
@@ -275,6 +311,14 @@ export const spawnShape = {
 } satisfies Shape;
 export type SpawnDef = Infer<typeof spawnShape>;
 
+export const campShape = {
+  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  group: ref('inhabitants', { label: 'Who lives here', help: 'An inhabitant group (Story → Inhabitants).' }),
+  yaw: num({ label: 'Facing', min: -180, max: 180, step: 5, unit: '°', optional: true, help: 'Turns the whole camp.' }),
+} satisfies Shape;
+export type CampDef = Infer<typeof campShape>;
+
 export const regionShape = {
   name: str({ label: 'Name' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
@@ -292,6 +336,7 @@ export const regionShape = {
   deposits: list(depositShape, { label: 'Alloy deposits', max: 60 }),
   spawns: list(spawnShape, { label: 'Predator spawns', max: 20 }),
   vents: list(ventShape, { label: 'Geothermal vents', max: 20, optional: true }),
+  camps: list(campShape, { label: 'Inhabitant camps', max: 8, optional: true }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 /** localStorage key: the editor's Play test leaves { id, def } here for the game's ?preview=1. */
@@ -314,6 +359,7 @@ export const COLLECTIONS = {
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
+  inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },

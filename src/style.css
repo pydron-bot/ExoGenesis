@@ -204,6 +204,18 @@ body.placing #card { display: none !important; }
 #card .warn { color: var(--amber); }
 #card .bad { color: var(--crimson); }
 #card .grp { margin-top: 8px; display: inline-flex; flex-wrap: wrap; }
+/* inhabitants: first contact and trust story (src/contact-card.ts) */
+#contact {
+  position: absolute; left: 50%; top: calc(var(--safe-top) + 64px); transform: translateX(-50%); width: min(380px, calc(100vw - 32px));
+  background: rgba(6,14,22,.9); border: 1px solid rgba(255,181,71,.55); border-radius: 6px; padding: 12px 14px; display: none; pointer-events: auto;
+}
+#contact.on { display: block; }
+#contact .t { color: var(--amber); letter-spacing: 0.16em; font-weight: 600; text-transform: uppercase; }
+#contact p { margin: 6px 0 10px; line-height: 1.45; font-size: 13px; }
+#contact .grp { display: flex; flex-wrap: wrap; gap: 6px; }
+#contact .grp.sub { margin-top: 6px; opacity: 0.8; }
+#contact button.bad { color: var(--crimson); border-color: rgba(255,77,94,.5); }
+body.cine #contact, body.skirmish #contact { display: none !important; }
 #over {
   position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; display: none;
   background: rgba(6,14,22,.9); border: 1px solid rgba(255,77,94,.6); border-radius: 6px; padding: 20px 26px; pointer-events: auto; min-width: 280px;
@@ -424,6 +436,8 @@ body.colony-open #goals { display: none !important; }
 #colony .h, #card .h { font-size: 10px; letter-spacing: 0.16em; color: var(--cyan); margin: 10px 0 4px; }
 #colony .hint { font-size: 11px; opacity: 0.7; margin: 6px 0; line-height: 1.45; }
 #colony .warn, #card .warn { color: var(--amber); }
+#colony .ok { color: #5bff9a; }
+#colony .h small { font-weight: 400; letter-spacing: 0; margin-left: 6px; text-transform: none; }
 #colony .bad { color: var(--crimson); }
 .meter { display: grid; grid-template-columns: 9.5em 1fr 3.5em; align-items: center; gap: 6px; font-size: 12px; margin: 3px 0; }
 .meter > span { opacity: 0.65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

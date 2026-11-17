@@ -15,6 +15,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.17.0',
+    date: '2026-11-17',
+    title: 'Smoke on the horizon',
+    notes: [
+      'You are not alone: the Vell live in a camp of stilt huts in the far north-west of Touchdown, past the rich alloy deposit',
+      'When your drones or buildings first see them, choose what to do: approach them, keep away, or drive them off',
+      'Their regard for the colony drops while your buildings stand on their land and recovers when you leave it alone. If it reaches zero, they leave',
+      'Approach them and leave their land alone, and they may come to trust you. Then they warn you of predator packs and share what they see',
+      'The Colony panel has a Neighbours tab once you have met them. You can\'t build on their camp',
+      'Editor: new Inhabitants records (Story group) with their models, numbers and story text, and an Add camp tool on region maps',
+    ],
+  },
+  {
     version: '0.16.1',
     date: '2026-11-17',
     title: 'Clearer names',

@@ -12,6 +12,7 @@ import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
 import { PathGrid } from './path';
+import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
 import type { Colonist } from './people-types';
 import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, wallsUnderGate, type PlaceWorld } from './rules';
@@ -136,6 +137,8 @@ export class Sim {
 
   /** Colonists, embryos, pods, food and Trust. */
   readonly people: People = new People(this);
+  /** Inhabitant camps: regard, first contact, trust. */
+  readonly inhabitants: Inhabitants = new Inhabitants(this);
 
   constructor(readonly emit: EventSink, seed = 1337) {
     this.newGame(seed);
@@ -154,6 +157,7 @@ export class Sim {
     };
     this.s = s;
     this.people.init();
+    this.inhabitants.init(REGION.camps ?? []);
     s.buildings.push({ id: 1, kind: 'core', x: 0, z: 0, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
     s.drones.push({ id: s.nextId++, x: 0, z: -14, heading: Math.PI, hp: RULES.droneHp, task: { kind: 'idle' } });
     // herds come from the region map (content/regions/<id>.json)
@@ -180,6 +184,7 @@ export class Sim {
     for (const b of state.buildings) b.hp = Math.min(b.hp, DEFS[b.kind]?.hp ?? b.hp);
     this.s = state;
     this.people.load();
+    this.inhabitants.load(REGION.camps ?? []);
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
     this.exp.fill(0);
@@ -200,7 +205,7 @@ export class Sim {
   get deployed() { return this.s.phase === 'deployed'; }
   get units(): Unit[] { return (this.s.units ??= []); }
   /** What placement rules see. */
-  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS }; }
+  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS, campSites: campSites(this.s.camps ?? []) }; }
   private entity(id: number): Building | Drone | Unit | Colonist | undefined {
     return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id) ?? this.people.colonist(id);
   }
@@ -223,6 +228,7 @@ export class Sim {
       this.stepWaves();
       this.stepCryo();
       this.people.step();
+      this.inhabitants.step();
     }
     if (s.tick % 5 === 0) this.stepFog();
     this.stepGrazers();
@@ -329,6 +335,7 @@ export class Sim {
       see(b.x, b.z, b.progress < 1 ? bodyR(b) + 6 : d.sight ?? Math.max(RULES.buildingSight, (d.fireRange ?? 0) + 4));
     }
     for (const d of s.drones) see(d.x, d.z, RULES.droneSight);
+    this.inhabitants.sight(see);
     for (const u of this.units) {
       const d = content.units[u.unit];
       see(u.x, u.z, d.sight ?? Math.max(d.aggro, d.range) + 8);
@@ -1042,7 +1049,7 @@ export class Sim {
       if (this.radarPowered()) {
         pack.announced = true;
         this.emit(`Radar: pack of ${pack.alive} approaching from the ${pack.from}`, 'warn', 'warning');
-      }
+      } else this.inhabitants.packArrived(pack, false);
     }
     w.n++;
     w.next = s.tick + Math.round((waveInterval() + (this.rnd() * 2 - 1) * THREATS.waveJitter) * TICK_HZ);
@@ -1191,7 +1198,11 @@ export class Sim {
         this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info');
         return;
       }
+      case 'contact':
+        this.inhabitants.command(c.camp, c.choice);
+        return;
       case 'debug': {
+        if (c.regard) this.inhabitants.setRegard(c.regard.camp, c.regard.value);
         if (c.alloys) s.alloys += c.alloys;
         if (c.wave) s.waves.next = s.tick;
         if (c.spawn && content.units[c.spawn.unit]) {
@@ -1340,10 +1351,11 @@ export class Sim {
       for (const h of s.hostiles) if (h.pack === p.id) { x += h.x; z += h.z; n++; }
       return { x: n ? x / n : 0, z: n ? z / n : 0, alive: n, seen: radar || p.announced };
     });
+    const inh = this.inhabitants.snapshot();
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
       drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
-      army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units,
+      army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units, camps: inh.camps, natives: inh.natives,
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,

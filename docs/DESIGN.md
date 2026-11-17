@@ -637,6 +637,27 @@ and colonists outdoors take half harm. **Symbiosis** (Partners): staffing bonus 
 the Colony panel shows each boost. Test: `tools/lead-smoke.mjs` (headless). The imprint picks
 the lean, so committing to one imprint is what earns a boost.
 
+**Inhabitants slice 1 (v0.17.0).** `src/sim/inhabitants.ts`, `src/world/inhabitants.ts`,
+`src/contact-card.ts`. A group is a record in `content/inhabitants/` (editor: Story → Inhabitants),
+with its models, numbers and story text: **the Vell** (stilt huts round a fire circle, walkers and a
+song-keeper) and **the Choir** (a pylon whose `charge` band pulses, tenders walking a ritual loop, a
+cantor). Region maps place `camps` (editor: Add camp, C). Touchdown has one Vell camp at (−96, 84),
+past the 2,500-alloy deposit, so the rich deposit means building on their land.
+- Neutral: predators ignore them, they never fight, and nothing can be built on the camp itself.
+- **Regard** 0–100 (Vell start at 35). Each colony building within their land (50 u) costs
+  `encroach`/sol; with none there it recovers `recover`/sol, up to where it started.
+- **First contact** (E4) when the camp comes into sight: a card (the game doesn't pause) offers
+  *Approach* (+20, and regard may then rise to 100), *Keep away* (no change; regard never rises past
+  where it started, so no trust) or *Drive them off* (they leave). "Later" defers it; the Neighbours tab
+  can still answer.
+- **Trust** at `trustAt` (70): the trust story plays once (E5 "The Keeper's Song"); after that they warn
+  of each pack when there's no radar and share sight of their land. Below 25 they're uneasy and trust
+  is lost (it can be earned back).
+- At 0 they abandon the camp and walk out; the empty camp stays.
+- Test: `tools/inhabit-smoke.mjs` (headless).
+- Next: Biosphere Report / stewardship counting displaced inhabitants; the colonists' view of them
+  (stance); trade or help; the Choir placed in a second region; E8 for the Choir as its own beat.
+
 Not in slice 1 yet: an inhabitant/rival dimension to stance, natural-birth vs pod-born politics
 beyond the −15 lean, Devoted petitions, a dedicated Habitat building, research (Breakthroughs
 are just an output surge for now), aged colonists' retirement.
@@ -644,18 +665,18 @@ are just an output surge for now), aged colonists' retirement.
 ## 8. Open questions
 
 **Story** (story questions now live in `STORY.md` §11)
-- Name check: confirm Accord / Kindred / Engram and the working names in `STORY.md` don't
-  clash with existing games.
+- ~~Name check~~: names are fine (2026-11-17).
 
 **Structure**
 - Failure: is it losing **any one** of Command Core / cryo bank / colonists, or only when
   **all three** are gone? (Decided that these three are the failure conditions.)
-- Is there a skirmish / sandbox mode outside the campaign?
 
 **Mechanics**
 - Pod speed-vs-quality trade-off: still open (pod cycle is 1 sol, no fast/fragile option yet).
 
 **Decided**
+- 2026-11-17: yes to a skirmish / sandbox mode outside the campaign, ultimately against a computer
+  opponent. The working names in `STORY.md` are fine as they are.
 - 2026-11-17: skirmish maps are procedural (campaign regions stay hand-authored).
 - 2026-11-14: player is always the coop probe; all three land at the same time on different
   planets; growth pods accelerate maturation.
@@ -688,7 +709,9 @@ are just an output surge for now), aged colonists' retirement.
   Derek's iPhone. Home planet R=3000 with 89 fixed regions; 9-planet system.
 - **Terrain look:** `?look=smooth` (smooth shading + procedural ground textures) preferred over flat
   low-poly up close. Open: globe detail/texturing so the landing patch doesn't show as a square from
-  mid-altitude (terrain LOD).
+  mid-altitude (terrain LOD). Still true on the phone (2026-11-17).
+- **Phone check (2026-11-17):** startup is quick, and frame rate with colony lights and flora on is
+  fine.
 - **Skirmish (`?mode=skirmish`):** ~1,000 hostiles on screen at **60 fps on iPhone**; sim
   27.6 ms/tick on the phone at ~1,000 units (budget 100 ms at 10 Hz), ~3 ms on hive1.
   All touch selection methods felt good (tap, hold/double-tap all-of-type, paint, control groups).

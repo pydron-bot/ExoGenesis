@@ -4,7 +4,8 @@
  * sends commands. Updated a few times a second, not every frame.
  */
 import type { ZoomCamera } from './camera';
-import type { BuildingDef, ColonyRules, PeopleRules, UnitDef } from './content/defs';
+import type { BuildingDef, ColonyRules, InhabitantDef, PeopleRules, UnitDef } from './content/defs';
+import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
@@ -16,6 +17,7 @@ import * as THREE from 'three';
 interface HudDeps {
   defs: Record<string, BuildingDef>;
   units: Record<string, UnitDef>;
+  inhabitants: Record<string, InhabitantDef>;
   rules: ColonyRules;
   people: PeopleRules;
   ui: RegionUi;
@@ -56,12 +58,14 @@ export class ColonyHud {
   private radar = { at: -1e9, next: null as number | null, built: false };
   cur: Snapshot | null = null;
   readonly people: PeopleHud;
+  readonly contact: ContactCard;
 
   constructor(private d: HudDeps) {
     this.people = new PeopleHud({
-      defs: d.defs, rules: d.people, solSeconds: d.rules.solSeconds, ui: d.ui, cam: d.cam,
+      defs: d.defs, inhabitants: d.inhabitants, rules: d.people, solSeconds: d.rules.solSeconds, ui: d.ui, cam: d.cam,
       command: (c) => d.command(c), select: () => this.selected(),
     });
+    this.contact = new ContactCard({ inhabitants: d.inhabitants, cam: d.cam, command: (c) => d.command(c) });
     const has = (s: Snapshot, role: string) => s.buildings.some((b) => b.progress >= 1 && this.d.defs[b.kind]?.role === role);
     const sol = (s: Snapshot) => Math.floor(s.secs / this.d.rules.solSeconds) + 1;
     this.goals = [
@@ -128,6 +132,7 @@ export class ColonyHud {
     if (now - this.last < 160) return;
     this.last = now;
     this.renderBar(s, speed);
+    this.contact.update(s);
     this.renderGoals(s);
     if (this.el.menu.classList.contains('open')) this.renderMenu();
     this.renderCard(s);
@@ -427,5 +432,5 @@ export class ColonyHud {
   }
 
   /** Forget goal progress (new game). */
-  reset() { this.reached.clear(); this.primed = false; this.cardKey = ''; this.menuKey = ''; }
+  reset() { this.reached.clear(); this.primed = false; this.cardKey = ''; this.menuKey = ''; this.contact.reset(); }
 }

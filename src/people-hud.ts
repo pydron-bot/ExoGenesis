@@ -5,7 +5,7 @@
  * staffed building cards (growth-pod picker). DOM only; ColonyHud calls in.
  */
 import type { ZoomCamera } from './camera';
-import { SPECIALTIES, type BuildingDef, type PeopleRules, type Specialty } from './content/defs';
+import { SPECIALTIES, type BuildingDef, type InhabitantDef, type PeopleRules, type Specialty } from './content/defs';
 import { TRAITS } from './sim/names';
 import { AUTONOMIST_BELOW, CURRICULA, DEVOTED_ABOVE, POLICIES, type Bloc, type ColonistSnap, type Curriculum, type PeopleSnap, type PolicyKey } from './sim/people-types';
 import type { Command, Snapshot } from './sim/types';
@@ -43,6 +43,7 @@ const bar = (v: number, color: string, marks: number[] = []) =>
 
 interface Deps {
   defs: Record<string, BuildingDef>;
+  inhabitants: Record<string, InhabitantDef>;
   rules: PeopleRules;
   solSeconds: number;
   ui: RegionUi;
@@ -51,7 +52,7 @@ interface Deps {
   select(): void;
 }
 
-type Tab = 'overview' | 'people' | 'cryo' | 'memorial';
+type Tab = 'overview' | 'people' | 'cryo' | 'memorial' | 'neighbours';
 
 export class PeopleHud {
   private el = { food: $('r-food'), people: $('r-people'), mood: $('r-mood'), cryo: $('r-cryo'), panel: $('colony'), body: $('colony-body') };
@@ -113,10 +114,14 @@ export class PeopleHud {
   // ---------- Colony panel ----------
   private renderPanel(s: Snapshot) {
     const p = s.people;
-    let html = `<div class="tabs">${(['overview', 'people', 'cryo', 'memorial'] as Tab[]).map((t) => `<button data-tab="${t}" class="${this.tab === t ? 'on' : ''}">${{ overview: 'Colony', people: `People ${p.adults + p.children}`, cryo: 'Cryo bank', memorial: 'Memorial' }[t]}</button>`).join('')}<button data-close class="x" title="Close">✕</button></div>`;
+    const met = (s.camps ?? []).some((c) => c.met);
+    if (this.tab === 'neighbours' && !met) this.tab = 'overview';
+    const tabs: Tab[] = ['overview', 'people', 'cryo', 'memorial', ...(met ? ['neighbours' as Tab] : [])];
+    let html = `<div class="tabs">${tabs.map((t) => `<button data-tab="${t}" class="${this.tab === t ? 'on' : ''}">${{ overview: 'Colony', people: `People ${p.adults + p.children}`, cryo: 'Cryo bank', memorial: 'Memorial', neighbours: 'Neighbours' }[t]}</button>`).join('')}<button data-close class="x" title="Close">✕</button></div>`;
     if (this.tab === 'overview') html += this.overview(s);
     else if (this.tab === 'people') html += this.roster(p);
     else if (this.tab === 'cryo') html += this.bank(s);
+    else if (this.tab === 'neighbours') html += this.neighbours(s);
     else html += this.memorial(p);
     if (html === this.key) return;
     this.key = html;
@@ -179,6 +184,26 @@ export class PeopleHud {
     return rows.join('');
   }
 
+  /** Inhabitant camps you've met: what they think of the colony, and why. */
+  private neighbours(s: Snapshot) {
+    const rows: string[] = ['<p class="hint">Remnants of earlier arrivals. Building on their land wears their regard down; leave it alone and it recovers. If you approached them, it can grow until they trust you. At 0 they leave.</p>'];
+    (s.camps ?? []).forEach((c, i) => {
+      if (!c.met) return;
+      const g = this.d.inhabitants[c.group];
+      if (!g) return;
+      const status = c.gone ? '<b class="bad">gone</b>' : c.pending ? '<b class="warn">waiting for your answer</b>' : c.trusted ? '<b class="ok">trust us</b>' : c.regard < 25 ? '<b class="warn">uneasy</b>' : c.choice === 'approach' ? 'getting to know us' : 'wary';
+      rows.push(`<div class="h">${esc(cap(g.name))} <small>${status}</small></div>`);
+      if (c.gone) { rows.push(`<p class="hint">${esc(g.leaveText)}</p>`); return; }
+      const col = c.trusted ? '#5bff9a' : c.regard < 25 ? '#ff5a4a' : '#ffb547';
+      rows.push(`<div class="meter"><span title="0 = they leave; ${g.trustAt} = they trust you">Regard</span>${bar(c.regard, col, [25, g.trustAt])}<b>${c.regard.toFixed(0)}</b></div>`);
+      rows.push(`<div class="row"><span>On their land</span><span>${c.encroaching ? `<b class="warn">${c.encroaching} of our buildings</b> · −${(g.encroach * c.encroaching).toFixed(0)}/sol` : `none · +${g.recover.toFixed(0)}/sol${c.choice === 'approach' || c.regard < g.regard ? '' : ' (back to where it started)'}`}</span></div>`);
+      if (c.trusted) rows.push('<p class="hint">They warn of predator packs when there\'s no radar, and share what they see of their land.</p>');
+      else if (c.choice !== 'approach' && !c.pending) rows.push(`<p class="hint">You kept away, so their regard only recovers to where it started (${g.regard}). They won't come to trust you like this.</p>`);
+      rows.push(`<div class="grp">${c.pending ? `<button data-contact="${i}:approach">Approach</button><button data-contact="${i}:avoid">Keep away</button>` : ''}<button data-look="${c.x},${c.z}">Look</button></div>`);
+    });
+    return rows.join('');
+  }
+
   private memorial(p: PeopleSnap) {
     const sol = this.d.solSeconds;
     const st = p.stats;
@@ -193,6 +218,17 @@ export class PeopleHud {
     if (!btn) return;
     e.preventDefault();
     if (btn.dataset.close !== undefined) { this.toggle(false); return; }
+    if (btn.dataset.contact) {
+      const [i, choice] = btn.dataset.contact.split(':');
+      this.d.command({ type: 'contact', camp: Number(i), choice: choice as 'approach' | 'avoid' | 'drive' });
+      return;
+    }
+    if (btn.dataset.look) {
+      const [x, z] = btn.dataset.look.split(',').map(Number);
+      this.d.cam.fx = x; this.d.cam.fz = z;
+      this.toggle(false);
+      return;
+    }
     if (btn.dataset.tab) { this.tab = btn.dataset.tab as Tab; this.key = ''; if (this.cur) this.renderPanel(this.cur); return; }
     if (btn.dataset.pol) {
       const [key, value] = btn.dataset.pol.split(':');

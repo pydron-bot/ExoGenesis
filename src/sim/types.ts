@@ -129,6 +129,45 @@ export interface Unit {
   stall?: number;
 }
 
+/** One of the inhabitants at a camp (walker, or the elder who keeps to the centre). */
+export interface Native {
+  x: number;
+  z: number;
+  heading: number;
+  tx: number;
+  tz: number;
+  /** Seconds to stand before picking a new spot. */
+  wait: number;
+  elder?: boolean;
+}
+
+export type ContactChoice = 'approach' | 'avoid' | 'drive';
+
+/** An inhabitant camp (region map `camps`, group = content/inhabitants/<id>.json). */
+export interface Camp {
+  group: string;
+  x: number;
+  z: number;
+  /** Radians. */
+  yaw: number;
+  /** 0..100: what they think of the colony. They leave at 0. */
+  regard: number;
+  /** First contact happened (the camp came into sight). */
+  met: boolean;
+  /** First contact is waiting for the player's choice. */
+  pending: boolean;
+  choice?: ContactChoice;
+  /** Regard reached the group's trustAt: they warn of packs and share sight of their land. */
+  trusted: boolean;
+  /** The trust story has played (it plays once). */
+  sang?: boolean;
+  /** The "uneasy" warning was given (cleared once regard recovers). */
+  uneasy?: boolean;
+  /** They left (driven off, or regard hit 0). The camp stands empty. */
+  gone: boolean;
+  natives: Native[];
+}
+
 export interface Deposit { x: number; z: number; alloys: number; max: number }
 
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
@@ -166,6 +205,8 @@ export interface SimState {
   phase: 'descent' | 'landed' | 'deployed';
   /** Ticks of engine-noise panic left: grazers near the core bolt. */
   panic: number;
+  /** Inhabitant camps (absent in saves from before inhabitants existed: set up from the region on load). */
+  camps?: Camp[];
   /** Colonists, embryos, pods, food, Trust (absent in saves from before people existed). */
   people?: PeopleState;
   /** Set when the game is lost. */
@@ -191,9 +232,11 @@ export type Command =
   | { type: 'order'; ids: number[]; x: number; z: number }
   | { type: 'stop'; ids: number[] }
   | { type: 'landing'; stage: LandingStage }
+  /** First contact with an inhabitant camp: the player's answer. */
+  | { type: 'contact'; camp: number; choice: ContactChoice }
   | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
-  | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
+  | { type: 'debug'; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
@@ -215,6 +258,13 @@ export interface DroneSnap {
 export interface UnitSnap {
   id: number; unit: string; slot: number; x: number; z: number; hp: number;
   order: Unit['order']['kind']; tx: number; tz: number; engaged: boolean;
+}
+
+export interface CampSnap {
+  group: string; x: number; z: number; yaw: number; regard: number;
+  met: boolean; pending: boolean; choice: ContactChoice | null; trusted: boolean; gone: boolean;
+  /** Colony buildings standing on their land. */
+  encroaching: number;
 }
 
 export interface Snapshot {
@@ -239,6 +289,10 @@ export interface Snapshot {
   /** Effects this tick (skirmish FX layout). */
   fx: Float32Array;
   hostiles: number;
+  /** Inhabitant camps (structures show once explored). */
+  camps: CampSnap[];
+  /** Inhabitants in sight: x, z, heading, camp index, elder (1/0) per person. */
+  natives: Float32Array;
   /** Player combat units (they're also in `army`, at `slot`). */
   units: UnitSnap[];
   alloys: number;

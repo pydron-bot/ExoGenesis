@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type PeopleRules, type RegionDef, type SoundRules, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type SoundRules, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -10,6 +10,7 @@ export interface ContentDb {
   buildings: Record<string, BuildingDef>;
   regions: Record<string, RegionDef>;
   assets: Record<string, AssetDef>;
+  inhabitants: Record<string, InhabitantDef>;
   colony: ColonyRules;
   threats: ThreatRules;
   people: PeopleRules;
@@ -48,6 +49,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     buildings: recs.buildings,
     regions: recs.regions,
     assets: recs.assets,
+    inhabitants: recs.inhabitants,
     colony: recs.colony.colony,
     threats: recs.threats.threats,
     people: recs.people.people,
@@ -87,6 +89,13 @@ function crossIssues(db: ContentDb): FileIssue[] {
   };
   modelRef('units', db.units);
   modelRef('buildings', db.buildings);
+  for (const [id, g] of Object.entries(db.inhabitants ?? {})) {
+    if (!g || typeof g !== 'object') continue;
+    for (const f of ['centre', 'dwelling', 'walker', 'elder'] as const) {
+      const a = g[f] ? db.assets[g[f]!] : undefined;
+      if (a && a.kind !== 'model') out.push({ path: `inhabitants/${id}.json`, field: f, msg: `"${g[f]}" isn't a model` });
+    }
+  }
   // sound files must be audio
   for (const [k, f] of Object.entries(COLLECTIONS.sound.shape)) {
     const id = f.kind === 'ref' && db.sound ? (db.sound as Record<string, unknown>)[k] : undefined;

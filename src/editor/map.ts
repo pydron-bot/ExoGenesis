@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { HEIGHT_SCALE, PREVIEW_KEY, REGION_CELLS as NC, REGION_STEP, depositShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
+import { HEIGHT_SCALE, PREVIEW_KEY, REGION_CELLS as NC, REGION_STEP, campShape, depositShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
 import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
@@ -24,11 +24,13 @@ export interface MapHost {
   /** The draft changed (dirty state, title, buttons). */
   changed(): void;
   control(d: Record<string, unknown>, key: string, f: Field, onChange: () => void): HTMLElement;
+  /** Inhabitant groups (for a camp's land ring). */
+  inhabitants?: Record<string, { land?: number }>;
 }
 
-type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent';
+type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp';
 const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
-  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn or vent to select it; drag to move it' },
+  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn, vent or camp to select it; drag to move it' },
   { id: 'raise', label: 'Raise', key: '1', tip: 'Raise ground (Shift: lower)' },
   { id: 'lower', label: 'Lower', key: '2', tip: 'Lower ground (Shift: raise)' },
   { id: 'smooth', label: 'Smooth', key: '3', tip: 'Even out bumps' },
@@ -39,15 +41,18 @@ const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'deposit', label: 'Add deposit', key: 'D', tip: 'Click the ground to place an alloy deposit (mined by depots)' },
   { id: 'spawn', label: 'Add spawn', key: 'P', tip: 'Click the ground to place a predator spawn point (packs enter here)' },
   { id: 'vent', label: 'Add vent', key: 'V', tip: 'Click the ground to place a geothermal vent (a Geothermal Tap can be built on it)' },
+  { id: 'camp', label: 'Add camp', key: 'C', tip: 'Click the ground to place an inhabitant camp (who lives there: Story → Inhabitants)' },
 ];
 
-type MKind = 'herds' | 'deposits' | 'spawns' | 'vents';
+type MKind = 'herds' | 'deposits' | 'spawns' | 'vents' | 'camps';
 type Marker = Record<string, number>;
 const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: Tool; make(x: number, z: number): Marker; summary(m: Marker): string; color: string; sel: string }> = {
   herds: { label: 'Grazer herds', one: 'Herd', shape: herdShape, tool: 'herd', make: (x, z) => ({ x, z, grazers: 20, roam: 40 }), summary: (m) => `${m.grazers} grazers`, color: '#c99a4a', sel: '#ffe08a' },
   deposits: { label: 'Alloy deposits', one: 'Deposit', shape: depositShape, tool: 'deposit', make: (x, z) => ({ x, z, alloys: 1000 }), summary: (m) => `${m.alloys} alloys`, color: '#e08a2c', sel: '#ffd08a' },
   spawns: { label: 'Predator spawns', one: 'Spawn', shape: spawnShape, tool: 'spawn', make: (x, z) => ({ x, z }), summary: () => 'packs enter here', color: '#d8414e', sel: '#ff9aa3' },
   vents: { label: 'Geothermal vents', one: 'Vent', shape: ventShape, tool: 'vent', make: (x, z) => ({ x, z }), summary: () => 'a Geothermal Tap fits here', color: '#ff7a2a', sel: '#ffc08a' },
+  // a camp's `group` is an id (text); markers are otherwise all numbers
+  camps: { label: 'Inhabitant camps', one: 'Camp', shape: campShape, tool: 'camp', make: (x, z) => ({ x, z, group: 'vell' }) as unknown as Marker, summary: (m) => String(m.group), color: '#b98cff', sel: '#e2ccff' },
 };
 const MKINDS = Object.keys(MARKERS) as MKind[];
 
@@ -379,6 +384,18 @@ export class MapEditor {
             c.position.set(m.x + dx * sz * 0.6, y + sz * h * 0.5, -(m.z + dz * sz * 0.6));
             g.add(c);
           }
+        } else if (k === 'camps') {
+          // a few huts round a fire, and the ring of their land
+          const land = (this.host.inhabitants?.[String(m.group)]?.land as number | undefined) ?? 40;
+          for (let h = 0; h < 3; h++) {
+            const a = (h / 3) * Math.PI * 2 + 0.5;
+            const hut = new THREE.Mesh(new THREE.ConeGeometry(2.4, 4.5, 8), mat);
+            hut.position.set(m.x + Math.cos(a) * 5, this.heightAt(m.x + Math.cos(a) * 5, m.z + Math.sin(a) * 5) + 2.25, -(m.z + Math.sin(a) * 5));
+            g.add(hut);
+          }
+          const fire = new THREE.Mesh(new THREE.OctahedronGeometry(1.2), new THREE.MeshBasicMaterial({ color: '#ffb547' }));
+          fire.position.set(m.x, y + 1.2, -m.z);
+          g.add(fire, this.terrainRing(m.x, m.z, land, sel ? '#e2ccff' : '#b98cff', sel ? 0.9 : 0.55));
         } else if (k === 'vents') {
           const crack = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 7), mat);
           crack.position.set(m.x, y + 0.4, -m.z);
@@ -717,6 +734,8 @@ export class MapEditor {
       if (this.lists[k].length) {
         if (k === 'herds') note = `${this.lists[k].reduce((s, m) => s + m.grazers, 0)} grazers in ${this.lists[k].length} herds. Add with ${key}.`;
         else if (k === 'deposits') note = `${this.lists[k].reduce((s, m) => s + m.alloys, 0).toLocaleString()} alloys in ${this.lists[k].length} deposits. Add with ${key}.`;
+        else if (k === 'camps') note = `The ring is their land: the colony's buildings there wear their regard down. Add with ${key}.`;
+        else if (k === 'vents') note = `${this.lists[k].length} vents. Add with ${key}.`;
         else note = `Packs pick one of these at random. Add with ${key}.`;
       } else if (k === 'spawns') note += ' Without any, packs come from the north-east corner.';
       list.append(el('div', 'help', note));

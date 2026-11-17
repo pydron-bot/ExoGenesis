@@ -21,8 +21,10 @@ import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
+import { InhabitantView } from './world/inhabitants';
 import { DEFS as UNIT_DEFS, type SkSnapshot } from './skirmish/types';
 import { gateSnap, linePoints, placeProblem } from './sim/rules';
+import { campSites } from './sim/inhabitants';
 import { START_HOUR, hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
@@ -382,7 +384,7 @@ const canPlace = (kind: string, x: number, z: number) => {
   return placeProblem(placeWorld(c), content.buildings, content.colony, kind, x, z);
 };
 /** What placement rules see: the colony plus the region's static features (vents). */
-const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: regionDef.vents ?? [] });
+const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits']; camps?: Snapshot['camps'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: regionDef.vents ?? [], campSites: campSites(c.camps ?? []) });
 const snapGate = (kind: string, x: number, z: number) => {
   const c = sim.cur;
   return c && content.buildings[kind]?.role === 'gate' ? gateSnap(c, content.buildings, x, z) : null;
@@ -415,7 +417,7 @@ function restartGame() {
   document.body.classList.remove('more');
 }
 const hud = new ColonyHud({
-  defs: content.buildings, units: content.units, rules: content.colony, people: content.people, ui, cam,
+  defs: content.buildings, units: content.units, inhabitants: content.inhabitants, rules: content.colony, people: content.people, ui, cam,
   command: (c) => sim.command(c),
   setBuild,
   restart: () => restartGame(),
@@ -508,6 +510,7 @@ const help = $('help');
 let helped = false;
 const army = skirmish ? null : new ArmyView(scene);
 const colonists = skirmish ? null : new ColonistView(region.details);
+const natives = skirmish ? null : new InhabitantView(region.details, content.inhabitants, content.assets, fogView.enabled, region.flora);
 const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {
   move: (drone, x, z) => sim.command({ type: 'move', drone, x, z }),
   build: (kind, x, z, yaw) => sim.command({ type: 'build', kind, x, z, yaw }),
@@ -749,6 +752,7 @@ function frame(now: number) {
     fogView.update(sim.cur.fog, dt);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
+    natives?.update(sim.prev, sim.cur, alpha, gameT);
     // sound: only the wind during the landing
     audio.quiet = !!landing || !!title;
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
@@ -814,6 +818,7 @@ const exo = {
     return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
   },
   colonists,
+  natives,
   /** Screen position of a colonist drawn outdoors (by id), or null. */
   colonistScreen: (id: number) => {
     const c = colonists?.at.get(id);
