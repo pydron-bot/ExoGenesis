@@ -12,6 +12,8 @@ import { applies, blank, type Field, type IdIndex, type Issue, type ListField } 
 import { renderFlow } from './flow';
 import { renderPlanet } from './planet';
 import { balanceRunPanel } from './balance-run';
+import { playSetup, setupPanel } from './playsetup';
+import { analyzeFlow } from './flow';
 import { buildDb, REQUIRED, requiredIssues } from '../content/db';
 import { collectText, diffContent, renameRefs, renderChanges, renderCompare, renderProblems, renderText, setAt, type PathIssue, type Rec, type TextEntry } from './pages';
 import { refsTo, renderBalance, renderReview, searchContent, type ReviewFile } from './tools';
@@ -433,7 +435,7 @@ function listControl(d: Record<string, unknown>, key: string, f: ListField, onCh
 function storyPanel(): HTMLElement {
   const play = h('button', { cls: 'primary', textContent: '▶ Play test this event', title: 'Opens the game on the event\'s region (Touchdown if it has none), starting deployed, and fires this event straight away: unsaved edits included. Your own colony is left alone.' });
   play.onclick = () => playTest('story');
-  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'story-card' }), h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play));
+  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'story-card' }), h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play), testSetup());
 }
 
 /** "when the clock reaches Sol (Sol 2)" for a condition. */
@@ -477,7 +479,7 @@ function storySummary(ev: Partial<StoryDef>): string[] {
 function missionPanel(): HTMLElement {
   const play = h('button', { cls: 'primary', textContent: '▶ Play test this mission', title: 'Opens the game on the mission\'s region (Touchdown if it has none), starting deployed, with the missions before it counted as done and this one under way: unsaved edits included. Your own colony is left alone.' });
   play.onclick = () => playTest('mission');
-  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play));
+  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play), testSetup());
 }
 
 function missionSummary(m: Partial<MissionDef>): string[] {
@@ -513,6 +515,14 @@ function renderStoryPreview() {
   }
 }
 
+/** The play test setup form, offering this content's buildings and flags. */
+function testSetup(): HTMLElement {
+  const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
+  const blds = Object.entries(data<BuildingDef>('buildings')).filter(([, b]) => b.role !== 'core' && b.buildable !== false).map(([id, b]) => ({ id, name: b.name }));
+  const flags = [...analyzeFlow(data<MissionDef>('missions'), data<StoryDef>('story')).flags.keys()].sort();
+  return setupPanel(blds, flags);
+}
+
 /** Open a scratch game on the record's region (unsaved edits included) that fires the event / starts the mission. */
 function playTest(kind: 'story' | 'mission') {
   if (!cur) return;
@@ -520,7 +530,7 @@ function playTest(kind: 'story' | 'mission') {
   const region = rec.region && files.get(pathOf('regions', rec.region)) ? rec.region : 'touchdown';
   const def = files.get(pathOf('regions', region))?.data;
   try {
-    localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def, [kind]: { id: cur.id, def: cur.draft } }));
+    localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def, [kind]: { id: cur.id, def: cur.draft }, setup: playSetup() }));
   } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
   window.open(`${import.meta.env.BASE_URL}?preview=1&intro=0`, 'exo-playtest');
 }

@@ -5,7 +5,7 @@ import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input } from './input';
 import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
-import { TICK_HZ, type Building, type SimState, type Snapshot } from './sim/types';
+import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
 import { content, contentIssues, type RegionDef } from './content';
 import { PREVIEW_KEY, type MissionDef, type StoryDef } from './content/defs';
 import { lerp, smoothstep } from './world/noise';
@@ -131,7 +131,7 @@ const skirmishMode = params.get('mode') === 'skirmish';
 // the editor's Play test button left in localStorage (unsaved edits included).
 const preview = params.get('preview') === '1' ? readPreview() : null;
 const scratch = params.get('scratch') === '1' || !!preview;
-function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef } } | null {
+function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup } | null {
   try {
     const p = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
     return p?.id && p.def ? p : null;
@@ -766,9 +766,9 @@ function frame(now: number) {
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
     natives?.update(sim.prev, sim.cur, alpha, gameT);
-    if ((fireStory || startMission) && sim.cur.deployed && !storyFired) {
+    if ((fireStory || startMission || preview?.setup) && sim.cur.deployed && !storyFired) {
       storyFired = true;
-      sim.command({ type: 'debug', story: fireStory ?? undefined, mission: startMission ?? undefined });
+      sim.command({ type: 'debug', setup: preview?.setup, story: fireStory ?? undefined, mission: startMission ?? undefined });
     }
     // sound: only the wind during the landing
     audio.quiet = !!landing || !!title;
