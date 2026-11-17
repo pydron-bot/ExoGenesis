@@ -110,6 +110,25 @@ How content is stored and edited in general (one JSON record per file, schemas i
   were fitted to the old hand-written camera (within ~2% distance and 0.7°). The editor's timeline
   (`src/editor/timeline.ts`) drags beats, keys and captions (things on a beat move with it), plots the
   curves, and plays the game's landing from any moment (`?cine=<s>`; the preview carries the draft).
+  Since v0.22.0 the landing is `content/cinematics/landing.json`, one of the cinematics below (`end` became
+  `length`; nine beats).
+- **Cinematics** (v0.22.0): `content/cinematics/<id>.json` (Cinematics → any; `cinematicShape` in
+  `src/content/defs.ts`): a length, camera keys, captions, **lines** (who says what and for how long: a
+  character or a speaker name, `{first}` filled in), **sounds** (audio assets; `music` loops and fades out at
+  the end), letterbox and fades. Camera keys look at a point, a building kind (the first finished one, else the
+  Core), a story site, an inhabitant camp, or (landing only) the probe. `src/cinematic.ts` plays one: the clock,
+  camera (the same PCHIP channels), captions, lines, cues and fades; the landing's probe is a **set piece**
+  (`src/landing.ts`, `scene: landing`) it drives. A world cinematic pauses the game, blocks taps on the world,
+  hides the HUD and hands the camera back where it was; Skip / Esc ends it. **Triggers:** each has a trigger
+  (the shared conditions, default `never`), region and "unless flag", checked once a second by `src/sim/story.ts`;
+  it plays once (`StoryState.cines`). The `cinematic` effect (story events, choices, mission rewards) plays one
+  whatever its trigger. The sim keeps the queue (`StoryState.cineQueue`, in the snapshot as `story.cine`); the
+  renderer plays the first and sends `{ type: 'cinematic', done }`. Sounds go straight to the master
+  (`GameAudio.clip`). Content checks: only `landing.json` uses the landing scene and it must; beats in order;
+  lists in time order and inside the length; the probe only in the landing; story sites exist; sounds are
+  audio; nothing replays the landing. The editor's timeline has rows for lines and sounds; ▶ Play opens a
+  scratch colony on the cinematic's region (with the play test setup) and plays it (`?cinematic=<id>` for a
+  saved one; automated tests skip cinematics they didn't ask for). Test: `tools/cinematic-smoke.mjs`.
 - **Interface** (v0.20.0): `content/rules/interface.json` (Rules → Interface): accent, warning, danger,
   text and panel colours, panel and outline opacity, interface size (CSS `zoom` on the HUD's children)
   and the log's length and timing. `src/ui-theme.ts` sets them as CSS variables; `style.css` derives

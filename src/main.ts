@@ -7,7 +7,7 @@ import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
 import { content, contentIssues, type RegionDef } from './content';
-import { PREVIEW_KEY, type InterfaceDef, type LandingDef, type MissionDef, type StoryDef } from './content/defs';
+import { PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, globeMesh, R, U, regionHeight, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
@@ -16,6 +16,7 @@ import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 import { startSkirmish } from './skirmish/mode';
 import { Landing } from './landing';
+import { Cinematic, type CineHooks } from './cinematic';
 import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
 import { FogView, addFog } from './world/fog';
@@ -132,7 +133,7 @@ const skirmishMode = params.get('mode') === 'skirmish';
 // the editor's Play test button left in localStorage (unsaved edits included).
 const preview = params.get('preview') === '1' ? readPreview() : null;
 const scratch = params.get('scratch') === '1' || !!preview;
-function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup; landing?: LandingDef; interface?: InterfaceDef } | null {
+function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup; cinematic?: { id: string; def: CinematicDef }; interface?: InterfaceDef } | null {
   try {
     const p = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
     return p?.id && p.def ? p : null;
@@ -161,11 +162,14 @@ const audio = new GameAudio(content.sound, content.assets, skirmishMode || param
 const sim = new SimClient((t, l, cue) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l); else early.push([t, l]);
-}, !skirmishMode, regionId, preview?.def, preview?.story, preview?.mission);
+}, !skirmishMode, regionId, preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic);
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
 if (preview?.mission) content.missions[preview.mission.id] = preview.mission.def;
 const fireStory = preview?.story?.id ?? params.get('story');
+// ?cinematic=<id> (or the editor's play test) plays a cinematic once the colony deploys
+const fireCine = preview?.cinematic && preview.cinematic.def.scene !== 'landing' ? preview.cinematic.id : params.get('cinematic');
+if (preview?.cinematic && preview.cinematic.def.scene !== 'landing') content.cinematics[preview.cinematic.id] = preview.cinematic.def;
 let storyFired = false;
 const startMission = preview?.mission?.id ?? params.get('mission');
 const gen = new Promise<{ globe: GlobeArrays; prov: ProvinceData; ms: Record<string, number> }>((res, rej) => {
@@ -275,8 +279,8 @@ const ui_ = preview?.interface ?? content.interface;
 applyInterface(ui_);
 const heldLog: [string, 'info' | 'warn' | 'bad'][] = [];
 function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
-  // the landing cinematic hides the log; keep events for when it ends
-  if (landing) { heldLog.push([text, level]); return; }
+  // a cinematic hides the log; keep events for when it ends
+  if (cine) { heldLog.push([text, level]); return; }
   const el = document.createElement('div');
   el.className = `ev ${level === 'info' ? '' : level}`;
   el.textContent = text;
@@ -292,16 +296,17 @@ const ui: RegionUi = { sel: null, drag: null, build: null, ghost: null };
 /** Select the first drone once the landing hands over control. */
 let selectFirstDrone = true;
 
-// ---------- landing cinematic ----------
+// ---------- cinematics (the landing, and story ones) ----------
 const cineEl = $('cine');
-let landing: Landing | null = null;
+/** The cinematic playing, if any (the landing, or a world cinematic: the game is paused for it). */
+let cine: Cinematic | null = null;
 // ---------- resume where you left off ----------
 // The sim worker autosaves every few seconds and whenever the page is hidden
 // (phones discard background tabs); on the next visit we pick up from there.
 // ?new=1 starts fresh. The camera is remembered separately in localStorage.
 const CAM_KEY = 'exo.camera';
 function saveCamera() {
-  if (title || landing) return; // the title's orbit and the descent aren't where you play from
+  if (title || cine) return; // the title's orbit and cinematics aren't where you play from
   try { localStorage.setItem(CAM_KEY, JSON.stringify({ dist: cam.targetDist, yaw: cam.yaw, pitch: cam.targetPitch, fx: cam.fx, fz: cam.fz })); } catch { /* private mode */ }
 }
 function restoreCamera() {
@@ -346,33 +351,84 @@ function startResume() {
   restoreCamera();
   log(`Welcome back · resumed at ${solTime(resumed.sim.tick)} · ⋯ → New game to start over`);
 }
+/** The hooks a cinematic needs: the overlay, sounds, where things are, who is talking. */
+function cineHooks(done: () => void): CineHooks {
+  const lineEl = $('cine-line'), fadeEl = $('cine-fade');
+  return {
+    caption: (title, sub) => { $('cine-title').textContent = title; $('cine-sub').textContent = sub; },
+    line: (l) => {
+      lineEl.classList.toggle('on', !!l);
+      if (!l) return;
+      const who = lineEl.querySelector<HTMLElement>('.who')!;
+      who.textContent = l.name;
+      who.style.color = l.color ?? '';
+      who.classList.toggle('none', !l.name);
+      lineEl.querySelector<HTMLElement>('.said')!.textContent = l.text;
+    },
+    fade: (a) => { fadeEl.style.opacity = a.toFixed(3); },
+    sound: (asset, volume, music) => audio.clip(content.assets[asset], volume, music),
+    target: (k: CameraKeyDef) => {
+      const c = sim.cur;
+      if (k.target === 'building') {
+        const b = c?.buildings.find((x) => x.kind === k.building && x.progress >= 1) ?? c?.buildings.find((x) => x.kind === 'core');
+        return b ? { x: b.x, z: b.z } : { x: 0, z: 0 };
+      }
+      if (k.target === 'storysite') return regionDef.sites?.find((x) => x.id === k.site) ?? null;
+      if (k.target === 'camp') return c?.camps.find((x) => x.group === k.group) ?? (regionDef.camps ?? []).find((x) => x.group === k.group) ?? null;
+      return null;
+    },
+    speaker: (character, speaker) => {
+      const ch = character ? content.characters[character] : undefined;
+      return { name: fillFirst(ch?.name ?? speaker ?? ''), role: ch?.role ? fillFirst(ch.role) : undefined, color: ch?.color };
+    },
+    fillText: fillFirst,
+    done,
+  };
+}
+/** {first} = the first pod-born colonist's given name. */
+const fillFirst = (t: string) => (t.includes('{first}') ? t.replaceAll('{first}', sim.cur?.story.first ?? 'your first colonist') : t);
+/** Speed to go back to when a world cinematic ends. */
+let cineResume = 1;
+function endCine() {
+  document.body.classList.remove('cine', 'cine-world', 'cine-bars');
+  cineEl.classList.add('gone');
+  cine = null;
+  for (const [text, level] of heldLog.splice(0)) log(text, level);
+}
 function startLanding() {
   document.body.classList.add('cine');
-  landing = new Landing(scene, region, cam, {
-    stage: (s) => sim.command({ type: 'landing', stage: s }),
-    caption: (title, sub) => {
-      $('cine-title').textContent = title;
-      $('cine-sub').textContent = sub;
-    },
-    done: () => {
-      document.body.classList.remove('cine');
-      cineEl.classList.add('gone');
-      selectFirstDrone = true;
-      landing = null;
-      for (const [text, level] of heldLog.splice(0)) log(text, level);
-    },
-  }, preview?.landing);
+  const def = preview?.cinematic?.def.scene === 'landing' ? preview.cinematic.def : content.landing;
+  if (def.letterbox) document.body.classList.add('cine-bars');
+  const piece = new Landing(scene, region, cam, { stage: (s) => sim.command({ type: 'landing', stage: s }) }, def);
+  cine = new Cinematic('landing', def, cam, cineHooks(() => { selectFirstDrone = true; endCine(); }), piece);
   // ?cine=<seconds>: start part-way in (the editor's "play from the playhead")
   const from = Number(params.get('cine'));
-  if (from > 0) landing.seek(from);
+  if (from > 0) cine.seek(from);
+}
+/** Play a world cinematic over the game, paused; tell the sim when it's over. */
+function playCinematic(id: string, def: CinematicDef, from = 0) {
+  if (cine) return;
+  cineEl.classList.remove('gone');
+  document.body.classList.add('cine', 'cine-world');
+  if (def.letterbox !== false) document.body.classList.add('cine-bars');
+  cineResume = speed || 1;
+  setSpeed(0);
+  ui.sel = null;
+  setBuild(null);
+  cine = new Cinematic(id, def, cam, cineHooks(() => {
+    endCine();
+    sim.command({ type: 'cinematic', id, done: true });
+    setSpeed(cineResume);
+  }));
+  if (from > 0) cine.seek(from);
 }
 if (!skirmishMode && !useTitle) {
   if (resumed) startResume();
   else if (params.get('intro') === '0' || params.get('view')) sim.command({ type: 'landing', stage: 'deploy' });
   else startLanding();
 }
-$('cine-skip').onclick = () => landing?.skip();
-addEventListener('keydown', (e) => { if (landing && (e.key === 'Escape' || e.key === 'Enter')) landing.skip(); });
+$('cine-skip').onclick = () => cine?.skip();
+addEventListener('keydown', (e) => { if (cine && (e.key === 'Escape' || e.key === 'Enter')) cine.skip(); });
 
 // asset models assigned in content replace built-in building models once loaded.
 // ?models=new forces the Blender set (content/assets/exo-<kind>.json) where a kind
@@ -493,7 +549,7 @@ $('b-load').onclick = async () => {
   try {
     const file = await getSave<SaveFile>('slot1');
     if (!file) { log('No save in this browser yet', 'warn'); return; }
-    landing?.skip();
+    cine?.skip();
     sim.load(file.sim);
     Object.assign(cam, { yaw: file.camera.yaw, fx: file.camera.fx, fz: file.camera.fz });
     cam.targetDist = file.camera.dist;
@@ -755,9 +811,17 @@ function frame(now: number) {
     if (!ready && skirmish.ready) { ready = true; exo.ready = true; reveal(); }
   } else if (sim.prev && sim.cur) {
     const day = smoothstep(-0.15, 0.25, sunUp);
-    landing?.update(dt, day);
+    cine?.update(dt, day);
+    // story cinematics the sim has queued: one at a time, once the landing and title are done
+    const queued = sim.cur.story.cine?.[0];
+    if (queued && !cine && !title && sim.cur.deployed) {
+      const def = preview?.cinematic?.id === queued ? preview.cinematic.def : content.cinematics[queued];
+      // automated tests don't sit through cinematics unless they asked for one
+      if (!def || def.scene === 'landing' || (navigator.webdriver && !fireCine)) sim.command({ type: 'cinematic', id: queued, done: true });
+      else playCinematic(queued, def, queued === fireCine ? Number(params.get('cine')) || 0 : 0);
+    }
     region.flora?.update(t, 1 - smoothstep(-0.2, 0.15, sunUp), camera);
-    if (selectFirstDrone && !landing && sim.cur.deployed && sim.cur.drones.length) {
+    if (selectFirstDrone && !cine && sim.cur.deployed && sim.cur.drones.length) {
       selectFirstDrone = false;
       ui.sel = { kind: 'drone', id: sim.cur.drones[0].id };
       hud.selected();
@@ -768,17 +832,17 @@ function frame(now: number) {
     gameT += dt * speed;
     region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera, gameT);
     // fog shows once the landing has handed over (the descent keeps its vista)
-    fogView.amount = landing || title ? 0 : 1;
+    fogView.amount = (cine && !cine.world) || title ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
     natives?.update(sim.prev, sim.cur, alpha, gameT);
-    if ((fireStory || startMission || preview?.setup) && sim.cur.deployed && !storyFired) {
+    if ((fireStory || startMission || fireCine || preview?.setup) && sim.cur.deployed && !storyFired) {
       storyFired = true;
-      sim.command({ type: 'debug', setup: preview?.setup, story: fireStory ?? undefined, mission: startMission ?? undefined });
+      sim.command({ type: 'debug', setup: preview?.setup, story: fireStory ?? undefined, mission: startMission ?? undefined, cinematic: fireCine ?? undefined });
     }
-    // sound: only the wind during the landing
-    audio.quiet = !!landing || !!title;
+    // sound: only the wind (and the cinematic's own cues) during a cinematic
+    audio.quiet = !!cine || !!title;
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
     audio.ambient(sim.cur.daylight, air, dt);
     if (!ready) { ready = true; exo.ready = true; reveal(); }
@@ -823,7 +887,10 @@ const exo = {
   sim,
   skirmish,
   region,
-  get landing() { return landing; },
+  /** The landing cinematic while it plays. */
+  get landing() { return cine && !cine.world ? cine : null; },
+  /** Any cinematic while it plays. */
+  get cinematic() { return cine; },
   get title() { return title; },
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
   hud,

@@ -419,6 +419,11 @@ svg.tl { display: block; width: 100%; user-select: none; touch-action: none; cur
 .tl-key-line { stroke: var(--accent); stroke-opacity: .12; }
 .tl-cap rect { fill: rgba(63, 214, 255, .14); stroke: rgba(63, 214, 255, .5); cursor: ew-resize; }
 .tl-cap text { fill: var(--text); font: 10px ui-monospace, monospace; pointer-events: none; }
+.tl-line rect { fill: rgba(255, 181, 71, .14); stroke: rgba(255, 181, 71, .55); cursor: ew-resize; }
+.tl-line text, .tl-sound text { fill: var(--text); font: 10px ui-monospace, monospace; pointer-events: none; }
+.tl-sound circle { fill: var(--good); stroke: #001820; cursor: ew-resize; }
+.tl-sound .tl-music { fill: rgba(91, 227, 160, .18); pointer-events: none; }
+.tl-end { stroke: var(--bad); stroke-dasharray: 4 3; stroke-opacity: .7; }
 .tl-curve { fill: none; stroke-width: 1.5; }
 .tl-curve.dist { stroke: var(--accent); } .tl-curve.pitch { stroke: var(--good); } .tl-curve.yaw { stroke: #c49cff; }
 .tl-play { stroke: #fff; stroke-opacity: .7; pointer-events: none; }

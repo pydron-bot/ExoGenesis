@@ -343,7 +343,7 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
 | Map / region editor | Terrain sculpt, flora paint, grazer herds ✅ 2026-11-15; resources, spawns, relic sites as their systems land | M1 (one region), M3 (the planet) |
 | Mission + trigger designer | "When X, do Y" trigger lists, objectives, win/lose ✅ v0.19.0 | M4 tutorial missions |
 | Story + dialogue editor | Story events ✅ v0.18.0; characters, conversations, radio messages, Trust and Firstborn triggers ✅ v0.20.0 | M2 → M4 |
-| Cinematic timeline | Camera keys, events, captions; landing sequence ported as the test ✅ v0.20.0 | M4 |
+| Cinematic timeline | Camera keys, events, captions; landing sequence ported as the test ✅ v0.20.0; any number of cinematics with lines, sounds and triggers ✅ v0.22.0 | M4 |
 | Interface tweaker | HUD theme and layout values (not a WYSIWYG builder) ✅ v0.20.0 | Late M4 |
 
 Rule: each tool is built when the milestone in progress needs it, not ahead of the game.

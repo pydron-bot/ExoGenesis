@@ -24,7 +24,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type LandingDef } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -58,7 +58,7 @@ let cur: Current | null = null;
 let mapEd: MapEditor | null = null;
 let assetPanel: AssetPanel | null = null;
 let viewHandle: { dispose(): void } | null = null;
-/** The landing's timeline, while Cinematics → Landing is open. */
+/** A cinematic's timeline, while one is open (Cinematics). */
 let timeline: { el: HTMLElement; update(): void } | null = null;
 /** What the main pane shows when no record is open. */
 let view: 'none' | 'library' | PageName | { builtin: string } = 'none';
@@ -474,7 +474,7 @@ function conditionText(kind: Condition | undefined, c: ConditionDef): string {
 /** "add 60 alloys" for an effect. */
 function effectText(e: Partial<EffectDef>): string {
   if (!e.kind) return '?';
-  return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace('the Flag', `flag "${e.flag ?? '?'}"`).replace('the Group', e.group ?? '?').replace('the Event', `"${e.event ?? '?'}"`).replace('(Text)', e.text ? `: “${e.text.slice(0, 60)}${e.text.length > 60 ? '…' : ''}”` : '');
+  return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace('the Flag', `flag "${e.flag ?? '?'}"`).replace('the Group', e.group ?? '?').replace('the Event', `"${e.event ?? '?'}"`).replace('the Cinematic', `"${e.cinematic ?? '?'}"`).replace('(Text)', e.text ? `: “${e.text.slice(0, 60)}${e.text.length > 60 ? '…' : ''}”` : '');
 }
 
 /** Ids of records in `coll` whose data passes `test`. */
@@ -681,9 +681,9 @@ function renderForm() {
   if (cur.coll === 'story') panel = storyPanel();
   if (cur.coll === 'missions') panel = missionPanel();
   timeline = null;
-  if (cur.coll === 'landing') {
+  if (cur.coll === 'cinematics') {
     timeline = timelinePanel({
-      draft: () => cur!.draft as unknown as LandingDef,
+      draft: () => cur!.draft as unknown as CinematicDef,
       changed,
       rerender: () => renderForm(),
       reveal(field) {
@@ -696,13 +696,17 @@ function renderForm() {
         row.classList.add('flash');
       },
       play(from) {
+        // the landing plays as a new game's opening; any other plays over a scratch colony on its region
+        const d = cur!.draft as unknown as CinematicDef, land = d.scene === 'landing';
+        const region = !land && d.region && files.get(pathOf('regions', d.region)) ? d.region : 'touchdown';
         try {
-          localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: 'touchdown', def: files.get(pathOf('regions', 'touchdown'))?.data, landing: cur!.draft }));
+          localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def: files.get(pathOf('regions', region))?.data, cinematic: { id: cur!.id, def: d }, setup: land ? undefined : playSetup() }));
         } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
-        window.open(`${import.meta.env.BASE_URL}?preview=1&title=0${from > 0 ? `&cine=${from.toFixed(1)}` : ''}`, 'exo-playtest');
+        window.open(`${import.meta.env.BASE_URL}?preview=1&${land ? 'title=0' : 'intro=0'}${from > 0 ? `&cine=${from.toFixed(1)}` : ''}`, 'exo-playtest');
       },
     });
-    panel = timeline.el;
+    panel = (cur.draft as { scene?: string }).scene === 'landing' ? timeline.el
+      : h('div', {}, timeline.el, h('div', { cls: 'note', textContent: 'Play test: a scratch colony on its region (Touchdown if none), paused while it plays. Set it up below so the camera has something to look at.' }), testSetup());
   }
   if (cur.coll === 'interface') {
     const play = h('button', { cls: 'primary', textContent: '▶ Open the game with this look', title: 'A fresh game on Touchdown with these settings (unsaved edits too)' });

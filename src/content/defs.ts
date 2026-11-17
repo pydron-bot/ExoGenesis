@@ -306,7 +306,7 @@ export const CONDITION_HELP: Record<Condition, string> = {
   never: 'only when another event starts it',
 };
 
-export const STORY_EFFECTS = ['log', 'alloys', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'event', 'pack'] as const;
+export const STORY_EFFECTS = ['log', 'alloys', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'event', 'pack', 'cinematic'] as const;
 export type StoryEffect = (typeof STORY_EFFECTS)[number];
 export const EFFECT_HELP: Record<StoryEffect, string> = {
   log: 'a line in the log (Text)',
@@ -319,6 +319,7 @@ export const EFFECT_HELP: Record<StoryEffect, string> = {
   unflag: 'clear the Flag',
   event: 'start the Event now, whatever its trigger',
   pack: 'the next predator pack attacks now',
+  cinematic: 'play the Cinematic (the game pauses while it plays)',
 };
 const on = (field: string, is: readonly string[], need = true) => ({ field, is, need });
 
@@ -347,6 +348,7 @@ const effectFields = {
   group: ref('inhabitants', { label: 'Group', optional: true, when: on('kind', ['regard']) }),
   flag: str({ label: 'Flag', optional: true, when: on('kind', ['flag', 'unflag']) }),
   event: ref('story', { label: 'Event', optional: true, when: on('kind', ['event']) }),
+  cinematic: ref('cinematics', { label: 'Cinematic', optional: true, when: on('kind', ['cinematic']) }),
   text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', ['log']) }),
 };
 export const effectShape = effectFields satisfies Shape;
@@ -501,16 +503,31 @@ export const regionShape = {
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 /**
- * The landing cinematic (src/landing.ts): when each beat happens, where the
- * camera is, and the captions. Everything else about the landing (the probe's
- * path, the petals, the dust) follows the beats.
+ * Cinematics (content/cinematics/<id>.json; src/cinematic.ts plays them): a
+ * timeline of camera keys, captions, spoken lines and sounds over the world.
+ * A cinematic with its own trigger plays once when it's met; a story event or
+ * mission can also play one (the `cinematic` effect). The game pauses while one
+ * plays, and the player can skip it.
+ *
+ * The landing (cinematics/landing.json, scene `landing`) is one of them: the
+ * probe's descent is its set piece, and its beats time the probe's moves.
  */
-const beat = (label: string, help: string) => num({ label, min: 0, max: 120, step: 0.1, unit: 's', help });
+const beat = (label: string, help: string) => num({ label, min: 0, max: 600, step: 0.1, unit: 's', optional: true, help, when: on('scene', ['landing']) });
+export const CINE_TARGETS = ['site', 'building', 'storysite', 'camp', 'probe'] as const;
 export const cameraKeyShape = {
-  at: num({ label: 'At', min: 0, max: 120, step: 0.05, unit: 's' }),
-  target: choice(['probe', 'site'], { label: 'Looks at', helps: { probe: 'The probe as it comes down (Lift above it).', site: 'A point on the ground: X, Z and Lift (region units; the Core is at 0, 0).' } }),
+  at: num({ label: 'At', min: 0, max: 600, step: 0.05, unit: 's' }),
+  target: choice(CINE_TARGETS, { label: 'Looks at', helps: {
+    site: 'A point on the ground: X, Z and Lift (region units; the Core is at 0, 0).',
+    building: 'The colony\'s first building of a kind (the Command Core if there is none).',
+    storysite: 'A story site on the region map.',
+    camp: 'The camp of an inhabitant group.',
+    probe: 'The probe as it comes down (the landing only).',
+  } }),
   x: num({ label: 'X', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
   z: num({ label: 'Z', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
+  building: ref('buildings', { label: 'Building', optional: true, when: on('target', ['building']) }),
+  site: str({ label: 'Story site', optional: true, help: 'A story site id on the region map.', when: on('target', ['storysite']) }),
+  group: ref('inhabitants', { label: 'Group', optional: true, when: on('target', ['camp']) }),
   lift: num({ label: 'Lift', min: -20, max: 200, step: 0.5, unit: 'u', default: 0 }),
   dist: num({ label: 'Distance', min: 5, max: 3000, step: 0.5, unit: 'u', help: 'From what it looks at.' }),
   follow: num({ label: 'Pull back with height', min: 0, max: 5, step: 0.05, optional: true, when: on('target', ['probe'], false), help: 'Extra distance for each unit of the probe\'s altitude (so the chase widens high up).' }),
@@ -519,11 +536,33 @@ export const cameraKeyShape = {
 } satisfies Shape;
 export type CameraKeyDef = Infer<typeof cameraKeyShape>;
 export const captionShape = {
-  at: num({ label: 'At', min: 0, max: 120, step: 0.05, unit: 's' }),
+  at: num({ label: 'At', min: 0, max: 600, step: 0.05, unit: 's' }),
   title: str({ label: 'Title' }),
-  sub: str({ label: 'Line', optional: true, help: '{alt} = altitude (km), {speed} = speed (m/s), {shield} = heat-shield temperature (°C).' }),
+  sub: str({ label: 'Line', optional: true, help: 'Landing only: {alt} = altitude (km), {speed} = speed (m/s), {shield} = heat-shield temperature (°C).' }),
 } satisfies Shape;
-export const landingShape = {
+/** Something said during a cinematic: a subtitle with the speaker's name and colour. */
+export const cineLineShape = {
+  at: num({ label: 'At', min: 0, max: 600, step: 0.05, unit: 's' }),
+  character: ref('characters', { label: 'Character', optional: true, help: 'Who says it (their name and colour).' }),
+  speaker: str({ label: 'Speaker', optional: true, help: 'Instead of a character: a name for this line only.' }),
+  text: str({ label: 'Line', multiline: true, help: '{first} = the first colonist\'s name.' }),
+  for: num({ label: 'Shows for', min: 0.5, max: 60, step: 0.1, unit: 's', optional: true, help: 'Empty = until the next line (or 5 s for the last).' }),
+} satisfies Shape;
+/** A sound or music cue: an audio file from the asset library. */
+export const cineSoundShape = {
+  at: num({ label: 'At', min: 0, max: 600, step: 0.05, unit: 's' }),
+  sound: ref('assets', { label: 'Sound', assetKind: 'audio', help: 'An audio file from the asset library (Assets).' }),
+  volume: num({ label: 'Volume', min: 0, max: 1, step: 0.05, default: 1 }),
+  music: bool({ label: 'Music', optional: true, help: 'Loops until the cinematic ends, then fades out.' }),
+} satisfies Shape;
+const cineTrigger = conditionFields('trigger', 'Plays');
+export const cinematicShape = {
+  title: str({ label: 'Title', help: 'For the editor; players don\'t see it.' }),
+  scene: choice(['world', 'landing'], { label: 'Scene', optional: true, help: 'Empty = the world.', helps: {
+    world: 'The game world as it is: the camera moves over the colony while the game is paused.',
+    landing: 'The probe\'s descent (the opening landing); its beats time the probe.',
+  } }),
+  length: num({ label: 'Length', min: 1, max: 600, step: 0.1, unit: 's', help: 'The cinematic hands back to the game here.' }),
   burn: beat('Retro burn', 'The thrusters light.'),
   touchdown: beat('Touchdown', 'The probe lands (the dust burst, the drone stage starts).'),
   open: beat('Shell opens', 'The petals start to fold out.'),
@@ -533,12 +572,22 @@ export const landingShape = {
   hatch: beat('Bay opens', 'The drone bay hatch opens.'),
   drone: beat('Drone out', 'The worker drone appears in the bay.'),
   post: beat('Drone at post', 'The drone reaches its post; the colony deploys.'),
-  end: beat('End', 'The cinematic hands over to the normal view.'),
-  camera: list(cameraKeyShape, { label: 'Camera keys', max: 60, help: 'The camera passes smoothly through each key in time order. The last should match the normal view (looking at 0, −8 from 75 u, pitch 0.85, yaw 0.4) so the hand-over doesn\'t jump.' }),
-  captions: list(captionShape, { label: 'Captions', max: 40, help: 'Each shows from its time until the next.' }),
+  letterbox: bool({ label: 'Letterbox', optional: true, default: true, help: 'Black bars top and bottom while it plays.' }),
+  fadeIn: num({ label: 'Fade in', min: 0, max: 10, step: 0.1, unit: 's', optional: true, help: 'From black at the start.' }),
+  fadeOut: num({ label: 'Fade out', min: 0, max: 10, step: 0.1, unit: 's', optional: true, help: 'To black before the end (then back to the game).' }),
+  camera: list(cameraKeyShape, { label: 'Camera keys', max: 60, help: 'The camera passes smoothly through each key in time order. A world cinematic hands the camera back where it was; the landing\'s last key should match the normal view (looking at 0, −8 from 75 u, pitch 0.85, yaw 0.4).' }),
+  captions: list(captionShape, { label: 'Captions', max: 40, optional: true, help: 'Big titles, each from its time until the next.' }),
+  lines: list(cineLineShape, { label: 'Lines', max: 60, optional: true, help: 'Subtitles: who says what, when.' }),
+  sounds: list(cineSoundShape, { label: 'Sounds and music', max: 40, optional: true }),
+  ...cineTrigger,
+  trigger: { ...cineTrigger.trigger, default: 'never' as const },
+  region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
+  unless: str({ label: 'Unless flag', optional: true, help: 'Doesn\'t play if this flag is set.' }),
 } satisfies Shape;
-export type LandingDef = Infer<typeof landingShape>;
-export const BEATS = ['burn', 'touchdown', 'open', 'power', 'dissolve', 'reclaimed', 'hatch', 'drone', 'post', 'end'] as const;
+export type CinematicDef = Infer<typeof cinematicShape>;
+/** @deprecated name: the landing is a cinematic. */
+export type LandingDef = CinematicDef;
+export const BEATS = ['burn', 'touchdown', 'open', 'power', 'dissolve', 'reclaimed', 'hatch', 'drone', 'post'] as const;
 
 /** The HUD's look (src/ui-theme.ts sets them as CSS variables; style.css uses them). */
 export const interfaceShape = {
@@ -583,8 +632,8 @@ export const COLLECTIONS = {
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },
   sound: { path: 'rules/sound.json', kind: 'single', shape: soundRulesShape, label: 'Sound', group: 'Rules' },
-  landing: { path: 'rules/landing.json', kind: 'single', shape: landingShape, label: 'Landing', group: 'Cinematics' },
   interface: { path: 'rules/interface.json', kind: 'single', shape: interfaceShape, label: 'Interface', group: 'Rules' },
+  cinematics: { path: 'cinematics', kind: 'many', shape: cinematicShape, label: 'Cinematics', title: 'title', group: 'Cinematics' },
 } satisfies Record<string, Collection>;
 
 export type CollectionName = keyof typeof COLLECTIONS;

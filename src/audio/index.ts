@@ -203,6 +203,44 @@ export class GameAudio {
     }, (dur + 0.1) * 1000);
   }
 
+  /**
+   * Play an audio asset (a cinematic's sound or music cue) straight to the
+   * master, past the mixer's categories and caps. Music loops. Returns a stopper
+   * that fades it out over `fade` seconds; null if sound is off or it isn't audio.
+   * A file not loaded yet starts as soon as it is.
+   */
+  clip(a: AssetDef | undefined, volume = 1, loop = false): ((fade: number) => void) | null {
+    if (!a || a.kind !== 'audio' || !this.live()) return null;
+    const c = this.ctx!, g = c.createGain();
+    g.gain.value = volume;
+    g.connect(this.master);
+    let src: AudioBufferSourceNode | null = null, stopped = false;
+    const start = (buf: AudioBuffer) => {
+      if (stopped) return;
+      src = c.createBufferSource();
+      src.buffer = buf;
+      src.loop = loop;
+      src.connect(g);
+      src.start();
+      this.counts[`clip:${a.file}`] = (this.counts[`clip:${a.file}`] ?? 0) + 1;
+      if (!loop) src.onended = () => g.disconnect();
+    };
+    const have = this.clips.get(a.file);
+    if (have instanceof AudioBuffer) start(have);
+    else {
+      const p = have ?? fetch(mediaUrl(a)).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`)))).then((b) => c.decodeAudioData(b));
+      this.clips.set(a.file, p);
+      p.then((buf) => { this.clips.set(a.file, buf); start(buf); }, (e) => { this.clips.delete(a.file); console.warn(`sound ${a.file} failed to load`, e); });
+    }
+    return (fade: number) => {
+      stopped = true;
+      const t = c.currentTime;
+      g.gain.setTargetAtTime(0, t, Math.max(0.01, fade / 3));
+      setTimeout(() => { try { src?.stop(); } catch { /* already stopped */ } g.disconnect(); }, (fade + 0.2) * 1000);
+    };
+  }
+  private clips = new Map<string, AudioBuffer | Promise<AudioBuffer>>();
+
   // ---------- internals ----------
   private live() { return !!this.ctx && this.ctx.state === 'running' && !this.muted; }
 

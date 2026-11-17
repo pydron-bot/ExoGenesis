@@ -157,6 +157,25 @@ body.cine #bar, body.cine #res, body.cine #help, body.cine #log { display: none;
   background: rgba(5,10,16,.55); color: var(--cyan); border: 1px solid color-mix(in srgb, var(--cyan) 35%, transparent); border-radius: 4px; padding: 6px 14px;
 }
 
+/* cinematics: fade to black, letterbox bars, spoken lines; a world cinematic blocks taps on the world */
+#cine-fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 3; }
+body.cine-world #cine-fade { pointer-events: auto; }
+#cine-bars { display: none; }
+body.cine-bars #cine-bars { display: block; }
+#cine-bars > div { position: fixed; left: 0; right: 0; height: 11vh; background: #000; pointer-events: none; z-index: 2; animation: cine-bar 0.6s ease-out; }
+#cine-bars > div:first-child { top: 0; }
+#cine-bars > div:last-child { bottom: 0; }
+@keyframes cine-bar { from { height: 0; } }
+body.cine #cine { z-index: 4; }
+#cine-line { display: none; }
+body.cine #cine-line.on {
+  display: block; position: fixed; left: 50%; bottom: calc(11vh + 64px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 4;
+  width: min(92vw, 640px); text-align: center; pointer-events: none;
+}
+#cine-line .who { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--cyan); text-shadow: 0 0 4px #000; }
+#cine-line .who.none { display: none; }
+#cine-line .said { margin-top: 4px; font-size: 17px; line-height: 1.4; color: #eef8fb; text-shadow: 0 0 6px #000, 0 0 2px #000; }
+
 #content-issues {
   position: fixed; inset: 0; z-index: 100; margin: 0; padding: 24px; overflow: auto;
   background: #05080d; color: #ff8a7a; font: 13px/1.5 ui-monospace, monospace; white-space: pre-wrap;

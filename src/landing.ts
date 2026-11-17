@@ -1,5 +1,6 @@
 /**
- * The opening cinematic: the seed-probe comes in from orbit, burns its retro
+ * The landing's set piece (cinematics/landing.json, scene `landing`; played by
+ * src/cinematic.ts): the seed-probe comes in from orbit, burns its retro
  * thrusters at full throttle into a cloud of dust, touches down, folds its six
  * shell petals out flat, and the petals dissolve (reclaimed by the core's
  * fabricators) to leave the Command Core. Then the drone bay opens and the
@@ -7,30 +8,25 @@
  *
  * Purely presentational: the sim is told 'burn' / 'touchdown' / 'deploy' at the
  * right moments and owns everything that matters (economy, fauna panic, when
- * the drone can take orders). Skippable at any point.
- *
- * The timeline is content (content/rules/landing.json, editor: Cinematics →
- * Landing): the beats, the camera keys (the camera passes smoothly through
- * them, PCHIP per channel) and the captions.
+ * the drone can take orders). The player (src/cinematic.ts) runs the clock,
+ * the camera, captions and sounds; this animates the probe to the beats.
  */
 import * as THREE from 'three';
 import type { ZoomCamera } from './camera';
-import { content } from './content';
-import type { LandingDef } from './content/defs';
-import { pchip } from './world/curve';
+import type { CinematicDef } from './content/defs';
+import type { SetPiece } from './cinematic';
 import type { LandingStage } from './sim/types';
 import { lerp, smoothstep } from './world/noise';
 import { R, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, U } from './world/planet';
 import { buildCore, orient, type RegionView } from './world/region';
 
-// ---------- timeline (seconds; content/rules/landing.json) ----------
-let L: LandingDef = content.landing;
-let T_BURN = 0, T_TD = 0, T_OPEN = 0, T_POWER = 0, T_DISSOLVE = 0, T_DISSOLVED = 0, T_HATCH = 0, T_DRONE = 0, T_DRONE_POST = 0, T_END = 0;
-function useTimeline(def: LandingDef) {
-  L = def;
-  ({ burn: T_BURN, touchdown: T_TD, open: T_OPEN, power: T_POWER, dissolve: T_DISSOLVE, reclaimed: T_DISSOLVED, hatch: T_HATCH, drone: T_DRONE, post: T_DRONE_POST, end: T_END } = def);
+// ---------- beats (seconds; content/cinematics/landing.json) ----------
+let T_BURN = 0, T_TD = 0, T_OPEN = 0, T_POWER = 0, T_DISSOLVE = 0, T_DISSOLVED = 0, T_HATCH = 0, T_DRONE = 0, T_DRONE_POST = 0;
+function useTimeline(def: CinematicDef) {
+  // a missing beat (an unfinished draft) falls back to the shipped timing
+  T_BURN = def.burn ?? 5.2; T_TD = def.touchdown ?? 12; T_OPEN = def.open ?? 13.3; T_POWER = def.power ?? 15.4; T_DISSOLVE = def.dissolve ?? 17.4;
+  T_DISSOLVED = def.reclaimed ?? 21.4; T_HATCH = def.hatch ?? 21.4; T_DRONE = def.drone ?? 22.5; T_DRONE_POST = def.post ?? 25.2;
 }
-useTimeline(L);
 
 
 const A0 = 2600; // entry altitude (units; ~26 km)
@@ -47,8 +43,6 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
 export interface LandingHooks {
   stage: (s: LandingStage) => void;
-  caption: (title: string, sub: string) => void;
-  done: () => void;
 }
 
 // ---------- dissolving shell material ----------
@@ -307,10 +301,8 @@ class Dust {
 
 // ---------- the lander ----------
 
-export class Landing {
-  t = 0;
-  done = false;
-  private probe = new THREE.Group();
+export class Landing implements SetPiece {
+  private probeObj = new THREE.Group();
   private core: THREE.Group;
   private pivots: THREE.Group[] = [];
   private plumes: { inner: THREE.Mesh; outer: THREE.Mesh; flare: THREE.Sprite }[] = [];
@@ -325,15 +317,15 @@ export class Landing {
   private sent = new Set<LandingStage>();
   private thudded = new Set<number>();
   private padH = regionHeight(0, 0);
-  private lastCaption = '';
   private v = 0; // probe speed, units/s
-  private alt = A0;
+  /** Probe altitude (units), for the camera's pull-back and the {alt} caption. */
+  alt = A0;
 
-  /** `def`: an unsaved timeline from the editor (play test), else the content's. */
-  constructor(private scene: THREE.Scene, private region: RegionView, private cam: ZoomCamera, private hooks: LandingHooks, def: LandingDef = content.landing) {
+  /** `def`: the landing cinematic (an unsaved draft from the editor's play test, or the content's). */
+  constructor(private scene: THREE.Scene, private region: RegionView, private cam: ZoomCamera, private hooks: LandingHooks, def: CinematicDef) {
     useTimeline(def);
     this.core = buildCore();
-    this.probe.add(this.core);
+    this.probeObj.add(this.core);
     this.core.traverse((o) => {
       if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial && o.material.emissiveIntensity > 0 && o.material.emissive.getHex() !== 0) {
         this.glows.push({ mat: o.material, base: o.material.emissiveIntensity });
@@ -383,13 +375,13 @@ export class Landing {
         pivot.add(noz);
         this.plumes.push({ inner, outer, flare });
       }
-      this.probe.add(pivot);
+      this.probeObj.add(pivot);
       this.pivots.push(pivot);
     }
     const shield = new THREE.Mesh(painted(new THREE.CylinderGeometry(RB / Math.cos(Math.PI / 6), RB / Math.cos(Math.PI / 6) * 0.96, 0.5, 6), '#2b221d'), shellMat);
     shield.rotation.y = Math.PI / 6;
     shield.position.y = 0.05;
-    this.probe.add(shield);
+    this.probeObj.add(shield);
 
     // entry plasma: a hot cap on the shield, a long wake behind, and a sprite that reads from far away
     const sheathGeo = new THREE.SphereGeometry(13, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
@@ -400,23 +392,25 @@ export class Landing {
     trailGeo.rotateX(Math.PI); // apex up, base at y=0
     this.trail = new THREE.Mesh(trailGeo, additive(0));
     this.plasma = glowSprite('rgba(255,235,200,1)', 'rgba(255,120,40,0.45)');
-    this.probe.add(this.sheath, this.trail, this.plasma);
+    this.probeObj.add(this.sheath, this.trail, this.plasma);
 
     this.light.position.set(0, -2, 0);
-    this.probe.add(this.light);
+    this.probeObj.add(this.light);
 
     const dc = terrainColor(regionHeightRaw(0, 0), regionFlora(0, 0), new THREE.Color());
     this.dust = new Dust(dc.lerp(new THREE.Color('#c9b49a'), 0.35));
 
-    scene.add(this.probe, this.dust.mesh);
+    scene.add(this.probeObj, this.dust.mesh);
     region.core.visible = false;
     region.droneHeld = true;
     region.drone.visible = false;
     this.setPower(0.12);
     cam.freePitch = true;
     cam.overrideW = 1;
-    this.frame(0, 1);
   }
+
+  /** Where camera keys that look at the probe aim. */
+  get probe() { return this.probeObj.position; }
 
   private setPower(k: number) {
     for (const g of this.glows) g.mat.emissiveIntensity = g.base * k;
@@ -435,21 +429,8 @@ export class Landing {
     return regionDir(p.x, p.z, out).multiplyScalar(R + this.padH + p.alt);
   }
 
-  skip() {
-    if (this.done) return;
-    this.t = T_END;
-    this.update(0, 1);
-  }
-
-  update(dt: number, day: number) {
-    if (this.done) return;
-    this.t += dt;
-    if (this.t >= T_END) { this.finish(); return; }
-    this.frame(dt, day);
-  }
-
-  private frame(dt: number, day: number) {
-    const t = this.t;
+  /** Pose everything for time `t` (s). */
+  frame(t: number, dt: number, day: number) {
     const pos = this.pathWorld(t);
     const p = this.path(t);
     this.alt = p.alt;
@@ -466,14 +447,14 @@ export class Landing {
       const ref = regionToWorld(0, -1, 0).sub(regionToWorld(0, 0, 0)).normalize().negate();
       const fwd = ref.addScaledVector(up, -ref.dot(up)).normalize();
       const right = new THREE.Vector3().crossVectors(up, fwd);
-      this.probe.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd));
-      this.probe.position.copy(pos);
+      this.probeObj.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd));
+      this.probeObj.position.copy(pos);
     } else {
       this.v = 0;
-      orient(this.probe, 0, 0, 0, 0);
+      orient(this.probeObj, 0, 0, 0, 0);
       // landing-gear settle: a small sag and rebound
       const st = t - T_TD;
-      this.probe.position.addScaledVector(regionDir(0, 0), -0.35 * Math.exp(-st * 4) * Math.sin(st * 14));
+      this.probeObj.position.addScaledVector(regionDir(0, 0), -0.35 * Math.exp(-st * 4) * Math.sin(st * 14));
     }
 
     // ---- entry plasma ----
@@ -482,7 +463,7 @@ export class Landing {
     (this.trail.material as THREE.MeshBasicMaterial).opacity = heat * 0.5;
     this.trail.scale.set(1 - t * 0.08, 60 + 260 * (1 - smoothstep(0, T_BURN - 0.2, t)), 1 - t * 0.08);
     this.sheath.visible = this.trail.visible = heat > 0.01;
-    const camDist = this.cam.camera.position.distanceTo(this.probe.position);
+    const camDist = this.cam.camera.position.distanceTo(this.probeObj.position);
     this.plasma.visible = heat > 0.01;
     this.plasma.scale.setScalar(Math.max(34, camDist * 0.09) * (0.6 + heat * 0.6));
     (this.plasma.material as THREE.SpriteMaterial).opacity = heat;
@@ -559,40 +540,13 @@ export class Landing {
 
     this.dust.uniforms.uLight.value = 0.35 + 0.75 * day;
     this.dust.update(dt);
-    this.direct(t, pos);
-    this.captions(t);
   }
 
-  /**
-   * Camera: through the content's keys (chase the probe down, frame the
-   * unfolding, the drone bay, then the normal surface view). Each channel
-   * (focus x/y/z, log distance, pitch, yaw) is a monotone cubic over the keys'
-   * times; a key that looks at the probe follows it live.
-   */
-  private direct(t: number, probePos: THREE.Vector3) {
-    const keys = L.camera, X = keys.map((k) => k.at), up = regionDir(0, 0);
-    const F = keys.map((k) => (k.target === 'probe' ? probePos.clone().addScaledVector(up, k.lift) : regionToWorld(k.x ?? 0, k.z ?? 0, k.lift)));
-    const f = new THREE.Vector3(pchip(X, F.map((v) => v.x), t), pchip(X, F.map((v) => v.y), t), pchip(X, F.map((v) => v.z), t));
-    const ld = pchip(X, keys.map((k) => Math.log(k.dist + (k.target === 'probe' ? (k.follow ?? 0) * this.alt : 0))), t);
-    const c = this.cam;
-    c.focusOverride.copy(f);
-    c.overrideW = 1;
-    c.fx = 0; c.fz = -8;
-    c.dist = c.targetDist = Math.exp(ld);
-    c.pitch = c.targetPitch = pchip(X, keys.map((k) => k.pitch), t);
-    c.yaw = pchip(X, keys.map((k) => k.yaw), t);
-  }
-
-  /** The caption whose time has come: {alt} km, {speed} m/s, {shield} °C filled in. */
-  private captions(t: number) {
-    let cap: LandingDef['captions'][number] | undefined;
-    for (const c of L.captions) if (c.at <= t) cap = c;
+  /** Caption text with {alt} km, {speed} m/s and {shield} °C filled in. */
+  fill(x: string, t: number) {
     const km = (this.alt * 0.01).toFixed(this.alt < 100 ? 2 : 1);
-    const fill = (x: string) => x.replace(/\{alt\}/g, km).replace(/\{speed\}/g, String(Math.round(this.v * 10)))
+    return x.replace(/\{alt\}/g, km).replace(/\{speed\}/g, String(Math.round(this.v * 10)))
       .replace(/\{shield\}/g, String(Math.round(1400 + 900 * Math.max(0, 1 - t / Math.max(0.1, T_BURN)))));
-    const title = cap ? fill(cap.title) : '', sub = cap?.sub ? fill(cap.sub) : '';
-    const key = title + sub;
-    if (key !== this.lastCaption) { this.lastCaption = key; this.hooks.caption(title, sub); }
   }
 
   private send(s: LandingStage) {
@@ -601,13 +555,13 @@ export class Landing {
     this.hooks.stage(s);
   }
 
-  private finish() {
-    this.done = true;
+  /** The end (or a skip): the colony takes over, the camera goes to the normal view. */
+  finish() {
     this.send('touchdown');
     this.send('deploy');
-    this.scene.remove(this.probe, this.dust.mesh);
+    this.scene.remove(this.probeObj, this.dust.mesh);
     this.dust.dispose();
-    this.probe.traverse((o) => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
+    this.probeObj.traverse((o) => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
     this.region.core.visible = true;
     this.region.droneHeld = false;
     this.region.drone.visible = true;
@@ -619,14 +573,5 @@ export class Landing {
     c.dist = c.targetDist = 75;
     c.pitch = c.targetPitch = 0.85;
     c.yaw = 0.4;
-    this.hooks.done();
   }
-
-  /** Debug: jump to a moment in the sequence. */
-  seek(t: number) {
-    this.t = Math.max(0, Math.min(T_END - 0.01, t));
-    this.frame(0, 1);
-  }
-
-  get length() { return T_END; }
 }

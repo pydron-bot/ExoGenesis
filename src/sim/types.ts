@@ -177,6 +177,10 @@ export interface StoryState {
   inbox: string[];
   /** Triggered events waiting out their delay. */
   timers: { id: string; at: number }[];
+  /** Cinematics that have played (by their own trigger). */
+  cines?: string[];
+  /** Cinematics waiting to play, oldest first (the renderer plays them, then says so). */
+  cineQueue?: string[];
 }
 
 /** Missions (content/missions): which are under way, done, and which objectives are met. */
@@ -263,7 +267,8 @@ export type Command =
   | { type: 'contact'; camp: number; choice: ContactChoice }
   | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
-  | { type: 'debug'; setup?: PlaySetup; mission?: string; story?: string; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
+  | { type: 'cinematic'; id: string; done: true }
+  | { type: 'debug'; setup?: PlaySetup; mission?: string; story?: string; cinematic?: string; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
 
 /**
  * The editor's play test setup ("simulate to here"): jump the clock, put
@@ -274,7 +279,7 @@ export interface PlaySetup { sol?: number; alloys?: number; colonists?: number; 
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
-  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef } }
+  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef } }
   | { type: 'cmd'; cmd: Command }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }
@@ -327,7 +332,7 @@ export interface Snapshot {
   missions: { active: MissionSnap[]; done: string[] };
   /** Story cards waiting (ids, oldest first) and flags set. */
   /** `first`: the first pod-born colonist's name, for {first} in story text. */
-  story: { inbox: string[]; flags: string[]; first?: string };
+  story: { inbox: string[]; flags: string[]; first?: string; cine?: string[] };
   /** Inhabitant camps (structures show once explored). */
   camps: CampSnap[];
   /** Inhabitants in sight: x, z, heading, camp index, elder (1/0) per person. */

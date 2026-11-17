@@ -7,6 +7,10 @@
  * card in the inbox; the HUD shows the inbox's first card. Answering (a choice,
  * or Continue) applies that choice's effects and lets "after" events follow.
  * Each event fires once per game. State (fired, answered, flags, inbox) is saved.
+ *
+ * Cinematics (content/cinematics) with a trigger are checked the same way and
+ * play once; a `cinematic` effect plays one whatever its trigger. Playing is the
+ * renderer's job: the queue is in the snapshot, and it says when one is done.
  */
 import { content } from '../content';
 import type { EffectDef, StoryDef } from '../content/defs';
@@ -27,6 +31,7 @@ export class Story {
     const st = this.s;
     st.inbox = st.inbox.filter((id) => content.story[id]);
     st.timers = st.timers.filter((t) => content.story[t.id]);
+    if (st.cineQueue) st.cineQueue = st.cineQueue.filter((id) => content.cinematics[id]);
   }
 
   has(flag: string) { return this.s.flags.includes(flag); }
@@ -46,6 +51,27 @@ export class Story {
       if (ev.delay) st.timers.push({ id, at: sim.s.tick + Math.round(ev.delay * TICK_HZ) });
       else this.fire(id);
     }
+    for (const [id, cd] of Object.entries(content.cinematics)) {
+      if (cd.scene === 'landing' || cd.trigger === 'never' || st.cines?.includes(id)) continue;
+      if (cd.region && cd.region !== this.region().id) continue;
+      if (cd.unless && this.has(cd.unless)) continue;
+      if (!conditionMet(sim, cd.trigger, cd, { sites: this.region().sites })) continue;
+      (st.cines ??= []).push(id);
+      this.playCine(id);
+    }
+  }
+
+  /** Queue a cinematic to play (its trigger met, a `cinematic` effect, or a play test). */
+  playCine(id: string) {
+    const cd = content.cinematics[id], st = this.s;
+    if (!cd || cd.scene === 'landing' || st.cineQueue?.includes(id)) return;
+    (st.cineQueue ??= []).push(id);
+  }
+
+  /** The renderer finished (or skipped) a cinematic. */
+  cineDone(id: string) {
+    const q = this.s.cineQueue;
+    if (q) this.s.cineQueue = q.filter((x) => x !== id);
   }
 
   /** Is the event's trigger satisfied right now? */
@@ -99,6 +125,7 @@ export class Story {
       case 'unflag': if (e.flag) st.flags = st.flags.filter((f) => f !== e.flag); break;
       case 'event': if (e.event) this.fire(e.event); break;
       case 'pack': s.waves.next = s.tick; break;
+      case 'cinematic': if (e.cinematic) this.playCine(e.cinematic); break;
     }
   }
 
@@ -115,6 +142,6 @@ export class Story {
   }
 
   snapshot() {
-    return { inbox: [...this.s.inbox], flags: [...this.s.flags], first: this.firstName() };
+    return { inbox: [...this.s.inbox], flags: [...this.s.flags], first: this.firstName(), cine: this.s.cineQueue?.length ? [...this.s.cineQueue] : undefined };
   }
 }

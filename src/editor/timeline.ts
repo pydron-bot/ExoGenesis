@@ -1,22 +1,22 @@
 /**
- * Cinematic timeline (Cinematics → Landing): the landing's beats, camera keys
- * and captions on one time axis, above the form.
+ * Cinematic timeline (Cinematics → any): camera keys, captions, spoken lines
+ * and sound cues on one time axis, above the form (the landing adds its beats).
  *
- *   - drag a beat, a camera key or a caption to move it (snaps to beats and
- *     whole tenths; hold Alt for no snapping). Keys and captions that sat on a
- *     beat move with it.
+ *   - drag a beat, a camera key, a caption, a line or a sound to move it (snaps
+ *     to beats and whole tenths; hold Alt for no snapping). Anything that sat
+ *     on a beat moves with it.
  *   - click an item to jump to its fields in the form below
  *   - click the ruler to put the playhead there: the caption and camera at
  *     that moment show underneath, and "Play from here" starts the game's
- *     landing there (unsaved edits included)
+ *     cinematic there (unsaved edits included)
  *   - the curves are the camera's distance, pitch and yaw, as the game will
  *     interpolate them (the same monotone cubic: src/world/curve.ts)
  */
-import { BEATS, landingShape, type LandingDef } from '../content/defs';
+import { BEATS, cinematicShape, type CinematicDef } from '../content/defs';
 import { pchip } from '../world/curve';
 
 export interface TimelineHost {
-  draft(): LandingDef;
+  draft(): CinematicDef;
   /** The draft changed: refresh the form's dependants (and this). */
   changed(): void;
   /** A list was reordered or its values changed under the form: rebuild the form inputs. */
@@ -40,26 +40,35 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (No
   return el;
 };
 
-const ROWS = { ruler: 0, beats: 22, camera: 92, captions: 122, curves: 156 };
-const H = 250, PAD_L = 74, PAD_R = 14;
+type ListKey = 'camera' | 'captions' | 'lines' | 'sounds';
+const LISTS: ListKey[] = ['camera', 'captions', 'lines', 'sounds'];
+/** Row positions: the landing has a band of beats at the top. */
+const layout = (beats: boolean) => {
+  const top = beats ? 92 : 30;
+  const r = { ruler: 0, beats: 22, camera: top, captions: top + 30, lines: top + 56, sounds: top + 82, curves: top + 112 };
+  return { ...r, H: r.curves + 94 };
+};
+const PAD_L = 74, PAD_R = 14;
 
 let playhead = 0;
 
 export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): void } {
-  const svg = svgEl('svg', { class: 'tl', height: H });
+  const svg = svgEl('svg', { class: 'tl' });
   const info = h('div', 'tl-info');
-  const playAll = h('button', 'primary', '▶ Play the landing');
+  const playAll = h('button', 'primary', '▶ Play it');
   const playHere = h('button', '', '▶ From the playhead');
   playAll.onclick = () => host.play(0);
   playHere.onclick = () => host.play(playhead);
   const el = h('div', 'tl-wrap', svg, h('div', 'tl-bar', info, h('div', 'actions', playAll, playHere)));
   let W = 800;
-  let drag: { kind: 'beat' | 'camera' | 'captions'; key: string; i: number; dx: number; moved: boolean; from: number; riders: { list: 'camera' | 'captions'; i: number }[] } | null = null;
+  let drag: { kind: 'beat' | ListKey; key: string; i: number; dx: number; moved: boolean; from: number; riders: { list: ListKey; i: number }[] } | null = null;
+  const isLanding = () => host.draft().scene === 'landing';
+  let L = layout(isLanding()), H = L.H;
 
-  const span = () => Math.max(5, (host.draft().end ?? 27) + 1);
+  const span = () => Math.max(5, (host.draft().length ?? 27) + 1);
   const xOf = (t: number) => PAD_L + (t / span()) * (W - PAD_L - PAD_R);
   const tOf = (x: number) => ((x - PAD_L) / (W - PAD_L - PAD_R)) * span();
-  const beatTimes = () => BEATS.map((b) => host.draft()[b] as number).filter((v) => typeof v === 'number');
+  const beatTimes = () => (isLanding() ? BEATS.map((b) => host.draft()[b] as number).filter((v) => typeof v === 'number') : []);
   const snap = (t: number, alt: boolean) => {
     t = Math.max(0, t);
     if (alt) return Math.round(t * 100) / 100;
@@ -68,7 +77,7 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
   };
 
   /** Camera channels at time t (as the game computes them). */
-  const camAt = (d: LandingDef, t: number) => {
+  const camAt = (d: CinematicDef, t: number) => {
     const keys = d.camera ?? [];
     if (!keys.length) return null;
     const X = keys.map((k) => k.at);
@@ -76,13 +85,17 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
       dist: Math.exp(pchip(X, keys.map((k) => Math.log(Math.max(1, k.dist ?? 1))), t)),
       pitch: pchip(X, keys.map((k) => k.pitch ?? 0), t),
       yaw: pchip(X, keys.map((k) => k.yaw ?? 0), t),
-      on: (() => { let k = keys[0]; for (const x of keys) if (x.at <= t) k = x; return k.target === 'probe' ? 'the probe' : `${k.x ?? 0}, ${k.z ?? 0}`; })(),
+      on: (() => { let k = keys[0]; for (const x of keys) if (x.at <= t) k = x; return lookText(k); })(),
     };
   };
 
   const draw = () => {
     W = Math.max(400, el.clientWidth || 800);
+    L = layout(isLanding());
+    H = L.H;
+    const ROWS = L;
     svg.setAttribute('width', String(W));
+    svg.setAttribute('height', String(H));
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.replaceChildren();
     const d = host.draft();
@@ -93,20 +106,22 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
       if (t % 5 === 0) svg.append(svgEl('text', { x: x + 2, y: 10, class: 'tl-lbl' }, `${t}s`));
     }
     const label = (y: number, text: string) => svg.append(svgEl('text', { x: 6, y, class: 'tl-row' }, text));
-    label(ROWS.beats + 26, 'Beats');
+    if (isLanding()) label(ROWS.beats + 26, 'Beats');
     label(ROWS.camera + 4, 'Camera');
     label(ROWS.captions + 13, 'Captions');
+    label(ROWS.lines + 13, 'Lines');
+    label(ROWS.sounds + 13, 'Sounds');
     label(ROWS.curves + 12, 'Distance');
     label(ROWS.curves + 40, 'Pitch');
     label(ROWS.curves + 68, 'Yaw');
     // beats: a line through every row, the name staggered so neighbours don't collide
-    BEATS.forEach((b, i) => {
+    if (isLanding()) BEATS.forEach((b, i) => {
       const t = d[b] as number;
       if (typeof t !== 'number') return;
       const x = xOf(t);
       svg.append(svgEl('line', { x1: x, x2: x, y1: ROWS.beats, y2: H - 4, class: 'tl-beat-line' }));
       const g = svgEl('g', { class: 'tl-beat', 'data-kind': 'beat', 'data-key': b });
-      g.append(svgEl('rect', { x: x - 4, y: ROWS.beats + (i % 3) * 16, width: 8, height: 12, rx: 2 }), svgEl('text', { x: x + 6, y: ROWS.beats + (i % 3) * 16 + 10, class: 'tl-name' }, landingShape[b].label ?? b));
+      g.append(svgEl('rect', { x: x - 4, y: ROWS.beats + (i % 3) * 16, width: 8, height: 12, rx: 2 }), svgEl('text', { x: x + 6, y: ROWS.beats + (i % 3) * 16 + 10, class: 'tl-name' }, cinematicShape[b].label ?? b));
       svg.append(g);
     });
     // camera keys
@@ -114,13 +129,13 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
       const x = xOf(k.at);
       const g = svgEl('g', { class: `tl-key ${k.target}`, 'data-kind': 'camera', 'data-i': i });
       g.append(svgEl('path', { d: `M${x} ${ROWS.camera - 7} L${x + 7} ${ROWS.camera} L${x} ${ROWS.camera + 7} L${x - 7} ${ROWS.camera} Z` }));
-      g.append(svgEl('title', {}, `Key ${i + 1} at ${k.at}s: ${k.target === 'probe' ? 'the probe' : `${k.x ?? 0}, ${k.z ?? 0}`}, ${k.dist} u, pitch ${k.pitch}, yaw ${k.yaw}`));
+      g.append(svgEl('title', {}, `Key ${i + 1} at ${k.at}s: ${lookText(k)}, ${k.dist} u, pitch ${k.pitch}, yaw ${k.yaw}`));
       svg.append(g);
     });
     // captions: a block from each to the next
     const caps = d.captions ?? [];
     caps.forEach((c, i) => {
-      const x0 = xOf(c.at), x1 = xOf(caps[i + 1]?.at ?? d.end ?? span());
+      const x0 = xOf(c.at), x1 = xOf(caps[i + 1]?.at ?? d.length ?? span());
       const g = svgEl('g', { class: 'tl-cap', 'data-kind': 'captions', 'data-i': i });
       g.append(svgEl('rect', { x: x0, y: ROWS.captions, width: Math.max(4, x1 - x0 - 1), height: 18, rx: 2 }));
       const clip = `tl-clip-${i}`;
@@ -130,6 +145,30 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
       g.append(svgEl('title', {}, `${c.at}s · ${c.title}${c.sub ? ` · ${c.sub}` : ''}`));
       svg.append(g);
     });
+    // lines: a block for as long as each shows
+    const ls = d.lines ?? [];
+    ls.forEach((l, i) => {
+      const end = l.at + (l.for ?? (ls[i + 1] ? ls[i + 1].at - l.at : 5));
+      const x0 = xOf(l.at), x1 = xOf(Math.min(end, d.length ?? span()));
+      const g = svgEl('g', { class: 'tl-line', 'data-kind': 'lines', 'data-i': i });
+      g.append(svgEl('rect', { x: x0, y: ROWS.lines, width: Math.max(4, x1 - x0 - 1), height: 18, rx: 2 }));
+      const clip = `tl-lclip-${i}`, cp = svgEl('clipPath', { id: clip });
+      cp.append(svgEl('rect', { x: x0, y: ROWS.lines, width: Math.max(4, x1 - x0 - 4), height: 18 }));
+      g.append(cp, svgEl('text', { x: x0 + 4, y: ROWS.lines + 13, 'clip-path': `url(#${clip})` }, `${l.character || l.speaker || '…'}: ${l.text || '…'}`));
+      g.append(svgEl('title', {}, `${l.at}s · ${l.character || l.speaker || ''} · ${l.text}`));
+      svg.append(g);
+    });
+    // sounds: a marker, and a bar to the end for music
+    (d.sounds ?? []).forEach((x, i) => {
+      const x0 = xOf(x.at);
+      const g = svgEl('g', { class: `tl-sound${x.music ? ' music' : ''}`, 'data-kind': 'sounds', 'data-i': i });
+      if (x.music) g.append(svgEl('rect', { x: x0, y: ROWS.sounds + 6, width: Math.max(4, xOf(d.length ?? span()) - x0), height: 6, rx: 2, class: 'tl-music' }));
+      g.append(svgEl('circle', { cx: x0, cy: ROWS.sounds + 9, r: 6 }), svgEl('text', { x: x0 + 9, y: ROWS.sounds + 13 }, `${x.music ? '♫' : '♪'} ${x.sound || '…'}`));
+      g.append(svgEl('title', {}, `${x.at}s · ${x.music ? 'music' : 'sound'} ${x.sound} · volume ${x.volume ?? 1}`));
+      svg.append(g);
+    });
+    // the end
+    if (typeof d.length === 'number') svg.append(svgEl('line', { x1: xOf(d.length), x2: xOf(d.length), y1: 14, y2: H - 4, class: 'tl-end' }));
     // curves
     if (d.camera?.length) {
       const N = Math.round(W - PAD_L - PAD_R), pts = { dist: '', pitch: '', yaw: '' };
@@ -150,7 +189,7 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
     const px = xOf(playhead);
     svg.append(svgEl('line', { x1: px, x2: px, y1: 0, y2: H, class: 'tl-play' }), svgEl('path', { d: `M${px - 5} 0 L${px + 5} 0 L${px} 7 Z`, class: 'tl-play-head' }));
     // what's on screen at the playhead
-    let cap: LandingDef['captions'][number] | undefined;
+    let cap: NonNullable<CinematicDef['captions']>[number] | undefined;
     for (const c of caps) if (c.at <= playhead) cap = c;
     const cam = camAt(d, playhead);
     info.textContent = `${playhead.toFixed(1)} s · ${cap ? `“${cap.title}${cap.sub ? ` · ${cap.sub}` : ''}”` : 'no caption'}${cam ? ` · camera on ${cam.on}, ${cam.dist.toFixed(0)} u, pitch ${cam.pitch.toFixed(2)}, yaw ${cam.yaw.toFixed(2)}` : ''}`;
@@ -167,12 +206,12 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
       draw();
       return;
     }
-    const kind = g.getAttribute('data-kind') as 'beat' | 'camera' | 'captions';
+    const kind = g.getAttribute('data-kind') as 'beat' | ListKey;
     const d = host.draft();
     const key = g.getAttribute('data-key') ?? '', i = Number(g.getAttribute('data-i') ?? -1);
-    const from = kind === 'beat' ? (d[key as typeof BEATS[number]] as number) : d[kind][i].at;
-    // keys and captions sitting on a beat ride along when it moves
-    const riders = kind === 'beat' ? (['camera', 'captions'] as const).flatMap((list) => d[list].map((x, n) => ({ list, n, at: x.at })).filter((x) => Math.abs(x.at - from) < 1e-6).map((x) => ({ list: x.list, i: x.n }))) : [];
+    const from = kind === 'beat' ? (d[key as typeof BEATS[number]] as number) : list(d, kind)[i].at;
+    // anything sitting on a beat rides along when it moves
+    const riders = kind === 'beat' ? LISTS.flatMap((lk) => list(d, lk).map((x, n) => ({ lk, n, at: x.at })).filter((x) => Math.abs(x.at - from) < 1e-6).map((x) => ({ list: x.lk, i: x.n }))) : [];
     drag = { kind, key, i, dx: p.x - xOf(from), moved: false, from, riders };
     svg.setPointerCapture(e.pointerId);
   };
@@ -183,8 +222,8 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
     if (!drag.moved) return;
     if (drag.kind === 'beat') {
       (d as unknown as Record<string, number>)[drag.key] = t;
-      for (const r of drag.riders) d[r.list][r.i].at = t;
-    } else d[drag.kind][drag.i].at = t;
+      for (const r of drag.riders) list(d, r.list)[r.i].at = t;
+    } else list(d, drag.kind)[drag.i].at = t;
     draw();
   };
   svg.onpointerup = (e) => {
@@ -196,10 +235,24 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
     if (!dr.moved) { playhead = dr.from; draw(); host.reveal(field); return; }
     // keep lists in time order (the game reads them that way)
     const d = host.draft();
-    for (const list of ['camera', 'captions'] as const) d[list].sort((a, b) => a.at - b.at);
+    for (const lk of LISTS) list(d, lk).sort((a, b) => a.at - b.at);
     host.rerender();
   };
   new ResizeObserver(() => draw()).observe(el);
   draw();
   return { el, update: () => { if (!drag) draw(); } };
+}
+
+/** A list on the draft (empty if it has none yet). */
+const list = (d: CinematicDef, k: ListKey): { at: number }[] => (d[k] ?? []) as { at: number }[];
+
+/** What a camera key looks at, in words. */
+function lookText(k: NonNullable<CinematicDef['camera']>[number]) {
+  switch (k.target) {
+    case 'probe': return 'the probe';
+    case 'building': return `the ${k.building ?? '?'}`;
+    case 'storysite': return `site "${k.site ?? '?'}"`;
+    case 'camp': return `the ${k.group ?? '?'} camp`;
+    default: return `${k.x ?? 0}, ${k.z ?? 0}`;
+  }
 }

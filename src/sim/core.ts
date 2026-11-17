@@ -1262,9 +1262,13 @@ export class Sim {
       case 'story':
         this.story.answer(c.id, c.choice);
         return;
+      case 'cinematic':
+        this.story.cineDone(c.id);
+        return;
       case 'debug': {
         if (c.setup) this.playSetup(c.setup);
         if (c.story) this.story.fire(c.story);
+        if (c.cinematic) this.story.playCine(c.cinematic);
         if (c.mission) this.missions.jump(c.mission);
         if (c.regard) this.inhabitants.setRegard(c.regard.camp, c.regard.value);
         if (c.alloys) s.alloys += c.alloys;

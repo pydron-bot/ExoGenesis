@@ -1,0 +1,7 @@
+{
+  "title": "Zed Radio",
+  "style": "radio",
+  "character": "director",
+  "text": "A transmission long enough to stay on the screen for a good while, so the test can see it.",
+  "trigger": "never"
+}

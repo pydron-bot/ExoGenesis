@@ -34,11 +34,11 @@ const base = await contentFiles();
 check(D.buildDb(base).issues.length === 0, 'content as committed has no problems');
 const bad = structuredClone(base);
 bad['story/zz.json'] = { title: 'Z', style: 'radio', text: 'x', trigger: 'never', choices: [{ label: 'a' }] };
-bad['rules/landing.json'].open = 3; // before touchdown
+bad['cinematics/landing.json'].open = 3; // before touchdown
 bad['characters/zz.json'] = { name: 'Z', color: '#ffffff', portrait: 'exo-tank' };
 const msgs = D.buildDb(bad).issues.map((i) => `${i.path} ${i.field}: ${i.msg}`);
 check(msgs.some((m) => m.startsWith('story/zz.json choices: a radio message')), 'a radio message with choices is a problem');
-check(msgs.some((m) => m.startsWith('rules/landing.json open: comes before')), 'landing beats must stay in order');
+check(msgs.some((m) => m.startsWith('cinematics/landing.json open: comes before')), 'landing beats must stay in order');
 check(msgs.some((m) => m.startsWith('characters/zz.json portrait')), 'a portrait must be an image');
 const X = [0, 1, 2, 3], Y = [0, 1, 1, 3];
 let mono = true;
@@ -137,9 +137,9 @@ try {
   await g2.close();
 
   // landing timeline
-  await page.goto(`${url}editor.html#rules/landing.json`);
+  await page.goto(`${url}editor.html#cinematics/landing.json`);
   await page.waitForSelector('svg.tl .tl-key');
-  check(await page.locator('svg.tl .tl-key').count() >= 10 && await page.locator('svg.tl .tl-beat').count() === 10, 'timeline: beats and camera keys are drawn');
+  check(await page.locator('svg.tl .tl-key').count() >= 10 && await page.locator('svg.tl .tl-beat').count() === 9, 'timeline: beats and camera keys are drawn');
   const box = await page.locator('svg.tl').boundingBox();
   await page.mouse.click(box.x + 74 + (20 / 28) * (box.width - 88), box.y + 8);
   check((await page.textContent('.tl-info')).startsWith('20.0 s'), 'timeline: clicking the ruler moves the playhead');

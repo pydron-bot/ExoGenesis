@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type InterfaceDef, type LandingDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -18,8 +18,10 @@ export interface ContentDb {
   threats: ThreatRules;
   people: PeopleRules;
   sound: SoundRules;
-  landing: LandingDef;
   interface: InterfaceDef;
+  cinematics: Record<string, CinematicDef>;
+  /** The opening landing (cinematics/landing.json). */
+  landing: CinematicDef;
 }
 
 export interface FileIssue extends Issue {
@@ -62,8 +64,9 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     threats: recs.threats.threats,
     people: recs.people.people,
     sound: recs.sound.sound,
-    landing: recs.landing.landing,
     interface: recs.interface.interface,
+    cinematics: recs.cinematics,
+    landing: recs.cinematics.landing,
   } as unknown as ContentDb;
   issues.push(...crossIssues(db0));
   return { db: db0, issues };
@@ -74,6 +77,7 @@ export const REQUIRED: Partial<Record<CollectionName, string[]>> = {
   units: ['rover', 'tank', 'swarmer', 'brute'],
   buildings: ['core', 'solar'],
   regions: ['touchdown'],
+  cinematics: ['landing'],
 };
 
 export function requiredIssues(db: ContentDb): FileIssue[] {
@@ -147,20 +151,43 @@ function crossIssues(db: ContentDb): FileIssue[] {
   }
   if (db.buildings.core && db.buildings.core.role !== 'core') out.push({ path: 'buildings/core.json', field: 'role', msg: 'must be core' });
   if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });
-  // the landing: beats in order, keys and captions in time order
-  const L = db.landing as unknown as Record<string, unknown> | undefined;
-  if (L && typeof L === 'object') {
-    const P = COLLECTIONS.landing.path;
-    BEATS.forEach((b, i) => {
+  // cinematics: the landing is the one landing scene; beats in order; lists in time order; targets exist
+  for (const [id, cd] of Object.entries(db.cinematics ?? {})) {
+    if (!cd || typeof cd !== 'object') continue;
+    const P = `cinematics/${id}.json`, L = cd as unknown as Record<string, unknown>;
+    const landing = cd.scene === 'landing';
+    if (id === 'landing' && !landing) out.push({ path: P, field: 'scene', msg: 'the opening landing must use the landing scene' });
+    if (id !== 'landing' && landing) out.push({ path: P, field: 'scene', msg: 'only the opening landing (landing.json) can use the landing scene' });
+    if (landing) BEATS.forEach((b, i) => {
       const prev = BEATS[i - 1];
-      if (prev && typeof L[b] === 'number' && typeof L[prev] === 'number' && (L[b] as number) < (L[prev] as number)) out.push({ path: P, field: b, msg: `comes before ${COLLECTIONS.landing.shape[prev].label} (${L[prev]} s)` });
+      if (prev && typeof L[b] === 'number' && typeof L[prev] === 'number' && (L[b] as number) < (L[prev] as number)) out.push({ path: P, field: b, msg: `comes before ${COLLECTIONS.cinematics.shape[prev].label} (${L[prev]} s)` });
+      if (typeof L[b] === 'number' && typeof cd.length === 'number' && (L[b] as number) > cd.length) out.push({ path: P, field: b, msg: `after the end (${cd.length} s)` });
     });
-    for (const k of ['camera', 'captions'] as const) {
+    for (const k of ['camera', 'captions', 'lines', 'sounds'] as const) {
       const list = Array.isArray(L[k]) ? (L[k] as { at?: number }[]) : [];
-      list.forEach((x, n) => { if (n && (x?.at ?? 0) < (list[n - 1]?.at ?? 0)) out.push({ path: P, field: `${k}[${n}].at`, msg: 'out of time order' }); });
+      list.forEach((x, n) => {
+        if (n && (x?.at ?? 0) < (list[n - 1]?.at ?? 0)) out.push({ path: P, field: `${k}[${n}].at`, msg: 'out of time order' });
+        if (typeof cd.length === 'number' && (x?.at ?? 0) > cd.length) out.push({ path: P, field: `${k}[${n}].at`, msg: `after the end (${cd.length} s)` });
+      });
       if (k === 'camera' && !list.length) out.push({ path: P, field: k, msg: 'needs at least one key' });
     }
+    (cd.camera ?? []).forEach((k, n) => {
+      if (k?.target === 'probe' && !landing) out.push({ path: P, field: `camera[${n}].target`, msg: 'only the landing has a probe to look at' });
+      const miss = k?.target === 'storysite' && k.site ? siteMissing(k.site, cd.region) : null;
+      if (miss) out.push({ path: P, field: `camera[${n}].site`, msg: miss });
+    });
+    (cd.sounds ?? []).forEach((x, n) => {
+      const a = x?.sound ? db.assets[x.sound] : undefined;
+      if (a && a.kind !== 'audio') out.push({ path: P, field: `sounds[${n}].sound`, msg: `"${x.sound}" isn't audio` });
+    });
+    if (!landing && cd.trigger === 'site' && cd.site) { const miss = siteMissing(cd.site, cd.region); if (miss) out.push({ path: P, field: 'site', msg: miss }); }
   }
+  // story effects and mission rewards can't replay the landing
+  const cineEffect = (path: string, field: string, e?: { kind?: string; cinematic?: string }) => {
+    if (e?.kind === 'cinematic' && e.cinematic && db.cinematics?.[e.cinematic]?.scene === 'landing') out.push({ path, field: `${field}.cinematic`, msg: 'the landing only plays at the start of a game' });
+  };
+  for (const [id, ev] of Object.entries(db.story ?? {})) (ev?.effects ?? []).forEach((e, n) => cineEffect(`story/${id}.json`, `effects[${n}]`, e));
+  for (const [id, m] of Object.entries(db.missions ?? {})) (m?.rewards ?? []).forEach((e, n) => cineEffect(`missions/${id}.json`, `rewards[${n}]`, e));
   for (const [id, ch] of Object.entries(db.characters ?? {})) {
     const a = ch?.portrait ? db.assets[ch.portrait] : undefined;
     if (a && a.kind !== 'image') out.push({ path: `characters/${id}.json`, field: 'portrait', msg: `"${ch.portrait}" isn't an image` });
