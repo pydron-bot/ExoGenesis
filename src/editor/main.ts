@@ -565,7 +565,9 @@ function renderForm() {
     );
     const at = cur;
     const inhabitants = Object.fromEntries([...(idIndex().inhabitants ?? [])].map((id) => [id, files.get(pathOf('inhabitants', id))?.data as { land?: number }]));
-    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control, inhabitants });
+    const rd = <T,>(c: CollectionName, id: string) => files.get(pathOf(c, id))?.data as T | undefined;
+    const rules = { coreRange: rd<BuildingDef>('buildings', 'core')?.range ?? 45, buildRadius: rd<{ buildRadius: number }>('colony', 'colony')?.buildRadius ?? 30, packSpeed: rd<UnitDef>('units', 'swarmer')?.speed ?? 6 };
+    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control, inhabitants, rules });
     changed();
     return;
   }
