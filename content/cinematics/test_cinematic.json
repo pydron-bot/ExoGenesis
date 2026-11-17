@@ -1,0 +1,28 @@
+{
+  "title": "Test Cinematic",
+  "length": 8,
+  "letterbox": true,
+  "fadeIn": 0.5,
+  "fadeOut": 0.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "building": "core",
+      "lift": 2,
+      "dist": 60,
+      "pitch": 0.5,
+      "yaw": 0.4
+    },
+    {
+      "at": 8,
+      "target": "building",
+      "building": "core",
+      "lift": 2,
+      "dist": 40,
+      "pitch": 0.35,
+      "yaw": 1.4
+    }
+  ],
+  "trigger": "never"
+}
