@@ -898,11 +898,258 @@ def hydroponics(M):
     export("hydroponics", [join(parts, "body")])
 
 
+# ---------------------------------------------------------------- set v4: inhabitants (STORY.md §5)
+
+def vell_mats():
+    return {
+        "hide": mat("hide", "#8a6a4a", 0.0, 0.85),
+        "cloth": mat("cloth", "#4c4466", 0.0, 0.9),
+        "sash": mat("sash", "#a8553a", 0.0, 0.85),
+        "skin": mat("vskin", "#9c7a66", 0.0, 0.7),
+        "bone": mat("bone", "#d8ccb0", 0.0, 0.6),
+        "wood": mat("wood", "#5e4430", 0.0, 0.8),
+        "stone": mat("stone", "#6f6a62", 0.0, 0.9),
+        "dark": mat("vdark", "#2a2420", 0.0, 0.9),
+        "ember": glow_mat("ember", "#ffb547", 2.6),
+        "star": glow_mat("star", "#8fd8ff", 1.8),
+        "eye": glow_mat("veye", "#1a1410", 0.0),
+    }
+
+
+def vell_body(V, h=1.0, cloak="hide"):
+    """A Vell standing, front −Y: long legs, narrow robed body, hood. `h` scales the height
+    (1 = about 4.2 u, taller than a colonist's 3.2)."""
+    parts = []
+    for sx in (-1, 1):  # long legs, wrapped shins, bare feet
+        parts.append(strut((sx * 0.17, 0, 1.75 * h), (sx * 0.2, 0.02, 0.08), 0.11, V["cloth"], verts=6, r2=0.08))
+        parts.append(strut((sx * 0.2, 0.02, 0.75 * h), (sx * 0.2, 0.02, 0.15), 0.1, V["sash"], verts=6))
+        parts.append(box((0.18, 0.4, 0.12), (sx * 0.2, -0.1, 0.06), V["skin"], bevel=0.03))
+    parts.append(cyl(0.34, 1.5 * h, (0, 0, 2.35 * h), V[cloak], verts=8, r2=0.22, bevel=0.03))   # torso
+    parts.append(cyl(0.62, 1.9 * h, (0, 0.08, 1.75 * h), V[cloak], verts=8, r2=0.3, bevel=0.03))  # long cloak
+    parts.append(box((0.5, 0.42, 0.14), (0, 0, 1.75 * h), V["sash"], bevel=0.03))                 # belt
+    parts.append(cyl(0.12, 0.3, (0, 0, 3.2 * h), V["skin"], verts=6, bevel=0))                     # neck
+    parts.append(sphere(0.25, (0, -0.02, 3.55 * h), V["skin"], seg=8, rings=6, scale=(0.85, 0.95, 1.25)))  # long face
+    for sx in (-1, 1):
+        parts.append(sphere(0.06, (sx * 0.09, -0.22, 3.6 * h), V["eye"], seg=6, rings=4, scale=(1.3, 0.5, 0.8)))  # dark eyes
+    parts.append(cyl(0.36, 0.75, (0, 0.06, 3.62 * h), V["cloth"], verts=8, r2=0.12, bevel=0.03))  # hood
+    return parts
+
+
+def vell(M):
+    """The drifted (Vell) walker: tall, thin, wrapped in hide, staff with an ember tip."""
+    V = vell_mats()
+    parts = vell_body(V)
+    # arms: right holds the staff out front, left hangs
+    parts.append(strut((0.36, 0, 3.0), (0.55, -0.35, 2.3), 0.09, V["cloth"], verts=6, r2=0.07))
+    parts.append(strut((0.55, -0.35, 2.3), (0.6, -0.55, 2.55), 0.07, V["skin"], verts=6, r2=0.05))
+    parts.append(strut((-0.36, 0, 3.0), (-0.48, 0.05, 1.9), 0.09, V["cloth"], verts=6, r2=0.06))
+    # staff, taller than its bearer, bone rings and an ember in a cage of prongs
+    parts.append(strut((0.62, -0.6, 0.0), (0.62, -0.6, 4.6), 0.07, V["wood"], verts=6))
+    for z in (2.9, 3.6):
+        parts.append(cyl(0.11, 0.12, (0.62, -0.6, z), V["bone"], verts=6, bevel=0))
+    parts.append(sphere(0.16, (0.62, -0.6, 4.75), V["ember"], seg=6, rings=4))
+    for k in range(3):
+        a = k / 3 * math.tau
+        parts.append(strut((0.62, -0.6, 4.55), (0.62 + math.cos(a) * 0.2, -0.6 + math.sin(a) * 0.2, 4.95), 0.025, V["bone"], verts=4, r2=0.01))
+    # bundle on the back
+    parts.append(blob(0.32, (0, 0.5, 2.6), V["hide"], scale=(1.1, 0.7, 1.3)))
+    parts.append(strut((-0.3, 0.3, 3.1), (0.3, 0.3, 2.2), 0.04, V["sash"], verts=4))
+    export("vell", [join(parts, "body")])
+
+
+def vellkeeper(M):
+    """Vell song-keeper: a robed elder with a ring of glowing chimes on a crooked pole."""
+    V = vell_mats()
+    parts = vell_body(V, h=0.95, cloak="cloth")
+    parts.append(cyl(0.7, 0.35, (0, 0.05, 3.0), V["hide"], verts=8, r2=0.4, bevel=0.03))   # shawl
+    for k in range(6):  # bone beads on the shawl
+        a = (k / 6 - 0.5) * 1.6 - math.pi / 2
+        parts.append(sphere(0.06, (math.cos(a) * 0.6, math.sin(a) * 0.6, 2.85), V["bone"], seg=6, rings=4))
+    parts.append(strut((0.36, 0, 2.85), (0.62, -0.3, 2.35), 0.09, V["cloth"], verts=6, r2=0.07))
+    parts.append(strut((-0.36, 0, 2.85), (-0.55, -0.4, 2.5), 0.09, V["cloth"], verts=6, r2=0.07))
+    # crooked pole with a hoop of chimes
+    parts.append(strut((0.66, -0.35, 0.0), (0.7, -0.4, 3.9), 0.07, V["wood"], verts=6))
+    parts.append(strut((0.7, -0.4, 3.9), (0.25, -0.55, 4.6), 0.06, V["wood"], verts=6))
+    hub = Vector((0.0, -0.6, 4.55))
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.45, minor_radius=0.035, major_segments=12, minor_segments=4, location=tuple(hub))
+    parts.append(_finish(bpy.context.active_object, V["bone"], 0))
+    for k in range(7):
+        a = k / 7 * math.tau
+        x, y = hub.x + math.cos(a) * 0.45, hub.y + math.sin(a) * 0.45
+        ln = 0.35 + 0.15 * (k % 3)
+        parts.append(strut((x, y, hub.z), (x, y, hub.z - 0.15), 0.01, V["dark"], verts=3))
+        parts.append(cyl(0.035, ln, (x, y, hub.z - 0.15 - ln / 2), V["star"], verts=5, bevel=0))
+    export("vellkeeper", [join(parts, "body")])
+
+
+def vellhut(M):
+    """Vell stilt hut: a round platform on stilts, a hide cone roof on bent poles, a ladder
+    at the front, an ember lantern under the eaves. About 8 u across."""
+    V = vell_mats()
+    parts = []
+    H = 2.2  # floor height
+    ring(6, 2.6, 0, lambda i, a, x, y, z: parts.append(strut((x * 1.08, y * 1.08, 0.0), (x, y, H + 0.1), 0.18, V["wood"], verts=6)))
+    ring(6, 2.6, 0, lambda i, a, x, y, z: parts.append(cyl(0.32, 0.25, (x * 1.08, y * 1.08, 0.12), V["stone"], verts=6, bevel=0.05)))
+    parts.append(cyl(3.0, 0.3, (0, 0, H + 0.15), V["wood"], verts=10, bevel=0.06))       # floor
+    parts.append(cyl(2.55, 1.5, (0, 0, H + 1.05), V["hide"], verts=10, r2=2.45, bevel=0.04))  # wall
+    parts.append(box((0.9, 0.2, 1.25), (0, -2.45, H + 0.95), V["dark"], bevel=0.04))      # door
+    parts.append(cyl(3.3, 2.8, (0, 0, H + 3.2), V["hide"], verts=10, r2=0.25, bevel=0.04))  # roof cone
+    ring(10, 3.25, 0, lambda i, a, x, y, z: parts.append(strut((x * 0.08, y * 0.08, H + 4.9), (x * 1.06, y * 1.06, H + 1.65), 0.06, V["wood"], verts=4)))
+    parts.append(cyl(0.35, 0.6, (0, 0, H + 4.8), V["bone"], verts=6, bevel=0.03))        # smoke hole cap
+    for sx in (-1, 1):  # ladder
+        parts.append(strut((sx * 0.4, -3.9, 0.0), (sx * 0.4, -2.85, H + 0.3), 0.07, V["wood"], verts=4))
+    for k in range(5):
+        t = (k + 0.7) / 6
+        parts.append(box((0.8, 0.09, 0.09), (0, -3.9 + 1.05 * t, (H + 0.3) * t), V["wood"], bevel=0))
+    parts.append(strut((1.2, -2.95, H + 1.75), (1.2, -3.25, H + 1.4), 0.03, V["dark"], verts=3))
+    parts.append(sphere(0.2, (1.2, -3.3, H + 1.2), V["ember"], seg=6, rings=4))
+    for k in range(4):  # hanging hide strips
+        a = -math.pi / 2 + (k - 1.5) * 0.5
+        parts.append(box((0.35, 0.05, 0.8), (math.cos(a) * 3.2, math.sin(a) * 3.2, H + 1.3), V["sash"], bevel=0, rot=(0, 0, a + math.pi / 2)))
+    export("vellhut", [join(parts, "body")])
+
+
+def vellstones(M):
+    """Vell fire circle: a ring of stones round glowing embers, and three standing story-stones
+    carved with glowing star patterns. The camp's centre, about 9 u across."""
+    V = vell_mats()
+    parts = []
+    ring(9, 1.3, 0, lambda i, a, x, y, z: parts.append(blob(0.32, (x, y, 0.18), V["stone"], scale=(1.2, 0.9, 0.7), rot=(0, 0, a))))
+    parts.append(cyl(1.05, 0.12, (0, 0, 0.06), V["dark"], verts=10, bevel=0))
+    for k in range(5):
+        a = k / 5 * math.tau
+        parts.append(blob(0.22, (math.cos(a) * 0.4, math.sin(a) * 0.4, 0.2), V["ember"], scale=(1.3, 0.7, 0.6), rot=(0, 0, a)))
+    for k in range(4):  # a tripod of sticks over the fire
+        a = k / 4 * math.tau + 0.3
+        parts.append(strut((math.cos(a) * 0.7, math.sin(a) * 0.7, 0.1), (math.cos(a) * 0.15, math.sin(a) * 0.15, 0.7), 0.05, V["wood"], verts=4))
+    for k, (a, hgt) in enumerate(((math.pi / 2 + 0.6, 3.4), (math.pi / 2, 4.2), (math.pi / 2 - 0.6, 3.0))):
+        x, y = math.cos(a) * 3.6, math.sin(a) * 3.6   # behind the fire (+Y), facing it
+        yaw = a + math.pi / 2
+        parts.append(box((1.2, 0.5, hgt), (x, y, hgt / 2), V["stone"], bevel=0.12, rot=(0, 0.05 * (k - 1), yaw)))
+        parts.append(blob(0.62, (x, y, hgt), V["stone"], scale=(1.0, 0.45, 0.35), rot=(0, 0, yaw)))
+        # star pattern: dots and short strokes on the face toward the fire
+        fx, fy = -math.cos(a) * 0.27, -math.sin(a) * 0.27
+        rnd = [(0.3, 0.75), (-0.25, 0.6), (0.05, 0.45), (-0.35, 0.3), (0.3, 0.2), (0.0, 0.85)]
+        for j, (u, v) in enumerate(rnd[: 4 + k]):
+            px = x + fx + math.cos(yaw) * u
+            py = y + fy + math.sin(yaw) * u
+            parts.append(sphere(0.07 if j % 2 else 0.1, (px, py, hgt * v), V["star"], seg=6, rings=4))
+        parts.append(box((0.04, 0.06, hgt * 0.5), (x + fx, y + fy, hgt * 0.52), V["star"], bevel=0, rot=(0, 0.4, yaw)))
+    for k in range(3):  # sitting logs
+        a = -math.pi / 2 + (k - 1) * 0.9
+        parts.append(cyl(0.22, 1.4, (math.cos(a) * 2.2, math.sin(a) * 2.2, 0.22), V["wood"], verts=6, rot=(0, math.pi / 2, a + math.pi / 2), bevel=0.03))
+    export("vellstones", [join(parts, "body")])
+
+
+def choir_mats():
+    return {
+        "rust": mat("crust", "#7a5440", 0.55, 0.75),
+        "verd": mat("verd", "#4f8a7a", 0.5, 0.6),
+        "iron": mat("iron", "#3a3836", 0.7, 0.55),
+        "pale": mat("pale", "#a9a39a", 0.6, 0.6),
+        "glow": glow_mat("cglow", "#9dffc8", 2.2),
+        "dim": glow_mat("cdim", "#4fbf8a", 0.8),
+    }
+
+
+def cantor(M):
+    """Choir cantor: a tall rusted tripod carrying a bundle of organ pipes and one dim,
+    slow eye. Moves like a heron. About 7 u tall."""
+    C = choir_mats()
+    parts = []
+    hip = Vector((0, 0, 4.4))
+    for k in range(3):
+        a = k / 3 * math.tau + math.pi / 2
+        knee = Vector((math.cos(a) * 1.3, math.sin(a) * 1.3, 2.9))
+        foot = Vector((math.cos(a) * 1.9, math.sin(a) * 1.9, 0.0))
+        parts.append(strut(hip, knee, 0.16, C["rust"], verts=6, r2=0.12))
+        parts.append(sphere(0.2, tuple(knee), C["iron"], seg=6, rings=4))
+        parts.append(strut(knee, foot, 0.12, C["rust"], verts=6, r2=0.08))
+        parts.append(cyl(0.3, 0.15, (foot.x, foot.y, 0.07), C["iron"], verts=6, bevel=0.03))
+    parts.append(cyl(0.75, 0.6, (0, 0, 4.55), C["iron"], verts=8, bevel=0.06))        # hip drum
+    parts.append(cyl(0.6, 0.5, (0, 0, 5.05), C["verd"], verts=8, r2=0.7, bevel=0.04))
+    # the pipe bundle: different heights, a few broken short, some verdigris
+    pipes = [(0, 0.15, 2.6), (0.38, 0.1, 2.1), (-0.38, 0.1, 2.3), (0.2, 0.42, 1.7), (-0.2, 0.42, 1.9), (0.55, 0.38, 1.3), (-0.55, 0.38, 1.1)]
+    for j, (x, y, ln) in enumerate(pipes):
+        m = C["verd"] if j % 3 == 1 else C["pale"] if j % 3 == 2 else C["rust"]
+        parts.append(cyl(0.15, ln, (x, y, 5.3 + ln / 2), m, verts=8, bevel=0.02))
+        parts.append(cyl(0.18, 0.12, (x, y, 5.3 + ln), C["iron"], verts=8, bevel=0))
+        parts.append(box((0.12, 0.05, 0.22), (x, y - 0.15, 5.3 + ln * 0.35), C["iron"], bevel=0))  # mouth
+    # the eye: a ring on a short neck at the front
+    parts.append(strut((0, -0.4, 5.1), (0, -1.0, 5.6), 0.1, C["iron"], verts=6))
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.4, minor_radius=0.09, major_segments=10, minor_segments=4, location=(0, -1.1, 5.7), rotation=(math.pi / 2, 0, 0))
+    parts.append(_finish(bpy.context.active_object, C["pale"], 0))
+    parts.append(sphere(0.24, (0, -1.08, 5.7), C["dim"], seg=8, rings=6, scale=(1, 0.5, 1)))
+    # cables hanging from the drum
+    for sx in (-1, 1):
+        parts.append(strut((sx * 0.6, 0.2, 4.4), (sx * 0.9, 0.5, 3.4), 0.04, C["iron"], verts=4))
+    export("cantor", [join(parts, "body")])
+
+
+def tender(M):
+    """Choir tender: a small machine on two treads with one arm and a welding glow,
+    forever mending dead machines. About 2.5 u long."""
+    C = choir_mats()
+    parts = []
+    parts.append(box((1.4, 2.2, 0.7), (0, 0, 0.9), C["rust"], bevel=0.18))
+    parts.append(box((1.1, 1.4, 0.35), (0, 0.15, 1.38), C["verd"], bevel=0.1))
+    parts.append(box((0.9, 0.5, 0.5), (0, -1.2, 0.95), C["iron"], bevel=0.1))              # head
+    for sx in (-1, 1):
+        parts.append(sphere(0.09, (sx * 0.25, -1.47, 1.05), C["glow"], seg=6, rings=4))
+    # on treads, not legs, so it never reads as a predator
+    for sx in (-1, 1):
+        parts.append(box((0.42, 2.3, 0.55), (sx * 0.88, 0.0, 0.3), C["iron"], bevel=0.16))
+        for y in (-0.75, 0.0, 0.75):
+            parts.append(cyl(0.2, 0.46, (sx * 0.88, y, 0.3), C["pale"], verts=8, rot=(0, math.pi / 2, 0), bevel=0))
+    # arm reaching forward and down, a hot tip
+    sh = Vector((0.35, -0.9, 1.4))
+    el = Vector((0.45, -1.7, 1.9))
+    tip = Vector((0.4, -2.3, 1.1))
+    parts.append(strut(sh, el, 0.09, C["pale"], verts=6))
+    parts.append(sphere(0.12, tuple(el), C["iron"], seg=6, rings=4))
+    parts.append(strut(el, tip, 0.07, C["pale"], verts=6, r2=0.04))
+    parts.append(sphere(0.1, tuple(tip), C["glow"], seg=6, rings=4))
+    parts.append(cyl(0.18, 0.5, (-0.35, 0.6, 1.75), C["iron"], verts=6, bevel=0.03))       # tank
+    export("tender", [join(parts, "body")])
+
+
+def pylon(M):
+    """Choir pylon: a dead tower, tapered and ribbed, its top broken off, a band of glow
+    still pulsing round its middle. The glow band is `charge` (the game dims it). About 14 u."""
+    C = choir_mats()
+    parts, band = [], []
+    parts.append(cyl(3.0, 0.6, (0, 0, 0.3), C["iron"], verts=6, bevel=0.1))
+    parts.append(cyl(2.2, 0.8, (0, 0, 1.0), C["rust"], verts=6, r2=1.9, bevel=0.08))
+    parts.append(cyl(1.7, 9.5, (0, 0, 6.15), C["rust"], verts=6, r2=0.9, bevel=0.06))
+    for k in range(6):  # ribs
+        a = k / 6 * math.tau + math.pi / 6
+        parts.append(strut((math.cos(a) * 2.0, math.sin(a) * 2.0, 1.2), (math.cos(a) * 0.95, math.sin(a) * 0.95, 10.6), 0.16, C["verd"] if k % 2 else C["pale"], verts=4))
+    # broken crown: two jagged shards and a bent antenna
+    parts.append(strut((0.3, 0.1, 10.8), (0.6, -0.2, 12.6), 0.35, C["rust"], verts=4, r2=0.05))
+    parts.append(strut((-0.4, 0.2, 10.8), (-0.5, 0.3, 11.9), 0.3, C["iron"], verts=4, r2=0.05))
+    parts.append(strut((0.0, -0.3, 10.9), (0.4, -1.2, 13.4), 0.06, C["pale"], verts=4))
+    parts.append(strut((0.4, -1.2, 13.4), (1.3, -1.4, 13.0), 0.05, C["pale"], verts=4))
+    for z in (2.0, 9.0):
+        parts.append(cyl(1.95 - (z - 2) * 0.1, 0.25, (0, 0, z), C["iron"], verts=6, bevel=0.03))
+    # the glow band and three glyph panels
+    band.append(cyl(1.55, 0.35, (0, 0, 5.2), C["glow"], verts=6, bevel=0))
+    for k in range(3):
+        a = k / 3 * math.tau - math.pi / 2
+        band.append(box((0.5, 0.06, 1.2), (math.cos(a) * 1.42, math.sin(a) * 1.42, 7.0), C["glow"], bevel=0, rot=(0, 0, a + math.pi / 2)))
+    # rubble round the foot
+    for k in range(5):
+        a = k / 5 * math.tau + 0.4
+        parts.append(blob(0.45, (math.cos(a) * 3.4, math.sin(a) * 3.4, 0.2), C["rust"], scale=(1.3, 0.9, 0.6), rot=(0, 0, a)))
+    export("pylon", [join(parts, "body"), join(band, "charge")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
           "swarmer": swarmer, "brute": brute, "spitter": spitter, "burrower": burrower,
-          "civic": civic, "hydroponics": hydroponics}
+          "civic": civic, "hydroponics": hydroponics,
+          "vell": vell, "vellkeeper": vellkeeper, "vellhut": vellhut, "vellstones": vellstones,
+          "cantor": cantor, "tender": tender, "pylon": pylon}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":
