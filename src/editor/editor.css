@@ -337,3 +337,26 @@ canvas.planet-map { width: 100%; height: auto; image-rendering: auto; display: b
 .planet-row.moved { border-left: 3px solid var(--amber); padding-left: 6px; }
 .planet-num { width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
 .planet-list .issue { padding: 6px 4px; font-size: 12px; }
+
+/* ---------- balance test runs ---------- */
+.bal-runner { margin-top: 26px; border-top: 1px solid var(--line); padding: 4px 10px 0; }
+.bal-runner .help-block { padding: 0 0 8px; color: var(--dim); font-size: 13px; }
+.bal-picks { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 8px; }
+.bal-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-bottom: 14px; color: var(--dim); }
+.bal-num { width: 80px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; color: var(--text); }
+select.bal-num { width: auto; }
+.bal-run { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--good); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+.bal-run.lost { border-left-color: var(--bad); }
+.bal-run .good { color: var(--good); } .bal-run .bad { color: var(--bad); }
+.bstats { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0; font-size: 13px; color: var(--dim); }
+.bstats b { color: var(--text); font-weight: 600; }
+.sparks { display: flex; flex-wrap: wrap; gap: 12px; }
+.spark-box { width: 150px; }
+.spark-lbl { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); }
+.spark-lbl b { color: var(--text); font-weight: 500; }
+svg.spark { width: 150px; height: 38px; display: block; }
+svg.spark polyline { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+svg.spark polyline.prev { stroke: var(--dim); stroke-opacity: 0.5; stroke-dasharray: 2 2; }
+.bal-details summary { cursor: pointer; color: var(--accent); margin-top: 6px; font-size: 13px; }
+.bal-events { font: 12px/1.5 ui-monospace, monospace; white-space: pre; max-height: 260px; overflow: auto; margin: 6px 0; }
+.bal-events .bad { color: var(--bad); } .bal-events .warn { color: var(--amber); }

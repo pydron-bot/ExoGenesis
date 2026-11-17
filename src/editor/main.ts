@@ -11,6 +11,7 @@ import { COLLECTIONS, CONDITION_HELP, type BuildingDef, type UnitDef, EFFECT_HEL
 import { applies, blank, type Field, type IdIndex, type Issue, type ListField } from '../content/schema';
 import { renderFlow } from './flow';
 import { renderPlanet } from './planet';
+import { balanceRunPanel } from './balance-run';
 import { buildDb, REQUIRED, requiredIssues } from '../content/db';
 import { collectText, diffContent, renameRefs, renderChanges, renderCompare, renderProblems, renderText, setAt, type PathIssue, type Rec, type TextEntry } from './pages';
 import { refsTo, renderBalance, renderReview, searchContent, type ReviewFile } from './tools';
@@ -949,6 +950,10 @@ function drawFlow() {
 function drawBalance() {
   const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
   renderBalance($('main'), data<UnitDef>('units'), data<BuildingDef>('buildings'), (c, id) => open(c, id));
+  $('main').append(balanceRunPanel({
+    files: () => Object.fromEntries([...files.values()].filter((f) => !f.parseError).map((f) => [f.path, f.data])),
+    regions: recordsOf('regions').map((r) => r.id),
+  }));
   $('aside').replaceChildren(h('div', { cls: 'group', textContent: 'Reading the table' }), h('div', { cls: 'help-block', textContent:
     'DPS = damage ÷ cooldown, against one target (splash, chains and minimum range aren\'t counted). "/ 100 ◆" columns divide by cost, so they show value for money. Fauna have no cost. Built-in rules (drone cost, pack sizes) are in Rules.' }));
 }
