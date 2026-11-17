@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.22.0',
+    date: '2026-11-17',
+    title: 'Cinematics',
+    notes: [
+      'Story moments can now play as short cinematics: the camera moves over your colony, with titles, spoken lines, sound and music, while the game waits for you (Esc or Skip to skip)',
+      'The opening landing plays just as before',
+      'Editor: Cinematics holds the landing and any cinematics you add, each with a timeline of camera moves, captions, lines and sounds. One plays when its trigger is met, or from a story event or mission reward, and ▶ Play shows it in the game',
+    ],
+  },
+  {
     version: '0.21.0',
     date: '2026-11-17',
     title: 'Tidier editor',

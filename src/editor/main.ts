@@ -951,6 +951,14 @@ async function newRecord(name: CollectionName, from?: Record<string, unknown>) {
   if (!ID_RE.test(id)) { toast('Ids are lowercase letters, digits, - and _ (start with a letter or digit)', true); return; }
   if (files.has(pathOf(name, id))) { toast(`${id} already exists`, true); return; }
   const data = from ? structuredClone(from) : blank(c.shape);
+  // a new cinematic starts as something that plays: a slow move round the Command Core
+  if (!from && name === 'cinematics') Object.assign(data, {
+    length: 8, letterbox: true, fadeIn: 0.5, fadeOut: 0.5,
+    camera: [
+      { at: 0, target: 'building', building: 'core', lift: 2, dist: 60, pitch: 0.5, yaw: 0.4 },
+      { at: 8, target: 'building', building: 'core', lift: 2, dist: 40, pitch: 0.35, yaw: 1.4 },
+    ],
+  });
   if (c.title) data[c.title] = from ? `${String(from[c.title] ?? id)} copy` : id.replace(/[-_]/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
   const text = serialize(name, data);
   try {

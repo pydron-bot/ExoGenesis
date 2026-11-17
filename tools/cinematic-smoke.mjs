@@ -5,6 +5,7 @@
  * camera, captions, lines and fades, skips, and hands the camera back.
  *   node tools/cinematic-smoke.mjs [--url http://localhost:5176/] [--headless-only]
  */
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { runnerImport } from 'vite';
@@ -93,6 +94,27 @@ await g.waitForTimeout(800);
 const after = await g.evaluate(() => ({ dist: window.__exo.cam.targetDist, yaw: window.__exo.cam.yaw, tick: window.__exo.sim.cur.tick, q: window.__exo.sim.cur.story.cine }));
 check(Math.abs(after.dist - 75) < 0.5 && Math.abs(after.yaw - 0.4) < 1e-3, `skipping hands the camera back where it was (the surface view: ${after.dist.toFixed(1)} u, yaw ${after.yaw.toFixed(2)})`);
 check(after.tick > tick0 + 2 && !after.q, 'the game runs again and the sim\'s queue is empty');
+// the editor: + New gives a cinematic that is valid and plays
+const fresh = path.join(root, 'content/cinematics/zz-new.json');
+try {
+  const ed = await ctx.newPage();
+  ed.on('pageerror', (e) => errors.push(e.message));
+  ed.on('dialog', (d) => d.accept('zz-new'));
+  await ed.goto(`${url}editor.html`);
+  await ed.locator('#side .coll', { hasText: 'Cinematics' }).locator('button.mini').click();
+  await ed.waitForSelector('svg.tl .tl-key');
+  const D = (await runnerImport(path.join(root, 'src/content/db.ts'))).module;
+  const rec = JSON.parse(await fs.readFile(fresh, 'utf8'));
+  const issues = D.buildDb({ 'cinematics/zz-new.json': rec, 'cinematics/landing.json': JSON.parse(await fs.readFile(path.join(root, 'content/cinematics/landing.json'), 'utf8')), 'buildings/core.json': JSON.parse(await fs.readFile(path.join(root, 'content/buildings/core.json'), 'utf8')) }).issues.filter((i) => i.path === 'cinematics/zz-new.json');
+  check(!issues.length && rec.camera.length === 2, `editor: + New makes a cinematic that is ready to play${issues.length ? `: ${issues.map((i) => `${i.field} ${i.msg}`).join('; ')}` : ''}`);
+  check(await ed.locator('svg.tl .tl-beat').count() === 0 && await ed.locator('svg.tl text', { hasText: 'Lines' }).count() === 1, 'editor: its timeline has lines and sounds rows, no landing beats');
+  const [pg] = await Promise.all([ctx.waitForEvent('page'), ed.click('.tl-bar button:has-text("Play it")')]);
+  pg.on('pageerror', (e) => errors.push(e.message));
+  await pg.waitForFunction(() => window.__exo?.cinematic?.id === 'zz-new', null, { timeout: 300000 });
+  check(true, 'editor: ▶ Play it plays it in the game');
+} finally {
+  await fs.rm(fresh, { force: true });
+}
 check(!errors.length, `no page errors${errors.length ? `: ${errors.join(' | ')}` : ''}`);
 
 await browser.close();
