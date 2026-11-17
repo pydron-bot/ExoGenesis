@@ -20,6 +20,16 @@ export const BLOC_INFO: Record<Bloc, { name: string; color: string; wants: strin
   autonomist: { name: 'Autonomists', color: '#ffb547', wants: 'Human self-rule, limits on the AI. Want a human assembly and light oversight. Angry ones sabotage, and a majority may walk out.' },
   devoted: { name: 'Devoted', color: '#c08bff', wants: 'Want the AI to lead (AI directive) and watch over everything. Work hard; few children.' },
 };
+/** What a leading bloc's boost does, from the people rules. */
+export function boostText(b: Bloc, r: PeopleRules): { name: string; does: string } {
+  const pct = (x: number) => `${Math.round(Math.abs(x - 1) * 100)}%`;
+  switch (b) {
+    case 'autonomist': return { name: 'Wardens', does: `People fight back from the buildings they're in (${r.militiaDamage} damage each, up to ${r.militiaMax} a building, ${r.militiaRange} u) and take ${pct(r.wardenHarm)} less harm outdoors` };
+    case 'partner': return { name: 'Accord', does: `Colonists at work add ${pct(r.partnerStaff)} more to their buildings` };
+    case 'devoted': return { name: 'Unity', does: `Drones build and repair ${pct(r.devotedDrones)} faster; buildings draw ${pct(r.devotedPower)} less power` };
+  }
+}
+
 const SPEC_HELP: Record<Specialty, string> = {
   engineer: 'Mining Depots and the Vehicle Bay',
   botanist: 'Hydroponics',
@@ -126,7 +136,14 @@ export class PeopleHud {
       rows.push(`<div class="meter"><span>AI acceptance</span>${bar(p.stance, '#5ff3ff', [AUTONOMIST_BELOW, DEVOTED_ABOVE])}<b>${p.stance.toFixed(0)}</b></div>`);
       const tot = Math.max(1, p.adults);
       rows.push(`<div class="blocs">${(['autonomist', 'partner', 'devoted'] as Bloc[]).map((b) => `<i style="flex:${p.blocs[b] / tot};background:${BLOC_INFO[b].color}"></i>`).join('')}</div>`);
-      rows.push(`<div class="bloclist">${(['partner', 'autonomist', 'devoted'] as Bloc[]).map((b) => `<div><b style="color:${BLOC_INFO[b].color}">${BLOC_INFO[b].name} ${p.blocs[b]}</b> <small>${esc(BLOC_INFO[b].wants)}</small></div>`).join('')}</div>`);
+      rows.push(`<div class="bloclist">${(['partner', 'autonomist', 'devoted'] as Bloc[]).map((b) => {
+        const bt = boostText(b, this.d.rules), on = p.lead === b;
+        return `<div${on ? ' class="lead"' : ''}><b style="color:${BLOC_INFO[b].color}">${BLOC_INFO[b].name} ${p.blocs[b]}</b>${on ? ' <b class="leadtag">LEADING</b>' : ''} <small>${esc(BLOC_INFO[b].wants)}</small><small class="boost"><b>${bt.name}</b> (when they lead): ${esc(bt.does)}</small></div>`;
+      }).join('')}</div>`);
+      const r = this.d.rules;
+      rows.push(p.lead
+        ? `<div class="row"><span>Leading</span><span><b style="color:${BLOC_INFO[p.lead].color}">${BLOC_INFO[p.lead].name}</b> · ${boostText(p.lead, r).name} boost on</span></div>`
+        : `<p class="hint">No bloc leads yet. When ${Math.round(r.leadShare * 100)}% of the adults (at least ${r.leadMin}) are in one bloc, it leads the colony and its boost comes on.</p>`);
       if (p.striking) rows.push(`<div class="row warn"><span>On strike</span><span>${p.striking}</span></div>`);
       if (p.surge > 0) rows.push(`<div class="row"><span>Breakthrough</span><span><b>+25% output</b> · ${Math.ceil(p.surge)} s left</span></div>`);
       else rows.push(`<div class="meter"><span title="Fills while 60%+ are Partners and wellbeing is 65+">Breakthrough</span>${bar(p.breakthrough * 100, '#5bff9a')}<b>${(p.breakthrough * 100).toFixed(0)}%</b></div>`);

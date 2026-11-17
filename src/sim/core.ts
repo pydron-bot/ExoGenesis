@@ -254,7 +254,7 @@ export class Sim {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
         const rank = d.fireRange ? 0 : d.role === 'civic' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' ? 2 : 3;
         const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
-        loads.push({ b, mw: -d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0), rank, battery: d.role !== 'depot' });
+        loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw(), rank, battery: d.role !== 'depot' });
       } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
@@ -395,7 +395,7 @@ export class Sim {
           d.heading += 1.5 * DT; // circle-scan while building
           const dd = def(site);
           const before = site.progress;
-          site.progress = dd.buildSeconds > 0 ? Math.min(1, site.progress + DT / dd.buildSeconds) : 1;
+          site.progress = dd.buildSeconds > 0 ? Math.min(1, site.progress + (DT * this.people.droneWork()) / dd.buildSeconds) : 1;
           site.hp = Math.min(dd.hp, site.hp + (site.progress - before) * dd.hp * 0.9);
           if (site.progress >= 1) {
             site.hp = Math.max(site.hp, dd.hp * 0.999);
@@ -409,7 +409,7 @@ export class Sim {
         if (this.reach(d, b)) {
           d.heading += 1.5 * DT;
           const dd = def(b);
-          const hp = Math.min(RULES.repairRate * DT, maxHp(b) - b.hp);
+          const hp = Math.min(RULES.repairRate * this.people.droneWork() * DT, maxHp(b) - b.hp);
           const cost = (hp / dd.hp) * dd.cost * 0.5;
           if (s.alloys >= cost) { s.alloys -= cost; b.hp += hp; }
         }
@@ -578,6 +578,29 @@ export class Sim {
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
       this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash });
+    }
+    this.stepWardens();
+  }
+
+  /** Autonomist-led colonies: the people inside a building fight off predators that come close (no power needed). */
+  private stepWardens() {
+    const P = content.people;
+    if (this.people.lead() !== 'autonomist') return;
+    for (const b of this.s.buildings) {
+      if (b.progress < 1) continue;
+      b.mcd = Math.max(0, (b.mcd ?? 0) - DT);
+      if (b.mcd > 0) continue;
+      const k = this.people.wardens(b);
+      if (!k) continue;
+      let best: Hostile | null = null, bd = P.militiaRange + bodyR(b);
+      for (const h of this.s.hostiles) {
+        if (!this.targetable(h)) continue;
+        const dist = Math.hypot(h.x - b.x, h.z - b.z) - this.unitDef(h).radius;
+        if (dist <= bd) { bd = dist; best = h; }
+      }
+      if (!best) continue;
+      b.mcd = P.militiaCooldown;
+      this.strike(b.x, b.z, best, P.militiaDamage * k, FX.ROVER_SHOT);
     }
   }
 
@@ -872,7 +895,7 @@ export class Sim {
         h.heading = Math.atan2(dx, dz);
         if (h.cd <= 0) {
           h.cd = u.cooldown;
-          tgt.hp -= u.damage;
+          tgt.hp -= u.damage * (isC ? this.people.harm() : 1);
           this.fx.push(weaponFx(unitWeapon(u), false), h.x, h.z, tgt.x, tgt.z);
           if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : isC ? this.people.kill(tgt as Colonist, 'killed by predators') : this.destroyDrone(tgt as Drone);
         }

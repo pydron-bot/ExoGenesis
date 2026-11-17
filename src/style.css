@@ -434,6 +434,9 @@ body.colony-open #goals { display: none !important; }
 #colony .blocs { display: flex; height: 8px; border-radius: 3px; overflow: hidden; margin: 6px 0 4px; background: rgba(255,255,255,.08); }
 #colony .bloclist div { font-size: 11px; line-height: 1.4; margin: 3px 0; }
 #colony .bloclist small, #colony small.help, #card small.help { opacity: 0.6; font-size: 10.5px; display: block; line-height: 1.35; }
+#colony .bloclist small.boost { opacity: 0.85; }
+#colony .bloclist div.lead { background: rgba(127, 247, 255, 0.07); border-radius: 4px; padding: 2px 4px; margin: 3px -4px; }
+#colony .leadtag { font-size: 9px; letter-spacing: 0.08em; color: #5bff9a; }
 #colony .pol { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; font-size: 12px; }
 #colony .pol > span { opacity: 0.8; }
 #colony .seg { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; }

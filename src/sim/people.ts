@@ -38,6 +38,14 @@ const ALERT_HOLD = 10;
 /** Pods can be stopped (embryo back to the bank) only this early. */
 const UNPOD_BEFORE = 0.25;
 const SHIFTS = { short: [8, 16], standard: [7, 18], long: [6, 21] } as const;
+/** The boost each leading bloc gives (names shown in the HUD and the log). */
+export const BOOST: Record<Bloc, string> = { autonomist: 'Wardens', partner: 'Accord', devoted: 'Unity' };
+const LEAD_NEWS: Record<Bloc, string> = {
+  autonomist: 'Autonomists lead the colony · Wardens: people fight back from the buildings they are in, and take less harm outdoors',
+  partner: 'Partners lead the colony · Accord: colonists at work add half as much again to their buildings',
+  devoted: 'The Devoted lead the colony · Unity: drones work faster and buildings draw less power',
+};
+
 /** Wellbeing each bloc gets from each policy choice. */
 const LIKES: Record<'council' | 'oversight', Record<string, Record<Bloc, number>>> = {
   council: {
@@ -496,6 +504,7 @@ export class People {
       let add = P.staffBonus + (def(b).specialty === c.specialty ? P.specialtyBonus : 0);
       if (c.traits.includes('diligent')) add *= 1.5;
       if (c.stance > 75) add *= 1.1; // the Devoted work hard
+      if (this.s.lead === 'partner') add *= P.partnerStaff;
       this.mults.set(b.id, (this.mults.get(b.id) ?? 1) + add);
     }
     if (surge > 1) for (const [k, v] of this.mults) this.mults.set(k, v * surge);
@@ -702,12 +711,45 @@ export class People {
     return best;
   }
 
+  // ---------- the leading bloc and its boost ----------
+  /** The bloc leading the colony (its boost is on), or null. */
+  lead(): Bloc | null { return this.s.lead ?? null; }
+
+  private leadership(adults: number, n: (b: Bloc) => number) {
+    const s = this.s;
+    let lead: Bloc | null = null;
+    if (adults >= P.leadMin) for (const b of BLOCS) if (n(b) / adults >= P.leadShare) lead = b;
+    if (lead === (s.lead ?? null)) return;
+    const was = s.lead ?? null;
+    s.lead = lead;
+    if (lead) this.emit(LEAD_NEWS[lead], 'info', 'online');
+    else if (was) this.emit(`No bloc leads the colony any more: the ${BOOST[was]} boost is gone`, 'warn', 'warning');
+  }
+
+  /** Autonomist-led: how many Autonomists in building `b` fight off predators. */
+  wardens(b: Building): number {
+    if (this.s.lead !== 'autonomist') return 0;
+    let k = 0;
+    for (const c of this.s.colonists) if (c.at === b.id && this.adult(c) && blocOf(c.stance) === 'autonomist') k++;
+    return Math.min(k, P.militiaMax);
+  }
+
+  /** Share of predator damage a colonist outdoors takes. */
+  harm(): number {
+    return this.s.lead === 'autonomist' ? P.wardenHarm : 1;
+  }
+
+  /** Devoted-led: drone work speed and building power draw. */
+  droneWork(): number { return this.s.lead === 'devoted' ? P.devotedDrones : 1; }
+  powerDraw(): number { return this.s.lead === 'devoted' ? P.devotedPower : 1; }
+
   // ---------- Trust: blocs acting on their mood ----------
   private politics(dt: number) {
     const s = this.s, per = dt / SOL;
     const adults = s.colonists.filter((c) => this.adult(c));
-    if (!adults.length) { s.breakthrough = 0; return; }
     const n = (b: Bloc) => adults.filter((c) => blocOf(c.stance) === b).length;
+    this.leadership(adults.length, n);
+    if (!adults.length) { s.breakthrough = 0; return; }
     const wb = adults.reduce((m, c) => m + c.wb, 0) / adults.length;
     // sabotage by angry Autonomists, unless Oversight catches it
     const watch = { light: 1.5, standard: 1, total: 0 }[s.policies.oversight];
@@ -803,7 +845,7 @@ export class People {
       lineagesLeft: s.bank.filter((n, l) => n > 0 || living[l] > 0).length,
       diversity: this.diversity(), biomass: s.biomass, biomassMax: this.storage(), food: { ...this.food },
       adults: adults.length, children: s.colonists.length - adults.length, housing,
-      wellbeing: avg((c) => c.wb), stance: avg((c) => c.stance), blocs,
+      wellbeing: avg((c) => c.wb), stance: avg((c) => c.stance), blocs, lead: s.lead ?? null,
       striking: s.colonists.filter((c) => c.strike).length, policies: { ...s.policies },
       breakthrough: s.breakthrough, surge: s.surge,
       pods: bs.filter((b) => def(b)?.role === 'civic' && b.progress >= 1).map((b) => ({

@@ -623,6 +623,15 @@ spiralled through strikes (farms unstaffed) into starvation, sabotage and a walk
 predators on, the people bot lost its Core at ~12 min because it spent on the colony instead of
 turrets: the people economy competes with defense — tune after a playtest.
 
+**Leading blocs (v0.16.0).** A bloc with `leadShare` (50%) of the adults, in a colony of at
+least `leadMin` (4), leads it and turns on a boost (People rules, editor-tunable):
+**Wardens** (Autonomists; the human path's natural defence): buildings with Autonomists inside
+strike predators within 12 u (5 damage each, up to 3 a building, every 1.5 s, no power needed),
+and colonists outdoors take half harm. **Accord** (Partners): staffing bonus ×1.5. **Unity**
+(Devoted): drones build/repair ×1.3, buildings draw ×0.85. The log announces a change of lead;
+the Colony panel shows each boost. Test: `tools/lead-smoke.mjs` (headless). The imprint picks
+the lean, so committing to one imprint is what earns a boost.
+
 Not in slice 1 yet: an inhabitant/rival dimension to stance, natural-birth vs pod-born politics
 beyond the −15 lean, Devoted petitions, a dedicated Habitat building, research (Breakthroughs
 are just an output surge for now), aged colonists' retirement.

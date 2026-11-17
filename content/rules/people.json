@@ -23,5 +23,15 @@
   "staffBonus": 0.15,
   "specialtyBonus": 0.1,
   "colonistHp": 40,
-  "walkSpeed": 3
+  "walkSpeed": 3,
+  "leadShare": 0.5,
+  "leadMin": 4,
+  "militiaRange": 12,
+  "militiaDamage": 5,
+  "militiaCooldown": 1.5,
+  "militiaMax": 3,
+  "wardenHarm": 0.5,
+  "partnerStaff": 1.5,
+  "devotedDrones": 1.3,
+  "devotedPower": 0.85
 }

@@ -128,6 +128,8 @@ export interface PeopleState {
   surge: number;
   /** Seconds the colony has been on the brink of a walkout. */
   unrest: number;
+  /** The bloc leading the colony (its boost is on), if any. */
+  lead?: Bloc | null;
   /** Lineages already announced as gone. */
   gone: number[];
   /** Totals for the end screen. */
@@ -166,6 +168,8 @@ export interface PeopleSnap {
   wellbeing: number;
   stance: number;
   blocs: Record<Bloc, number>;
+  /** The leading bloc, whose boost is on. */
+  lead: Bloc | null;
   striking: number;
   policies: Policies;
   breakthrough: number;

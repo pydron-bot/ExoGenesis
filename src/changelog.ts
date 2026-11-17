@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.16.0',
+    date: '2026-11-17',
+    title: 'Who leads the colony',
+    notes: [
+      'When half your adults (at least 4) are in one bloc, that bloc leads the colony and gives a boost. The Colony panel shows who leads and what each boost does',
+      'Autonomists · Wardens: colonists fight off predators from the buildings they shelter in, and take half the harm outdoors',
+      'Partners · Accord: colonists at work add 50% more to their buildings',
+      'Devoted · Unity: drones build and repair 30% faster, and buildings draw 15% less power',
+    ],
+  },
+  {
     version: '0.15.0',
     date: '2026-11-17',
     title: 'New regions',

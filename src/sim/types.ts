@@ -21,6 +21,8 @@ export const MAX_HOSTILES = 400;
 /** A building; `kind` is its content id (content/buildings/<kind>.json). */
 export interface Building {
   id: number;
+  /** Wardens' cooldown (Autonomist-led colonies: the people inside fight back). */
+  mcd?: number;
   kind: string;
   x: number;
   z: number;

@@ -136,6 +136,16 @@ export const peopleRulesShape = {
   specialtyBonus: num({ label: 'Specialty bonus', min: 0, max: 2, step: 0.01, help: 'Extra when their specialty is the building\'s best one.' }),
   colonistHp: int({ label: 'Colonist hit points', min: 1, max: 1000 }),
   walkSpeed: num({ label: 'Walking speed', min: 0.5, max: 20, step: 0.1, unit: 'u/s' }),
+  leadShare: num({ label: 'Leading bloc share', min: 0.34, max: 1, step: 0.01, help: 'A bloc with at least this share of the adults leads the colony and gives its boost (0.5 = half).' }),
+  leadMin: int({ label: 'Leading bloc: adults needed', min: 1, max: 100, help: 'No bloc leads a colony smaller than this.' }),
+  militiaRange: num({ label: 'Wardens: reach', min: 0, max: 60, step: 0.5, unit: 'u', help: 'Autonomist-led: buildings with Autonomists inside fight predators this close.' }),
+  militiaDamage: num({ label: 'Wardens: damage', min: 0, max: 500, step: 0.5, help: 'Per Autonomist inside, per hit.' }),
+  militiaCooldown: num({ label: 'Wardens: time between hits', min: 0.1, max: 30, step: 0.1, unit: 's' }),
+  militiaMax: int({ label: 'Wardens: most per building', min: 1, max: 20, help: 'Only this many Autonomists in one building fight.' }),
+  wardenHarm: num({ label: 'Wardens: harm outdoors', min: 0, max: 1, step: 0.05, help: 'Autonomist-led: predators do this much of their damage to colonists outdoors (0.5 = half).' }),
+  partnerStaff: num({ label: 'Accord: staff bonus ×', min: 1, max: 5, step: 0.05, help: 'Partner-led: the staffing bonus is multiplied by this.' }),
+  devotedDrones: num({ label: 'Unity: drone work ×', min: 1, max: 5, step: 0.05, help: 'Devoted-led: drones build and repair this much faster.' }),
+  devotedPower: num({ label: 'Unity: power draw ×', min: 0.1, max: 1, step: 0.05, help: 'Devoted-led: buildings draw this much of their power.' }),
 } satisfies Shape;
 export type PeopleRules = Infer<typeof peopleRulesShape>;
 
