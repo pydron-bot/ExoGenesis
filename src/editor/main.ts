@@ -7,8 +7,10 @@
  * the local git repo (content/ and public/media/ only).
  */
 import './editor.css';
-import { COLLECTIONS, EFFECT_HELP, ID_RE, PREVIEW_KEY, TRIGGER_HELP, locate, pathOf, type Collection, type CollectionName, type StoryDef, type StoryEffect, type StoryTrigger } from '../content/defs';
+import { COLLECTIONS, CONDITION_HELP, type BuildingDef, type UnitDef, EFFECT_HELP, ID_RE, PREVIEW_KEY, locate, pathOf, type Collection, type CollectionName, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
 import { applies, blank, validate, type Field, type IdIndex, type Issue, type ListField } from '../content/schema';
+import { renderFlow } from './flow';
+import { refsTo, renderBalance, renderReview, searchContent, type ReviewFile } from './tools';
 import { MapEditor } from './map';
 import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, uploadFiles, type AssetHost, type MediaInfo, type Usage } from './assets';
 import { BUILTINS } from '../assets/builtin';
@@ -48,7 +50,9 @@ let mapEd: MapEditor | null = null;
 let assetPanel: AssetPanel | null = null;
 let viewHandle: { dispose(): void } | null = null;
 /** What the main pane shows when no record is open. */
-let view: 'none' | 'library' | { builtin: string } = 'none';
+let view: 'none' | 'library' | 'flow' | 'balance' | 'review' | { builtin: string } = 'none';
+/** Sidebar search (empty = the normal lists). */
+let searchQ = '';
 const media = new Map<string, MediaInfo>();
 const isMap = () => cur?.coll === 'regions';
 
@@ -146,9 +150,37 @@ async function loadAll() {
 }
 
 // ---------- sidebar ----------
+/** Every record, for search and "used by". */
+function allRecords() {
+  return (Object.keys(COLLECTIONS) as CollectionName[]).filter((c) => coll(c).kind === 'many').flatMap((c) => recordsOf(c).map((r) => ({ coll: c, id: r.id, title: titleOf(c, r.id, r.rec.data), data: r.rec.data })));
+}
+
+function sideSearch(): HTMLInputElement {
+  let box = document.getElementById('side-search') as HTMLInputElement | null;
+  if (box) return box;
+  box = h('input', { id: 'side-search', type: 'search', placeholder: 'Search all content…  ( / )' });
+  box.oninput = () => { searchQ = box!.value; renderSide(); };
+  box.onkeydown = (e) => { if (e.key === 'Escape') { box!.value = ''; searchQ = ''; renderSide(); box!.blur(); } };
+  $('side').before(h('div', { id: 'side-top' }, box));
+  return box;
+}
+
 function renderSide() {
+  sideSearch();
   const side = $('side');
   side.replaceChildren();
+  if (searchQ.trim()) {
+    const hits = searchContent(allRecords(), searchQ);
+    side.append(h('div', { cls: 'group', textContent: hits.length ? `${hits.length} match${hits.length > 1 ? 'es' : ''}` : 'No matches' }));
+    for (const r of hits) {
+      const el = h('button', { cls: `item search-hit${cur?.coll === r.coll && cur.id === r.id ? ' on' : ''}` },
+        h('span', { textContent: r.title }), h('small', { textContent: coll(r.coll).label.replace(/s$/, '').toLowerCase() }));
+      if (r.snippet) el.append(h('div', { cls: 'snip', textContent: r.snippet }));
+      el.onclick = () => open(r.coll, r.id);
+      side.append(el);
+    }
+    return;
+  }
   const groups = new Map<string, CollectionName[]>();
   for (const name of Object.keys(COLLECTIONS) as CollectionName[]) {
     const g = coll(name).group;
@@ -157,6 +189,16 @@ function renderSide() {
   const ids = idIndex();
   for (const [g, names] of groups) {
     side.append(h('div', { cls: 'group', textContent: g }));
+    if (g === 'Game data') {
+      const bal = h('button', { cls: view === 'balance' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Balance table' }), h('small', { textContent: 'compare' }));
+      bal.onclick = () => showPage('balance');
+      side.append(bal);
+    }
+    if (g === 'Story') {
+      const fl = h('button', { cls: view === 'flow' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Story flow' }), h('small', { textContent: 'overview' }));
+      fl.onclick = () => showPage('flow');
+      side.append(fl);
+    }
     for (const name of names) {
       const c = coll(name);
       if (c.kind === 'single') {
@@ -339,25 +381,65 @@ function listControl(d: Record<string, unknown>, key: string, f: ListField, onCh
 // ---------- story events: card preview, what it does, play test ----------
 function storyPanel(): HTMLElement {
   const play = h('button', { cls: 'primary', textContent: '▶ Play test this event', title: 'Opens the game on the event\'s region (Touchdown if it has none), starting deployed, and fires this event straight away: unsaved edits included. Your own colony is left alone.' });
-  play.onclick = () => storyPlayTest();
+  play.onclick = () => playTest('story');
   return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'story-card' }), h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play));
 }
 
+/** "when the clock reaches Sol (Sol 2)" for a condition. */
+function conditionText(kind: Condition | undefined, c: ConditionDef): string {
+  if (!kind) return '?';
+  const param = kind === 'time' ? `Sol ${c.sol ?? '?'}` : kind === 'built' ? `${c.count && c.count > 1 ? `${c.count}× ` : ''}${c.building ?? '?'}`
+    : ['colonists', 'packs', 'units', 'drones'].includes(kind) ? String(c.count ?? 1) : kind === 'site' ? `site "${c.site ?? '?'}"`
+    : kind === 'contact' || kind === 'trust' ? c.group ?? '?' : kind === 'flag' ? `flag "${c.flag ?? '?'}"` : kind === 'after' ? `"${c.event ?? '?'}"`
+    : kind === 'mission' ? `"${c.mission ?? '?'}"` : '';
+  return `${CONDITION_HELP[kind]}${param ? ` (${param})` : ''}`;
+}
+
+/** "add 60 alloys" for an effect. */
+function effectText(e: Partial<EffectDef>): string {
+  if (!e.kind) return '?';
+  return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace('the Flag', `flag "${e.flag ?? '?'}"`).replace('the Group', e.group ?? '?').replace('the Event', `"${e.event ?? '?'}"`).replace('(Text)', e.text ? `: “${e.text.slice(0, 60)}${e.text.length > 60 ? '…' : ''}”` : '');
+}
+
+/** Ids of records in `coll` whose data passes `test`. */
+const whoRefs = <T,>(coll: CollectionName, test: (d: T) => boolean) => recordsOf(coll).filter((r) => r.rec.data && test(r.rec.data as T)).map((r) => r.id);
+
 /** A sentence for an event's trigger, and one per effect. */
 function storySummary(ev: Partial<StoryDef>): string[] {
-  const t = ev.trigger as StoryTrigger | undefined;
-  const param = t === 'time' ? `Sol ${ev.sol ?? '?'}` : t === 'built' ? ev.building ?? '?' : t === 'colonists' || t === 'packs' ? String(ev.count ?? '?') : t === 'site' ? `site "${ev.site ?? '?'}"` : t === 'contact' || t === 'trust' ? ev.group ?? '?' : t === 'flag' ? `flag "${ev.flag ?? '?'}"` : t === 'after' ? `"${ev.event ?? '?'}"` : '';
-  const out = [`Fires ${t ? TRIGGER_HELP[t] : '?'}${param ? ` (${param})` : ''}${ev.delay ? `, ${ev.delay} s later` : ''}${ev.region ? `, only in ${ev.region}` : ''}${ev.unless ? `, unless flag "${ev.unless}" is set` : ''}. Once per game.`];
+  const out = [`Fires ${conditionText(ev.trigger, ev)}${ev.delay ? `, ${ev.delay} s later` : ''}${ev.region ? `, only in ${ev.region}` : ''}${ev.unless ? `, unless flag "${ev.unless}" is set` : ''}. Once per game.`];
   for (const e of ev.effects ?? []) {
     const when = e.after ? `After “${ev.choices?.[e.after - 1]?.label ?? `choice ${e.after}`}”` : 'When it fires';
-    const what = e.kind ? EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace('the Flag', `flag "${e.flag ?? '?'}"`).replace('the Group', e.group ?? '?').replace('the Event', `"${e.event ?? '?'}"`).replace('(Text)', e.text ? `: “${e.text.slice(0, 60)}${e.text.length > 60 ? '…' : ''}”` : '') : '?';
-    out.push(`${when}: ${what}`);
+    out.push(`${when}: ${effectText(e)}`);
   }
-  // who waits on this one
-  const after = recordsOf('story').filter((r) => (r.rec.data as StoryDef)?.trigger === 'after' && (r.rec.data as StoryDef).event === cur?.id).map((r) => r.id);
-  const started = recordsOf('story').filter((r) => (r.rec.data as StoryDef)?.effects?.some((e) => e.kind === 'event' && e.event === cur?.id)).map((r) => r.id);
+  // who waits on this one, and who starts it
+  const id = cur?.id;
+  const after = whoRefs<StoryDef>('story', (d) => d.trigger === 'after' && d.event === id);
+  const started = whoRefs<StoryDef>('story', (d) => !!d.effects?.some((e) => e.kind === 'event' && e.event === id));
+  const missions = whoRefs<MissionDef>('missions', (d) => d.onStart === id || d.onDone === id || !!d.rewards?.some((e) => e.kind === 'event' && e.event === id));
   if (after.length) out.push(`Followed by: ${after.join(', ')}`);
   if (started.length) out.push(`Started by: ${started.join(', ')}`);
+  if (missions.length) out.push(`Missions that fire it: ${missions.join(', ')}`);
+  return out;
+}
+
+// ---------- missions: what it asks, what follows, play test ----------
+function missionPanel(): HTMLElement {
+  const play = h('button', { cls: 'primary', textContent: '▶ Play test this mission', title: 'Opens the game on the mission\'s region (Touchdown if it has none), starting deployed, with the missions before it counted as done and this one under way: unsaved edits included. Your own colony is left alone.' });
+  play.onclick = () => playTest('mission');
+  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play));
+}
+
+function missionSummary(m: Partial<MissionDef>): string[] {
+  const id = cur?.id;
+  const out = [`Starts ${m.after ? `when “${m.after}” is complete` : 'when the colony deploys'}${m.region ? `, only in ${m.region}` : ''}${m.onStart ? `, and fires “${m.onStart}”` : ''}.`];
+  (m.objectives ?? []).forEach((o, i) => out.push(`${i + 1}. ${o.text || '(no text)'}: done ${conditionText(o.kind, o)}`));
+  if (!m.objectives?.length) out.push('No objectives yet: it would be done the moment it starts.');
+  for (const e of m.rewards ?? []) out.push(`Reward: ${effectText(e)}`);
+  if (m.onDone) out.push(`When done, fires “${m.onDone}”`);
+  const next = whoRefs<MissionDef>('missions', (d) => d.after === id);
+  const events = whoRefs<StoryDef>('story', (d) => d.trigger === 'mission' && d.mission === id);
+  out.push(next.length ? `Followed by: ${next.join(', ')}` : 'Nothing follows it.');
+  if (events.length) out.push(`Story events waiting on it: ${events.join(', ')}`);
   return out;
 }
 
@@ -380,14 +462,15 @@ function renderStoryPreview() {
   }
 }
 
-function storyPlayTest() {
-  if (!cur || cur.coll !== 'story') return;
-  const ev = cur.draft as unknown as StoryDef;
-  const region = ev.region && files.get(pathOf('regions', ev.region)) ? ev.region : 'touchdown';
+/** Open a scratch game on the record's region (unsaved edits included) that fires the event / starts the mission. */
+function playTest(kind: 'story' | 'mission') {
+  if (!cur) return;
+  const rec = cur.draft as { region?: string };
+  const region = rec.region && files.get(pathOf('regions', rec.region)) ? rec.region : 'touchdown';
   const def = files.get(pathOf('regions', region))?.data;
   try {
-    localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def, story: { id: cur.id, def: ev } }));
-  } catch (e) { toast(`Couldn't hand the event to the game: ${(e as Error).message}`, true); return; }
+    localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def, [kind]: { id: cur.id, def: cur.draft } }));
+  } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
   window.open(`${import.meta.env.BASE_URL}?preview=1&intro=0`, 'exo-playtest');
 }
 
@@ -437,6 +520,7 @@ function renderForm() {
   }
   let panel: HTMLElement | null = null;
   if (cur.coll === 'story') panel = storyPanel();
+  if (cur.coll === 'missions') panel = missionPanel();
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
     panel = assetPanel.root;
@@ -484,6 +568,7 @@ function changed() {
 
   assetPanel?.update(cur.draft as unknown as AssetDef);
   if (cur.coll === 'story') renderStoryPreview();
+  if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {
     $('main').querySelector('.map-issues')?.remove();
     if (iss.length) $('main').querySelector('.head')!.after(h('div', { cls: 'map-issues', textContent: iss.map((i) => `${i.field}: ${i.msg}`).join(' · ') }));
@@ -496,7 +581,14 @@ function changed() {
     r.classList.toggle('invalid', !!msg);
   }
   const extra = iss.filter((i) => !(i.field in shape) && !Object.keys(shape).some((k) => i.field.startsWith(`${k}[`)));
+  const used = coll(cur.coll).kind === 'many' ? refsTo(allRecords(), cur.coll, cur.id) : [];
+  const usedEls = used.map((u) => {
+    const b = h('button', { cls: 'used-by' }, h('span', { textContent: titleOf(u.coll, u.id, files.get(pathOf(u.coll, u.id))?.data) }), h('small', { textContent: `${coll(u.coll).label.replace(/s$/, '').toLowerCase()} · ${u.field}` }));
+    b.onclick = () => open(u.coll, u.id);
+    return b;
+  });
   $('aside').replaceChildren(
+    ...(coll(cur.coll).kind === 'many' && cur.coll !== 'assets' ? [h('div', { cls: 'group', textContent: used.length ? `Used by ${used.length}` : 'Used by nothing' }), ...usedEls] : []),
     h('div', { cls: 'group', textContent: iss.length ? `${iss.length} problem${iss.length > 1 ? 's' : ''}` : 'No problems' }),
     ...extra.map((i) => h('div', { cls: 'issue', textContent: `${i.field || '(file)'}: ${i.msg}` })),
     h('div', { cls: 'group', textContent: 'File preview' }),
@@ -595,6 +687,8 @@ async function refreshGit() {
     st.textContent = n ? `${n} uncommitted change${n > 1 ? 's' : ''}` : 'All committed';
     st.title = n ? g.changes.map((c) => `${c.status}  ${c.path}`).join('\n') : `Last: ${g.last}`;
     st.classList.toggle('pending', n > 0);
+    st.onclick = n ? () => showPage('review') : null;
+    st.title = n ? `${st.title}\n\nClick to review the changes` : st.title;
     ($('commit') as HTMLButtonElement).disabled = n === 0;
     if (WEB) { ($('discard') as HTMLButtonElement).disabled = n === 0; ($('export') as HTMLButtonElement).disabled = n === 0; }
   } catch { /* dev server restarting */ }
@@ -646,6 +740,7 @@ async function poll() {
       }
       changed();
     }
+    if ((view === 'flow' || view === 'balance' || view === 'review') && !cur && signature() !== librarySig) { PAGES[view](); librarySig = signature(); }
     if (view === 'library' && !cur && signature() !== librarySig) {
       renderLibrary($('main'), $('aside'), assetHost);
       librarySig = signature();
@@ -694,6 +789,44 @@ function showLibrary(force = false) {
   view = 'library';
   history.replaceState(null, '', '#library');
   renderLibrary($('main'), $('aside'), assetHost);
+  librarySig = signature();
+  renderSide();
+}
+
+// ---------- whole-content pages: story flow, balance table, review ----------
+function drawFlow() {
+  const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
+  renderFlow($('main'), $('aside'), { missions: data<MissionDef>('missions'), story: data<StoryDef>('story'), open: (l) => open(l.coll, l.id) });
+}
+function drawBalance() {
+  const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
+  renderBalance($('main'), data<UnitDef>('units'), data<BuildingDef>('buildings'), (c, id) => open(c, id));
+  $('aside').replaceChildren(h('div', { cls: 'group', textContent: 'Reading the table' }), h('div', { cls: 'help-block', textContent:
+    'DPS = damage ÷ cooldown, against one target (splash, chains and minimum range aren\'t counted). "/ 100 ◆" columns divide by cost, so they show value for money. Fauna have no cost. Built-in rules (drone cost, pack sizes) are in Rules.' }));
+}
+async function drawReview() {
+  const g = await api<{ changes: { status: string; path: string }[] }>('GET', '/__content/git');
+  const out: ReviewFile[] = [];
+  for (const c of g.changes) {
+    const isJson = !c.path.startsWith('public/') && c.path.endsWith('.json');
+    if (!isJson) { out.push({ status: c.status, path: c.path, before: null, after: null, binary: true }); continue; }
+    const before = (await api<{ text: string | null }>('GET', `/__content/orig?path=${encodeURIComponent(c.path)}`).catch(() => ({ text: null }))).text;
+    const after = c.status === 'D' ? null : (await api<{ text: string }>('GET', `/__content/file?path=${encodeURIComponent(c.path)}`).catch(() => null))?.text ?? null;
+    out.push({ status: c.status, path: c.path, before, after });
+  }
+  if (view !== 'review' || cur) return;
+  renderReview($('main'), out, (p) => { const at = locate(p); if (at) open(at.coll, at.id); });
+  $('aside').replaceChildren(h('div', { cls: 'group', textContent: 'Commit' }), h('div', { cls: 'help-block', textContent:
+    'Write what changed in the box at the top and press Commit. Unsaved edits in an open record are not included: save them first.' }));
+}
+const PAGES = { flow: drawFlow, balance: drawBalance, review: () => void drawReview() } as const;
+function showPage(page: keyof typeof PAGES, force = false) {
+  if (!force && !confirmDiscard()) return;
+  teardown();
+  cur = null;
+  view = page;
+  history.replaceState(null, '', `#${page}`);
+  PAGES[page]();
   librarySig = signature();
   renderSide();
 }
@@ -821,6 +954,9 @@ $('commit').onclick = () => void doCommit();
 $('commit-msg').onkeydown = (e) => { if (e.key === 'Enter') void doCommit(); };
 addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); void doSave(); }
+  const t = e.target as HTMLElement | null;
+  const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
+  if (e.key === '/' && !typing && !isMap()) { e.preventDefault(); sideSearch().focus(); }
 });
 addEventListener('beforeunload', (e) => { if (dirty()) e.preventDefault(); });
 
@@ -834,6 +970,7 @@ function routeTo(hash: string) {
   const at = locate(route);
   if (at) open(at.coll, at.id);
   else if (route === 'library') showLibrary();
+  else if (route === 'flow' || route === 'balance' || route === 'review') showPage(route);
   else if (route.startsWith('builtin/')) showBuiltin(route.slice(8));
 }
 routeTo(location.hash);

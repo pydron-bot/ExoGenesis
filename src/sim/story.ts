@@ -9,11 +9,11 @@
  * Each event fires once per game. State (fired, answered, flags, inbox) is saved.
  */
 import { content } from '../content';
-import type { StoryDef, StoryEffectDef } from '../content/defs';
+import type { EffectDef, StoryDef } from '../content/defs';
+import { conditionMet } from './conditions';
 import type { Sim } from './core';
 import { TICK_HZ, type StoryState } from './types';
 
-const SOL = content.colony.solSeconds;
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
 export class Story {
@@ -50,25 +50,7 @@ export class Story {
 
   /** Is the event's trigger satisfied right now? */
   private met(ev: StoryDef): boolean {
-    const sim = this.sim, s = sim.s;
-    switch (ev.trigger) {
-      case 'start': return sim.deployed;
-      case 'time': return ev.sol !== undefined && sim.secs / SOL + 1 >= ev.sol;
-      case 'built': return !!ev.building && s.buildings.some((b) => b.kind === ev.building && b.progress >= 1);
-      case 'colonists': return ev.count !== undefined && (s.people?.colonists.length ?? 0) >= ev.count;
-      case 'packs': return ev.count !== undefined && s.stats.packsBeaten >= ev.count;
-      case 'site': {
-        const site = this.region().sites.find((x) => x.id === ev.site);
-        if (!site) return false;
-        const near = (o: { x: number; z: number }) => Math.hypot(o.x - site.x, o.z - site.z) <= site.r;
-        return s.drones.some(near) || (s.units ?? []).some(near);
-      }
-      case 'contact': return (s.camps ?? []).some((c) => c.group === ev.group && c.met);
-      case 'trust': return (s.camps ?? []).some((c) => c.group === ev.group && c.trusted);
-      case 'flag': return !!ev.flag && this.has(ev.flag);
-      case 'after': return !!ev.event && this.s.answered.includes(ev.event);
-      case 'never': return false;
-    }
+    return conditionMet(this.sim, ev.trigger, ev, { sites: this.region().sites });
   }
 
   /** Fire an event now (its trigger met, an `event` effect, or a debug command). */
@@ -100,7 +82,8 @@ export class Story {
     for (const e of ev.effects ?? []) if ((e.after ?? 0) === when) this.effect(e);
   }
 
-  private effect(e: StoryEffectDef) {
+  /** Run one effect (story events, mission rewards). */
+  effect(e: EffectDef) {
     const sim = this.sim, s = sim.s, st = this.s, n = e.amount ?? 0;
     switch (e.kind) {
       case 'log': if (e.text) sim.emit(e.text, 'info'); break;

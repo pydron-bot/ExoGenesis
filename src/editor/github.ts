@@ -205,8 +205,8 @@ const origOf = (p: string): string | null => {
   return e ? e.orig : base.get(p)?.sha ?? null;
 };
 
-async function readText(p: string): Promise<string> {
-  const e = pending.get(p);
+async function readText(p: string, original = false): Promise<string> {
+  const e = original ? undefined : pending.get(p);
   if (e?.kind === 'text') return e.text;
   const sha = base.get(p)?.sha;
   if (!sha) throw new HttpErr(404, 'no such file');
@@ -313,6 +313,13 @@ async function handle(method: string, url: URL, body: unknown, raw: Blob | null)
       const p = `content/${rel}`;
       if (shaOf(p) === null) throw new HttpErr(404, 'no such file');
       return { path: rel, text: await readText(p), hash: shaOf(p) };
+    }
+    case 'GET /__content/orig': {
+      // the version on GitHub (or in the site's snapshot), before this browser's changes
+      const rel = url.searchParams.get('path') ?? '';
+      const p = `content/${rel}`;
+      if (!base.get(p)) return { text: null };
+      return { text: await readText(p, true) };
     }
     case 'PUT /__content/file': {
       if (!b.path || !CONTENT_RE.test(b.path) || typeof b.text !== 'string') throw new HttpErr(400, 'bad path or text');

@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -12,6 +12,7 @@ export interface ContentDb {
   assets: Record<string, AssetDef>;
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
+  missions: Record<string, MissionDef>;
   colony: ColonyRules;
   threats: ThreatRules;
   people: PeopleRules;
@@ -52,6 +53,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     assets: recs.assets,
     inhabitants: recs.inhabitants,
     story: recs.story,
+    missions: recs.missions,
     colony: recs.colony.colony,
     threats: recs.threats.threats,
     people: recs.people.people,
@@ -113,13 +115,23 @@ function crossIssues(db: ContentDb): FileIssue[] {
     }
     if (b.role === 'core' && id !== 'core') out.push({ path: `buildings/${id}.json`, field: 'role', msg: 'only the Command Core (core.json) can have the core role' });
   }
-  // story: site triggers need a site on a region map; events can't wait on themselves
+  // story and missions: site conditions need a site on a region map; nothing waits on itself
+  const siteMissing = (site: string, region?: string) => {
+    const maps = region ? [db.regions[region]] : Object.values(db.regions);
+    return maps.some((r) => r?.sites?.some((x) => x.id === site)) ? null : `no region${region ? ` "${region}"` : ''} has a story site "${site}"`;
+  };
+  for (const [id, m] of Object.entries(db.missions ?? {})) {
+    if (!m || typeof m !== 'object') continue;
+    if (m.after === id) out.push({ path: `missions/${id}.json`, field: 'after', msg: 'a mission can\'t follow itself' });
+    (m.objectives ?? []).forEach((o, n) => {
+      const miss = o?.kind === 'site' && o.site ? siteMissing(o.site, m.region) : null;
+      if (miss) out.push({ path: `missions/${id}.json`, field: `objectives[${n}].site`, msg: miss });
+    });
+  }
   for (const [id, ev] of Object.entries(db.story ?? {})) {
     if (!ev || typeof ev !== 'object') continue;
-    if (ev.trigger === 'site' && ev.site) {
-      const maps = ev.region ? [db.regions[ev.region]] : Object.values(db.regions);
-      if (!maps.some((r) => r?.sites?.some((x) => x.id === ev.site))) out.push({ path: `story/${id}.json`, field: 'site', msg: `no region${ev.region ? ` "${ev.region}"` : ''} has a story site "${ev.site}"` });
-    }
+    const miss = ev.trigger === 'site' && ev.site ? siteMissing(ev.site, ev.region) : null;
+    if (miss) out.push({ path: `story/${id}.json`, field: 'site', msg: miss });
     (ev.effects ?? []).forEach((e, n) => {
       if ((e?.after ?? 0) > (ev.choices?.length ?? 0)) out.push({ path: `story/${id}.json`, field: `effects[${n}].after`, msg: `there is no choice ${e.after}` });
     });

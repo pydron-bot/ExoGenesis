@@ -1,0 +1,11 @@
+{
+  "title": "Touchdown",
+  "summary": "Tutorial 1: power. The cryo bank is on reserve power from the moment you land.",
+  "region": "touchdown",
+  "objectives": [
+    { "text": "Build a Solar Array to power the cryo bank", "kind": "built", "building": "solar" }
+  ],
+  "rewards": [
+    { "kind": "log", "text": "The cryo bank is stable. Now we need alloys to build anything else." }
+  ]
+}

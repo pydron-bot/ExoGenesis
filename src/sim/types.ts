@@ -179,6 +179,16 @@ export interface StoryState {
   timers: { id: string; at: number }[];
 }
 
+/** Missions (content/missions): which are under way, done, and which objectives are met. */
+export interface MissionState {
+  active: string[];
+  done: string[];
+  /** Per mission: indexes of its objectives already met (they stay met). */
+  marks: Record<string, number[]>;
+}
+
+export interface MissionSnap { id: string; marks: boolean[] }
+
 export interface Deposit { x: number; z: number; alloys: number; max: number }
 
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
@@ -216,6 +226,8 @@ export interface SimState {
   phase: 'descent' | 'landed' | 'deployed';
   /** Ticks of engine-noise panic left: grazers near the core bolt. */
   panic: number;
+  /** Missions (absent in older saves: caught up quietly on load). */
+  missions?: MissionState;
   /** Story events (absent in older saves: starts fresh). */
   story?: StoryState;
   /** Inhabitant camps (absent in saves from before inhabitants existed: set up from the region on load). */
@@ -251,11 +263,11 @@ export type Command =
   | { type: 'contact'; camp: number; choice: ContactChoice }
   | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
-  | { type: 'debug'; story?: string; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
+  | { type: 'debug'; mission?: string; story?: string; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
-  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef } }
+  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef } }
   | { type: 'cmd'; cmd: Command }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }
@@ -304,6 +316,8 @@ export interface Snapshot {
   /** Effects this tick (skirmish FX layout). */
   fx: Float32Array;
   hostiles: number;
+  /** Missions under way (with their objectives met so far) and done. */
+  missions: { active: MissionSnap[]; done: string[] };
   /** Story cards waiting (ids, oldest first) and flags set. */
   story: { inbox: string[]; flags: string[] };
   /** Inhabitant camps (structures show once explored). */

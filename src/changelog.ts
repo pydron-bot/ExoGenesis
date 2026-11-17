@@ -15,6 +15,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.19.0',
+    date: '2026-11-17',
+    title: 'Missions',
+    notes: [
+      'The goals list is now a run of missions: Touchdown, Groundwork, First Night, Firstborn and Beyond the Ridge. The GOALS panel shows the one under way',
+      'Finishing a mission can pay a reward, and the next one starts straight away',
+      'Beyond the Ridge sends you out to the carved stone and the smoke in the north-west',
+      'Editor: Missions (Story group) with objectives, rewards and events at the start and end, a summary and a play test',
+      'Editor: Story flow shows how missions, events, choices and flags link up, and flags anything that can never happen',
+      'Editor: a Balance table to compare units and buildings, search across all content ( / ), "Used by" for every record, and Review to see what Commit will save',
+    ],
+  },
+  {
     version: '0.18.0',
     date: '2026-11-17',
     title: 'Story events',

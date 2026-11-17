@@ -7,7 +7,7 @@
  * knob that does nothing.
  */
 import { REGION_HALF } from '../sim/types';
-import { bool, choice, color, grid, int, list, num, ref, str, type Infer, type Shape } from './schema';
+import { bool, choice, color, grid, int, list, num, ref, str, type Infer, type NumField, type RefField, type Shape, type StrField } from './schema';
 
 /** Attack looks: tracer + sound. */
 export const WEAPONS = ['bolt', 'cannon', 'shell', 'arc', 'pd', 'bite', 'spit'] as const;
@@ -278,22 +278,31 @@ export const inhabitantShape = {
 } satisfies Shape;
 export type InhabitantDef = Infer<typeof inhabitantShape>;
 
-/** What starts a story event (content/story). */
-export const STORY_TRIGGERS = ['start', 'time', 'built', 'colonists', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'never'] as const;
-export type StoryTrigger = (typeof STORY_TRIGGERS)[number];
-export const TRIGGER_HELP: Record<StoryTrigger, string> = {
+/**
+ * Conditions: what starts a story event (its trigger) and what completes a
+ * mission objective. One evaluator (src/sim/conditions.ts) serves both.
+ */
+export const CONDITIONS = ['start', 'time', 'built', 'colonists', 'pod', 'units', 'drones', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'mission', 'never'] as const;
+export type Condition = (typeof CONDITIONS)[number];
+/** Read as "… when <help>" / "Fires <help>". */
+export const CONDITION_HELP: Record<Condition, string> = {
   start: 'when the colony deploys',
   time: 'when the clock reaches Sol',
-  built: 'when the first Building of that kind is finished',
+  built: 'when Count (default 1) finished buildings of that kind stand',
   colonists: 'when the colony has Count colonists (children too)',
+  pod: 'when a growth pod is running (or someone has come out of one)',
+  units: 'when the colony has Count combat units',
+  drones: 'when the colony has Count worker drones',
   packs: 'when Count predator packs have been destroyed',
   site: 'when a drone or combat unit reaches the Site (a story site on the region map)',
   contact: 'at first contact with a camp of the Group',
-  trust: 'when a camp of the Group comes to trust you',
-  flag: 'when the Flag is set (by another event)',
+  trust: 'when a camp of the Group trusts you',
+  flag: 'when the Flag is set (by an event or mission)',
   after: 'when the Event has been answered (its card closed)',
+  mission: 'when the Mission is complete',
   never: 'only when another event starts it',
 };
+
 export const STORY_EFFECTS = ['log', 'alloys', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'event', 'pack'] as const;
 export type StoryEffect = (typeof STORY_EFFECTS)[number];
 export const EFFECT_HELP: Record<StoryEffect, string> = {
@@ -310,14 +319,38 @@ export const EFFECT_HELP: Record<StoryEffect, string> = {
 };
 const on = (field: string, is: readonly string[], need = true) => ({ field, is, need });
 
-export const storyEffectShape = {
-  after: int({ label: 'When', min: 0, max: 4, default: 0, help: '0 = as soon as the event fires; 1–4 = when that choice is picked.' }),
+/** A condition's kind field plus its parameters, each shown only for the kinds that use it. */
+const conditionFields = <K extends string>(kindKey: K, label: string) => ({
+  [kindKey]: choice(CONDITIONS, { label, helps: CONDITION_HELP }),
+  sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on(kindKey, ['time']) }),
+  building: ref('buildings', { label: 'Building', optional: true, when: on(kindKey, ['built']) }),
+  count: int({ label: 'Count', min: 1, max: 10000, optional: true, help: 'Empty = 1.', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs'], false) }),
+  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site']) }),
+  group: ref('inhabitants', { label: 'Group', optional: true, when: on(kindKey, ['contact', 'trust']) }),
+  flag: str({ label: 'Flag', optional: true, when: on(kindKey, ['flag']) }),
+  event: ref('story', { label: 'Event', optional: true, when: on(kindKey, ['after']) }),
+  mission: ref('missions', { label: 'Mission', optional: true, when: on(kindKey, ['mission']) }),
+}) as { [P in K]: ReturnType<typeof choice<Condition, { label: string; helps: typeof CONDITION_HELP }>> } & {
+  sol: NumField & { optional: true }; building: RefField & { optional: true }; count: NumField & { optional: true };
+  site: StrField & { optional: true }; group: RefField & { optional: true }; flag: StrField & { optional: true };
+  event: RefField & { optional: true }; mission: RefField & { optional: true };
+};
+/** The parameters a condition reads. */
+export interface ConditionDef { sol?: number; building?: string; count?: number; site?: string; group?: string; flag?: string; event?: string; mission?: string }
+
+const effectFields = {
   kind: choice(STORY_EFFECTS, { label: 'Effect', helps: EFFECT_HELP }),
   amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'biomass', 'stance', 'wellbeing', 'regard']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on('kind', ['regard']) }),
   flag: str({ label: 'Flag', optional: true, when: on('kind', ['flag', 'unflag']) }),
   event: ref('story', { label: 'Event', optional: true, when: on('kind', ['event']) }),
   text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', ['log']) }),
+};
+export const effectShape = effectFields satisfies Shape;
+export type EffectDef = Infer<typeof effectShape>;
+export const storyEffectShape = {
+  after: int({ label: 'When', min: 0, max: 4, default: 0, help: '0 = as soon as the event fires; 1–4 = when that choice is picked.' }),
+  ...effectFields,
 } satisfies Shape;
 export type StoryEffectDef = Infer<typeof storyEffectShape>;
 
@@ -334,14 +367,7 @@ export const storyShape = {
   title: str({ label: 'Title' }),
   speaker: str({ label: 'Speaker', optional: true, help: 'Who is talking (the Director, a colonist…). Shown above the text.' }),
   text: str({ label: 'Text', multiline: true }),
-  trigger: choice(STORY_TRIGGERS, { label: 'Trigger', helps: Object.fromEntries(Object.entries(TRIGGER_HELP).map(([k, v]) => [k, `Fires ${v}.`])) }),
-  sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on('trigger', ['time']) }),
-  building: ref('buildings', { label: 'Building', optional: true, when: on('trigger', ['built']) }),
-  count: int({ label: 'Count', min: 1, max: 10000, optional: true, when: on('trigger', ['colonists', 'packs']) }),
-  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on('trigger', ['site']) }),
-  group: ref('inhabitants', { label: 'Group', optional: true, when: on('trigger', ['contact', 'trust']) }),
-  flag: str({ label: 'Flag', optional: true, when: on('trigger', ['flag']) }),
-  event: ref('story', { label: 'Event', optional: true, when: on('trigger', ['after']) }),
+  ...conditionFields('trigger', 'Trigger'),
   delay: num({ label: 'Delay', min: 0, max: 3600, unit: 's', optional: true, help: 'Wait this long after the trigger before firing.' }),
   region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
   unless: str({ label: 'Unless flag', optional: true, help: 'Doesn\'t fire if this flag is set.' }),
@@ -350,6 +376,28 @@ export const storyShape = {
   effects: list(storyEffectShape, { label: 'Effects', max: 16, optional: true }),
 } satisfies Shape;
 export type StoryDef = Infer<typeof storyShape>;
+
+export const objectiveShape = {
+  text: str({ label: 'Text', help: 'What the GOALS panel says ("Build a Solar Array").' }),
+  ...conditionFields('kind', 'Done'),
+} satisfies Shape;
+export type ObjectiveDef = Infer<typeof objectiveShape>;
+
+/**
+ * A mission (STORY.md §8 tutorial missions): objectives shown in the GOALS
+ * panel, done in any order; when all are done, rewards and the next mission.
+ */
+export const missionShape = {
+  title: str({ label: 'Title' }),
+  summary: str({ label: 'Summary', multiline: true, optional: true, help: 'For the editor and the Missions list: what it teaches.' }),
+  after: ref('missions', { label: 'Starts after', optional: true, help: 'Starts when this mission is complete. Empty = when the colony deploys.' }),
+  region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
+  objectives: list(objectiveShape, { label: 'Objectives', max: 12 }),
+  onStart: ref('story', { label: 'Event at start', optional: true, help: 'A story event fired when the mission starts (a briefing).' }),
+  onDone: ref('story', { label: 'Event when done', optional: true, help: 'A story event fired when it\'s complete.' }),
+  rewards: list(effectShape, { label: 'Rewards', max: 12, optional: true, help: 'Effects when the mission is complete.' }),
+} satisfies Shape;
+export type MissionDef = Infer<typeof missionShape>;
 
 /** Region paint grids: one sample every REGION_STEP units across the whole region. */
 export const REGION_STEP = 2;
@@ -442,6 +490,7 @@ export const COLLECTIONS = {
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
+  missions: { path: 'missions', kind: 'many', shape: missionShape, label: 'Missions', title: 'title', group: 'Story' },
   story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },
   inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },

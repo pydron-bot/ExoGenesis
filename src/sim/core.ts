@@ -15,6 +15,7 @@ import { PathGrid } from './path';
 import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
 import { Story } from './story';
+import { Missions } from './missions';
 import type { Colonist } from './people-types';
 import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, wallsUnderGate, type PlaceWorld } from './rules';
 import {
@@ -142,6 +143,8 @@ export class Sim {
   readonly inhabitants: Inhabitants = new Inhabitants(this);
   /** Story events: triggers, cards, effects. */
   readonly story: Story = new Story(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
+  /** Missions: objectives, rewards, what comes next. */
+  readonly missions: Missions = new Missions(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
 
   constructor(readonly emit: EventSink, seed = 1337) {
     this.newGame(seed);
@@ -162,6 +165,7 @@ export class Sim {
     this.people.init();
     this.inhabitants.init(REGION.camps ?? []);
     this.story.init();
+    this.missions.init();
     s.buildings.push({ id: 1, kind: 'core', x: 0, z: 0, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
     s.drones.push({ id: s.nextId++, x: 0, z: -14, heading: Math.PI, hp: RULES.droneHp, task: { kind: 'idle' } });
     // herds come from the region map (content/regions/<id>.json)
@@ -190,6 +194,7 @@ export class Sim {
     this.people.load();
     this.inhabitants.load(REGION.camps ?? []);
     this.story.load();
+    this.missions.load();
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
     this.exp.fill(0);
@@ -235,6 +240,7 @@ export class Sim {
       this.people.step();
       this.inhabitants.step();
       this.story.step();
+      this.missions.step();
     }
     if (s.tick % 5 === 0) this.stepFog();
     this.stepGrazers();
@@ -1212,6 +1218,7 @@ export class Sim {
         return;
       case 'debug': {
         if (c.story) this.story.fire(c.story);
+        if (c.mission) this.missions.jump(c.mission);
         if (c.regard) this.inhabitants.setRegard(c.regard.camp, c.regard.value);
         if (c.alloys) s.alloys += c.alloys;
         if (c.wave) s.waves.next = s.tick;
@@ -1365,7 +1372,7 @@ export class Sim {
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
       drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
-      army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units, camps: inh.camps, natives: inh.natives, story: this.story.snapshot(),
+      army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units, camps: inh.camps, natives: inh.natives, story: this.story.snapshot(), missions: this.missions.snapshot(),
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,

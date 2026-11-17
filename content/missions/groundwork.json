@@ -1,0 +1,14 @@
+{
+  "title": "Groundwork",
+  "summary": "Tutorial 2: economy. Mining, a second drone, and storing power for the night.",
+  "after": "touchdown",
+  "region": "touchdown",
+  "objectives": [
+    { "text": "Build a Mining Depot near an alloy deposit", "kind": "built", "building": "depot" },
+    { "text": "Fabricate a second worker drone at the Core", "kind": "drones", "count": 2 },
+    { "text": "Build a Battery Bank before nightfall", "kind": "built", "building": "battery" }
+  ],
+  "rewards": [
+    { "kind": "alloys", "amount": 60 }
+  ]
+}

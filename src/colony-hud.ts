@@ -4,7 +4,7 @@
  * sends commands. Updated a few times a second, not every frame.
  */
 import type { ZoomCamera } from './camera';
-import type { BuildingDef, ColonyRules, InhabitantDef, PeopleRules, StoryDef, UnitDef } from './content/defs';
+import type { BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, StoryDef, UnitDef } from './content/defs';
 import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
@@ -19,6 +19,7 @@ interface HudDeps {
   units: Record<string, UnitDef>;
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
+  missions: Record<string, MissionDef>;
   rules: ColonyRules;
   people: PeopleRules;
   ui: RegionUi;
@@ -36,18 +37,14 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-interface Goal { id: string; text: string; done: (s: Snapshot) => boolean }
 
 export class ColonyHud {
   private el = {
     energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'),
-    goals: $('goals'), goalsList: $('goals-list'), menu: $('build-menu'), card: $('card'), mini: $<HTMLCanvasElement>('minimap'),
+    goals: $('goals'), goalsHead: $('goals-head'), goalsList: $('goals-list'), menu: $('build-menu'), card: $('card'), mini: $<HTMLCanvasElement>('minimap'),
     over: $('over'),
   };
-  private goals: Goal[];
-  private reached = new Set<string>();
-  /** First goal check after a (re)start: mark what's already done without announcing it. */
-  private primed = false;
+  private goalsKey = '';
   private cardKey = '';
   private menuKey = '';
   private terrain: HTMLCanvasElement | null = null;
@@ -69,22 +66,6 @@ export class ColonyHud {
       command: (c) => d.command(c), select: () => this.selected(),
     });
     this.contact = new ContactCard({ inhabitants: d.inhabitants, story: d.story, cam: d.cam, command: (c) => d.command(c), pause: (on) => d.pause(on) });
-    const has = (s: Snapshot, role: string) => s.buildings.some((b) => b.progress >= 1 && this.d.defs[b.kind]?.role === role);
-    const sol = (s: Snapshot) => Math.floor(s.secs / this.d.rules.solSeconds) + 1;
-    this.goals = [
-      { id: 'solar', text: 'Build a Solar Array to power the cryo bank', done: (s) => has(s, 'solar') },
-      { id: 'depot', text: 'Build a Mining Depot near an alloy deposit', done: (s) => has(s, 'depot') },
-      { id: 'battery', text: 'Build a Battery Bank before nightfall', done: (s) => has(s, 'battery') },
-      { id: 'turret', text: 'Build a Defense Turret', done: (s) => has(s, 'turret') },
-      { id: 'pack', text: 'Destroy a predator pack', done: (s) => s.stats.packsBeaten >= 1 },
-      { id: 'bay', text: 'Build a Vehicle Bay and produce a combat unit', done: (s) => s.units.length > 0 },
-      { id: 'radar', text: 'Build a Radar for early warning', done: (s) => has(s, 'radar') },
-      { id: 'drone', text: 'Fabricate a second worker drone at the Core', done: (s) => s.drones.length >= 2 },
-      { id: 'farm', text: 'Build Hydroponics to grow biomass', done: (s) => has(s, 'farm') },
-      { id: 'civic', text: 'Build a Civilian Center and start a growth pod', done: (s) => (s.people?.pods.some((p) => p.running.length) ?? false) || (s.people?.adults ?? 0) > 0 },
-      { id: 'colonist', text: 'Welcome your first colonist', done: (s) => (s.people?.adults ?? 0) + (s.people?.children ?? 0) > 0 },
-      { id: 'sol4', text: 'Keep the colony alive until Sol 4', done: (s) => sol(s) >= 4 },
-    ];
     // phones start with just the current goal showing
     if (innerWidth < 640) this.el.goals.classList.add('min');
     this.el.goals.onclick = () => this.el.goals.classList.toggle('min');
@@ -187,16 +168,28 @@ export class ColonyHud {
     e.army.title = n ? 'Combat units: tap to select them all' : 'No combat units yet (Vehicle Bay)';
   }
 
+  /** GOALS: the objectives of the missions under way (content/missions; the sim announces progress). */
   private renderGoals(s: Snapshot) {
-    for (const g of this.goals) if (!this.reached.has(g.id) && g.done(s)) {
-      this.reached.add(g.id);
-      if (this.primed) this.d.log(`Goal complete: ${g.text}`);
-    }
-    this.primed = true;
-    const first = this.goals.find((g) => !this.reached.has(g.id));
-    const html = this.goals.map((g, i) => `<li value="${i + 1}" class="${this.reached.has(g.id) ? 'done' : g === first ? 'now' : ''}">${esc(g.text)}</li>`).join('');
-    if (this.el.goalsList.innerHTML !== html) this.el.goalsList.innerHTML = html;
+    const m = s.missions ?? { active: [], done: [] };
+    const missions = m.active.map((a) => ({ a, def: this.d.missions[a.id] })).filter((x) => x.def);
+    let head = 'GOALS', html = '';
+    if (missions.length) {
+      head = missions.map((x) => x.def.title.toUpperCase()).join(' · ');
+      let now = false;
+      html = missions.map(({ a, def }) => def.objectives.map((o, i) => {
+        const done = a.marks[i];
+        const cls = done ? 'done' : now ? '' : ((now = true), 'now');
+        return `<li class="${cls}">${esc(o.text)}</li>`;
+      }).join('')).join('');
+    } else if (m.done.length) html = '<li class="done">All missions complete</li>';
+    const key = head + html;
+    this.el.goals.style.display = key === 'GOALS' ? 'none' : '';
+    if (key === this.goalsKey) return;
+    this.goalsKey = key;
+    this.el.goalsHead.textContent = head;
+    this.el.goalsList.innerHTML = html;
   }
+
 
   private renderMenu() {
     const s = this.cur;
@@ -431,9 +424,9 @@ export class ColonyHud {
     $('over-title').textContent = 'COLONY LOST';
     $('over-sub').textContent = s.over === 'core' ? 'The Command Core was destroyed.' : s.over === 'cryo' ? 'The cryo bank failed. The last embryos are gone, and no one is left to carry on.' : 'No colonists are left, and the cryo bank is empty.';
     const sol = Math.floor(s.secs / this.d.rules.solSeconds) + 1;
-    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · goals ${this.reached.size}/${this.goals.length}${s.people ? `\n${s.people.stats.grown} grown · ${s.people.stats.births} born · ${s.people.stats.deaths} lost · ${s.people.stats.departed} left · ${s.people.embryos} embryos left` : ''}`;
+    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · missions ${s.missions?.done.length ?? 0}${s.people ? `\n${s.people.stats.grown} grown · ${s.people.stats.births} born · ${s.people.stats.deaths} lost · ${s.people.stats.departed} left · ${s.people.embryos} embryos left` : ''}`;
   }
 
   /** Forget goal progress (new game). */
-  reset() { this.reached.clear(); this.primed = false; this.cardKey = ''; this.menuKey = ''; this.contact.reset(); }
+  reset() { this.goalsKey = ''; this.cardKey = ''; this.menuKey = ''; this.contact.reset(); }
 }

@@ -7,7 +7,7 @@ import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type SimState, type Snapshot } from './sim/types';
 import { content, contentIssues, type RegionDef } from './content';
-import { PREVIEW_KEY, type StoryDef } from './content/defs';
+import { PREVIEW_KEY, type MissionDef, type StoryDef } from './content/defs';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, globeMesh, R, U, regionHeight, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
@@ -131,7 +131,7 @@ const skirmishMode = params.get('mode') === 'skirmish';
 // the editor's Play test button left in localStorage (unsaved edits included).
 const preview = params.get('preview') === '1' ? readPreview() : null;
 const scratch = params.get('scratch') === '1' || !!preview;
-function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef } } | null {
+function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef } } | null {
   try {
     const p = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
     return p?.id && p.def ? p : null;
@@ -160,11 +160,13 @@ const audio = new GameAudio(content.sound, content.assets, skirmishMode || param
 const sim = new SimClient((t, l, cue) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l); else early.push([t, l]);
-}, !skirmishMode, regionId, preview?.def, preview?.story);
+}, !skirmishMode, regionId, preview?.def, preview?.story, preview?.mission);
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
+if (preview?.mission) content.missions[preview.mission.id] = preview.mission.def;
 const fireStory = preview?.story?.id ?? params.get('story');
 let storyFired = false;
+const startMission = preview?.mission?.id ?? params.get('mission');
 const gen = new Promise<{ globe: GlobeArrays; prov: ProvinceData; ms: Record<string, number> }>((res, rej) => {
   const w = new Worker(new URL('./world/gen-worker.ts', import.meta.url), { type: 'module' });
   w.onmessage = (e) => { res(e.data); w.terminate(); };
@@ -421,7 +423,7 @@ function restartGame() {
   document.body.classList.remove('more');
 }
 const hud = new ColonyHud({
-  defs: content.buildings, units: content.units, inhabitants: content.inhabitants, story: content.story, rules: content.colony, people: content.people, ui, cam,
+  defs: content.buildings, units: content.units, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
   command: (c) => sim.command(c),
   setBuild,
   restart: () => restartGame(),
@@ -764,7 +766,10 @@ function frame(now: number) {
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
     natives?.update(sim.prev, sim.cur, alpha, gameT);
-    if (fireStory && sim.cur.deployed && !storyFired) { storyFired = true; sim.command({ type: 'debug', story: fireStory }); }
+    if ((fireStory || startMission) && sim.cur.deployed && !storyFired) {
+      storyFired = true;
+      sim.command({ type: 'debug', story: fireStory ?? undefined, mission: startMission ?? undefined });
+    }
     // sound: only the wind during the landing
     audio.quiet = !!landing || !!title;
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);

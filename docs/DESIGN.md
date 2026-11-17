@@ -364,6 +364,29 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   that site on a map; an effect can't follow a missing choice. Test: `tools/story-smoke.mjs`
   (`--headless-only` skips the browser half); `tools/sim-entry.ts` gives headless tests the sim
   and its content from one module graph, so they can add records.
+- **Missions** (v0.19.0) are `content/missions/<id>.json` (editor: Story → Missions): a title,
+  the mission it follows (`after`; none = starts when the colony deploys), an optional region,
+  **objectives** (text for the GOALS panel plus a condition), story events to fire at the start and
+  when done, and **rewards** (the same effects as story events). Objectives can be met in any order
+  and stay met. Story triggers and objectives share one set of **conditions** (`CONDITIONS` in
+  `src/content/defs.ts`, evaluated by `src/sim/conditions.ts`): start, time, built (Count of a
+  building), colonists, pod, units, drones, packs, site, contact, trust, flag, after (an event
+  answered), mission (one done), never. `src/sim/missions.ts` checks once a second (a finished
+  mission starts the next in the same check); saves keep missions, and an older save catches up
+  quietly. The GOALS panel shows the missions under way; the old hard-coded goals are now the
+  Touchdown chain: Touchdown → Groundwork → First Night → Firstborn → Beyond the Ridge (STORY.md §8).
+  The editor sums a mission up (what it follows, each objective, rewards, what follows it, events
+  waiting on it); **▶ Play test this mission** opens a scratch game with the missions before it done
+  (`?mission=<id>` for a saved one). Test: `tools/mission-smoke.mjs`.
+- **Editor tools** (v0.19.0): **Story flow** (Story group; `src/editor/flow.ts`): the campaign in
+  order with each mission's objectives, rewards and events; every story event by trigger with what
+  its choices lead to; a flag index (set by / cleared by / waited on / blocks); and problems (a flag
+  nothing sets, a "never" event nothing starts, following a missing event, missions that never
+  start). **Balance table** (Game data): units and buildings in sortable columns, with damage per
+  second and value per 100 alloys. **Search** (top of the sidebar, `/`): names, ids and any text.
+  **Used by** (right panel): every record that refers to the open one. **Review** (click the
+  uncommitted-changes count): each changed file's diff against the last commit, before Commit
+  (`GET /__content/orig` on both backends). Test: `tools/editor-tools-smoke.mjs`.
 - **Assets** are a file in `public/media/<model|image|audio>/<id>.<ext>` plus a record in
   `content/assets/<id>.json` (name, source, credit, notes; models also import scale / rotation /
   lift, applied by `src/assets/models.ts` in both editor and game). Models are .glb, front +Z, Y

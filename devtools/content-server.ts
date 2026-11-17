@@ -9,6 +9,7 @@
  *   PUT    /__content/media?path=…&baseHash=…   raw file bytes → { hash, bytes }
  *   DELETE /__content/media              { path, baseHash }
  *   GET    /__content/git                → { changes: [{ status, path }] }
+ *   GET    /__content/orig?path=…        → { text | null }   (the last committed version, for a diff)
  *   POST   /__content/commit             { message } → { commit }   (content/ + public/media/)
  *
  * Writes are conflict-checked: `baseHash` must match the file on disk (null =
@@ -115,6 +116,14 @@ export function contentServer(): Plugin {
         const text = await readOrNull(resolve(p));
         if (text === null) throw new HttpError(404, 'no such file');
         return { path: p, text, hash: hashOf(text) };
+      }
+      case 'GET /__content/orig': {
+        const p = url.searchParams.get('path');
+        resolve(p); // confines it to content/*.json
+        try {
+          const { stdout } = await git('show', `HEAD:content/${p}`);
+          return { text: stdout };
+        } catch { return { text: null }; }
       }
       case 'PUT /__content/file': {
         const b = await body(req);

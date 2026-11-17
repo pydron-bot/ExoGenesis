@@ -1,0 +1,11 @@
+{
+  "title": "Firstborn",
+  "summary": "Tutorial 4: people. Food, a Civilian Center, the first growth pod and the imprint choice.",
+  "after": "first-night",
+  "region": "touchdown",
+  "objectives": [
+    { "text": "Build Hydroponics to grow biomass", "kind": "built", "building": "hydroponics" },
+    { "text": "Build a Civilian Center and start a growth pod", "kind": "pod" },
+    { "text": "Welcome your first colonist", "kind": "colonists", "count": 1 }
+  ]
+}

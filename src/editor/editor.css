@@ -39,7 +39,7 @@ code { color: var(--accent); }
 #brand span { color: var(--dim); font-weight: 400; letter-spacing: 0.06em; }
 #git { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 #git-status { color: var(--dim); white-space: nowrap; cursor: help; }
-#git-status.pending { color: var(--amber); }
+#git-status.pending { color: var(--amber); cursor: pointer; text-decoration: underline dotted; }
 #commit-msg {
   width: 300px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px;
 }
@@ -231,3 +231,63 @@ canvas.wave { width: 100%; height: 120px; background: var(--bg); border: 1px sol
 .story-card button { pointer-events: none; }
 .story-sum { color: var(--dim); font-size: 12px; line-height: 1.6; }
 .story-sum div:first-child { color: var(--text); }
+
+/* story flow (src/editor/flow.ts) */
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 4px 10px 40px; }
+@media (max-width: 1300px) { .flow { grid-template-columns: 1fr; } }
+.flow h2 { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 8px 0; }
+.fl-mission, .fl-event { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+.fl-mission { border-left: 3px solid var(--accent); }
+.fl-mission.stray { border-left-color: var(--bad); opacity: .8; }
+.fl-head { font-weight: 600; }
+.fl-head small, .flow .dim, .fl-flags .dim { color: var(--dim); font-weight: 400; }
+.fl-obj { margin: 4px 0 0; padding-left: 20px; font-size: 13px; }
+.fl-obj small { color: var(--dim); }
+.fl-out { margin-top: 6px; font-size: 12px; line-height: 1.7; color: var(--text); }
+.fl-kind { color: var(--dim); font-size: 12px; margin: 12px 0 4px; }
+.fl-link { color: var(--accent); text-decoration: none; cursor: pointer; }
+.fl-link.missions { color: var(--amber); }
+.fl-link:hover { text-decoration: underline; }
+.flow code, .fl-flags code { background: var(--panel2); border-radius: 3px; padding: 0 4px; font-size: 12px; }
+.fl-flags { padding: 0 16px; font-size: 12px; line-height: 1.6; }
+.fl-flag { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.fl-flag.bad code { color: var(--bad); }
+.fl-problem { padding: 4px 16px; font-size: 12px; }
+
+/* sidebar search */
+#side-top { grid-area: side; align-self: start; position: relative; z-index: 2; background: var(--panel); border-right: 1px solid var(--line); padding: 8px 10px 6px; }
+#side-search { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; color: var(--text); }
+#side-search:focus { outline: none; border-color: var(--accent); }
+#side { padding-top: 48px; }
+#side .search-hit { flex-wrap: wrap; }
+#side .search-hit .snip { flex-basis: 100%; color: var(--dim); font-size: 11px; text-align: left; white-space: normal; }
+
+/* used by (aside) */
+#aside .used-by { display: flex; flex-direction: column; align-items: flex-start; width: calc(100% - 24px); margin: 2px 12px; padding: 5px 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); cursor: pointer; text-align: left; }
+#aside .used-by small { color: var(--dim); font-size: 11px; }
+#aside .used-by:hover { border-color: var(--accent); }
+
+/* review */
+.review { padding: 4px 10px 40px; display: grid; gap: 12px; }
+.rv-file { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.rv-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.rv-tag { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: var(--panel2); color: var(--dim); }
+.rv-tag.new { color: var(--good); } .rv-tag.deleted { color: var(--bad); } .rv-tag.changed { color: var(--amber); }
+.rv-diff { margin: 0; padding: 6px 0; font-size: 12px; line-height: 1.5; overflow-x: auto; }
+.rv-diff div { padding: 0 10px; white-space: pre; }
+.rv-diff .add { background: rgba(91,227,160,.12); color: var(--good); }
+.rv-diff .del { background: rgba(255,111,97,.12); color: var(--bad); }
+.rv-diff .rv-gap { color: var(--dim); }
+.rv-file .note { padding: 8px 10px; }
+
+/* balance table */
+.bal-h { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 14px 10px 6px; }
+.bal-wrap { overflow-x: auto; padding: 0 10px; }
+table.bal { border-collapse: collapse; font-size: 12px; width: 100%; }
+table.bal th { position: sticky; top: 0; background: var(--panel2); color: var(--dim); font-weight: 500; text-align: right; padding: 6px 8px; cursor: pointer; white-space: nowrap; user-select: none; }
+table.bal th:first-child { text-align: left; }
+table.bal th.on { color: var(--accent); }
+table.bal td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.bal td:first-child { text-align: left; }
+table.bal td.num { font-variant-numeric: tabular-nums; }
+table.bal tr:hover td { background: var(--panel); }

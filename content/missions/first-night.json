@@ -1,0 +1,14 @@
+{
+  "title": "First Night",
+  "summary": "Tutorial 3: defence and power priority. The first packs come; turrets and combat units deal with them.",
+  "after": "groundwork",
+  "region": "touchdown",
+  "objectives": [
+    { "text": "Build a Defense Turret", "kind": "built", "building": "turret" },
+    { "text": "Build a Vehicle Bay and produce a combat unit", "kind": "units", "count": 1 },
+    { "text": "Destroy a predator pack", "kind": "packs", "count": 1 }
+  ],
+  "rewards": [
+    { "kind": "alloys", "amount": 80 }
+  ]
+}

@@ -158,7 +158,7 @@ body.cine #bar, body.cine #res, body.cine #help, body.cine #log { display: none;
 /* ---------- colony (M1) ---------- */
 #goals { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; max-width: 290px; pointer-events: auto; cursor: pointer; }
 #goals-head { font-size: 10px; letter-spacing: 0.16em; color: var(--cyan); }
-#goals-list { margin: 2px 0 0; padding-left: 18px; font-size: 11px; line-height: 1.5; }
+#goals-list { margin: 2px 0 0; padding-left: 16px; list-style: square; font-size: 11px; line-height: 1.5; }
 #goals-list li.done { opacity: 0.45; text-decoration: line-through; }
 #goals-list li.now { color: #fff; }
 #goals.min #goals-list li:not(.now) { display: none; }
