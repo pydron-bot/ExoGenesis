@@ -225,7 +225,7 @@ export function startSkirmish(env: SkirmishEnv) {
       if (!prev || !cur) return;
       const alpha = Math.min(1, (now - curAt) / SK_TICK_MS);
       pruneSelection();
-      army.update(prev, cur, alpha, ui.selected, dt);
+      army.update(prev, cur, alpha, ui.selected, dt, cam.dist);
       // order vector from the selection's centre
       if (ui.drag && ui.selected.size) {
         let x = 0, z = 0;

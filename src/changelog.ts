@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.14.0',
+    date: '2026-11-17',
+    title: 'Health bars, smoother big battles',
+    notes: [
+      'Health bars over damaged units, yours and the predators\' (and over any unit you select)',
+      'Big battles run much smoother: zoomed out, vehicles and predators switch to simpler models; zoom in and the detailed ones come back',
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-11-16',
     title: 'Lights, new models, night battles',

@@ -1,7 +1,13 @@
 /**
  * Renders the skirmish: one instanced draw per unit type (plus a glow layer for
- * player units), selection rings, tracers, impact flashes and explosions — all
- * pooled and allocation-free per frame so hundreds of units stay cheap.
+ * player units), selection rings, health bars, tracers, impact flashes and
+ * explosions — all pooled and allocation-free per frame so hundreds of units
+ * stay cheap.
+ *
+ * Level of detail: asset models (the Blender set, 500–900 triangles a unit)
+ * only draw when the camera is close; zoomed out, the built-in meshes (a few
+ * dozen triangles) stand in, where a unit is a few pixels anyway. Measured on
+ * 350 units at phone size, the models alone doubled the frame's triangles.
  */
 import * as THREE from 'three';
 import { placeMatrix, regionPoint } from '../world/heightGrid';
@@ -23,6 +29,37 @@ function pool(geo: THREE.BufferGeometry, n: number): Pool {
   for (let i = 0; i < n; i++) { mesh.setMatrixAt(i, zero); mesh.setColorAt(i, new THREE.Color(0, 0, 0)); }
   return { mesh, life: new Float32Array(n), max: new Float32Array(n), next: 0, color: Array.from({ length: n }, () => new THREE.Color()), size: new Float32Array(n), pos: new Float32Array(n * 3) };
 }
+
+/** Camera distance below which asset models draw (hysteresis: switch back beyond LOD_FAR). */
+const LOD_NEAR = 90, LOD_FAR = 105; // the colony's default view is 75, the skirmish's 150
+
+/** Health bars: camera-facing quads drawn in one instanced call; the fill comes from aHp. */
+const barVert = /* glsl */ `
+  attribute float aHp;
+  attribute float aTeam;
+  varying vec2 vUv;
+  varying float vHp;
+  varying float vTeam;
+  void main() {
+    vUv = uv; vHp = aHp; vTeam = aTeam;
+    float w = length(instanceMatrix[0].xyz);
+    vec4 c = modelViewMatrix * vec4(instanceMatrix[3].xyz, 1.0);
+    c.xy += position.xy * vec2(w, w * 0.16);
+    gl_Position = projectionMatrix * c;
+  }`;
+const barFrag = /* glsl */ `
+  varying vec2 vUv;
+  varying float vHp;
+  varying float vTeam;
+  void main() {
+    // dark frame, 1 px-ish inset fill
+    float inX = step(0.04, vUv.x) * step(vUv.x, 0.96), inY = step(0.2, vUv.y) * step(vUv.y, 0.8);
+    float f = (vUv.x - 0.04) / 0.92;
+    vec3 col = vTeam > 0.5 ? vec3(1.0, 0.36, 0.29)
+      : vHp > 0.6 ? vec3(0.36, 1.0, 0.6) : vHp > 0.3 ? vec3(1.0, 0.71, 0.28) : vec3(1.0, 0.35, 0.29);
+    if (inX * inY > 0.5 && f <= vHp) gl_FragColor = vec4(col, 1.0);
+    else gl_FragColor = vec4(0.02, 0.03, 0.05, 0.75);
+  }`;
 
 const C = {
   roverShot: new THREE.Color('#7ff8ff'), tankShot: new THREE.Color('#ffc46b'), bite: new THREE.Color('#ff6a4d'),
@@ -47,6 +84,12 @@ export class ArmyView {
   slots = 0;
   private bodies: THREE.InstancedMesh[] = [];
   private glows: (THREE.InstancedMesh | null)[] = [];
+  /** Asset model per type once loaded (drawn instead of the built-in when the camera is close). */
+  private models: (THREE.InstancedMesh | null)[] = [];
+  private near = true;
+  private bars: THREE.InstancedMesh;
+  private aHp: THREE.InstancedBufferAttribute;
+  private aTeam: THREE.InstancedBufferAttribute;
   private rings: THREE.InstancedMesh;
   private tracers: Pool;
   private flashes: Pool;
@@ -79,19 +122,32 @@ export class ArmyView {
         this.glows.push(g);
       } else this.glows.push(null);
     }
-    // asset models replace the built-in meshes once loaded (the glow strips belong to the built-ins)
+    // asset models draw instead of the built-ins up close (the glow strips belong to the built-ins)
+    this.models = DEFS.map(() => null);
     DEFS.forEach((d, t) => {
       if (!d.model) return;
       loadModel(d.model).then((root) => {
         const { geometry, materials } = flattenForInstancing(root);
-        const body = this.bodies[t];
-        body.geometry.dispose();
-        body.geometry = geometry;
-        body.material = materials;
-        const g = this.glows[t];
-        if (g) { this.group.remove(g); g.geometry.dispose(); this.glows[t] = null; }
+        const im = new THREE.InstancedMesh(geometry, materials, MAX_UNITS);
+        im.count = 0;
+        im.frustumCulled = false;
+        if (d.team === 0) im.setColorAt(0, C.white);
+        this.group.add(im);
+        this.models[t] = im;
       }, (e) => console.warn(`unit model ${d.model!.file} failed to load; keeping the built-in`, e));
     });
+    const barGeo = new THREE.PlaneGeometry(1, 1);
+    this.aHp = new THREE.InstancedBufferAttribute(new Float32Array(MAX_UNITS), 1).setUsage(THREE.DynamicDrawUsage);
+    this.aTeam = new THREE.InstancedBufferAttribute(new Float32Array(MAX_UNITS), 1).setUsage(THREE.DynamicDrawUsage);
+    barGeo.setAttribute('aHp', this.aHp);
+    barGeo.setAttribute('aTeam', this.aTeam);
+    this.bars = new THREE.InstancedMesh(barGeo, new THREE.ShaderMaterial({
+      vertexShader: barVert, fragmentShader: barFrag, transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+    }), MAX_UNITS);
+    this.bars.count = 0;
+    this.bars.frustumCulled = false;
+    this.bars.renderOrder = 20;
+    this.group.add(this.bars);
     const ring = new THREE.RingGeometry(1.5, 1.85, 24).rotateX(-Math.PI / 2);
     this.rings = new THREE.InstancedMesh(ring, new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: 0.85, depthWrite: false, fog: false, toneMapped: false }), MAX_UNITS);
     this.rings.count = 0;
@@ -103,10 +159,16 @@ export class ArmyView {
     this.group.add(this.tracers.mesh, this.flashes.mesh);
   }
 
-  update(prev: SkSnapshot, cur: SkSnapshot, alpha: number, selected: Map<number, number>, dt: number) {
+  /**
+   * `camDist`: the camera's orbit distance, for the model level of detail (omitted = always models).
+   * Health bars show on damaged units and on selected ones.
+   */
+  update(prev: SkSnapshot, cur: SkSnapshot, alpha: number, selected: Map<number, number>, dt: number, camDist = 0) {
     const a = prev.units, b = cur.units;
     const counts = this.counts.fill(0);
-    let rings = 0;
+    let rings = 0, bars = 0;
+    this.near = camDist < (this.near ? LOD_FAR : LOD_NEAR);
+    const near = this.near;
     this.slots = cur.slots;
     const prevSlots = prev.slots;
     for (let s = 0; s < cur.slots; s++) {
@@ -125,30 +187,53 @@ export class ArmyView {
       const scale = DEFS[t].scale;
       placeMatrix(x, z, h, 0, scale, this.m);
       const i = counts[t]++;
-      this.bodies[t].setMatrixAt(i, this.m);
+      const model = near ? this.models[t] : null;
+      const body = model ?? this.bodies[t];
+      body.setMatrixAt(i, this.m);
       this.lx[s] = x; this.lz[s] = z; this.hd[s] = h;
       this.wx[s] = this.m.elements[12]; this.wy[s] = this.m.elements[13]; this.wz[s] = this.m.elements[14];
       this.visible[s] = 1;
       this.type[s] = t;
-      if (DEFS[t].team === 0) {
-        const hp = b[o + F.HP];
-        this.bodies[t].setColorAt(i, this.col.copy(C.hurt).lerp(C.white, Math.min(1, hp * 1.3)));
-        const g = this.glows[t];
-        const sel = selected.get(s) === b[o + F.GEN];
+      const hp = b[o + F.HP];
+      const team = DEFS[t].team;
+      const sel = team === 0 && selected.get(s) === b[o + F.GEN];
+      if (team === 0) {
+        body.setColorAt(i, this.col.copy(C.hurt).lerp(C.white, Math.min(1, hp * 1.3)));
+        const g = model ? null : this.glows[t];
         if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, sel ? C.glowSel : C.glow); }
         if (sel) {
           placeMatrix(x, z, 0, 0.25, DEFS[t].radius * 1.1, this.m);
           this.rings.setMatrixAt(rings++, this.m);
         }
       }
+      if (hp < 0.995 || sel) {
+        const r = DEFS[t].radius;
+        regionPoint(x, z, r * 1.3 + 1.6, this.v1);
+        const w = Math.max(1.8, r * 2.2);
+        this.m.makeScale(w, w, w).setPosition(this.v1);
+        this.bars.setMatrixAt(bars, this.m);
+        this.aHp.array[bars] = Math.max(0, Math.min(1, hp));
+        this.aTeam.array[bars] = team;
+        bars++;
+      }
     }
+    this.bars.count = bars;
+    if (bars) { this.bars.instanceMatrix.needsUpdate = true; this.aHp.needsUpdate = true; this.aTeam.needsUpdate = true; }
     for (let t = 0; t < DEFS.length; t++) {
-      const im = this.bodies[t];
+      const model = this.models[t];
+      const useModel = near && !!model;
+      const im = useModel ? model! : this.bodies[t];
       im.count = counts[t];
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      const idle = useModel ? this.bodies[t] : model;
+      if (idle) idle.count = 0;
       const g = this.glows[t];
-      if (g) { g.count = counts[t]; g.instanceMatrix.needsUpdate = true; if (g.instanceColor) g.instanceColor.needsUpdate = true; }
+      if (g) {
+        g.count = useModel ? 0 : counts[t];
+        g.instanceMatrix.needsUpdate = true;
+        if (g.instanceColor) g.instanceColor.needsUpdate = true;
+      }
     }
     this.rings.count = rings;
     this.rings.instanceMatrix.needsUpdate = true;

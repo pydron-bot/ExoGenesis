@@ -712,7 +712,7 @@ function frame(now: number) {
     // fog shows once the landing has handed over (the descent keeps its vista)
     fogView.amount = landing || title ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
-    army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt);
+    army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
     // sound: only the wind during the landing
     audio.quiet = !!landing || !!title;
