@@ -540,6 +540,21 @@ export const landingShape = {
 export type LandingDef = Infer<typeof landingShape>;
 export const BEATS = ['burn', 'touchdown', 'open', 'power', 'dissolve', 'reclaimed', 'hatch', 'drone', 'post', 'end'] as const;
 
+/** The HUD's look (src/ui-theme.ts sets them as CSS variables; style.css uses them). */
+export const interfaceShape = {
+  accent: color({ label: 'Accent', default: '#5ff3ff', help: 'Headings, values, outlines and highlights (cyan).' }),
+  warning: color({ label: 'Warning', default: '#ffb547', help: 'Cautions, story card titles, things to look at (amber).' }),
+  danger: color({ label: 'Danger', default: '#ff4d5e', help: 'Attacks, losses, red alerts (crimson).' }),
+  text: color({ label: 'Text', default: '#d6f6ff' }),
+  panel: color({ label: 'Panels', default: '#060e16', help: 'The colour behind panels, cards and buttons.' }),
+  panelOpacity: num({ label: 'Panel opacity', min: 0.2, max: 1, step: 0.02, default: 0.72, help: 'How solid panels are (cards and menus stay a little more solid than this).' }),
+  lineOpacity: num({ label: 'Outline strength', min: 0, max: 1, step: 0.02, default: 0.28, help: 'Panel outlines, in the accent colour.' }),
+  scale: num({ label: 'Interface size', min: 0.75, max: 1.5, step: 0.05, default: 1, help: 'Everything on the HUD, bigger or smaller (1 = as designed). Players with small or very large screens notice this most.' }),
+  logLines: int({ label: 'Log lines', min: 1, max: 12, default: 5, help: 'How many messages the log at the bottom left shows at once.' }),
+  logSeconds: num({ label: 'Log line lasts', min: 2, max: 60, step: 0.5, unit: 's', default: 10.5, help: 'Before it fades away.' }),
+} satisfies Shape;
+export type InterfaceDef = Infer<typeof interfaceShape>;
+
 /** localStorage key: the editor's Play test leaves { id, def } here for the game's ?preview=1. */
 export const PREVIEW_KEY = 'exo.preview';
 
@@ -569,6 +584,7 @@ export const COLLECTIONS = {
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },
   sound: { path: 'rules/sound.json', kind: 'single', shape: soundRulesShape, label: 'Sound', group: 'Rules' },
   landing: { path: 'rules/landing.json', kind: 'single', shape: landingShape, label: 'Landing', group: 'Cinematics' },
+  interface: { path: 'rules/interface.json', kind: 'single', shape: interfaceShape, label: 'Interface', group: 'Rules' },
 } satisfies Record<string, Collection>;
 
 export type CollectionName = keyof typeof COLLECTIONS;

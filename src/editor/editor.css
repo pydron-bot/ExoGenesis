@@ -409,3 +409,36 @@ svg.tl { display: block; width: 100%; user-select: none; touch-action: none; cur
 .row.flash, [data-item].flash { animation: flash 1.2s ease-out; }
 @keyframes flash { from { background: rgba(255, 181, 71, .25); } }
 .tl-bar button { white-space: nowrap; }
+
+/* ---------- interface preview (Rules → Interface): a sketch of the game's HUD ---------- */
+.ui-mock {
+  --cyan: #5ff3ff; --amber: #ffb547; --crimson: #ff4d5e; --text: #d6f6ff; --panel-base: #060e16; --panel-k: 1; --line-k: 1;
+  --panel: color-mix(in srgb, var(--panel-base) min(100%, calc(72% * var(--panel-k))), transparent);
+  --line: color-mix(in srgb, var(--cyan) min(100%, calc(28% * var(--line-k))), transparent);
+  position: relative; height: 300px; border-radius: 8px; overflow: hidden; color: var(--text);
+  font: 12px ui-monospace, 'SF Mono', Menlo, monospace;
+  background: radial-gradient(ellipse at 60% 40%, #8a5a36, #3a2416 60%, #1a120c);
+}
+.ui-mock .m-brand { position: absolute; top: 8px; left: 12px; font-size: 11px; letter-spacing: .18em; color: var(--cyan); }
+.ui-mock .m-brand span { color: var(--text); opacity: .55; }
+.ui-mock .m-res { position: absolute; top: 26px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.ui-mock .r { background: var(--panel); border: 1px solid var(--line); padding: 3px 8px; border-radius: 3px; }
+.ui-mock .r b { color: var(--cyan); font-weight: 600; }
+.ui-mock .r.warn, .ui-mock .r.warn b { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 50%, transparent); }
+.ui-mock .r.bad, .ui-mock .r.bad b { color: var(--crimson); border-color: color-mix(in srgb, var(--crimson) 60%, transparent); }
+.ui-mock .m-goals { position: absolute; top: 58px; left: 12px; width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; }
+.ui-mock .gh { font-size: 10px; letter-spacing: .16em; color: var(--cyan); }
+.ui-mock ul { margin: 2px 0 0; padding-left: 16px; font-size: 11px; }
+.ui-mock li.done { opacity: .45; text-decoration: line-through; }
+.ui-mock .m-card { position: absolute; top: 58px; left: 250px; right: 12px; max-width: 340px; background: color-mix(in srgb, var(--panel-base) min(100%, calc(90% * var(--panel-k))), transparent); border: 1px solid color-mix(in srgb, var(--amber) 55%, transparent); border-radius: 6px; padding: 10px 12px; }
+.ui-mock .who { color: color-mix(in srgb, var(--cyan) 55%, transparent); font-size: 11px; letter-spacing: .14em; }
+.ui-mock .who small { display: block; color: var(--text); opacity: .55; letter-spacing: .06em; font-size: 10px; }
+.ui-mock .t { color: var(--amber); letter-spacing: .16em; font-weight: 600; }
+.ui-mock p { margin: 6px 0 8px; line-height: 1.45; }
+.ui-mock button { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 3px; padding: 4px 10px; font: inherit; }
+.ui-mock button.on { color: var(--cyan); border-color: var(--cyan); }
+.ui-mock .m-log { position: absolute; left: 12px; bottom: 48px; display: grid; gap: 3px; }
+.ui-mock .ev { background: var(--panel); border-left: 2px solid var(--cyan); padding: 3px 8px; }
+.ui-mock .ev.warn { border-left-color: var(--amber); color: var(--amber); }
+.ui-mock .ev.bad { border-left-color: var(--crimson); color: var(--crimson); }
+.ui-mock .m-bar { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 4px; }

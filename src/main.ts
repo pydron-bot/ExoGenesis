@@ -7,7 +7,8 @@ import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
 import { content, contentIssues, type RegionDef } from './content';
-import { PREVIEW_KEY, type LandingDef, type MissionDef, type StoryDef } from './content/defs';
+import { PREVIEW_KEY, type InterfaceDef, type LandingDef, type MissionDef, type StoryDef } from './content/defs';
+import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, globeMesh, R, U, regionHeight, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
@@ -131,7 +132,7 @@ const skirmishMode = params.get('mode') === 'skirmish';
 // the editor's Play test button left in localStorage (unsaved edits included).
 const preview = params.get('preview') === '1' ? readPreview() : null;
 const scratch = params.get('scratch') === '1' || !!preview;
-function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup; landing?: LandingDef } | null {
+function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup; landing?: LandingDef; interface?: InterfaceDef } | null {
   try {
     const p = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
     return p?.id && p.def ? p : null;
@@ -269,6 +270,9 @@ await loadStep('Building the base…');
 const hudEl = $('hud');
 if (params.get('ui') === '0') hudEl.classList.add('hidden');
 const logEl = $('log');
+// the HUD's look (Rules → Interface; the editor's preview hands over an unsaved one)
+const ui_ = preview?.interface ?? content.interface;
+applyInterface(ui_);
 const heldLog: [string, 'info' | 'warn' | 'bad'][] = [];
 function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
   // the landing cinematic hides the log; keep events for when it ends
@@ -277,9 +281,9 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
   el.className = `ev ${level === 'info' ? '' : level}`;
   el.textContent = text;
   logEl.appendChild(el);
-  while (logEl.children.length > 5) logEl.firstElementChild!.remove();
-  setTimeout(() => el.classList.add('fade'), 9000);
-  setTimeout(() => el.remove(), 10500);
+  while (logEl.children.length > ui_.logLines) logEl.firstElementChild!.remove();
+  setTimeout(() => el.classList.add('fade'), Math.max(500, ui_.logSeconds * 1000 - 1500));
+  setTimeout(() => el.remove(), ui_.logSeconds * 1000);
 }
 
 logFn = log;

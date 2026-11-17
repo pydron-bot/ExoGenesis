@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type LandingDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type InterfaceDef, type LandingDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -19,6 +19,7 @@ export interface ContentDb {
   people: PeopleRules;
   sound: SoundRules;
   landing: LandingDef;
+  interface: InterfaceDef;
 }
 
 export interface FileIssue extends Issue {
@@ -62,6 +63,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     people: recs.people.people,
     sound: recs.sound.sound,
     landing: recs.landing.landing,
+    interface: recs.interface.interface,
   } as unknown as ContentDb;
   issues.push(...crossIssues(db0));
   return { db: db0, issues };

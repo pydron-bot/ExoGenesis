@@ -14,6 +14,7 @@ import { renderPlanet } from './planet';
 import { balanceRunPanel } from './balance-run';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
+import { applyInterface } from '../ui-theme';
 import { analyzeFlow } from './flow';
 import { buildDb, REQUIRED, requiredIssues } from '../content/db';
 import { collectText, diffContent, renameRefs, renderChanges, renderCompare, renderProblems, renderText, setAt, type PathIssue, type Rec, type TextEntry } from './pages';
@@ -23,7 +24,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { mediaUrl, setMediaOverride, type CharacterDef, type LandingDef } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type LandingDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -685,6 +686,21 @@ function renderForm() {
     });
     panel = timeline.el;
   }
+  if (cur.coll === 'interface') {
+    const play = h('button', { cls: 'primary', textContent: '▶ Open the game with this look', title: 'A fresh game on Touchdown with these settings (unsaved edits too)' });
+    play.onclick = () => {
+      try { localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: 'touchdown', def: files.get(pathOf('regions', 'touchdown'))?.data, interface: cur!.draft })); } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
+      window.open(`${import.meta.env.BASE_URL}?preview=1&intro=0`, 'exo-playtest');
+    };
+    const mock = h('div', { cls: 'ui-mock', id: 'ui-mock', innerHTML: `
+      <div class="m-brand">EXO GENESIS <span>// ACCORD CARETAKER · M1</span></div>
+      <div class="m-res"><span class="r"><b>2.0</b>/4.3 MW</span><span class="r"><b>◆ 211</b></span><span class="r warn"><b>❄ 120</b> embryos · 92%</span><span class="r">SOL 1 · 08:55 ☀</span><span class="r bad">⚠ 6 hostiles</span></div>
+      <div class="m-goals"><div class="gh">TOUCHDOWN</div><ul><li class="done">Land</li><li class="now">Build a Solar Array to power the cryo bank</li></ul></div>
+      <div class="m-card"><div class="who">THE DIRECTOR<small>Sol Mission Control</small></div><div class="t">MISSION BRIEFING</div><p>Accord, this is Mission Control. Power first. Everything else after.</p><div class="grp"><button>Continue</button></div></div>
+      <div class="m-log"><div class="ev">Solar Array online · +2.0 MW at noon</div><div class="ev warn">Predators sighted to the north-east</div><div class="ev bad">Turret destroyed</div></div>
+      <div class="m-bar"><button>⚒ Build</button><button class="on">▶</button><button>Surface</button><button>Planet</button></div>` });
+    panel = h('div', { cls: 'story-panel' }, mock, h('div', { cls: 'actions' }, play), h('div', { cls: 'note', textContent: 'A sketch of the HUD with these settings; the game shows the real thing. Interface size and the log settings show in the game only.' }));
+  }
   if (cur.coll === 'characters') panel = h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'char-card' }), h('div', { cls: 'char-lines', id: 'char-lines' }));
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
@@ -738,6 +754,7 @@ function changed() {
   if (cur.coll === 'story') renderStoryPreview();
   if (cur.coll === 'characters') renderCharacter();
   timeline?.update();
+  if (cur.coll === 'interface') { const m = document.getElementById('ui-mock'); if (m) applyInterface(cur.draft as unknown as InterfaceDef, m); }
   if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {
     $('main').querySelector('.map-issues')?.remove();
