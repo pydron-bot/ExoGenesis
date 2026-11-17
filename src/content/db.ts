@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type SoundRules, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -11,6 +11,7 @@ export interface ContentDb {
   regions: Record<string, RegionDef>;
   assets: Record<string, AssetDef>;
   inhabitants: Record<string, InhabitantDef>;
+  story: Record<string, StoryDef>;
   colony: ColonyRules;
   threats: ThreatRules;
   people: PeopleRules;
@@ -50,6 +51,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     regions: recs.regions,
     assets: recs.assets,
     inhabitants: recs.inhabitants,
+    story: recs.story,
     colony: recs.colony.colony,
     threats: recs.threats.threats,
     people: recs.people.people,
@@ -110,6 +112,18 @@ function crossIssues(db: ContentDb): FileIssue[] {
       if ((b as unknown as Record<string, unknown>)[f] === undefined) out.push({ path: `buildings/${id}.json`, field: f, msg: `a ${b.role} needs this` });
     }
     if (b.role === 'core' && id !== 'core') out.push({ path: `buildings/${id}.json`, field: 'role', msg: 'only the Command Core (core.json) can have the core role' });
+  }
+  // story: site triggers need a site on a region map; events can't wait on themselves
+  for (const [id, ev] of Object.entries(db.story ?? {})) {
+    if (!ev || typeof ev !== 'object') continue;
+    if (ev.trigger === 'site' && ev.site) {
+      const maps = ev.region ? [db.regions[ev.region]] : Object.values(db.regions);
+      if (!maps.some((r) => r?.sites?.some((x) => x.id === ev.site))) out.push({ path: `story/${id}.json`, field: 'site', msg: `no region${ev.region ? ` "${ev.region}"` : ''} has a story site "${ev.site}"` });
+    }
+    (ev.effects ?? []).forEach((e, n) => {
+      if ((e?.after ?? 0) > (ev.choices?.length ?? 0)) out.push({ path: `story/${id}.json`, field: `effects[${n}].after`, msg: `there is no choice ${e.after}` });
+    });
+    if (ev.trigger === 'after' && ev.event === id) out.push({ path: `story/${id}.json`, field: 'event', msg: 'an event can\'t follow itself' });
   }
   if (db.buildings.core && db.buildings.core.role !== 'core') out.push({ path: 'buildings/core.json', field: 'role', msg: 'must be core' });
   if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });

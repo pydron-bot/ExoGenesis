@@ -278,6 +278,79 @@ export const inhabitantShape = {
 } satisfies Shape;
 export type InhabitantDef = Infer<typeof inhabitantShape>;
 
+/** What starts a story event (content/story). */
+export const STORY_TRIGGERS = ['start', 'time', 'built', 'colonists', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'never'] as const;
+export type StoryTrigger = (typeof STORY_TRIGGERS)[number];
+export const TRIGGER_HELP: Record<StoryTrigger, string> = {
+  start: 'when the colony deploys',
+  time: 'when the clock reaches Sol',
+  built: 'when the first Building of that kind is finished',
+  colonists: 'when the colony has Count colonists (children too)',
+  packs: 'when Count predator packs have been destroyed',
+  site: 'when a drone or combat unit reaches the Site (a story site on the region map)',
+  contact: 'at first contact with a camp of the Group',
+  trust: 'when a camp of the Group comes to trust you',
+  flag: 'when the Flag is set (by another event)',
+  after: 'when the Event has been answered (its card closed)',
+  never: 'only when another event starts it',
+};
+export const STORY_EFFECTS = ['log', 'alloys', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'event', 'pack'] as const;
+export type StoryEffect = (typeof STORY_EFFECTS)[number];
+export const EFFECT_HELP: Record<StoryEffect, string> = {
+  log: 'a line in the log (Text)',
+  alloys: 'add Amount alloys (negative takes)',
+  biomass: 'add Amount biomass',
+  stance: 'shift every colonist\'s AI acceptance by Amount',
+  wellbeing: 'shift every colonist\'s wellbeing by Amount',
+  regard: 'change the Group\'s regard by Amount',
+  flag: 'set the Flag (other events can wait for it or be blocked by it)',
+  unflag: 'clear the Flag',
+  event: 'start the Event now, whatever its trigger',
+  pack: 'the next predator pack attacks now',
+};
+const on = (field: string, is: readonly string[], need = true) => ({ field, is, need });
+
+export const storyEffectShape = {
+  after: int({ label: 'When', min: 0, max: 4, default: 0, help: '0 = as soon as the event fires; 1–4 = when that choice is picked.' }),
+  kind: choice(STORY_EFFECTS, { label: 'Effect', helps: EFFECT_HELP }),
+  amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'biomass', 'stance', 'wellbeing', 'regard']) }),
+  group: ref('inhabitants', { label: 'Group', optional: true, when: on('kind', ['regard']) }),
+  flag: str({ label: 'Flag', optional: true, when: on('kind', ['flag', 'unflag']) }),
+  event: ref('story', { label: 'Event', optional: true, when: on('kind', ['event']) }),
+  text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', ['log']) }),
+} satisfies Shape;
+export type StoryEffectDef = Infer<typeof storyEffectShape>;
+
+export const storyChoiceShape = {
+  label: str({ label: 'Button' }),
+  reply: str({ label: 'Reply', multiline: true, optional: true, help: 'Logged when this choice is picked.' }),
+} satisfies Shape;
+
+/**
+ * A story event (STORY.md §8): a trigger, then a card (title, text, choices),
+ * then effects. Each event fires once per game.
+ */
+export const storyShape = {
+  title: str({ label: 'Title' }),
+  speaker: str({ label: 'Speaker', optional: true, help: 'Who is talking (the Director, a colonist…). Shown above the text.' }),
+  text: str({ label: 'Text', multiline: true }),
+  trigger: choice(STORY_TRIGGERS, { label: 'Trigger', helps: Object.fromEntries(Object.entries(TRIGGER_HELP).map(([k, v]) => [k, `Fires ${v}.`])) }),
+  sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on('trigger', ['time']) }),
+  building: ref('buildings', { label: 'Building', optional: true, when: on('trigger', ['built']) }),
+  count: int({ label: 'Count', min: 1, max: 10000, optional: true, when: on('trigger', ['colonists', 'packs']) }),
+  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on('trigger', ['site']) }),
+  group: ref('inhabitants', { label: 'Group', optional: true, when: on('trigger', ['contact', 'trust']) }),
+  flag: str({ label: 'Flag', optional: true, when: on('trigger', ['flag']) }),
+  event: ref('story', { label: 'Event', optional: true, when: on('trigger', ['after']) }),
+  delay: num({ label: 'Delay', min: 0, max: 3600, unit: 's', optional: true, help: 'Wait this long after the trigger before firing.' }),
+  region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
+  unless: str({ label: 'Unless flag', optional: true, help: 'Doesn\'t fire if this flag is set.' }),
+  pause: bool({ label: 'Pause the game', optional: true, help: 'Pauses while the card is open (tutorials, big moments).' }),
+  choices: list(storyChoiceShape, { label: 'Choices', max: 4, optional: true, help: 'None = a single Continue button.' }),
+  effects: list(storyEffectShape, { label: 'Effects', max: 16, optional: true }),
+} satisfies Shape;
+export type StoryDef = Infer<typeof storyShape>;
+
 /** Region paint grids: one sample every REGION_STEP units across the whole region. */
 export const REGION_STEP = 2;
 export const REGION_CELLS = (REGION_HALF * 2) / REGION_STEP + 1; // 121
@@ -311,6 +384,15 @@ export const spawnShape = {
 } satisfies Shape;
 export type SpawnDef = Infer<typeof spawnShape>;
 
+export const siteShape = {
+  id: str({ label: 'Id', help: 'Story events name the site by this (a "Reach a site" trigger). Lowercase, no spaces.' }),
+  label: str({ label: 'Label', optional: true, help: 'For the editor only.' }),
+  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  r: num({ label: 'Radius', min: 2, max: 120, step: 0.5, unit: 'u', default: 10, help: 'A drone or combat unit this close has reached it.' }),
+} satisfies Shape;
+export type SiteDef = Infer<typeof siteShape>;
+
 export const campShape = {
   x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
   z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
@@ -337,6 +419,7 @@ export const regionShape = {
   spawns: list(spawnShape, { label: 'Predator spawns', max: 20 }),
   vents: list(ventShape, { label: 'Geothermal vents', max: 20, optional: true }),
   camps: list(campShape, { label: 'Inhabitant camps', max: 8, optional: true }),
+  sites: list(siteShape, { label: 'Story sites', max: 40, optional: true }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 /** localStorage key: the editor's Play test leaves { id, def } here for the game's ?preview=1. */
@@ -359,6 +442,7 @@ export const COLLECTIONS = {
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
+  story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },
   inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },

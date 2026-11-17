@@ -4,7 +4,7 @@
  * sends commands. Updated a few times a second, not every frame.
  */
 import type { ZoomCamera } from './camera';
-import type { BuildingDef, ColonyRules, InhabitantDef, PeopleRules, UnitDef } from './content/defs';
+import type { BuildingDef, ColonyRules, InhabitantDef, PeopleRules, StoryDef, UnitDef } from './content/defs';
 import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
@@ -18,6 +18,7 @@ interface HudDeps {
   defs: Record<string, BuildingDef>;
   units: Record<string, UnitDef>;
   inhabitants: Record<string, InhabitantDef>;
+  story: Record<string, StoryDef>;
   rules: ColonyRules;
   people: PeopleRules;
   ui: RegionUi;
@@ -26,6 +27,8 @@ interface HudDeps {
   setBuild(kind: string | null): void;
   restart(): void;
   load(): void;
+  /** Story cards: pause the game (true) or resume (false). */
+  pause(on: boolean): void;
   log(text: string, level?: 'info' | 'warn' | 'bad'): void;
 }
 
@@ -65,7 +68,7 @@ export class ColonyHud {
       defs: d.defs, inhabitants: d.inhabitants, rules: d.people, solSeconds: d.rules.solSeconds, ui: d.ui, cam: d.cam,
       command: (c) => d.command(c), select: () => this.selected(),
     });
-    this.contact = new ContactCard({ inhabitants: d.inhabitants, cam: d.cam, command: (c) => d.command(c) });
+    this.contact = new ContactCard({ inhabitants: d.inhabitants, story: d.story, cam: d.cam, command: (c) => d.command(c), pause: (on) => d.pause(on) });
     const has = (s: Snapshot, role: string) => s.buildings.some((b) => b.progress >= 1 && this.d.defs[b.kind]?.role === role);
     const sol = (s: Snapshot) => Math.floor(s.secs / this.d.rules.solSeconds) + 1;
     this.goals = [

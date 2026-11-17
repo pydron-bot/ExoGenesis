@@ -345,6 +345,25 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   `?preview=1&intro=0`, which plays it without reading or writing the autosave (`?scratch=1` does
   only the latter). The sim worker gets its region in an `init` message before its first game.
   Test: `tools/region-smoke.mjs`; headless: `node tools/balance.mjs --region <id>`.
+- **Story events** (v0.18.0) are `content/story/<id>.json` (editor: Story → Story events): a
+  **trigger** (start, time = Sol N, built = first finished building of a kind, colonists ≥ N,
+  packs beaten ≥ N, site = a drone or unit reaches a region's **story site**, contact / trust with an
+  inhabitant group, flag set, after = another event answered, never = only started by an effect),
+  optional delay, region and "unless flag"; a **card** (title, speaker, text, up to 4 choices with a
+  logged reply, or Continue; `pause` pauses the game while it's open); and **effects**, each run when
+  the event fires or after one choice (log, alloys, biomass, stance, wellbeing, regard, flag, unflag,
+  start another event, next pack now). Each event fires once per game. `src/sim/story.ts` checks
+  triggers once a second; fired, answered, flags, the card inbox and delays are saved. Story sites
+  are a region list (`sites`: id, x, z, radius), placed with the map editor's Add site (S).
+  The editor form shows only the fields the chosen trigger or effect uses (a field's `when` in the
+  schema), edits lists (choices, effects) in place, previews the card as the game draws it, sums up
+  what the event does (and which events follow it or start it), and **▶ Play test this event**
+  opens a scratch game on its region that fires it straight away, unsaved edits included
+  (`exo.preview` carries `story`; `?story=<id>` does the same for a saved event). Automated tests
+  (Playwright) ignore story pauses unless they asked for a story. Content checks: a site trigger needs
+  that site on a map; an effect can't follow a missing choice. Test: `tools/story-smoke.mjs`
+  (`--headless-only` skips the browser half); `tools/sim-entry.ts` gives headless tests the sim
+  and its content from one module graph, so they can add records.
 - **Assets** are a file in `public/media/<model|image|audio>/<id>.<ext>` plus a record in
   `content/assets/<id>.json` (name, source, credit, notes; models also import scale / rotation /
   lift, applied by `src/assets/models.ts` in both editor and game). Models are .glb, front +Z, Y

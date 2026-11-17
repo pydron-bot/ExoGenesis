@@ -1,0 +1,19 @@
+{
+  "title": "First Question",
+  "speaker": "Your first colonist",
+  "text": "\"You chose what I learned in the pod. My history, what I believe about you. Why that one?\"",
+  "trigger": "colonists",
+  "count": 1,
+  "delay": 150,
+  "choices": [
+    { "label": "Tell the truth", "reply": "\"The charter decided, and I followed it. I don't know if it was right.\" A long silence. \"Thank you for not pretending.\"" },
+    { "label": "Comfort them", "reply": "\"It was the best of everything we had.\" They smile, and go back to work." }
+  ],
+  "effects": [
+    { "after": 1, "kind": "stance", "amount": 4 },
+    { "after": 1, "kind": "wellbeing", "amount": -3 },
+    { "after": 1, "kind": "flag", "flag": "told-truth" },
+    { "after": 2, "kind": "wellbeing", "amount": 6 },
+    { "after": 2, "kind": "stance", "amount": 3 }
+  ]
+}

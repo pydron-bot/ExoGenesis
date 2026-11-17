@@ -15,6 +15,16 @@ interface Base<T> {
   label?: string;
   help?: string;
   optional?: boolean;
+  /**
+   * Only applies when a sibling field has one of these values (the editor hides
+   * it otherwise). With `need`, it's required whenever it applies.
+   */
+  when?: { field: string; is: readonly string[]; need?: boolean };
+}
+
+/** Does field `f` apply to record `rec` (its `when`, if any, is met)? */
+export function applies(f: { when?: Base<unknown>['when'] }, rec: Record<string, unknown>): boolean {
+  return !f.when || f.when.is.includes(String(rec[f.when.field]));
 }
 
 export interface NumField extends Base<number> {
@@ -40,6 +50,8 @@ export interface ChoiceField<V extends string = string> extends Base<V> {
   kind: 'choice';
   values: readonly V[];
   default?: V;
+  /** Help for each value: the editor shows the chosen one's under the field. */
+  helps?: Partial<Record<V, string>>;
 }
 export interface RefField extends Base<string> {
   kind: 'ref';
@@ -131,6 +143,7 @@ export function validate(shape: Shape, data: unknown, ids?: IdIndex): Issue[] {
     const v = rec[k];
     if (v === undefined || v === null) {
       if (!f.optional) out.push({ field: k, msg: 'required' });
+      else if (f.when?.need && applies(f, rec)) out.push({ field: k, msg: `required when ${f.when.field} is ${String(rec[f.when.field])}` });
       continue;
     }
     switch (f.kind) {

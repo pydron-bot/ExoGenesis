@@ -1,0 +1,14 @@
+{
+  "title": "The Stone",
+  "text": "Half buried on the ridge: a standing stone, cut square, layered like strata. The drone's scan finds a joint pattern in the courses: the same interlock we use for our own foundations. Archive: \"No match on file.\"",
+  "trigger": "site",
+  "site": "east-stone",
+  "choices": [
+    { "label": "Scan it again", "reply": "Second scan, same result. The interlock is ours. The archive still says no match." },
+    { "label": "Log it and move on", "reply": "Logged: one carved stone, origin unknown." }
+  ],
+  "effects": [
+    { "after": 0, "kind": "flag", "flag": "stone-found" },
+    { "after": 1, "kind": "flag", "flag": "stone-scanned" }
+  ]
+}

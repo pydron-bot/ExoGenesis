@@ -168,6 +168,17 @@ export interface Camp {
   natives: Native[];
 }
 
+/** Story events (content/story): what has fired, been answered, flags, cards waiting. */
+export interface StoryState {
+  fired: string[];
+  answered: string[];
+  flags: string[];
+  /** Cards waiting to be shown/answered, oldest first. */
+  inbox: string[];
+  /** Triggered events waiting out their delay. */
+  timers: { id: string; at: number }[];
+}
+
 export interface Deposit { x: number; z: number; alloys: number; max: number }
 
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
@@ -205,6 +216,8 @@ export interface SimState {
   phase: 'descent' | 'landed' | 'deployed';
   /** Ticks of engine-noise panic left: grazers near the core bolt. */
   panic: number;
+  /** Story events (absent in older saves: starts fresh). */
+  story?: StoryState;
   /** Inhabitant camps (absent in saves from before inhabitants existed: set up from the region on load). */
   camps?: Camp[];
   /** Colonists, embryos, pods, food, Trust (absent in saves from before people existed). */
@@ -232,15 +245,17 @@ export type Command =
   | { type: 'order'; ids: number[]; x: number; z: number }
   | { type: 'stop'; ids: number[] }
   | { type: 'landing'; stage: LandingStage }
+  /** A story card answered: the choice's index (0 for Continue). */
+  | { type: 'story'; id: string; choice: number }
   /** First contact with an inhabitant camp: the player's answer. */
   | { type: 'contact'; camp: number; choice: ContactChoice }
   | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
-  | { type: 'debug'; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
+  | { type: 'debug'; story?: string; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
-  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef }
+  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef } }
   | { type: 'cmd'; cmd: Command }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }
@@ -289,6 +304,8 @@ export interface Snapshot {
   /** Effects this tick (skirmish FX layout). */
   fx: Float32Array;
   hostiles: number;
+  /** Story cards waiting (ids, oldest first) and flags set. */
+  story: { inbox: string[]; flags: string[] };
   /** Inhabitant camps (structures show once explored). */
   camps: CampSnap[];
   /** Inhabitants in sight: x, z, heading, camp index, elder (1/0) per person. */

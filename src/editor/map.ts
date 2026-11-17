@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { HEIGHT_SCALE, PREVIEW_KEY, REGION_CELLS as NC, REGION_STEP, campShape, depositShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
+import { HEIGHT_SCALE, PREVIEW_KEY, REGION_CELLS as NC, REGION_STEP, campShape, depositShape, siteShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
 import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
@@ -28,9 +28,9 @@ export interface MapHost {
   inhabitants?: Record<string, { land?: number }>;
 }
 
-type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp';
+type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp' | 'site';
 const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
-  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn, vent or camp to select it; drag to move it' },
+  { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn, vent, camp or story site to select it; drag to move it' },
   { id: 'raise', label: 'Raise', key: '1', tip: 'Raise ground (Shift: lower)' },
   { id: 'lower', label: 'Lower', key: '2', tip: 'Lower ground (Shift: raise)' },
   { id: 'smooth', label: 'Smooth', key: '3', tip: 'Even out bumps' },
@@ -42,9 +42,10 @@ const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'spawn', label: 'Add spawn', key: 'P', tip: 'Click the ground to place a predator spawn point (packs enter here)' },
   { id: 'vent', label: 'Add vent', key: 'V', tip: 'Click the ground to place a geothermal vent (a Geothermal Tap can be built on it)' },
   { id: 'camp', label: 'Add camp', key: 'C', tip: 'Click the ground to place an inhabitant camp (who lives there: Story → Inhabitants)' },
+  { id: 'site', label: 'Add site', key: 'S', tip: 'Click the ground to place a story site: a story event can fire when a drone or unit reaches it (a ruin, a crash site…)' },
 ];
 
-type MKind = 'herds' | 'deposits' | 'spawns' | 'vents' | 'camps';
+type MKind = 'herds' | 'deposits' | 'spawns' | 'vents' | 'camps' | 'sites';
 type Marker = Record<string, number>;
 const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: Tool; make(x: number, z: number): Marker; summary(m: Marker): string; color: string; sel: string }> = {
   herds: { label: 'Grazer herds', one: 'Herd', shape: herdShape, tool: 'herd', make: (x, z) => ({ x, z, grazers: 20, roam: 40 }), summary: (m) => `${m.grazers} grazers`, color: '#c99a4a', sel: '#ffe08a' },
@@ -52,6 +53,7 @@ const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: T
   spawns: { label: 'Predator spawns', one: 'Spawn', shape: spawnShape, tool: 'spawn', make: (x, z) => ({ x, z }), summary: () => 'packs enter here', color: '#d8414e', sel: '#ff9aa3' },
   vents: { label: 'Geothermal vents', one: 'Vent', shape: ventShape, tool: 'vent', make: (x, z) => ({ x, z }), summary: () => 'a Geothermal Tap fits here', color: '#ff7a2a', sel: '#ffc08a' },
   // a camp's `group` is an id (text); markers are otherwise all numbers
+  sites: { label: 'Story sites', one: 'Site', shape: siteShape, tool: 'site', make: (x, z) => ({ id: `site${Math.round(Math.abs(x) + Math.abs(z))}`, x, z, r: 10 }) as unknown as Marker, summary: (m) => `${m.id}${m.label ? ` · ${m.label}` : ''}`, color: '#3fd6ff', sel: '#b8f1ff' },
   camps: { label: 'Inhabitant camps', one: 'Camp', shape: campShape, tool: 'camp', make: (x, z) => ({ x, z, group: 'vell' }) as unknown as Marker, summary: (m) => String(m.group), color: '#b98cff', sel: '#e2ccff' },
 };
 const MKINDS = Object.keys(MARKERS) as MKind[];
@@ -384,6 +386,12 @@ export class MapEditor {
             c.position.set(m.x + dx * sz * 0.6, y + sz * h * 0.5, -(m.z + dz * sz * 0.6));
             g.add(c);
           }
+        } else if (k === 'sites') {
+          const pin = new THREE.Mesh(new THREE.OctahedronGeometry(1.6), mat);
+          pin.position.set(m.x, y + 6, -m.z);
+          const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 5, 6), mat);
+          stem.position.set(m.x, y + 2.5, -m.z);
+          g.add(pin, stem, this.terrainRing(m.x, m.z, m.r, sel ? '#b8f1ff' : '#3fd6ff', sel ? 0.9 : 0.6));
         } else if (k === 'camps') {
           // a few huts round a fire, and the ring of their land
           const land = (this.host.inhabitants?.[String(m.group)]?.land as number | undefined) ?? 40;
@@ -734,6 +742,7 @@ export class MapEditor {
       if (this.lists[k].length) {
         if (k === 'herds') note = `${this.lists[k].reduce((s, m) => s + m.grazers, 0)} grazers in ${this.lists[k].length} herds. Add with ${key}.`;
         else if (k === 'deposits') note = `${this.lists[k].reduce((s, m) => s + m.alloys, 0).toLocaleString()} alloys in ${this.lists[k].length} deposits. Add with ${key}.`;
+        else if (k === 'sites') note = `Story events with a "site" trigger fire when a drone or unit gets inside the ring. Add with ${key}.`;
         else if (k === 'camps') note = `The ring is their land: the colony's buildings there wear their regard down. Add with ${key}.`;
         else if (k === 'vents') note = `${this.lists[k].length} vents. Add with ${key}.`;
         else note = `Packs pick one of these at random. Add with ${key}.`;

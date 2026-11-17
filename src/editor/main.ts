@@ -7,8 +7,8 @@
  * the local git repo (content/ and public/media/ only).
  */
 import './editor.css';
-import { COLLECTIONS, ID_RE, locate, pathOf, type Collection, type CollectionName } from '../content/defs';
-import { blank, validate, type Field, type IdIndex, type Issue } from '../content/schema';
+import { COLLECTIONS, EFFECT_HELP, ID_RE, PREVIEW_KEY, TRIGGER_HELP, locate, pathOf, type Collection, type CollectionName, type StoryDef, type StoryEffect, type StoryTrigger } from '../content/defs';
+import { applies, blank, validate, type Field, type IdIndex, type Issue, type ListField } from '../content/schema';
 import { MapEditor } from './map';
 import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, uploadFiles, type AssetHost, type MediaInfo, type Usage } from './assets';
 import { BUILTINS } from '../assets/builtin';
@@ -257,10 +257,138 @@ export function control(d: Record<string, unknown>, key: string, f: Field, onCha
       el.oninput = () => set(el.value);
       return el;
     }
-    case 'grid':
     case 'list':
+      if (isMap()) return h('span', { cls: 'note', textContent: 'Edited in the map view' });
+      return listControl(d, key, f, onChange);
+    case 'grid':
       return h('span', { cls: 'note', textContent: 'Edited in the map view' });
   }
+}
+
+/** Story effects: "When" as the event's own moments (it fires, or one of its choices). */
+function whenSelect(item: Record<string, unknown>, onChange: () => void): HTMLElement {
+  const el = h('select');
+  fillWhen(el, Number(item.after ?? 0));
+  el.onchange = () => { item.after = Number(el.value); onChange(); };
+  return el;
+}
+function fillWhen(el: HTMLSelectElement, v: number) {
+  const choices = ((cur?.draft.choices as { label?: string }[] | undefined) ?? []);
+  el.replaceChildren(h('option', { value: '0', textContent: 'When it fires' }));
+  choices.forEach((c, n) => el.append(h('option', { value: String(n + 1), textContent: `After “${c.label || `choice ${n + 1}`}”` })));
+  if (v > choices.length) el.append(h('option', { value: String(v), textContent: `After choice ${v} (missing)` }));
+  el.value = String(v);
+}
+
+/** Singular label for a list's items ("Choices" → "Choice"). */
+const itemName = (f: Field, key: string) => (f.label ?? key).replace(/ies$/, 'y').replace(/s$/, '');
+
+/**
+ * A list of small records as stacked cards: each item's fields (only the ones
+ * that apply), move up / down, remove, and an Add button. Structural edits, and
+ * changes to a field others depend on, re-render the list.
+ */
+function listControl(d: Record<string, unknown>, key: string, f: ListField, onChange: () => void): HTMLElement {
+  const box = h('div', { cls: 'list-ctl' });
+  const deps = new Set(Object.values(f.of).map((x) => x.when?.field).filter(Boolean) as string[]);
+  const items = () => (Array.isArray(d[key]) ? (d[key] as Record<string, unknown>[]) : []);
+  const commit = (next: Record<string, unknown>[]) => {
+    if (next.length || !f.optional) d[key] = next; else delete d[key];
+    render();
+    onChange();
+  };
+  const render = () => {
+    box.replaceChildren();
+    const list = items();
+    list.forEach((item, n) => {
+      const card = h('div', { cls: 'item-card' });
+      const btn = (text: string, title: string, fn: () => void, off = false) => {
+        const b = h('button', { textContent: text, title, type: 'button', disabled: off });
+        b.onclick = (e) => { e.preventDefault(); fn(); };
+        return b;
+      };
+      card.append(h('div', { cls: 'item-head' },
+        h('b', { textContent: `${itemName(f, key)} ${n + 1}` }),
+        btn('↑', 'Move up', () => { const l = [...list]; [l[n - 1], l[n]] = [l[n], l[n - 1]]; commit(l); }, n === 0),
+        btn('↓', 'Move down', () => { const l = [...list]; [l[n + 1], l[n]] = [l[n], l[n + 1]]; commit(l); }, n === list.length - 1),
+        btn('✕', 'Remove', () => commit(list.filter((_, i) => i !== n))),
+      ));
+      for (const [k, sub] of Object.entries(f.of)) {
+        if (!applies(sub, item)) continue;
+        const row = h('label', { cls: 'mini-row' });
+        row.dataset.item = `${key}[${n}].${k}`;
+        const help = () => (sub.kind === 'choice' && sub.helps ? sub.helps[item[k] as string] ?? sub.help : sub.help) ?? '';
+        const helpEl = h('span', { cls: 'help', textContent: help() });
+        const ctl = cur?.coll === 'story' && key === 'effects' && k === 'after'
+          ? whenSelect(item, () => { onChange(); })
+          : control(item, k, sub, () => { if (deps.has(k)) render(); helpEl.textContent = help(); onChange(); });
+        row.append(h('span', { cls: 'lbl', textContent: sub.label ?? k }), ctl, cur?.coll === 'story' && k === 'after' ? '' : helpEl, h('span', { cls: 'issue' }));
+        card.append(row);
+      }
+      box.append(card);
+    });
+    const full = f.max !== undefined && list.length >= f.max;
+    const add = h('button', { textContent: `+ Add ${itemName(f, key).toLowerCase()}`, type: 'button', disabled: full });
+    add.onclick = (e) => { e.preventDefault(); commit([...list, blank(f.of)]); };
+    box.append(add);
+  };
+  render();
+  return box;
+}
+
+// ---------- story events: card preview, what it does, play test ----------
+function storyPanel(): HTMLElement {
+  const play = h('button', { cls: 'primary', textContent: '▶ Play test this event', title: 'Opens the game on the event\'s region (Touchdown if it has none), starting deployed, and fires this event straight away: unsaved edits included. Your own colony is left alone.' });
+  play.onclick = () => storyPlayTest();
+  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'story-card' }), h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play));
+}
+
+/** A sentence for an event's trigger, and one per effect. */
+function storySummary(ev: Partial<StoryDef>): string[] {
+  const t = ev.trigger as StoryTrigger | undefined;
+  const param = t === 'time' ? `Sol ${ev.sol ?? '?'}` : t === 'built' ? ev.building ?? '?' : t === 'colonists' || t === 'packs' ? String(ev.count ?? '?') : t === 'site' ? `site "${ev.site ?? '?'}"` : t === 'contact' || t === 'trust' ? ev.group ?? '?' : t === 'flag' ? `flag "${ev.flag ?? '?'}"` : t === 'after' ? `"${ev.event ?? '?'}"` : '';
+  const out = [`Fires ${t ? TRIGGER_HELP[t] : '?'}${param ? ` (${param})` : ''}${ev.delay ? `, ${ev.delay} s later` : ''}${ev.region ? `, only in ${ev.region}` : ''}${ev.unless ? `, unless flag "${ev.unless}" is set` : ''}. Once per game.`];
+  for (const e of ev.effects ?? []) {
+    const when = e.after ? `After “${ev.choices?.[e.after - 1]?.label ?? `choice ${e.after}`}”` : 'When it fires';
+    const what = e.kind ? EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace('the Flag', `flag "${e.flag ?? '?'}"`).replace('the Group', e.group ?? '?').replace('the Event', `"${e.event ?? '?'}"`).replace('(Text)', e.text ? `: “${e.text.slice(0, 60)}${e.text.length > 60 ? '…' : ''}”` : '') : '?';
+    out.push(`${when}: ${what}`);
+  }
+  // who waits on this one
+  const after = recordsOf('story').filter((r) => (r.rec.data as StoryDef)?.trigger === 'after' && (r.rec.data as StoryDef).event === cur?.id).map((r) => r.id);
+  const started = recordsOf('story').filter((r) => (r.rec.data as StoryDef)?.effects?.some((e) => e.kind === 'event' && e.event === cur?.id)).map((r) => r.id);
+  if (after.length) out.push(`Followed by: ${after.join(', ')}`);
+  if (started.length) out.push(`Started by: ${started.join(', ')}`);
+  return out;
+}
+
+function renderStoryPreview() {
+  const card = document.getElementById('story-card'), sum = document.getElementById('story-sum');
+  if (!card || !sum || !cur) return;
+  const ev = cur.draft as Partial<StoryDef>;
+  const btns = ev.choices?.length ? ev.choices.map((c) => h('button', { textContent: c.label || '…' })) : [h('button', { textContent: 'Continue' })];
+  card.replaceChildren(
+    ...(ev.speaker ? [h('div', { cls: 'who', textContent: ev.speaker })] : []),
+    h('div', { cls: 't', textContent: ev.title || 'Untitled' }),
+    h('p', { textContent: ev.text || '' }),
+    h('div', { cls: 'grp' }, ...btns),
+    ...(ev.pause ? [h('div', { cls: 'note', textContent: 'Pauses the game while open' })] : []),
+  );
+  sum.replaceChildren(...storySummary(ev).map((line) => h('div', { textContent: line })));
+  // effects' "When" lists follow the choices as they're edited
+  for (const sel of document.querySelectorAll<HTMLSelectElement>('[data-item^="effects["][data-item$=".after"] select')) {
+    if (document.activeElement !== sel) fillWhen(sel, Number(sel.value));
+  }
+}
+
+function storyPlayTest() {
+  if (!cur || cur.coll !== 'story') return;
+  const ev = cur.draft as unknown as StoryDef;
+  const region = ev.region && files.get(pathOf('regions', ev.region)) ? ev.region : 'touchdown';
+  const def = files.get(pathOf('regions', region))?.data;
+  try {
+    localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def, story: { id: cur.id, def: ev } }));
+  } catch (e) { toast(`Couldn't hand the event to the game: ${(e as Error).message}`, true); return; }
+  window.open(`${import.meta.env.BASE_URL}?preview=1&intro=0`, 'exo-playtest');
 }
 
 function renderForm() {
@@ -296,7 +424,8 @@ function renderForm() {
   }
   const form = h('div', { cls: 'form' });
   for (const [key, f] of Object.entries(c.shape)) {
-    const row = h('label', { cls: 'row' });
+    // a list holds many inputs and buttons: a <label> round it would steal clicks
+    const row = h(f.kind === 'list' ? 'div' : 'label', { cls: 'row' });
     row.dataset.key = key;
     row.append(
       h('span', { cls: 'lbl', textContent: f.label ?? key }, f.optional ? h('small', { textContent: ' optional' }) : null),
@@ -307,6 +436,7 @@ function renderForm() {
     form.append(row);
   }
   let panel: HTMLElement | null = null;
+  if (cur.coll === 'story') panel = storyPanel();
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
     panel = assetPanel.root;
@@ -333,7 +463,11 @@ function changed() {
   const shape = coll(cur.coll).shape;
   for (const row of document.querySelectorAll<HTMLElement>('.row')) {
     const k = row.dataset.key!;
-    const msg = iss.filter((i) => i.field === k).map((i) => i.msg).join('; ');
+    // fields that don't apply (a `when` not met) are hidden
+    row.style.display = shape[k] && !applies(shape[k], cur.draft) ? 'none' : '';
+    const fk = shape[k];
+    if (fk?.kind === 'choice' && fk.helps) row.querySelector('.help')!.textContent = fk.helps[cur.draft[k] as string] ?? fk.help ?? '';
+    const msg = iss.filter((i) => i.field === k || i.field.startsWith(`${k}[`)).map((i) => (i.field === k ? i.msg : `${i.field.slice(k.length)}: ${i.msg}`)).join('; ');
     row.querySelector('.issue')!.textContent = msg;
     row.classList.toggle('invalid', !!msg);
     const was = JSON.stringify(cur.saved[k]) !== JSON.stringify(cur.draft[k]);
@@ -349,13 +483,19 @@ function changed() {
   document.querySelector('#side .item.on')?.classList.toggle('dirty', isDirty);
 
   assetPanel?.update(cur.draft as unknown as AssetDef);
+  if (cur.coll === 'story') renderStoryPreview();
   if (isMap()) {
     $('main').querySelector('.map-issues')?.remove();
     if (iss.length) $('main').querySelector('.head')!.after(h('div', { cls: 'map-issues', textContent: iss.map((i) => `${i.field}: ${i.msg}`).join(' · ') }));
     return;
   }
   // aside: problems + the exact JSON that will be written
-  const extra = iss.filter((i) => !(i.field in shape));
+  for (const r of document.querySelectorAll<HTMLElement>('.list-ctl [data-item]')) {
+    const msg = iss.filter((i) => i.field === r.dataset.item).map((i) => i.msg).join('; ');
+    r.querySelector('.issue')!.textContent = msg;
+    r.classList.toggle('invalid', !!msg);
+  }
+  const extra = iss.filter((i) => !(i.field in shape) && !Object.keys(shape).some((k) => i.field.startsWith(`${k}[`)));
   $('aside').replaceChildren(
     h('div', { cls: 'group', textContent: iss.length ? `${iss.length} problem${iss.length > 1 ? 's' : ''}` : 'No problems' }),
     ...extra.map((i) => h('div', { cls: 'issue', textContent: `${i.field || '(file)'}: ${i.msg}` })),

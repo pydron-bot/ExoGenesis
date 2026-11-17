@@ -9,4 +9,5 @@
   fails if they disagree (`tools/version-check.mjs`). Players see it under "What's new".
 - Test URLs: `?title=0` skips the title (resume or land), `?intro=0&new=1` starts deployed and fresh,
   `?sw=0` skips the service worker (production builds register one: offline + installable, see README).
-  Smoke tests in `tools/*-smoke.mjs` run against the dev server on :5176.
+  `?story=<id>` fires a story event once deployed. Smoke tests in `tools/*-smoke.mjs` run against the
+  dev server on :5176 (don't edit source files while they run: the dev server reloads the page).

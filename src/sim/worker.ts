@@ -3,6 +3,7 @@
  * fixed tick; the main thread only renders snapshots and sends commands.
  */
 import { AUTOSAVE, delSave, putSave, type AutoSave } from '../save';
+import { content } from '../content';
 import { Sim, useRegion } from './core';
 import { TICK_MS, type FromWorker, type ToWorker } from './types';
 
@@ -46,6 +47,8 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
   const msg = e.data;
   if (msg.type === 'init') {
     region = useRegion(msg.region, msg.def);
+    // the editor's play test: an unsaved story event joins the content
+    if (msg.story) content.story[msg.story.id] = msg.story.def;
     sim = new Sim((text, level, cue) => post({ type: 'event', text, level, cue }));
     snapshot();
     last = performance.now();

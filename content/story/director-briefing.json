@@ -1,0 +1,12 @@
+{
+  "title": "Mission Briefing",
+  "speaker": "The Director",
+  "text": "Accord, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: a hundred and twenty lives, frozen. Keep them cold, keep them safe, and give them a world to wake up to. Power first. Everything else after.",
+  "trigger": "start",
+  "delay": 2,
+  "region": "touchdown",
+  "pause": true,
+  "effects": [
+    { "after": 0, "kind": "flag", "flag": "briefed" }
+  ]
+}

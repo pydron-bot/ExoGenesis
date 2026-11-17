@@ -166,7 +166,9 @@ Clues that expose the lie (from `DESIGN.md` §3), and where they land:
 
 ### Open planet — story events
 These fire on triggers (time, discoveries, milestones, Trust shifts), not in a fixed order.
-Each is a Story-editor record: trigger → message or choice → effects.
+Each is a Story-editor record: trigger → message or choice → effects. Built (v0.18.0): `content/story/` (DESIGN.md §6.4). Written so far: the Director's briefing
+(start), First Night (Sol 1.5), E1 The Stone (Touchdown's `east-stone` site), E3 First Question
+(first colonist + 150 s). E4/E5 for the Vell are the inhabitant cards (`content/inhabitants/vell.json`).
 
 | # | Event | Trigger | What happens |
 |---|---|---|---|

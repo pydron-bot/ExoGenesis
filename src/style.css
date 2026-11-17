@@ -210,6 +210,7 @@ body.placing #card { display: none !important; }
   background: rgba(6,14,22,.9); border: 1px solid rgba(255,181,71,.55); border-radius: 6px; padding: 12px 14px; display: none; pointer-events: auto;
 }
 #contact.on { display: block; }
+#contact .who { color: var(--cyan-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2px; }
 #contact .t { color: var(--amber); letter-spacing: 0.16em; font-weight: 600; text-transform: uppercase; }
 #contact p { margin: 6px 0 10px; line-height: 1.45; font-size: 13px; }
 #contact .grp { display: flex; flex-wrap: wrap; gap: 6px; }

@@ -104,5 +104,14 @@
       "group": "vell",
       "yaw": 130
     }
+  ],
+  "sites": [
+    {
+      "id": "east-stone",
+      "label": "Carved stone (E1)",
+      "x": 90,
+      "z": 30,
+      "r": 10
+    }
   ]
 }
