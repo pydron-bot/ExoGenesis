@@ -10,6 +10,7 @@ import './editor.css';
 import { COLLECTIONS, CONDITION_HELP, type BuildingDef, type UnitDef, EFFECT_HELP, ID_RE, PREVIEW_KEY, locate, pathOf, type Collection, type CollectionName, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
 import { applies, blank, type Field, type IdIndex, type Issue, type ListField } from '../content/schema';
 import { renderFlow } from './flow';
+import { renderPlanet } from './planet';
 import { buildDb, REQUIRED, requiredIssues } from '../content/db';
 import { collectText, diffContent, renameRefs, renderChanges, renderCompare, renderProblems, renderText, setAt, type PathIssue, type Rec, type TextEntry } from './pages';
 import { refsTo, renderBalance, renderReview, searchContent, type ReviewFile } from './tools';
@@ -242,6 +243,7 @@ function renderSide() {
       bal.onclick = () => showPage('balance');
       side.append(bal);
     }
+    if (g === 'Maps') side.append(tool('planet', 'Planet', 'all regions'));
     if (g === 'Story') {
       const fl = h('button', { cls: view === 'flow' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Story flow' }), h('small', { textContent: 'overview' }));
       fl.onclick = () => showPage('flow');
@@ -886,7 +888,7 @@ async function poll() {
       }
       changed();
     }
-    if (isPage(view) && view !== 'text' && !cur && signature() !== librarySig) { PAGES[view](); librarySig = signature(); }
+    if (isPage(view) && view !== 'text' && view !== 'planet' && !cur && signature() !== librarySig) { PAGES[view](); librarySig = signature(); }
     if (view === 'library' && !cur && signature() !== librarySig) {
       renderLibrary($('main'), $('aside'), assetHost);
       librarySig = signature();
@@ -1024,9 +1026,35 @@ async function drawChanges() {
     if (view === 'changes' && !cur) $('main').replaceChildren(h('div', { cls: 'head' }, h('h1', { textContent: 'Since last release' })), h('p', { cls: 'err', textContent: `Couldn't load the last release: ${(e as Error).message}` }));
   }
 }
+function drawPlanet() {
+  viewHandle?.dispose();
+  viewHandle = renderPlanet($('main'), $('aside'), {
+    regions: recordsOf('regions').filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => {
+      const d = r.rec.data as { name?: string; siteLat?: number; siteLon?: number };
+      return { id: r.id, name: d.name || r.id, lat: d.siteLat ?? 0, lon: d.siteLon ?? 0 };
+    }),
+    open: (id) => open('regions', id),
+    async save(moves) {
+      for (const m of moves) {
+        const p = pathOf('regions', m.id), rec = files.get(p);
+        if (!rec?.data) continue;
+        const data = structuredClone(rec.data) as Record<string, unknown>;
+        if (m.lat || m.lon) { data.siteLat = m.lat; data.siteLon = m.lon; } else { delete data.siteLat; delete data.siteLon; }
+        const text = serialize('regions', data);
+        try {
+          const r = await api<{ hash: string }>('PUT', '/__content/file', { path: p, text, baseHash: rec.hash });
+          files.set(p, { path: p, hash: r.hash, data: JSON.parse(text) });
+        } catch (e) { toast(`Couldn't save ${m.id}: ${(e as Error).message}`, true); return; }
+      }
+      librarySig = signature();
+      toast(`Saved ${moves.length} region position${moves.length > 1 ? 's' : ''}`);
+      void refreshGit();
+    },
+  });
+}
 const PAGES = {
   flow: drawFlow, balance: drawBalance, review: () => void drawReview(), problems: drawProblems, compare: drawCompare, text: drawText,
-  changes: () => void drawChanges(),
+  changes: () => void drawChanges(), planet: drawPlanet,
 } as const;
 type PageName = keyof typeof PAGES;
 const isPage = (v: unknown): v is PageName => typeof v === 'string' && v in PAGES;

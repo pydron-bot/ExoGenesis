@@ -325,3 +325,15 @@ button.tx-name small { color: var(--dim); }
 .chg-notes { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12px/1.5 ui-monospace, monospace; margin-bottom: 6px; }
 table.cmp th, table.cmp td { text-align: left; white-space: normal; }
 table.cmp th { cursor: default; }
+
+/* ---------- planet ---------- */
+.planet-wrap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; line-height: 0; }
+canvas.planet-map { width: 100%; height: auto; image-rendering: auto; display: block; cursor: crosshair; touch-action: none; }
+.planet-readout { color: var(--dim); font: 12px ui-monospace, monospace; padding: 6px 2px; min-height: 2em; }
+.planet-list { padding: 0 12px; }
+.planet-row { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 8px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.planet-row > div:first-child { grid-column: 1 / -1; }
+.planet-row > div.dim { grid-column: 1 / -1; font-size: 12px; }
+.planet-row.moved { border-left: 3px solid var(--amber); padding-left: 6px; }
+.planet-num { width: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+.planet-list .issue { padding: 6px 4px; font-size: 12px; }

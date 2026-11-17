@@ -37,28 +37,31 @@ const bodyDir = (d: THREE.Vector3) => (siteTurned ? _sd.copy(d).applyQuaternion(
 /** Point the region at `lat` degrees north and `lon` degrees east of Touchdown. */
 export function setRegionSite(lat = 0, lon = 0) {
   siteTurned = lat !== 0 || lon !== 0;
-  const la = THREE.MathUtils.degToRad(lat), lo = THREE.MathUtils.degToRad(lon);
-  const t = new THREE.Vector3().copy(U).multiplyScalar(Math.cos(la) * Math.cos(lo))
-    .addScaledVector(E, Math.cos(la) * Math.sin(lo)).addScaledVector(N, Math.sin(la)).normalize();
-  siteQ.setFromUnitVectors(U, t);
+  siteQ.setFromUnitVectors(U, siteDir(lat, lon));
   coreH = null;
+}
+/** Planet-body direction of a site `lat` degrees north and `lon` east of Touchdown. */
+export function siteDir(lat: number, lon: number, out = new THREE.Vector3()) {
+  const la = THREE.MathUtils.degToRad(lat), lo = THREE.MathUtils.degToRad(lon);
+  return out.copy(U).multiplyScalar(Math.cos(la) * Math.cos(lo)).addScaledVector(E, Math.cos(la) * Math.sin(lo)).addScaledVector(N, Math.sin(la)).normalize();
 }
 let siteName = 'TOUCHDOWN';
 /** The loaded region's name (the globe labels its province with it). */
 export const regionName = () => siteName;
 
+/** The planet's generated height at body direction `b`, before the lift under the region being played. */
+export const bodyHeight = (b: THREE.Vector3) => fbm3(b.x * 2.1 + 3.1, b.y * 2.1, b.z * 2.1 - 1.7, 6, 7) * 90;
+/** The region being played sits on dry land: ground within ~15° of its centre is lifted (`ang` in radians). */
+export const siteLift = (ang: number) => (1 - smoothstep(0.04, 0.26, ang)) * 40;
+export const bodyFlora = (b: THREE.Vector3) => fbm3(b.x * 14 + 11, b.y * 14, b.z * 14, 3, 33);
+
 export function globeHeight(d: THREE.Vector3): number {
-  const b = bodyDir(d);
-  let h = fbm3(b.x * 2.1 + 3.1, b.y * 2.1, b.z * 2.1 - 1.7, 6, 7) * 90;
   // keep the landing site (and the tutorial regions around it) on dry land
-  const ang = Math.acos(Math.min(1, d.dot(U)));
-  h += (1 - smoothstep(0.04, 0.26, ang)) * 40;
-  return h;
+  return bodyHeight(bodyDir(d)) + siteLift(Math.acos(Math.min(1, d.dot(U))));
 }
 
 export function floraAt(d: THREE.Vector3): number {
-  const b = bodyDir(d);
-  return fbm3(b.x * 14 + 11, b.y * 14, b.z * 14, 3, 33);
+  return bodyFlora(bodyDir(d));
 }
 
 /** Generated terrain before any hand sculpting. */
