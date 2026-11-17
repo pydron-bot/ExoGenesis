@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.16.1',
+    date: '2026-11-17',
+    title: 'Clearer names',
+    notes: [
+      'The AI-led growth pod imprint is now called Guardian (it was Unity)',
+      'Leading-bloc boosts renamed: Partners give Symbiosis (was Accord) and the Devoted give Vigil (was Unity). Autonomists still give Wardens',
+    ],
+  },
+  {
     version: '0.16.0',
     date: '2026-11-17',
     title: 'Who leads the colony',

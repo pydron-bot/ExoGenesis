@@ -25,8 +25,8 @@ export function boostText(b: Bloc, r: PeopleRules): { name: string; does: string
   const pct = (x: number) => `${Math.round(Math.abs(x - 1) * 100)}%`;
   switch (b) {
     case 'autonomist': return { name: 'Wardens', does: `People fight back from the buildings they're in (${r.militiaDamage} damage each, up to ${r.militiaMax} a building, ${r.militiaRange} u) and take ${pct(r.wardenHarm)} less harm outdoors` };
-    case 'partner': return { name: 'Accord', does: `Colonists at work add ${pct(r.partnerStaff)} more to their buildings` };
-    case 'devoted': return { name: 'Unity', does: `Drones build and repair ${pct(r.devotedDrones)} faster; buildings draw ${pct(r.devotedPower)} less power` };
+    case 'partner': return { name: 'Symbiosis', does: `Colonists at work add ${pct(r.partnerStaff)} more to their buildings` };
+    case 'devoted': return { name: 'Vigil', does: `Drones build and repair ${pct(r.devotedDrones)} faster; buildings draw ${pct(r.devotedPower)} less power` };
   }
 }
 

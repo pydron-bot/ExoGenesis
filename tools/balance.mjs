@@ -2,7 +2,7 @@
  * Headless balance runs: plays the real sim (src/sim/core.ts) for N game
  * minutes with scripted strategies and prints a timeline, so tuning content/
  * numbers is measured, not guessed.
- *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed|fortress|combined|people] [--imprint charter|heritage|unity] [--peaceful] [--policy hours=long,council=directive] [--region touchdown] [--quiet]
+ *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed|fortress|combined|people] [--imprint charter|heritage|guardian] [--peaceful] [--policy hours=long,council=directive] [--region touchdown] [--quiet]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -130,7 +130,7 @@ function run(name) {
         if (s.people.colonists.length + s.people.pods.length >= housing - 1) continue; // leave room for children
         const have = (k) => s.people.colonists.filter((c) => c.specialty === k).length + s.people.pods.filter((p) => p.specialty === k).length;
         const sp = [...want].sort((a, b) => have(a) - have(b))[0];
-        sim.command({ type: 'grow', id: b.id, specialty: sp, curriculum: arg('--imprint', 'charter') });
+        sim.command({ type: 'grow', id: b.id, specialty: sp, curriculum: { guardian: 'unity' }[arg('--imprint', 'charter')] ?? arg('--imprint', 'charter') });
       }
     }
     // the army: idle units go after any hostile near the base, then come home

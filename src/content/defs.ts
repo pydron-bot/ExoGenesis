@@ -143,9 +143,9 @@ export const peopleRulesShape = {
   militiaCooldown: num({ label: 'Wardens: time between hits', min: 0.1, max: 30, step: 0.1, unit: 's' }),
   militiaMax: int({ label: 'Wardens: most per building', min: 1, max: 20, help: 'Only this many Autonomists in one building fight.' }),
   wardenHarm: num({ label: 'Wardens: harm outdoors', min: 0, max: 1, step: 0.05, help: 'Autonomist-led: predators do this much of their damage to colonists outdoors (0.5 = half).' }),
-  partnerStaff: num({ label: 'Accord: staff bonus ×', min: 1, max: 5, step: 0.05, help: 'Partner-led: the staffing bonus is multiplied by this.' }),
-  devotedDrones: num({ label: 'Unity: drone work ×', min: 1, max: 5, step: 0.05, help: 'Devoted-led: drones build and repair this much faster.' }),
-  devotedPower: num({ label: 'Unity: power draw ×', min: 0.1, max: 1, step: 0.05, help: 'Devoted-led: buildings draw this much of their power.' }),
+  partnerStaff: num({ label: 'Symbiosis: staff bonus ×', min: 1, max: 5, step: 0.05, help: 'Partner-led: the staffing bonus is multiplied by this.' }),
+  devotedDrones: num({ label: 'Vigil: drone work ×', min: 1, max: 5, step: 0.05, help: 'Devoted-led: drones build and repair this much faster.' }),
+  devotedPower: num({ label: 'Vigil: power draw ×', min: 0.1, max: 1, step: 0.05, help: 'Devoted-led: buildings draw this much of their power.' }),
 } satisfies Shape;
 export type PeopleRules = Infer<typeof peopleRulesShape>;
 

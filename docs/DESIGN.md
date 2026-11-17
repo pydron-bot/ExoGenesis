@@ -579,7 +579,7 @@ Rule: each tool is built when the milestone in progress needs it, not ahead of t
 Code: `src/sim/people.ts` (+ `people-types.ts`, `names.ts`), HUD `src/people-hud.ts`, walkers
 `src/world/colonists.ts`. Numbers in `content/rules/people.json` (editor: Rules → People rules).
 Test: `tools/people-smoke.mjs`; headless: `node tools/balance.mjs --strategy people [--peaceful]
-[--imprint charter|heritage|unity] [--policy council=assembly,…]`.
+[--imprint charter|heritage|guardian] [--policy council=assembly,…]`.
 
 - **Clock:** 1 sol = 1 year (sol = 6 real minutes). Pod-grown colonists step out at 16; lifespan ~75.
 - **Cryo bank = 120 embryos in 24 lineages.** Integrity % stays the thermal buffer driven by power;
@@ -589,7 +589,7 @@ Test: `tools/people-smoke.mjs`; headless: `node tools/balance.mjs --strategy peo
   **Hydroponics** (role `farm`, 60◆, −1.2 MW): biomass, 2 Botanist slots. Biomass is a new
   stockpile (🌱); colonists eat it, pods eat it.
 - **Growth pods:** pick a **specialty** and an **imprint** (what the AI teaches):
-  *Charter* (partnership, stance ~58), *Heritage* (human self-reliance, ~24), *Unity* (AI as
+  *Charter* (partnership, stance ~58), *Heritage* (human self-reliance, ~24), *Guardian* (id `unity` in code and saves; AI as
   guardian, ~88). The pod takes the rarest surviving lineage (keeps diversity up). 1 sol, 1.5 MW
   + biomass the whole time; 60 s without power or biomass kills the child (×1.5 with a Medic at
   work). Pods share the cryo bank's power priority. Stoppable only before 25%.
@@ -632,7 +632,7 @@ turrets: the people economy competes with defense — tune after a playtest.
 least `leadMin` (4), leads it and turns on a boost (People rules, editor-tunable):
 **Wardens** (Autonomists; the human path's natural defence): buildings with Autonomists inside
 strike predators within 12 u (5 damage each, up to 3 a building, every 1.5 s, no power needed),
-and colonists outdoors take half harm. **Accord** (Partners): staffing bonus ×1.5. **Unity**
+and colonists outdoors take half harm. **Symbiosis** (Partners): staffing bonus ×1.5. **Vigil**
 (Devoted): drones build/repair ×1.3, buildings draw ×0.85. The log announces a change of lead;
 the Colony panel shows each boost. Test: `tools/lead-smoke.mjs` (headless). The imprint picks
 the lean, so committing to one imprint is what earns a boost.

@@ -1,7 +1,7 @@
 /**
  * Leading blocs (headless, the real sim): when one bloc holds enough of the
  * adults it leads and its boost comes on. Wardens (Autonomists) fight from the
- * buildings and take less harm outdoors; Accord (Partners) staff better; Unity
+ * buildings and take less harm outdoors; Symbiosis (Partners) staff better; Vigil
  * (Devoted) drones work faster and buildings draw less power.
  *   node tools/lead-smoke.mjs
  */
@@ -57,24 +57,24 @@ check(w.inside > 0 && w.inside <= P.militiaMax, `Autonomists inside fight (${w.i
 check(w.hp < w.hp0, `Wardens hurt a predator next to their building (${w.hp0} → ${w.hp.toFixed(0)})`);
 check(p.hp >= p.hp0 - 1e-6 || p.hp > w.hp, `a Partner-led building doesn't fight back (${p.hp0} → ${p.hp.toFixed(0)})`);
 
-// Unity: drones and power
-check(dev.sim.people.droneWork() === P.devotedDrones && dev.sim.people.powerDraw() === P.devotedPower, 'Unity: faster drones, lower draw');
+// Vigil: drones and power
+check(dev.sim.people.droneWork() === P.devotedDrones && dev.sim.people.powerDraw() === P.devotedPower, 'Vigil: faster drones, lower draw');
 const drawOf = (s) => { for (let i = 0; i < 10; i++) s.sim.step(); return s.sim.power.draw; };
 const pa = colony(55);
-check(drawOf(dev) < drawOf(pa), `Unity colony draws less power (${dev.sim.power.draw.toFixed(2)} vs ${pa.sim.power.draw.toFixed(2)} MW)`);
+check(drawOf(dev) < drawOf(pa), `Vigil colony draws less power (${dev.sim.power.draw.toFixed(2)} vs ${pa.sim.power.draw.toFixed(2)} MW)`);
 
-// Accord: staffing
+// Symbiosis: staffing
 const staff = (s) => Math.max(...s.sim.s.buildings.map((b) => s.sim.people.mult(b)));
 const acc = colony(55), un = colony(92);
 for (let i = 0; i < 600; i++) { acc.sim.step(); un.sim.step(); }
 check(acc.sim.people.lead() === 'partner', 'still Partner-led after a minute');
-console.log(`      best staffed building: Accord ×${staff(acc).toFixed(2)}, Unity ×${staff(un).toFixed(2)}`);
+console.log(`      best staffed building: Symbiosis ×${staff(acc).toFixed(2)}, Vigil ×${staff(un).toFixed(2)}`);
 
 // losing the lead
 const lose = colony(15);
 for (const c of lose.sim.s.people.colonists) c.stance = 55;
 for (let i = 0; i < 20; i++) lose.sim.step();
-check(lose.sim.people.lead() === 'partner' && lose.log.some((t) => /Accord/.test(t)), 'the lead changes hands when opinion moves');
+check(lose.sim.people.lead() === 'partner' && lose.log.some((t) => /Symbiosis/.test(t)), 'the lead changes hands when opinion moves');
 
 console.log(failed ? `\n${failed} check(s) failed` : '\nall lead checks passed');
 process.exit(failed ? 1 : 0);

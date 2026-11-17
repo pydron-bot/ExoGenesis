@@ -39,11 +39,11 @@ const ALERT_HOLD = 10;
 const UNPOD_BEFORE = 0.25;
 const SHIFTS = { short: [8, 16], standard: [7, 18], long: [6, 21] } as const;
 /** The boost each leading bloc gives (names shown in the HUD and the log). */
-export const BOOST: Record<Bloc, string> = { autonomist: 'Wardens', partner: 'Accord', devoted: 'Unity' };
+export const BOOST: Record<Bloc, string> = { autonomist: 'Wardens', partner: 'Symbiosis', devoted: 'Vigil' };
 const LEAD_NEWS: Record<Bloc, string> = {
   autonomist: 'Autonomists lead the colony · Wardens: people fight back from the buildings they are in, and take less harm outdoors',
-  partner: 'Partners lead the colony · Accord: colonists at work add half as much again to their buildings',
-  devoted: 'The Devoted lead the colony · Unity: drones work faster and buildings draw less power',
+  partner: 'Partners lead the colony · Symbiosis: colonists at work add half as much again to their buildings',
+  devoted: 'The Devoted lead the colony · Vigil: drones work faster and buildings draw less power',
 };
 
 /** Wellbeing each bloc gets from each policy choice. */

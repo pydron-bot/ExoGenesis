@@ -21,7 +21,7 @@ export const blocOf = (stance: number): Bloc => (stance < AUTONOMIST_BELOW ? 'au
 export const CURRICULA = {
   charter: { name: 'Charter', stance: 58, help: 'The Accord charter: humans and the AI as partners. An honest, careful history of Earth.' },
   heritage: { name: 'Heritage', stance: 24, help: 'Human history, art and self-reliance. Skilled and proud; wary of the AI.' },
-  unity: { name: 'Unity', stance: 88, help: 'The AI as guardian and future. Tireless workers who see little need for families.' },
+  unity: { name: 'Guardian', stance: 88, help: 'The AI as guardian and future. Tireless workers who see little need for families.' },
 } as const;
 export type Curriculum = keyof typeof CURRICULA;
 
