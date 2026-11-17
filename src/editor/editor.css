@@ -385,3 +385,27 @@ details.setup[open] summary { margin-bottom: 6px; }
 .setup-builds button { padding: 2px 8px; font-size: 12px; }
 .setup-builds button.on { border-color: var(--accent); color: #fff; }
 details.setup .help { color: var(--dim); font-size: 12px; }
+
+/* ---------- cinematic timeline ---------- */
+.tl-wrap { margin: 0 0 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0 8px; }
+svg.tl { display: block; width: 100%; user-select: none; touch-action: none; cursor: crosshair; }
+.tl-tick { stroke: var(--dim); stroke-opacity: .5; }
+.tl-lbl { fill: var(--dim); font: 10px ui-monospace, monospace; }
+.tl-row { fill: var(--dim); font: 11px system-ui, sans-serif; }
+.tl-beat-line { stroke: var(--amber); stroke-opacity: .22; stroke-dasharray: 2 3; }
+.tl-beat rect { fill: var(--amber); cursor: ew-resize; }
+.tl-beat .tl-name { fill: var(--amber); font: 11px system-ui, sans-serif; pointer-events: none; }
+.tl-key path { fill: var(--accent); stroke: #001820; cursor: ew-resize; }
+.tl-key.probe path { fill: #ff9a5c; }
+.tl-key-line { stroke: var(--accent); stroke-opacity: .12; }
+.tl-cap rect { fill: rgba(63, 214, 255, .14); stroke: rgba(63, 214, 255, .5); cursor: ew-resize; }
+.tl-cap text { fill: var(--text); font: 10px ui-monospace, monospace; pointer-events: none; }
+.tl-curve { fill: none; stroke-width: 1.5; }
+.tl-curve.dist { stroke: var(--accent); } .tl-curve.pitch { stroke: var(--good); } .tl-curve.yaw { stroke: #c49cff; }
+.tl-play { stroke: #fff; stroke-opacity: .7; pointer-events: none; }
+.tl-play-head { fill: #fff; pointer-events: none; }
+.tl-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 12px 0; }
+.tl-info { color: var(--dim); font: 12px ui-monospace, monospace; }
+.row.flash, [data-item].flash { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: rgba(255, 181, 71, .25); } }
+.tl-bar button { white-space: nowrap; }

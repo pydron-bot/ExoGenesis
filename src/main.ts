@@ -7,7 +7,7 @@ import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
 import { content, contentIssues, type RegionDef } from './content';
-import { PREVIEW_KEY, type MissionDef, type StoryDef } from './content/defs';
+import { PREVIEW_KEY, type LandingDef, type MissionDef, type StoryDef } from './content/defs';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, globeMesh, R, U, regionHeight, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
@@ -131,7 +131,7 @@ const skirmishMode = params.get('mode') === 'skirmish';
 // the editor's Play test button left in localStorage (unsaved edits included).
 const preview = params.get('preview') === '1' ? readPreview() : null;
 const scratch = params.get('scratch') === '1' || !!preview;
-function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup } | null {
+function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup; landing?: LandingDef } | null {
   try {
     const p = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
     return p?.id && p.def ? p : null;
@@ -357,7 +357,10 @@ function startLanding() {
       landing = null;
       for (const [text, level] of heldLog.splice(0)) log(text, level);
     },
-  });
+  }, preview?.landing);
+  // ?cine=<seconds>: start part-way in (the editor's "play from the playhead")
+  const from = Number(params.get('cine'));
+  if (from > 0) landing.seek(from);
 }
 if (!skirmishMode && !useTitle) {
   if (resumed) startResume();

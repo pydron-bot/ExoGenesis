@@ -13,6 +13,7 @@ import { renderFlow } from './flow';
 import { renderPlanet } from './planet';
 import { balanceRunPanel } from './balance-run';
 import { playSetup, setupPanel } from './playsetup';
+import { timelinePanel } from './timeline';
 import { analyzeFlow } from './flow';
 import { buildDb, REQUIRED, requiredIssues } from '../content/db';
 import { collectText, diffContent, renameRefs, renderChanges, renderCompare, renderProblems, renderText, setAt, type PathIssue, type Rec, type TextEntry } from './pages';
@@ -22,7 +23,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { mediaUrl, setMediaOverride, type CharacterDef } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type LandingDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -56,6 +57,8 @@ let cur: Current | null = null;
 let mapEd: MapEditor | null = null;
 let assetPanel: AssetPanel | null = null;
 let viewHandle: { dispose(): void } | null = null;
+/** The landing's timeline, while Cinematics → Landing is open. */
+let timeline: { el: HTMLElement; update(): void } | null = null;
 /** What the main pane shows when no record is open. */
 let view: 'none' | 'library' | PageName | { builtin: string } = 'none';
 /** The Compare page's records. */
@@ -77,6 +80,7 @@ function teardown() {
   assetPanel = null;
   viewHandle?.dispose();
   viewHandle = null;
+  timeline = null;
   $('main').classList.remove('map-mode');
 }
 
@@ -657,6 +661,30 @@ function renderForm() {
   let panel: HTMLElement | null = null;
   if (cur.coll === 'story') panel = storyPanel();
   if (cur.coll === 'missions') panel = missionPanel();
+  timeline = null;
+  if (cur.coll === 'landing') {
+    timeline = timelinePanel({
+      draft: () => cur!.draft as unknown as LandingDef,
+      changed,
+      rerender: () => renderForm(),
+      reveal(field) {
+        const row = document.querySelector<HTMLElement>(`[data-item="${field}"]`) ?? document.querySelector<HTMLElement>(`.row[data-key="${field}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        row.querySelector<HTMLElement>('input, select, textarea')?.focus({ preventScroll: true });
+        row.classList.remove('flash');
+        void row.offsetWidth;
+        row.classList.add('flash');
+      },
+      play(from) {
+        try {
+          localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: 'touchdown', def: files.get(pathOf('regions', 'touchdown'))?.data, landing: cur!.draft }));
+        } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
+        window.open(`${import.meta.env.BASE_URL}?preview=1&title=0${from > 0 ? `&cine=${from.toFixed(1)}` : ''}`, 'exo-playtest');
+      },
+    });
+    panel = timeline.el;
+  }
   if (cur.coll === 'characters') panel = h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'char-card' }), h('div', { cls: 'char-lines', id: 'char-lines' }));
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
@@ -709,6 +737,7 @@ function changed() {
   assetPanel?.update(cur.draft as unknown as AssetDef);
   if (cur.coll === 'story') renderStoryPreview();
   if (cur.coll === 'characters') renderCharacter();
+  timeline?.update();
   if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {
     $('main').querySelector('.map-issues')?.remove();

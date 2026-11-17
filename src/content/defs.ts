@@ -500,6 +500,46 @@ export const regionShape = {
   sites: list(siteShape, { label: 'Story sites', max: 40, optional: true }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
+/**
+ * The landing cinematic (src/landing.ts): when each beat happens, where the
+ * camera is, and the captions. Everything else about the landing (the probe's
+ * path, the petals, the dust) follows the beats.
+ */
+const beat = (label: string, help: string) => num({ label, min: 0, max: 120, step: 0.1, unit: 's', help });
+export const cameraKeyShape = {
+  at: num({ label: 'At', min: 0, max: 120, step: 0.05, unit: 's' }),
+  target: choice(['probe', 'site'], { label: 'Looks at', helps: { probe: 'The probe as it comes down (Lift above it).', site: 'A point on the ground: X, Z and Lift (region units; the Core is at 0, 0).' } }),
+  x: num({ label: 'X', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
+  z: num({ label: 'Z', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
+  lift: num({ label: 'Lift', min: -20, max: 200, step: 0.5, unit: 'u', default: 0 }),
+  dist: num({ label: 'Distance', min: 5, max: 3000, step: 0.5, unit: 'u', help: 'From what it looks at.' }),
+  follow: num({ label: 'Pull back with height', min: 0, max: 5, step: 0.05, optional: true, when: on('target', ['probe'], false), help: 'Extra distance for each unit of the probe\'s altitude (so the chase widens high up).' }),
+  pitch: num({ label: 'Pitch', min: -1.5, max: 1.5, step: 0.01, unit: 'rad', help: '0 = level, higher = looking down from above.' }),
+  yaw: num({ label: 'Yaw', min: -6.3, max: 6.3, step: 0.01, unit: 'rad', help: 'Round the target; 0 = from the south.' }),
+} satisfies Shape;
+export type CameraKeyDef = Infer<typeof cameraKeyShape>;
+export const captionShape = {
+  at: num({ label: 'At', min: 0, max: 120, step: 0.05, unit: 's' }),
+  title: str({ label: 'Title' }),
+  sub: str({ label: 'Line', optional: true, help: '{alt} = altitude (km), {speed} = speed (m/s), {shield} = heat-shield temperature (°C).' }),
+} satisfies Shape;
+export const landingShape = {
+  burn: beat('Retro burn', 'The thrusters light.'),
+  touchdown: beat('Touchdown', 'The probe lands (the dust burst, the drone stage starts).'),
+  open: beat('Shell opens', 'The petals start to fold out.'),
+  power: beat('Core power', 'The Core\'s lights come up.'),
+  dissolve: beat('Reclaim starts', 'The petals start dissolving.'),
+  reclaimed: beat('Reclaimed', 'The shell is gone.'),
+  hatch: beat('Bay opens', 'The drone bay hatch opens.'),
+  drone: beat('Drone out', 'The worker drone appears in the bay.'),
+  post: beat('Drone at post', 'The drone reaches its post; the colony deploys.'),
+  end: beat('End', 'The cinematic hands over to the normal view.'),
+  camera: list(cameraKeyShape, { label: 'Camera keys', max: 60, help: 'The camera passes smoothly through each key in time order. The last should match the normal view (looking at 0, −8 from 75 u, pitch 0.85, yaw 0.4) so the hand-over doesn\'t jump.' }),
+  captions: list(captionShape, { label: 'Captions', max: 40, help: 'Each shows from its time until the next.' }),
+} satisfies Shape;
+export type LandingDef = Infer<typeof landingShape>;
+export const BEATS = ['burn', 'touchdown', 'open', 'power', 'dissolve', 'reclaimed', 'hatch', 'drone', 'post', 'end'] as const;
+
 /** localStorage key: the editor's Play test leaves { id, def } here for the game's ?preview=1. */
 export const PREVIEW_KEY = 'exo.preview';
 
@@ -528,6 +568,7 @@ export const COLLECTIONS = {
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },
   sound: { path: 'rules/sound.json', kind: 'single', shape: soundRulesShape, label: 'Sound', group: 'Rules' },
+  landing: { path: 'rules/landing.json', kind: 'single', shape: landingShape, label: 'Landing', group: 'Cinematics' },
 } satisfies Record<string, Collection>;
 
 export type CollectionName = keyof typeof COLLECTIONS;
