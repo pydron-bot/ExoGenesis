@@ -20,7 +20,7 @@ import type { Colonist } from './people-types';
 import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, wallsUnderGate, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
-  type Building, type Command, type EventCue, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
+  type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
 } from './types';
 
 const RULES = content.colony;
@@ -994,6 +994,52 @@ export class Sim {
     if (b.kind === 'core') this.lose('core');
   }
 
+  /** The editor's play test setup (see PlaySetup): a colony as it might be later in the game. */
+  private playSetup(p: PlaySetup) {
+    const s = this.s, done: string[] = [];
+    if (p.sol && p.sol > 1) {
+      // move the clock on; what's scheduled moves with it (the next pack keeps its countdown)
+      const to = Math.round((p.sol - 1) * RULES.solSeconds * TICK_HZ), shift = to - s.tick;
+      if (shift > 0) {
+        s.tick = to;
+        s.waves.next += shift;
+        for (const t of s.story?.timers ?? []) t.at += shift;
+        done.push(`Sol ${p.sol}`);
+      }
+    }
+    if (p.alloys) { s.alloys += p.alloys; done.push(`${p.alloys} alloys`); }
+    let built = 0;
+    (p.buildings ?? []).forEach((kind, n) => {
+      const dd = DEFS[kind];
+      if (!dd || dd.role === 'core') return;
+      // where it would go: a depot by a deposit, a tap on a vent, anything else round the Core
+      let tx = Math.sin(n * 2.4) * 24, tz = -Math.cos(n * 2.4) * 24;
+      if (dd.role === 'depot') {
+        const d = s.deposits.filter((x, i) => x.alloys > 0 && !s.buildings.some((b) => b.mining === i)).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];
+        if (d) { tx = d.x * 0.8; tz = d.z * 0.8; }
+      } else if (dd.role === 'geothermal') {
+        const v = VENTS.find((x) => !s.buildings.some((b) => Math.hypot(b.x - x.x, b.z - x.z) < 6));
+        if (v) { tx = v.x; tz = v.z; }
+      }
+      for (let r = 0; r < 80; r += 2) {
+        const k = Math.max(1, Math.round(r * 1.2));
+        for (let i = 0; i < k; i++) {
+          const a = (i / k) * Math.PI * 2, x = tx + Math.cos(a) * r, z = tz + Math.sin(a) * r;
+          if (placeProblem(this.world, DEFS, RULES, kind, x, z)) continue;
+          s.buildings.push({ id: s.nextId++, kind, x, z, yaw: 0, progress: 1, hp: dd.hp, on: true, powered: false });
+          built++;
+          return;
+        }
+      }
+    });
+    if (built) done.push(`${built} building${built > 1 ? 's' : ''}`);
+    if (p.colonists) { this.people.debug({ colonists: p.colonists }); done.push(`${p.colonists} colonist${p.colonists > 1 ? 's' : ''}`); }
+    for (const f of p.flags ?? []) if (f && !this.story.has(f)) this.story.s.flags.push(f);
+    if (p.flags?.length) done.push(`flags ${p.flags.join(', ')}`);
+    if (p.peaceful) { s.waves.next = Number.MAX_SAFE_INTEGER; done.push('no predators'); }
+    if (done.length) this.emit(`Play test: ${done.join(' · ')}`, 'info');
+  }
+
   /** People hooks: a building sabotaged to nothing, a death effect, a walking path. */
   sabotaged(b: Building) { this.destroyBuilding(b); }
   fxDeath(x: number, z: number) { this.fx.push(FX.DIE_SMALL, x, z, 0, 0); }
@@ -1217,6 +1263,7 @@ export class Sim {
         this.story.answer(c.id, c.choice);
         return;
       case 'debug': {
+        if (c.setup) this.playSetup(c.setup);
         if (c.story) this.story.fire(c.story);
         if (c.mission) this.missions.jump(c.mission);
         if (c.regard) this.inhabitants.setRegard(c.regard.camp, c.regard.value);

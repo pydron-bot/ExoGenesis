@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type InterfaceDef, type LandingDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -13,10 +13,13 @@ export interface ContentDb {
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
   missions: Record<string, MissionDef>;
+  characters: Record<string, CharacterDef>;
   colony: ColonyRules;
   threats: ThreatRules;
   people: PeopleRules;
   sound: SoundRules;
+  landing: LandingDef;
+  interface: InterfaceDef;
 }
 
 export interface FileIssue extends Issue {
@@ -54,10 +57,13 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     inhabitants: recs.inhabitants,
     story: recs.story,
     missions: recs.missions,
+    characters: recs.characters,
     colony: recs.colony.colony,
     threats: recs.threats.threats,
     people: recs.people.people,
     sound: recs.sound.sound,
+    landing: recs.landing.landing,
+    interface: recs.interface.interface,
   } as unknown as ContentDb;
   issues.push(...crossIssues(db0));
   return { db: db0, issues };
@@ -136,9 +142,29 @@ function crossIssues(db: ContentDb): FileIssue[] {
       if ((e?.after ?? 0) > (ev.choices?.length ?? 0)) out.push({ path: `story/${id}.json`, field: `effects[${n}].after`, msg: `there is no choice ${e.after}` });
     });
     if (ev.trigger === 'after' && ev.event === id) out.push({ path: `story/${id}.json`, field: 'event', msg: 'an event can\'t follow itself' });
+    if (ev.style === 'radio' && ev.choices?.length) out.push({ path: `story/${id}.json`, field: 'choices', msg: 'a radio message can\'t have choices (make it a card)' });
+    if (ev.style === 'radio' && ev.lines?.length) out.push({ path: `story/${id}.json`, field: 'lines', msg: 'a radio message is one line (make it a card for a conversation)' });
   }
   if (db.buildings.core && db.buildings.core.role !== 'core') out.push({ path: 'buildings/core.json', field: 'role', msg: 'must be core' });
   if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });
+  // the landing: beats in order, keys and captions in time order
+  const L = db.landing as unknown as Record<string, unknown> | undefined;
+  if (L && typeof L === 'object') {
+    const P = COLLECTIONS.landing.path;
+    BEATS.forEach((b, i) => {
+      const prev = BEATS[i - 1];
+      if (prev && typeof L[b] === 'number' && typeof L[prev] === 'number' && (L[b] as number) < (L[prev] as number)) out.push({ path: P, field: b, msg: `comes before ${COLLECTIONS.landing.shape[prev].label} (${L[prev]} s)` });
+    });
+    for (const k of ['camera', 'captions'] as const) {
+      const list = Array.isArray(L[k]) ? (L[k] as { at?: number }[]) : [];
+      list.forEach((x, n) => { if (n && (x?.at ?? 0) < (list[n - 1]?.at ?? 0)) out.push({ path: P, field: `${k}[${n}].at`, msg: 'out of time order' }); });
+      if (k === 'camera' && !list.length) out.push({ path: P, field: k, msg: 'needs at least one key' });
+    }
+  }
+  for (const [id, ch] of Object.entries(db.characters ?? {})) {
+    const a = ch?.portrait ? db.assets[ch.portrait] : undefined;
+    if (a && a.kind !== 'image') out.push({ path: `characters/${id}.json`, field: 'portrait', msg: `"${ch.portrait}" isn't an image` });
+  }
   for (const [id, a] of Object.entries(db.assets)) {
     if (!a || typeof a.file !== 'string' || !(a.kind in ASSET_EXT)) continue;
     const ext = a.file.split('.').pop()?.toLowerCase() ?? '';

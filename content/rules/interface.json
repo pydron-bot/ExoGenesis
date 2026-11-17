@@ -1,0 +1,12 @@
+{
+  "accent": "#5ff3ff",
+  "warning": "#ffb547",
+  "danger": "#ff4d5e",
+  "text": "#d6f6ff",
+  "panel": "#060e16",
+  "panelOpacity": 0.72,
+  "lineOpacity": 0.28,
+  "scale": 1,
+  "logLines": 5,
+  "logSeconds": 10.5
+}

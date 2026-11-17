@@ -215,6 +215,11 @@ async function readText(p: string, original = false): Promise<string> {
     if (t === undefined) throw new HttpErr(404, 'not in the content snapshot');
     return t;
   }
+  return readBlob(sha);
+}
+
+/** A blob's text by its git sha (cached in IndexedDB: blobs never change). */
+async function readBlob(sha: string): Promise<string> {
   const hit = await store<string>('blobs', 'readonly', (s) => s.get(sha));
   if (typeof hit === 'string') return hit;
   const r = await fetch(`${API}/git/blobs/${sha}`, { headers: { accept: 'application/vnd.github.raw+json', authorization: `Bearer ${token.get()}` } });
@@ -222,6 +227,30 @@ async function readText(p: string, original = false): Promise<string> {
   const text = await r.text();
   await store('blobs', 'readwrite', (s) => s.put(text, sha));
   return text;
+}
+
+/**
+ * Content as of the last release: the newest commit on main that changed
+ * package.json (every release bumps its version). File mode has no token, so
+ * it uses the deployed build's snapshot instead.
+ */
+async function release(): Promise<{ version: string; commit: string; date: string; message: string; files: Record<string, string> }> {
+  if (fileMode) {
+    const m = await fetchManifest();
+    const files: Record<string, string> = {};
+    for (const [p, f] of Object.entries(m.files)) if (p.startsWith('content/') && typeof f.text === 'string') files[p.slice(8)] = f.text;
+    return { version: '', commit: m.commit.slice(0, 7), date: '', message: `${m.message} (the deployed build)`, files };
+  }
+  const list = await gh<{ sha: string; commit: { message: string; committer: { date: string } } }[]>('GET', `/commits?sha=${BRANCH}&path=package.json&per_page=1`);
+  if (!list.length) throw new HttpErr(404, 'no release found');
+  const c = list[0];
+  const commit = await gh<{ tree: { sha: string } }>('GET', `/git/commits/${c.sha}`);
+  const tree = await fetchTree(commit.tree.sha);
+  const files: Record<string, string> = {};
+  await Promise.all([...tree].filter(([p]) => p.startsWith('content/') && p.endsWith('.json')).map(async ([p, e]) => { files[p.slice(8)] = await readBlob(e.sha); }));
+  const pkg = await gh<{ content: string }>('GET', `/contents/package.json?ref=${c.sha}`);
+  const version = (JSON.parse(atob(pkg.content.replace(/\s/g, ''))) as { version?: string }).version ?? '';
+  return { version, commit: c.sha.slice(0, 7), date: c.commit.committer.date.slice(0, 10), message: c.commit.message.split('\n')[0], files };
 }
 
 /** Where the editor should load a media file from: this session's upload if any, else the site's copy. */
@@ -371,6 +400,8 @@ async function handle(method: string, url: URL, body: unknown, raw: Blob | null)
       localMedia.delete(b.path ?? '');
       return {};
     }
+    case 'GET /__content/release':
+      return release();
     case 'GET /__content/git':
       return {
         changes: [...pending].map(([p, e]) => ({

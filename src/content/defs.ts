@@ -282,7 +282,7 @@ export type InhabitantDef = Infer<typeof inhabitantShape>;
  * Conditions: what starts a story event (its trigger) and what completes a
  * mission objective. One evaluator (src/sim/conditions.ts) serves both.
  */
-export const CONDITIONS = ['start', 'time', 'built', 'colonists', 'pod', 'units', 'drones', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'mission', 'never'] as const;
+export const CONDITIONS = ['start', 'time', 'built', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'units', 'drones', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'mission', 'never'] as const;
 export type Condition = (typeof CONDITIONS)[number];
 /** Read as "… when <help>" / "Fires <help>". */
 export const CONDITION_HELP: Record<Condition, string> = {
@@ -291,6 +291,9 @@ export const CONDITION_HELP: Record<Condition, string> = {
   built: 'when Count (default 1) finished buildings of that kind stand',
   colonists: 'when the colony has Count colonists (children too)',
   pod: 'when a growth pod is running (or someone has come out of one)',
+  firstAge: 'when the first colonist out of a pod is Count years old (1 sol = 1 year; they come out at the People rules\' age)',
+  acceptance: 'when the adults\' average acceptance of the AI reaches Count (0–100)',
+  distrust: 'when the adults\' average acceptance of the AI falls to Count or below (0–100)',
   units: 'when the colony has Count combat units',
   drones: 'when the colony has Count worker drones',
   packs: 'when Count predator packs have been destroyed',
@@ -324,7 +327,7 @@ const conditionFields = <K extends string>(kindKey: K, label: string) => ({
   [kindKey]: choice(CONDITIONS, { label, helps: CONDITION_HELP }),
   sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on(kindKey, ['time']) }),
   building: ref('buildings', { label: 'Building', optional: true, when: on(kindKey, ['built']) }),
-  count: int({ label: 'Count', min: 1, max: 10000, optional: true, help: 'Empty = 1.', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs'], false) }),
+  count: int({ label: 'Count', min: 0, max: 10000, optional: true, help: 'Empty = 1.', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'firstAge', 'acceptance', 'distrust'], false) }),
   site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on(kindKey, ['contact', 'trust']) }),
   flag: str({ label: 'Flag', optional: true, when: on(kindKey, ['flag']) }),
@@ -354,6 +357,27 @@ export const storyEffectShape = {
 } satisfies Shape;
 export type StoryEffectDef = Infer<typeof storyEffectShape>;
 
+/**
+ * A character (STORY.md §3): who is talking on story cards and in radio
+ * messages. `{first}` in a name or line becomes the first pod-born colonist's
+ * name.
+ */
+export const characterShape = {
+  name: str({ label: 'Name', help: 'Shown above what they say. {first} = the first colonist out of a pod (their name).' }),
+  role: str({ label: 'Role', optional: true, help: 'Under the name, smaller ("Sol Mission Control").' }),
+  color: color({ label: 'Colour', default: '#5ff3ff', help: 'Their name, and the edge of their cards.' }),
+  portrait: ref('assets', { label: 'Portrait', optional: true, assetKind: 'image', help: 'An image from the asset library (Assets), shown beside their lines.' }),
+  description: str({ label: 'Who they are', multiline: true, optional: true, help: 'For writers (the game doesn\'t show it): voice, history, what they want.' }),
+} satisfies Shape;
+export type CharacterDef = Infer<typeof characterShape>;
+
+/** One more line of a conversation (after the card's text). */
+export const storyLineShape = {
+  character: ref('characters', { label: 'Character', optional: true, help: 'Who says it. Empty = the card\'s speaker.' }),
+  speaker: str({ label: 'Speaker', optional: true, help: 'Instead of a character: a name for this line only.' }),
+  text: str({ label: 'Line', multiline: true }),
+} satisfies Shape;
+
 export const storyChoiceShape = {
   label: str({ label: 'Button' }),
   reply: str({ label: 'Reply', multiline: true, optional: true, help: 'Logged when this choice is picked.' }),
@@ -365,8 +389,14 @@ export const storyChoiceShape = {
  */
 export const storyShape = {
   title: str({ label: 'Title' }),
-  speaker: str({ label: 'Speaker', optional: true, help: 'Who is talking (the Director, a colonist…). Shown above the text.' }),
-  text: str({ label: 'Text', multiline: true }),
+  style: choice(['card', 'radio'], { label: 'Shown as', optional: true, help: 'Empty = a card.', helps: {
+    card: 'A card at the top of the screen that waits for an answer.',
+    radio: 'A transmission in the corner: no choices; it closes by itself after a while (or when tapped) and stays in the log.',
+  } }),
+  character: ref('characters', { label: 'Character', optional: true, help: 'Who is talking (Story → Characters): their name, colour and portrait.' }),
+  speaker: str({ label: 'Speaker', optional: true, help: 'Or just a name for who is talking, shown above the text.' }),
+  text: str({ label: 'Text', multiline: true, help: '{first} = the first colonist\'s name.' }),
+  lines: list(storyLineShape, { label: 'More lines', max: 12, optional: true, help: 'A conversation: each line follows the text, one at a time (Next). The choices come with the last line.' }),
   ...conditionFields('trigger', 'Trigger'),
   delay: num({ label: 'Delay', min: 0, max: 3600, unit: 's', optional: true, help: 'Wait this long after the trigger before firing.' }),
   region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
@@ -470,6 +500,61 @@ export const regionShape = {
   sites: list(siteShape, { label: 'Story sites', max: 40, optional: true }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
+/**
+ * The landing cinematic (src/landing.ts): when each beat happens, where the
+ * camera is, and the captions. Everything else about the landing (the probe's
+ * path, the petals, the dust) follows the beats.
+ */
+const beat = (label: string, help: string) => num({ label, min: 0, max: 120, step: 0.1, unit: 's', help });
+export const cameraKeyShape = {
+  at: num({ label: 'At', min: 0, max: 120, step: 0.05, unit: 's' }),
+  target: choice(['probe', 'site'], { label: 'Looks at', helps: { probe: 'The probe as it comes down (Lift above it).', site: 'A point on the ground: X, Z and Lift (region units; the Core is at 0, 0).' } }),
+  x: num({ label: 'X', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
+  z: num({ label: 'Z', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
+  lift: num({ label: 'Lift', min: -20, max: 200, step: 0.5, unit: 'u', default: 0 }),
+  dist: num({ label: 'Distance', min: 5, max: 3000, step: 0.5, unit: 'u', help: 'From what it looks at.' }),
+  follow: num({ label: 'Pull back with height', min: 0, max: 5, step: 0.05, optional: true, when: on('target', ['probe'], false), help: 'Extra distance for each unit of the probe\'s altitude (so the chase widens high up).' }),
+  pitch: num({ label: 'Pitch', min: -1.5, max: 1.5, step: 0.01, unit: 'rad', help: '0 = level, higher = looking down from above.' }),
+  yaw: num({ label: 'Yaw', min: -6.3, max: 6.3, step: 0.01, unit: 'rad', help: 'Round the target; 0 = from the south.' }),
+} satisfies Shape;
+export type CameraKeyDef = Infer<typeof cameraKeyShape>;
+export const captionShape = {
+  at: num({ label: 'At', min: 0, max: 120, step: 0.05, unit: 's' }),
+  title: str({ label: 'Title' }),
+  sub: str({ label: 'Line', optional: true, help: '{alt} = altitude (km), {speed} = speed (m/s), {shield} = heat-shield temperature (°C).' }),
+} satisfies Shape;
+export const landingShape = {
+  burn: beat('Retro burn', 'The thrusters light.'),
+  touchdown: beat('Touchdown', 'The probe lands (the dust burst, the drone stage starts).'),
+  open: beat('Shell opens', 'The petals start to fold out.'),
+  power: beat('Core power', 'The Core\'s lights come up.'),
+  dissolve: beat('Reclaim starts', 'The petals start dissolving.'),
+  reclaimed: beat('Reclaimed', 'The shell is gone.'),
+  hatch: beat('Bay opens', 'The drone bay hatch opens.'),
+  drone: beat('Drone out', 'The worker drone appears in the bay.'),
+  post: beat('Drone at post', 'The drone reaches its post; the colony deploys.'),
+  end: beat('End', 'The cinematic hands over to the normal view.'),
+  camera: list(cameraKeyShape, { label: 'Camera keys', max: 60, help: 'The camera passes smoothly through each key in time order. The last should match the normal view (looking at 0, −8 from 75 u, pitch 0.85, yaw 0.4) so the hand-over doesn\'t jump.' }),
+  captions: list(captionShape, { label: 'Captions', max: 40, help: 'Each shows from its time until the next.' }),
+} satisfies Shape;
+export type LandingDef = Infer<typeof landingShape>;
+export const BEATS = ['burn', 'touchdown', 'open', 'power', 'dissolve', 'reclaimed', 'hatch', 'drone', 'post', 'end'] as const;
+
+/** The HUD's look (src/ui-theme.ts sets them as CSS variables; style.css uses them). */
+export const interfaceShape = {
+  accent: color({ label: 'Accent', default: '#5ff3ff', help: 'Headings, values, outlines and highlights (cyan).' }),
+  warning: color({ label: 'Warning', default: '#ffb547', help: 'Cautions, story card titles, things to look at (amber).' }),
+  danger: color({ label: 'Danger', default: '#ff4d5e', help: 'Attacks, losses, red alerts (crimson).' }),
+  text: color({ label: 'Text', default: '#d6f6ff' }),
+  panel: color({ label: 'Panels', default: '#060e16', help: 'The colour behind panels, cards and buttons.' }),
+  panelOpacity: num({ label: 'Panel opacity', min: 0.2, max: 1, step: 0.02, default: 0.72, help: 'How solid panels are (cards and menus stay a little more solid than this).' }),
+  lineOpacity: num({ label: 'Outline strength', min: 0, max: 1, step: 0.02, default: 0.28, help: 'Panel outlines, in the accent colour.' }),
+  scale: num({ label: 'Interface size', min: 0.75, max: 1.5, step: 0.05, default: 1, help: 'Everything on the HUD, bigger or smaller (1 = as designed). Players with small or very large screens notice this most.' }),
+  logLines: int({ label: 'Log lines', min: 1, max: 12, default: 5, help: 'How many messages the log at the bottom left shows at once.' }),
+  logSeconds: num({ label: 'Log line lasts', min: 2, max: 60, step: 0.5, unit: 's', default: 10.5, help: 'Before it fades away.' }),
+} satisfies Shape;
+export type InterfaceDef = Infer<typeof interfaceShape>;
+
 /** localStorage key: the editor's Play test leaves { id, def } here for the game's ?preview=1. */
 export const PREVIEW_KEY = 'exo.preview';
 
@@ -493,10 +578,13 @@ export const COLLECTIONS = {
   missions: { path: 'missions', kind: 'many', shape: missionShape, label: 'Missions', title: 'title', group: 'Story' },
   story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },
   inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },
+  characters: { path: 'characters', kind: 'many', shape: characterShape, label: 'Characters', title: 'name', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },
   sound: { path: 'rules/sound.json', kind: 'single', shape: soundRulesShape, label: 'Sound', group: 'Rules' },
+  landing: { path: 'rules/landing.json', kind: 'single', shape: landingShape, label: 'Landing', group: 'Cinematics' },
+  interface: { path: 'rules/interface.json', kind: 'single', shape: interfaceShape, label: 'Interface', group: 'Rules' },
 } satisfies Record<string, Collection>;
 
 export type CollectionName = keyof typeof COLLECTIONS;

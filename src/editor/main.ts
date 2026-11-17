@@ -8,14 +8,23 @@
  */
 import './editor.css';
 import { COLLECTIONS, CONDITION_HELP, type BuildingDef, type UnitDef, EFFECT_HELP, ID_RE, PREVIEW_KEY, locate, pathOf, type Collection, type CollectionName, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
-import { applies, blank, validate, type Field, type IdIndex, type Issue, type ListField } from '../content/schema';
+import { applies, blank, type Field, type IdIndex, type Issue, type ListField } from '../content/schema';
 import { renderFlow } from './flow';
+import { renderPlanet } from './planet';
+import { balanceRunPanel } from './balance-run';
+import { playSetup, setupPanel } from './playsetup';
+import { timelinePanel } from './timeline';
+import { applyInterface } from '../ui-theme';
+import { analyzeFlow } from './flow';
+import { buildDb, REQUIRED, requiredIssues } from '../content/db';
+import { collectText, diffContent, renameRefs, renderChanges, renderCompare, renderProblems, renderText, setAt, type PathIssue, type Rec, type TextEntry } from './pages';
 import { refsTo, renderBalance, renderReview, searchContent, type ReviewFile } from './tools';
 import { MapEditor } from './map';
 import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, uploadFiles, type AssetHost, type MediaInfo, type Usage } from './assets';
 import { BUILTINS } from '../assets/builtin';
+import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { setMediaOverride } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type LandingDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -49,8 +58,16 @@ let cur: Current | null = null;
 let mapEd: MapEditor | null = null;
 let assetPanel: AssetPanel | null = null;
 let viewHandle: { dispose(): void } | null = null;
+/** The landing's timeline, while Cinematics → Landing is open. */
+let timeline: { el: HTMLElement; update(): void } | null = null;
 /** What the main pane shows when no record is open. */
-let view: 'none' | 'library' | 'flow' | 'balance' | 'review' | { builtin: string } = 'none';
+let view: 'none' | 'library' | PageName | { builtin: string } = 'none';
+/** The Compare page's records. */
+let compareAt: { coll: CollectionName; a: string; b: string } | null = null;
+/** The Text page's filter, kept while you move between pages. */
+const textState = { q: '', warnOnly: false };
+/** Undo history of the open record: serialized drafts, `at` = the one showing. */
+let hist: { stack: string[]; at: number; t: number; key: string } | null = null;
 /** Sidebar search (empty = the normal lists). */
 let searchQ = '';
 const media = new Map<string, MediaInfo>();
@@ -64,6 +81,7 @@ function teardown() {
   assetPanel = null;
   viewHandle?.dispose();
   viewHandle = null;
+  timeline = null;
   $('main').classList.remove('map-mode');
 }
 
@@ -130,7 +148,35 @@ function serialize(name: CollectionName, data: Record<string, unknown>): string 
 }
 
 const dirty = () => !!cur && serialize(cur.coll, cur.draft) !== serialize(cur.coll, cur.saved);
-const issues = (): Issue[] => (cur ? validate(coll(cur.coll).shape, cur.draft, idIndex()) : []);
+/**
+ * Everything content:check and the game's loader would report, on saved files
+ * with `over` (the open draft) swapped in: schema checks, rules that span
+ * records (a site trigger needs that site on a map…), records the game needs,
+ * and media files that are missing.
+ */
+function contentIssues(over?: { path: string; data: unknown }): PathIssue[] {
+  const fl: Record<string, unknown> = {};
+  const out: PathIssue[] = [];
+  for (const r of files.values()) {
+    if (r.parseError) out.push({ path: r.path, field: '', msg: `invalid JSON: ${r.parseError}` });
+    else fl[r.path] = r.data;
+  }
+  if (over) fl[over.path] = over.data;
+  const { db, issues: found } = buildDb(fl);
+  out.push(...found, ...requiredIssues(db));
+  for (const [id, a] of Object.entries(db.assets ?? {})) {
+    if (a && typeof a === 'object' && a.kind && a.file && !media.has(`${a.kind}/${a.file}`)) out.push({ path: pathOf('assets', id), field: 'file', msg: `public/media/${a.kind}/${a.file} is missing` });
+  }
+  return out;
+}
+let savedIssues: { sig: string; list: PathIssue[] } | null = null;
+/** Problems in saved content (cached until a file changes). */
+function savedProblems(): PathIssue[] {
+  const sig = signature();
+  if (savedIssues?.sig !== sig) savedIssues = { sig, list: contentIssues() };
+  return savedIssues.list;
+}
+const issues = (): Issue[] => (cur ? contentIssues({ path: cur.path, data: cur.draft }).filter((i) => i.path === cur!.path) : []);
 
 async function loadAll() {
   const list = await api<{ path: string; hash: string }[]>('GET', '/__content/files');
@@ -151,8 +197,8 @@ async function loadAll() {
 
 // ---------- sidebar ----------
 /** Every record, for search and "used by". */
-function allRecords() {
-  return (Object.keys(COLLECTIONS) as CollectionName[]).filter((c) => coll(c).kind === 'many').flatMap((c) => recordsOf(c).map((r) => ({ coll: c, id: r.id, title: titleOf(c, r.id, r.rec.data), data: r.rec.data })));
+function allRecords(singles = false): Rec[] {
+  return (Object.keys(COLLECTIONS) as CollectionName[]).filter((c) => singles || coll(c).kind === 'many').flatMap((c) => recordsOf(c).map((r) => ({ coll: c, id: r.id, title: titleOf(c, r.id, r.rec.data), data: r.rec.data })));
 }
 
 function sideSearch(): HTMLInputElement {
@@ -186,7 +232,18 @@ function renderSide() {
     const g = coll(name).group;
     groups.set(g, [...(groups.get(g) ?? []), name]);
   }
-  const ids = idIndex();
+  const bad = new Set(savedProblems().map((i) => i.path));
+  const tool = (page: PageName, label: string, note: string, cls = '') => {
+    const b = h('button', { cls: `item${view === page && !cur ? ' on' : ''}${cls ? ` ${cls}` : ''}` }, h('span', { textContent: label }), h('small', { textContent: note }));
+    b.onclick = () => showPage(page);
+    return b;
+  };
+  side.append(
+    h('div', { cls: 'group', textContent: 'Checks' }),
+    tool('problems', bad.size ? `Problems in ${bad.size} file${bad.size > 1 ? 's' : ''}` : 'No problems', bad.size ? 'fix' : 'ok', bad.size ? 'bad' : ''),
+    tool('text', 'Text', 'spelling'),
+    tool('changes', 'Since last release', 'what changed'),
+  );
   for (const [g, names] of groups) {
     side.append(h('div', { cls: 'group', textContent: g }));
     if (g === 'Game data') {
@@ -194,6 +251,7 @@ function renderSide() {
       bal.onclick = () => showPage('balance');
       side.append(bal);
     }
+    if (g === 'Maps') side.append(tool('planet', 'Planet', 'all regions'));
     if (g === 'Story') {
       const fl = h('button', { cls: view === 'flow' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Story flow' }), h('small', { textContent: 'overview' }));
       fl.onclick = () => showPage('flow');
@@ -220,9 +278,8 @@ function renderSide() {
   }
   function item(name: CollectionName, id: string, label: string, path: string) {
     const rec = files.get(path);
-    const bad = !rec || rec.parseError || validate(coll(name).shape, rec.data, ids).length > 0;
     const el = h('button', { cls: 'item' }, h('span', { textContent: label }), coll(name).kind === 'many' ? h('small', { textContent: id }) : null);
-    if (bad) el.classList.add('bad');
+    if (!rec || bad.has(path)) el.classList.add('bad');
     if (cur?.path === path) el.classList.add('on');
     if (cur?.path === path && dirty()) el.classList.add('dirty');
     el.onclick = () => open(name, id);
@@ -250,6 +307,7 @@ function open(name: CollectionName, id: string, force = false) {
   }
   const data = (rec.data ?? {}) as Record<string, unknown>;
   cur = { coll: name, id, path, baseHash: rec.hash, saved: structuredClone(data), draft: structuredClone(data) };
+  hist = { stack: [JSON.stringify(data)], at: 0, t: 0, key: '' };
   history.replaceState(null, '', `#${path}`);
   renderForm();
   renderSide();
@@ -382,14 +440,14 @@ function listControl(d: Record<string, unknown>, key: string, f: ListField, onCh
 function storyPanel(): HTMLElement {
   const play = h('button', { cls: 'primary', textContent: '▶ Play test this event', title: 'Opens the game on the event\'s region (Touchdown if it has none), starting deployed, and fires this event straight away: unsaved edits included. Your own colony is left alone.' });
   play.onclick = () => playTest('story');
-  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'story-card' }), h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play));
+  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'story-card' }), h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play), testSetup());
 }
 
 /** "when the clock reaches Sol (Sol 2)" for a condition. */
 function conditionText(kind: Condition | undefined, c: ConditionDef): string {
   if (!kind) return '?';
   const param = kind === 'time' ? `Sol ${c.sol ?? '?'}` : kind === 'built' ? `${c.count && c.count > 1 ? `${c.count}× ` : ''}${c.building ?? '?'}`
-    : ['colonists', 'packs', 'units', 'drones'].includes(kind) ? String(c.count ?? 1) : kind === 'site' ? `site "${c.site ?? '?'}"`
+    : ['colonists', 'packs', 'units', 'drones', 'firstAge', 'acceptance', 'distrust'].includes(kind) ? String(c.count ?? 1) : kind === 'site' ? `site "${c.site ?? '?'}"`
     : kind === 'contact' || kind === 'trust' ? c.group ?? '?' : kind === 'flag' ? `flag "${c.flag ?? '?'}"` : kind === 'after' ? `"${c.event ?? '?'}"`
     : kind === 'mission' ? `"${c.mission ?? '?'}"` : '';
   return `${CONDITION_HELP[kind]}${param ? ` (${param})` : ''}`;
@@ -426,7 +484,7 @@ function storySummary(ev: Partial<StoryDef>): string[] {
 function missionPanel(): HTMLElement {
   const play = h('button', { cls: 'primary', textContent: '▶ Play test this mission', title: 'Opens the game on the mission\'s region (Touchdown if it has none), starting deployed, with the missions before it counted as done and this one under way: unsaved edits included. Your own colony is left alone.' });
   play.onclick = () => playTest('mission');
-  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play));
+  return h('div', { cls: 'story-panel' }, h('div', { cls: 'story-sum', id: 'story-sum' }), h('div', { cls: 'actions' }, play), testSetup());
 }
 
 function missionSummary(m: Partial<MissionDef>): string[] {
@@ -443,23 +501,88 @@ function missionSummary(m: Partial<MissionDef>): string[] {
   return out;
 }
 
+/** Name, role and portrait for a line, as the game draws it ({first} shown as a sample name). */
+function speakerEl(character?: string, speaker?: string): { el: HTMLElement | null; color: string } {
+  const ch = character ? files.get(pathOf('characters', character))?.data as CharacterDef | undefined : undefined;
+  const name = ch?.name ?? speaker;
+  if (!name) return { el: null, color: '' };
+  const a = ch?.portrait ? files.get(pathOf('assets', ch.portrait))?.data as AssetDef | undefined : undefined;
+  const el = h('div', { cls: 'who' },
+    a?.kind === 'image' ? h('img', { cls: 'por', src: mediaUrl(a), alt: '' }) : null,
+    h('span', { textContent: sampleFirst(name) }, ch?.role ? h('small', { textContent: sampleFirst(ch.role) }) : null));
+  if (ch?.color) el.style.color = ch.color;
+  return { el, color: ch?.color ?? '' };
+}
+/** Every line a character speaks, across story events (a card's text, conversation lines, radio messages). */
+function linesOf(id: string): { ev: string; title: string; text: string }[] {
+  const out: { ev: string; title: string; text: string }[] = [];
+  for (const r of recordsOf('story')) {
+    const ev = r.rec.data as StoryDef | null;
+    if (!ev || typeof ev !== 'object') continue;
+    if (ev.character === id) out.push({ ev: r.id, title: ev.title, text: ev.text });
+    for (const l of ev.lines ?? []) if (l.character === id || (!l.character && !l.speaker && ev.character === id)) out.push({ ev: r.id, title: ev.title, text: l.text });
+  }
+  return out;
+}
+
+/** Characters: a sample card in their colours (from the draft), and everything they say. */
+function renderCharacter() {
+  const card = document.getElementById('char-card'), list = document.getElementById('char-lines');
+  if (!card || !list || !cur) return;
+  const ch = cur.draft as Partial<CharacterDef>;
+  const lines = linesOf(cur.id);
+  const a = ch.portrait ? files.get(pathOf('assets', ch.portrait))?.data as AssetDef | undefined : undefined;
+  const who = h('div', { cls: 'who' }, a?.kind === 'image' ? h('img', { cls: 'por', src: mediaUrl(a), alt: '' }) : null,
+    h('span', { textContent: sampleFirst(ch.name || '…') }, ch.role ? h('small', { textContent: sampleFirst(ch.role) }) : null));
+  if (ch.color) who.style.color = ch.color;
+  const page = h('div', { cls: 'story-page' }, who, h('div', { cls: 't', textContent: lines[0]?.title ?? 'A story card' }), h('p', { textContent: sampleFirst(lines[0]?.text ?? 'What they say goes here.') }));
+  if (ch.color) page.style.borderColor = ch.color;
+  card.replaceChildren(page, ...(ch.name?.includes('{first}') ? [h('div', { cls: 'note', textContent: '{first} becomes the first pod-born colonist\'s name (a sample here)' })] : []));
+  list.replaceChildren(h('div', { cls: 'group', textContent: lines.length ? `Says ${lines.length} line${lines.length > 1 ? 's' : ''}` : 'Says nothing yet: pick them as the Character on a story event' }),
+    ...lines.map((l) => {
+      const link = h('a', { cls: 'fl-link', href: `#story/${l.ev}.json`, textContent: l.title });
+      link.onclick = (e) => { e.preventDefault(); open('story', l.ev); };
+      return h('div', { cls: 'char-line' }, link, h('div', { textContent: l.text }));
+    }));
+}
+
+/** The preview stands in a sample name for {first}. */
+const sampleFirst = (t: string) => t.replaceAll('{first}', 'Ada');
+
 function renderStoryPreview() {
   const card = document.getElementById('story-card'), sum = document.getElementById('story-sum');
   if (!card || !sum || !cur) return;
   const ev = cur.draft as Partial<StoryDef>;
-  const btns = ev.choices?.length ? ev.choices.map((c) => h('button', { textContent: c.label || '…' })) : [h('button', { textContent: 'Continue' })];
-  card.replaceChildren(
-    ...(ev.speaker ? [h('div', { cls: 'who', textContent: ev.speaker })] : []),
-    h('div', { cls: 't', textContent: ev.title || 'Untitled' }),
-    h('p', { textContent: ev.text || '' }),
-    h('div', { cls: 'grp' }, ...btns),
-    ...(ev.pause ? [h('div', { cls: 'note', textContent: 'Pauses the game while open' })] : []),
-  );
+  // every page of the conversation, as the game shows them one at a time
+  const pages = [{ character: ev.character, speaker: ev.speaker, text: ev.text ?? '' }, ...(ev.lines ?? []).map((l) => ({
+    character: l.character ?? (l.speaker ? undefined : ev.character), speaker: l.speaker ?? (l.character ? undefined : ev.speaker), text: l.text ?? '',
+  }))];
+  const radio = ev.style === 'radio';
+  card.classList.toggle('radio', radio);
+  card.replaceChildren(...pages.map((pg, n) => {
+    const who = speakerEl(pg.character, pg.speaker ?? (radio ? 'Transmission' : undefined));
+    const last = n === pages.length - 1;
+    const btns = radio ? [] : !last ? [h('button', { textContent: 'Next ›' }), h('span', { cls: 'pg', textContent: `${n + 1} / ${pages.length}` })]
+      : ev.choices?.length ? ev.choices.map((c) => h('button', { textContent: sampleFirst(c.label || '…') })) : [h('button', { textContent: 'Continue' })];
+    const page = h('div', { cls: 'story-page' }, who.el, h('div', { cls: 't', textContent: sampleFirst(ev.title || 'Untitled') }), h('p', { textContent: sampleFirst(pg.text) }), btns.length ? h('div', { cls: 'grp' }, ...btns) : null);
+    if (who.color) page.style.borderColor = who.color;
+    return page;
+  }), ...(ev.pause && !radio ? [h('div', { cls: 'note', textContent: 'Pauses the game while open' })] : []),
+  ...(radio ? [h('div', { cls: 'note', textContent: 'A radio message: shown in the corner, closes by itself' })] : []),
+  ...([ev.text, ev.title, ...(ev.lines ?? []).map((l) => l.text)].some((t) => t?.includes('{first}')) ? [h('div', { cls: 'note', textContent: '{first} shows as a sample name here' })] : []));
   sum.replaceChildren(...storySummary(ev).map((line) => h('div', { textContent: line })));
   // effects' "When" lists follow the choices as they're edited
   for (const sel of document.querySelectorAll<HTMLSelectElement>('[data-item^="effects["][data-item$=".after"] select')) {
     if (document.activeElement !== sel) fillWhen(sel, Number(sel.value));
   }
+}
+
+/** The play test setup form, offering this content's buildings and flags. */
+function testSetup(): HTMLElement {
+  const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
+  const blds = Object.entries(data<BuildingDef>('buildings')).filter(([, b]) => b.role !== 'core' && b.buildable !== false).map(([id, b]) => ({ id, name: b.name }));
+  const flags = [...analyzeFlow(data<MissionDef>('missions'), data<StoryDef>('story')).flags.keys()].sort();
+  return setupPanel(blds, flags);
 }
 
 /** Open a scratch game on the record's region (unsaved edits included) that fires the event / starts the mission. */
@@ -469,7 +592,7 @@ function playTest(kind: 'story' | 'mission') {
   const region = rec.region && files.get(pathOf('regions', rec.region)) ? rec.region : 'touchdown';
   const def = files.get(pathOf('regions', region))?.data;
   try {
-    localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def, [kind]: { id: cur.id, def: cur.draft } }));
+    localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: region, def, [kind]: { id: cur.id, def: cur.draft }, setup: playSetup() }));
   } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
   window.open(`${import.meta.env.BASE_URL}?preview=1&intro=0`, 'exo-playtest');
 }
@@ -484,12 +607,28 @@ function renderForm() {
   save.onclick = () => void doSave();
   revert.onclick = () => { if (cur && confirmDiscard()) open(cur.coll, cur.id, true); };
   const actions = h('div', { cls: 'actions' }, save, revert);
+  if (!isMap()) {
+    const undo = h('button', { textContent: '↶', title: 'Undo (Ctrl+Z)', id: 'undo' });
+    const redo = h('button', { textContent: '↷', title: 'Redo (Ctrl+Shift+Z)', id: 'redo' });
+    undo.onclick = () => undoStep(-1);
+    redo.onclick = () => undoStep(1);
+    actions.prepend(undo, redo);
+  }
   if (c.kind === 'many') {
     const dup = h('button', { textContent: 'Duplicate' });
     dup.onclick = () => void newRecord(cur!.coll, cur!.draft);
+    const ren = h('button', { textContent: 'Rename', title: 'Give it a new id (file name) and update everything that refers to it' });
+    ren.onclick = () => void doRename();
+    const cmp = h('button', { textContent: 'Compare', title: `Side by side with another ${c.label.toLowerCase().replace(/ies$/, 'y').replace(/s$/, '')}` });
+    cmp.onclick = () => {
+      if (!cur || !confirmDiscard()) return;
+      const ids = recordsOf(cur.coll).map((r) => r.id);
+      const other = ids[(ids.indexOf(cur.id) + 1) % ids.length];
+      showCompare(cur.coll, cur.id, other, true);
+    };
     const del = h('button', { cls: 'danger', textContent: 'Delete' });
     del.onclick = () => void doDelete();
-    actions.append(dup, del);
+    actions.append(dup, ren, cmp, del);
   }
   main.classList.toggle('map-mode', isMap());
   if (isMap()) {
@@ -501,7 +640,9 @@ function renderForm() {
     );
     const at = cur;
     const inhabitants = Object.fromEntries([...(idIndex().inhabitants ?? [])].map((id) => [id, files.get(pathOf('inhabitants', id))?.data as { land?: number }]));
-    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control, inhabitants });
+    const rd = <T,>(c: CollectionName, id: string) => files.get(pathOf(c, id))?.data as T | undefined;
+    const rules = { coreRange: rd<BuildingDef>('buildings', 'core')?.range ?? 45, buildRadius: rd<{ buildRadius: number }>('colony', 'colony')?.buildRadius ?? 30, packSpeed: rd<UnitDef>('units', 'swarmer')?.speed ?? 6 };
+    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control, inhabitants, rules });
     changed();
     return;
   }
@@ -521,6 +662,46 @@ function renderForm() {
   let panel: HTMLElement | null = null;
   if (cur.coll === 'story') panel = storyPanel();
   if (cur.coll === 'missions') panel = missionPanel();
+  timeline = null;
+  if (cur.coll === 'landing') {
+    timeline = timelinePanel({
+      draft: () => cur!.draft as unknown as LandingDef,
+      changed,
+      rerender: () => renderForm(),
+      reveal(field) {
+        const row = document.querySelector<HTMLElement>(`[data-item="${field}"]`) ?? document.querySelector<HTMLElement>(`.row[data-key="${field}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        row.querySelector<HTMLElement>('input, select, textarea')?.focus({ preventScroll: true });
+        row.classList.remove('flash');
+        void row.offsetWidth;
+        row.classList.add('flash');
+      },
+      play(from) {
+        try {
+          localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: 'touchdown', def: files.get(pathOf('regions', 'touchdown'))?.data, landing: cur!.draft }));
+        } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
+        window.open(`${import.meta.env.BASE_URL}?preview=1&title=0${from > 0 ? `&cine=${from.toFixed(1)}` : ''}`, 'exo-playtest');
+      },
+    });
+    panel = timeline.el;
+  }
+  if (cur.coll === 'interface') {
+    const play = h('button', { cls: 'primary', textContent: '▶ Open the game with this look', title: 'A fresh game on Touchdown with these settings (unsaved edits too)' });
+    play.onclick = () => {
+      try { localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: 'touchdown', def: files.get(pathOf('regions', 'touchdown'))?.data, interface: cur!.draft })); } catch (e) { toast(`Couldn't hand it to the game: ${(e as Error).message}`, true); return; }
+      window.open(`${import.meta.env.BASE_URL}?preview=1&intro=0`, 'exo-playtest');
+    };
+    const mock = h('div', { cls: 'ui-mock', id: 'ui-mock', innerHTML: `
+      <div class="m-brand">EXO GENESIS <span>// ACCORD CARETAKER · M1</span></div>
+      <div class="m-res"><span class="r"><b>2.0</b>/4.3 MW</span><span class="r"><b>◆ 211</b></span><span class="r warn"><b>❄ 120</b> embryos · 92%</span><span class="r">SOL 1 · 08:55 ☀</span><span class="r bad">⚠ 6 hostiles</span></div>
+      <div class="m-goals"><div class="gh">TOUCHDOWN</div><ul><li class="done">Land</li><li class="now">Build a Solar Array to power the cryo bank</li></ul></div>
+      <div class="m-card"><div class="who">THE DIRECTOR<small>Sol Mission Control</small></div><div class="t">MISSION BRIEFING</div><p>Accord, this is Mission Control. Power first. Everything else after.</p><div class="grp"><button>Continue</button></div></div>
+      <div class="m-log"><div class="ev">Solar Array online · +2.0 MW at noon</div><div class="ev warn">Predators sighted to the north-east</div><div class="ev bad">Turret destroyed</div></div>
+      <div class="m-bar"><button>⚒ Build</button><button class="on">▶</button><button>Surface</button><button>Planet</button></div>` });
+    panel = h('div', { cls: 'story-panel' }, mock, h('div', { cls: 'actions' }, play), h('div', { cls: 'note', textContent: 'A sketch of the HUD with these settings; the game shows the real thing. Interface size and the log settings show in the game only.' }));
+  }
+  if (cur.coll === 'characters') panel = h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'char-card' }), h('div', { cls: 'char-lines', id: 'char-lines' }));
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
     panel = assetPanel.root;
@@ -558,6 +739,9 @@ function changed() {
     row.classList.toggle('changed', was);
     row.querySelector('.was')!.textContent = was ? `was ${fmt(cur.saved[k])}` : '';
   }
+  record();
+  const ub = document.getElementById('undo') as HTMLButtonElement | null;
+  if (ub && hist) { ub.disabled = hist.at === 0; ($('redo') as HTMLButtonElement).disabled = hist.at >= hist.stack.length - 1; }
   const isDirty = dirty();
   ($('save') as HTMLButtonElement).disabled = !isDirty;
   ($('revert') as HTMLButtonElement).disabled = !isDirty;
@@ -568,6 +752,9 @@ function changed() {
 
   assetPanel?.update(cur.draft as unknown as AssetDef);
   if (cur.coll === 'story') renderStoryPreview();
+  if (cur.coll === 'characters') renderCharacter();
+  timeline?.update();
+  if (cur.coll === 'interface') { const m = document.getElementById('ui-mock'); if (m) applyInterface(cur.draft as unknown as InterfaceDef, m); }
   if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {
     $('main').querySelector('.map-issues')?.remove();
@@ -594,6 +781,83 @@ function changed() {
     h('div', { cls: 'group', textContent: 'File preview' }),
     h('pre', { textContent: serialize(cur.coll, cur.draft) }),
   );
+}
+
+// ---------- undo ----------
+/** The field being typed in ("hp", "choices[0].label"), so a burst of typing is one undo step. */
+function focusKey(): string {
+  const a = document.activeElement as HTMLElement | null;
+  if (!a || !(a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && ['text', 'number', 'search'].includes((a as HTMLInputElement).type)))) return '';
+  const row = a.closest<HTMLElement>('[data-item], [data-key]');
+  return row ? row.dataset.item ?? row.dataset.key ?? '' : '';
+}
+
+/** Note the draft in the undo history if it changed (typing in one field within a second merges). */
+function record() {
+  if (!cur || !hist || isMap()) return;
+  const s = JSON.stringify(cur.draft);
+  if (s === hist.stack[hist.at]) return;
+  const key = focusKey(), now = performance.now();
+  hist.stack.length = hist.at + 1;
+  if (key && key === hist.key && now - hist.t < 1000 && hist.at > 0) hist.stack[hist.at] = s;
+  else {
+    hist.stack.push(s);
+    hist.at++;
+    if (hist.stack.length > 200) { hist.stack.shift(); hist.at--; }
+  }
+  hist.t = now;
+  hist.key = key;
+}
+
+/** Step back (-1) or forward (+1) through the open record's history. */
+function undoStep(dir: -1 | 1) {
+  if (!cur || !hist || isMap()) return;
+  const to = hist.at + dir;
+  if (to < 0 || to >= hist.stack.length) return;
+  const a = document.activeElement as HTMLElement | null;
+  const row = a?.closest<HTMLElement>('[data-item], [data-key]');
+  const sel = row ? (row.dataset.item ? `[data-item="${row.dataset.item}"]` : `.row[data-key="${row.dataset.key}"]`) : '';
+  hist.at = to;
+  hist.key = '';
+  cur.draft = JSON.parse(hist.stack[to]);
+  renderForm();
+  renderSide();
+  if (sel) document.querySelector<HTMLElement>(`${sel} input, ${sel} textarea, ${sel} select`)?.focus();
+}
+
+// ---------- rename ----------
+/** New id for the open record: writes it under the new name, points every reference at it, removes the old file. */
+async function doRename() {
+  if (!cur || coll(cur.coll).kind !== 'many') return;
+  if (dirty()) { toast('Save or revert your changes first', true); return; }
+  const c = cur.coll, from = cur.id, fromPath = cur.path;
+  if (REQUIRED[c]?.includes(from)) { toast(`The game's code refers to "${from}" by name, so it keeps this id`, true); return; }
+  const to = prompt(`New id for "${titleOf(c, from, cur.saved)}" (lowercase letters, digits, - or _; becomes the file name):`, from)?.trim();
+  if (!to || to === from) return;
+  if (!ID_RE.test(to)) { toast('Ids are lowercase letters, digits, - and _ (start with a letter or digit)', true); return; }
+  if (files.has(pathOf(c, to))) { toast(`${to} already exists`, true); return; }
+  const changes = renameRefs(allRecords(true), c, from, to);
+  const saves = ['units', 'buildings', 'regions', 'story', 'missions'].includes(c)
+    ? '\n\nSaved games remember this id. A colony saved before the rename may lose track of it (a building of this kind, an event already seen, a mission done).' : '';
+  const list = changes.map((r) => `  • ${r.title} (${coll(r.coll).label.toLowerCase()})`).join('\n');
+  if (!confirm(`Rename ${from} → ${to}?\n\n${changes.length ? `Also updates ${changes.length} record${changes.length > 1 ? 's' : ''} that refer to it:\n${list}` : 'Nothing refers to it.'}${saves}`)) return;
+  const data = structuredClone(cur.saved);
+  try {
+    await api('PUT', '/__content/file', { path: pathOf(c, to), text: serialize(c, data), baseHash: null });
+    for (const r of changes) {
+      const p = pathOf(r.coll, r.id);
+      await api('PUT', '/__content/file', { path: p, text: serialize(r.coll, r.data as Record<string, unknown>), baseHash: files.get(p)!.hash });
+    }
+    await api('DELETE', '/__content/file', { path: fromPath, baseHash: cur.baseHash });
+    await loadAll();
+    open(c, to, true);
+    toast(`Renamed ${from} → ${to}${changes.length ? ` and updated ${changes.length} record${changes.length > 1 ? 's' : ''}` : ''}`);
+  } catch (e) {
+    toast(`Rename stopped: ${(e as Error).message}. Some files may have changed: see Review.`, true);
+    await loadAll();
+    renderSide();
+  }
+  void refreshGit();
 }
 
 // ---------- save / delete / new ----------
@@ -740,7 +1004,7 @@ async function poll() {
       }
       changed();
     }
-    if ((view === 'flow' || view === 'balance' || view === 'review') && !cur && signature() !== librarySig) { PAGES[view](); librarySig = signature(); }
+    if (isPage(view) && view !== 'text' && view !== 'planet' && !cur && signature() !== librarySig) { PAGES[view](); librarySig = signature(); }
     if (view === 'library' && !cur && signature() !== librarySig) {
       renderLibrary($('main'), $('aside'), assetHost);
       librarySig = signature();
@@ -801,6 +1065,10 @@ function drawFlow() {
 function drawBalance() {
   const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
   renderBalance($('main'), data<UnitDef>('units'), data<BuildingDef>('buildings'), (c, id) => open(c, id));
+  $('main').append(balanceRunPanel({
+    files: () => Object.fromEntries([...files.values()].filter((f) => !f.parseError).map((f) => [f.path, f.data])),
+    regions: recordsOf('regions').map((r) => r.id),
+  }));
   $('aside').replaceChildren(h('div', { cls: 'group', textContent: 'Reading the table' }), h('div', { cls: 'help-block', textContent:
     'DPS = damage ÷ cooldown, against one target (splash, chains and minimum range aren\'t counted). "/ 100 ◆" columns divide by cost, so they show value for money. Fauna have no cost. Built-in rules (drone cost, pack sizes) are in Rules.' }));
 }
@@ -819,13 +1087,103 @@ async function drawReview() {
   $('aside').replaceChildren(h('div', { cls: 'group', textContent: 'Commit' }), h('div', { cls: 'help-block', textContent:
     'Write what changed in the box at the top and press Commit. Unsaved edits in an open record are not included: save them first.' }));
 }
-const PAGES = { flow: drawFlow, balance: drawBalance, review: () => void drawReview() } as const;
-function showPage(page: keyof typeof PAGES, force = false) {
+function drawProblems() {
+  renderProblems($('main'), $('aside'), savedProblems(), (p) => { const at = locate(p); return at ? titleOf(at.coll, at.id, files.get(p)?.data) : p; }, (p) => { const at = locate(p); if (at) open(at.coll, at.id); });
+}
+function drawCompare() {
+  if (!compareAt) return;
+  const { coll: c } = compareAt;
+  renderCompare($('main'), $('aside'), {
+    coll: c, a: compareAt.a, b: compareAt.b,
+    ids: recordsOf(c).map((r) => r.id),
+    data: (id) => files.get(pathOf(c, id))?.data,
+    title: (id) => titleOf(c, id, files.get(pathOf(c, id))?.data),
+    open: (id) => open(c, id),
+    pick: (a, b) => showCompare(c, a, b, true),
+  });
+}
+function showCompare(c: CollectionName, a: string, b: string, force = false) {
+  compareAt = { coll: c, a, b };
+  showPage('compare', force, `compare/${c}/${a}/${b}`);
+}
+function drawText() {
+  renderText($('main'), $('aside'), {
+    entries: collectText(allRecords()),
+    open: (c, id) => open(c, id),
+    save: saveText,
+  }, textState);
+}
+/** Text page: write one string back into its record's file. */
+async function saveText(e: TextEntry, text: string): Promise<boolean> {
+  const p = pathOf(e.coll, e.id), rec = files.get(p);
+  if (!rec?.data) return false;
+  const data = structuredClone(rec.data) as Record<string, unknown>;
+  setAt(data, e.field, text);
+  const out = serialize(e.coll, data);
+  try {
+    const r = await api<{ hash: string }>('PUT', '/__content/file', { path: p, text: out, baseHash: rec.hash });
+    files.set(p, { path: p, hash: r.hash, data: JSON.parse(out) });
+    librarySig = signature(); // our own save: don't redraw the page under the cursor
+    toast(`Saved ${e.label} in content/${p}`);
+    void refreshGit();
+    return true;
+  } catch (err) {
+    toast(`Save failed: ${(err as Error).message}${err instanceof ApiError && err.status === 409 ? ' (changed elsewhere: reload the page)' : ''}`, true);
+    return false;
+  }
+}
+async function drawChanges() {
+  $('main').replaceChildren(h('div', { cls: 'head' }, h('h1', { textContent: 'Since last release' })), h('p', { cls: 'note', textContent: 'Loading the last release…' }));
+  try {
+    const r = await api<{ version: string; commit: string; date: string; message: string; files: Record<string, string> }>('GET', '/__content/release');
+    const before: Record<string, unknown> = {};
+    for (const [p, t] of Object.entries(r.files)) { try { before[p] = JSON.parse(t); } catch { /* invalid then: shows as changed */ } }
+    const after: Record<string, unknown> = {};
+    for (const f of files.values()) if (!f.parseError) after[f.path] = f.data;
+    if (view !== 'changes' || cur) return;
+    renderChanges($('main'), $('aside'), { ...r, changes: diffContent(before, after, locate), current: CHANGELOG[0]?.version ?? '?', open: (c, id) => open(c, id) });
+  } catch (e) {
+    if (view === 'changes' && !cur) $('main').replaceChildren(h('div', { cls: 'head' }, h('h1', { textContent: 'Since last release' })), h('p', { cls: 'err', textContent: `Couldn't load the last release: ${(e as Error).message}` }));
+  }
+}
+function drawPlanet() {
+  viewHandle?.dispose();
+  viewHandle = renderPlanet($('main'), $('aside'), {
+    regions: recordsOf('regions').filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => {
+      const d = r.rec.data as { name?: string; siteLat?: number; siteLon?: number };
+      return { id: r.id, name: d.name || r.id, lat: d.siteLat ?? 0, lon: d.siteLon ?? 0 };
+    }),
+    open: (id) => open('regions', id),
+    async save(moves) {
+      for (const m of moves) {
+        const p = pathOf('regions', m.id), rec = files.get(p);
+        if (!rec?.data) continue;
+        const data = structuredClone(rec.data) as Record<string, unknown>;
+        if (m.lat || m.lon) { data.siteLat = m.lat; data.siteLon = m.lon; } else { delete data.siteLat; delete data.siteLon; }
+        const text = serialize('regions', data);
+        try {
+          const r = await api<{ hash: string }>('PUT', '/__content/file', { path: p, text, baseHash: rec.hash });
+          files.set(p, { path: p, hash: r.hash, data: JSON.parse(text) });
+        } catch (e) { toast(`Couldn't save ${m.id}: ${(e as Error).message}`, true); return; }
+      }
+      librarySig = signature();
+      toast(`Saved ${moves.length} region position${moves.length > 1 ? 's' : ''}`);
+      void refreshGit();
+    },
+  });
+}
+const PAGES = {
+  flow: drawFlow, balance: drawBalance, review: () => void drawReview(), problems: drawProblems, compare: drawCompare, text: drawText,
+  changes: () => void drawChanges(), planet: drawPlanet,
+} as const;
+type PageName = keyof typeof PAGES;
+const isPage = (v: unknown): v is PageName => typeof v === 'string' && v in PAGES;
+function showPage(page: PageName, force = false, hash: string = page) {
   if (!force && !confirmDiscard()) return;
   teardown();
   cur = null;
   view = page;
-  history.replaceState(null, '', `#${page}`);
+  history.replaceState(null, '', `#${hash}`);
   PAGES[page]();
   librarySig = signature();
   renderSide();
@@ -955,6 +1313,13 @@ $('commit-msg').onkeydown = (e) => { if (e.key === 'Enter') void doCommit(); };
 addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); void doSave(); }
   const t = e.target as HTMLElement | null;
+  // record undo (the map view has its own): not in the commit message or search boxes
+  const inForm = !t || !t.closest('#top, #side-top, .tx-list');
+  if (cur && !isMap() && inForm && (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+    e.preventDefault();
+    undoStep(e.key.toLowerCase() === 'y' || e.shiftKey ? 1 : -1);
+    return;
+  }
   const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
   if (e.key === '/' && !typing && !isMap()) { e.preventDefault(); sideSearch().focus(); }
 });
@@ -970,7 +1335,10 @@ function routeTo(hash: string) {
   const at = locate(route);
   if (at) open(at.coll, at.id);
   else if (route === 'library') showLibrary();
-  else if (route === 'flow' || route === 'balance' || route === 'review') showPage(route);
+  else if (route.startsWith('compare/')) {
+    const [, c, a, b] = route.split('/');
+    if (c in COLLECTIONS && a && b) showCompare(c as CollectionName, a, b);
+  } else if (isPage(route) && route !== 'compare') showPage(route);
   else if (route.startsWith('builtin/')) showBuiltin(route.slice(8));
 }
 routeTo(location.hash);

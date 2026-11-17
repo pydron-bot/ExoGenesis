@@ -20,6 +20,12 @@ self.addEventListener('install', (e) => {
     // one by one, past any failure: a missing file shouldn't stop the rest; `reload` skips the HTTP cache
     await Promise.all(PRECACHE.map(async (url) => {
       try {
+        // assets/* names carry a content hash: a copy the previous release cached is still right,
+        // so an update only downloads the files that changed (three.js keeps its name between releases)
+        if (url.startsWith('assets/')) {
+          const old = await caches.match(url, MATCH);
+          if (old) { await cache.put(url, old); return; }
+        }
         const res = await fetch(new Request(url, { cache: 'reload' }));
         if (res.ok) await cache.put(url, res);
       } catch { /* offline mid-install: cached on first use instead */ }

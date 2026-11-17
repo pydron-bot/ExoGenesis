@@ -26,11 +26,20 @@ export interface MapHost {
   control(d: Record<string, unknown>, key: string, f: Field, onChange: () => void): HTMLElement;
   /** Inhabitant groups (for a camp's land ring). */
   inhabitants?: Record<string, { land?: number }>;
+  /** Numbers the overlays draw from (content: the Core's range, the colony's build radius, a predator's speed). */
+  rules?: { coreRange: number; buildRadius: number; packSpeed: number };
 }
 
-type Tool = 'select' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp' | 'site';
+/** What Copy keeps: grid cells relative to the selection's corner, markers relative to its centre. */
+interface Clip { w: number; h: number; off: number[]; shape: number[]; paint: number[]; markers: Partial<Record<MKind, Marker[]>> }
+const CLIP_KEY = 'exo.map.clip';
+/** Ground packs can't cross (the sim's `blocked`), and ground too low or steep to build on (sim/rules.ts placeProblem). */
+const WATER_PATH = 0.3, WATER_BUILD = 0.6, PLACE_EDGE = HALF - 10, PACK_LIMIT = HALF - 6;
+
+type Tool = 'select' | 'area' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp' | 'site';
 const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn, vent, camp or story site to select it; drag to move it' },
+  { id: 'area', label: 'Select area', key: 'A', tip: 'Drag a rectangle to copy (Ctrl+C), then paste it anywhere, in this region or another (Ctrl+V at the cursor)' },
   { id: 'raise', label: 'Raise', key: '1', tip: 'Raise ground (Shift: lower)' },
   { id: 'lower', label: 'Lower', key: '2', tip: 'Lower ground (Shift: raise)' },
   { id: 'smooth', label: 'Smooth', key: '3', tip: 'Even out bumps' },
@@ -67,7 +76,15 @@ const nodeZ = (i: number) => -HALF + Math.floor(i / NC) * REGION_STEP;
 // one renderer for the editor's lifetime (WebGL contexts are scarce); camera survives reopening
 let renderer: THREE.WebGLRenderer | null = null;
 const camState = { pos: new THREE.Vector3(0, 190, -170), target: new THREE.Vector3(0, 0, 0) };
-const prefs = { tool: 'raise' as Tool, radius: 12, strength: 0.5, showPaint: true };
+const prefs = {
+  tool: 'raise' as Tool, radius: 12, strength: 0.5, showPaint: true,
+  /** Overlays: where you can build at the start, distance rings from the Core, the way packs walk in. */
+  build: false, rings: false, paths: false,
+  /** Paste the copied sculpt as it was (relative) or the copied ground's shape (absolute heights, feathered edges). */
+  pasteShape: false, pasteMarkers: true,
+};
+try { Object.assign(prefs, JSON.parse(localStorage.getItem('exo.map.prefs') ?? '{}')); } catch { /* private mode */ }
+const savePrefs = () => { try { localStorage.setItem('exo.map.prefs', JSON.stringify(prefs)); } catch { /* private mode */ } };
 
 // the generated terrain depends only on the region's site; recomputed when that moves
 let proc: Float32Array | null = null, fade: Float32Array, pad: Float32Array, floraBase: Float32Array;
@@ -97,6 +114,11 @@ export class MapEditor {
   private terrain: THREE.Mesh;
   private geo = new THREE.BufferGeometry();
   private hgt = new Float32Array(N2); // displayed (final) height per node
+  private raw = new Float32Array(N2); // the same before sea level (the sim's regionHeightRaw)
+  private overlays = new THREE.Group();
+  private area: { x0: number; z0: number; x1: number; z1: number } | null = null;
+  private areaDrag: { x: number; z: number } | null = null;
+  private areaLine: THREE.LineLoop | null = null;
   private off: Float32Array;
   private paint: Float32Array;
   private lists = {} as Record<MKind, Marker[]>;
@@ -180,8 +202,9 @@ export class MapEditor {
     this.cursor = new THREE.LineLoop(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(65 * 3), 3)), new THREE.LineBasicMaterial({ color: '#ffffff', depthTest: false, transparent: true }));
     this.cursor.renderOrder = 10;
     this.cursor.frustumCulled = false;
-    this.scene.add(this.cursor, this.markerGroup);
+    this.scene.add(this.cursor, this.markerGroup, this.overlays);
     this.drawMarkers();
+    this.drawOverlays();
 
     this.buildAside();
     this.bindInput();
@@ -224,6 +247,7 @@ export class MapEditor {
     const one = (i: number) => {
       const base = proc![i] + this.off[i] * fade[i];
       const raw = ch + (base - ch) * pad[i];
+      this.raw[i] = raw;
       this.hgt[i] = Math.max(0, raw);
       pos.setXYZ(i, nodeX(i), this.hgt[i], -nodeZ(i));
       const p = this.paint[i];
@@ -231,17 +255,44 @@ export class MapEditor {
       if (prefs.showPaint && p !== 0) c.lerp(tint.set(p > 0 ? '#3cff9a' : '#ff4fa3'), Math.min(0.6, Math.abs(p) * 0.6));
       col.setXYZ(i, c.r, c.g, c.b);
     };
-    if (nodes) for (const i of nodes) one(i);
+    // the unbuildable tint depends on the slope round a node: redo the neighbours of what changed too
+    const list = nodes && prefs.build ? [...new Set([...nodes].flatMap((i) => this.nodesNear(nodeX(i), nodeZ(i), 6)))] : nodes ? [...nodes] : null;
+    if (list) for (const i of list) one(i);
     else for (let i = from; i < to; i++) one(i);
+    if (prefs.build) this.tintUnbuildable(list, from, to);
     pos.needsUpdate = true;
     col.needsUpdate = true;
   }
 
+  /**
+   * Overlay: red where nothing can be built: water, ground too steep for a
+   * mid-sized building (clearance 8), or too near the region edge. Same tests
+   * as the game's placement check.
+   */
+  private tintUnbuildable(nodes: number[] | null, from: number, to: number) {
+    const col = this.geo.getAttribute('color') as THREE.BufferAttribute;
+    const red = new THREE.Color('#ff3040'), c = new THREE.Color();
+    const r = 4, offs = [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r * 0.7, r * 0.7], [-r * 0.7, -r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, r * 0.7]];
+    const one = (i: number) => {
+      const x = nodeX(i), z = nodeZ(i);
+      let lo = Infinity, hi = -Infinity;
+      for (const [dx, dz] of offs) { const h = this.rawAt(x + dx, z + dz); lo = Math.min(lo, h); hi = Math.max(hi, h); }
+      if (!(lo < WATER_BUILD || hi - lo > Math.max(4, r * 1.1) || Math.abs(x) > PLACE_EDGE || Math.abs(z) > PLACE_EDGE)) return;
+      c.fromBufferAttribute(col, i).lerp(red, lo < WATER_BUILD ? 0.25 : 0.55);
+      col.setXYZ(i, c.r, c.g, c.b);
+    };
+    if (nodes) nodes.forEach(one); else for (let i = from; i < to; i++) one(i);
+    col.needsUpdate = true;
+  }
+
   /** Height of the displayed terrain at region coords (bilinear over nodes). */
-  private heightAt(x: number, z: number) {
+  private heightAt(x: number, z: number) { return this.sample(this.hgt, x, z); }
+  /** Height before sea level, as the sim sees it (water is below 0.3). */
+  private rawAt(x: number, z: number) { return this.sample(this.raw, x, z); }
+  private sample(g: Float32Array, x: number, z: number) {
     const fx = Math.min(NC - 1.0001, Math.max(0, (x + HALF) / REGION_STEP));
     const fz = Math.min(NC - 1.0001, Math.max(0, (z + HALF) / REGION_STEP));
-    const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, g = this.hgt;
+    const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
     const a = g[j * NC + i], b = g[j * NC + i + 1], c = g[(j + 1) * NC + i], d = g[(j + 1) * NC + i + 1];
     return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz;
   }
@@ -327,6 +378,8 @@ export class MapEditor {
     this.geo.computeBoundingBox();
     this.updateCore();
     this.drawMarkers();
+    this.drawOverlays();
+    this.renderPaths();
     this.host.changed();
   }
 
@@ -455,6 +508,186 @@ export class MapEditor {
     this.renderLists();
   }
 
+  // ---------- overlays ----------
+  private drawOverlays() {
+    for (const o of [...this.overlays.children]) {
+      this.overlays.remove(o);
+      o.traverse((m) => { (m as THREE.Mesh).geometry?.dispose(); ((m as THREE.Mesh).material as THREE.Material | undefined)?.dispose(); });
+    }
+    const r = this.host.rules;
+    if (prefs.build && r) {
+      // the Core's own reach, and how far one finished building at its edge pushes it
+      this.overlays.add(this.terrainRing(0, 0, r.coreRange, '#5be3a0', 0.95), this.terrainRing(0, 0, r.coreRange + r.buildRadius + 4, '#5be3a0', 0.4));
+    }
+    if (prefs.rings) for (let d = 25; d < HALF * 1.42; d += 25) this.overlays.add(this.terrainRing(0, 0, d, '#cfe6ff', d % 50 ? 0.18 : 0.35));
+    if (prefs.paths) for (const sp of this.packStarts()) {
+      const path = this.packPath(sp.x, sp.z);
+      const pts = path.pts.map(([x, z]) => new THREE.Vector3(x, this.heightAt(x, z) + 1.2, -z));
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: path.stuck ? '#ffb547' : '#ff5d6c', transparent: true, opacity: 0.95, depthTest: false }));
+      line.renderOrder = 5;
+      line.raycast = () => {};
+      this.overlays.add(line);
+      // a dot every 10 s of walking
+      const dotGeo = new THREE.SphereGeometry(0.9, 8, 6);
+      for (let k = 100; k < path.pts.length; k += 100) {
+        const [x, z] = path.pts[k];
+        const dot = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: '#ff5d6c', depthTest: false }));
+        dot.position.set(x, this.heightAt(x, z) + 1.2, -z);
+        dot.renderOrder = 6;
+        dot.raycast = () => {};
+        this.overlays.add(dot);
+      }
+    }
+    if (this.area) this.overlays.add(this.areaRect());
+  }
+
+  /** Where packs come in: the spawns, or the sim's fallback corner. */
+  private packStarts() {
+    const sp = this.lists.spawns;
+    return sp.length ? sp : [{ x: PACK_LIMIT - 10, z: PACK_LIMIT - 10 }];
+  }
+
+  /**
+   * The way a pack walks from (x, z) to the Core: the sim's steering (straight
+   * at the target, sidestepping water, turning at most 6 rad/s), at the
+   * predators' speed, 10 steps a second. `stuck` = it never got there.
+   */
+  packPath(x: number, z: number): { pts: [number, number][]; secs: number; stuck: boolean } {
+    const speed = this.host.rules?.packSpeed ?? 6, DT = 0.1, step = speed * DT;
+    const blocked = (px: number, pz: number) => Math.abs(px) > PACK_LIMIT || Math.abs(pz) > PACK_LIMIT || this.rawAt(px, pz) < WATER_PATH;
+    let heading = Math.atan2(-x, -z);
+    const pts: [number, number][] = [[x, z]];
+    let best = Infinity, stall = 0;
+    for (let t = 0; t < 3000; t++) {
+      const left = Math.hypot(x, z);
+      if (left < 14) return { pts, secs: t * DT, stuck: false };
+      let ang = Math.atan2(-x, -z);
+      for (const off of [0, 0.5, -0.5, 1, -1, 1.6, -1.6]) {
+        const a = ang + off;
+        if (!blocked(x + Math.sin(a) * (step + 2), z + Math.cos(a) * (step + 2))) { ang = a; break; }
+      }
+      let dh = ang - heading;
+      dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+      heading += Math.max(-6 * DT, Math.min(6 * DT, dh));
+      x += Math.sin(heading) * Math.min(step, left);
+      z += Math.cos(heading) * Math.min(step, left);
+      pts.push([x, z]);
+      if (left < best - 0.3) { best = left; stall = 0; } else if (++stall > 150) break;
+    }
+    return { pts, secs: pts.length * DT, stuck: true };
+  }
+
+  // ---------- area: select, copy, paste ----------
+  private areaRect() {
+    const a = this.area!;
+    const pts: THREE.Vector3[] = [];
+    const edge = (x: number, z: number) => pts.push(new THREE.Vector3(x, this.heightAt(x, z) + 0.8, -z));
+    const n = 40;
+    for (let k = 0; k < n; k++) edge(a.x0 + ((a.x1 - a.x0) * k) / n, a.z0);
+    for (let k = 0; k < n; k++) edge(a.x1, a.z0 + ((a.z1 - a.z0) * k) / n);
+    for (let k = 0; k < n; k++) edge(a.x1 - ((a.x1 - a.x0) * k) / n, a.z1);
+    for (let k = 0; k < n; k++) edge(a.x0, a.z1 - ((a.z1 - a.z0) * k) / n);
+    const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: '#ffffff', dashSize: 2, gapSize: 1.5, depthTest: false }));
+    line.computeLineDistances();
+    line.renderOrder = 7;
+    line.raycast = () => {};
+    return (this.areaLine = line);
+  }
+
+  /** Snap a rectangle to grid nodes: [i0, j0, i1, j1] inclusive. */
+  private areaNodes(a: { x0: number; z0: number; x1: number; z1: number }) {
+    const ni = (v: number) => Math.min(NC - 1, Math.max(0, Math.round((v + HALF) / REGION_STEP)));
+    return [ni(Math.min(a.x0, a.x1)), ni(Math.min(a.z0, a.z1)), ni(Math.max(a.x0, a.x1)), ni(Math.max(a.z0, a.z1))];
+  }
+
+  /** Copy the selected area (or the whole region) to the clipboard: sculpt, ground shape, flora paint, markers. */
+  copyArea(): Clip | null {
+    const a = this.area ?? { x0: -HALF, z0: -HALF, x1: HALF, z1: HALF };
+    const [i0, j0, i1, j1] = this.areaNodes(a);
+    const w = i1 - i0 + 1, h = j1 - j0 + 1;
+    if (w < 2 || h < 2) return null;
+    const clip: Clip = { w, h, off: [], shape: [], paint: [], markers: {} };
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const n = j * NC + i;
+      clip.off.push(round1(this.off[n]));
+      clip.shape.push(round1(proc![n] + this.off[n] * fade[n]));
+      clip.paint.push(Math.round(this.paint[n] * 100) / 100);
+    }
+    const cx = nodeX(i0) + ((w - 1) * REGION_STEP) / 2, cz = nodeZ(j0 * NC) + ((h - 1) * REGION_STEP) / 2;
+    const inside = (m: Marker) => m.x >= nodeX(i0) - 1 && m.x <= nodeX(i1) + 1 && m.z >= nodeZ(j0 * NC) - 1 && m.z <= nodeZ(j1 * NC) + 1;
+    for (const k of MKINDS) {
+      const ms = this.lists[k].filter(inside).map((m) => ({ ...m, x: round1(m.x - cx), z: round1(m.z - cz) }));
+      if (ms.length) clip.markers[k] = ms;
+    }
+    try { localStorage.setItem(CLIP_KEY, JSON.stringify(clip)); } catch { return null; }
+    this.renderClip();
+    return clip;
+  }
+
+  /** Paste the clipboard centred on (x, z). Undoable. */
+  pasteArea(x: number, z: number): boolean {
+    let clip: Clip;
+    try { clip = JSON.parse(localStorage.getItem(CLIP_KEY) ?? 'null'); } catch { return false; }
+    if (!clip?.w) return false;
+    this.pushUndo();
+    const ci = Math.round((x + HALF) / REGION_STEP) - Math.floor((clip.w - 1) / 2), cj = Math.round((z + HALF) / REGION_STEP) - Math.floor((clip.h - 1) / 2);
+    const feather = 3;
+    for (let b = 0; b < clip.h; b++) for (let a = 0; a < clip.w; a++) {
+      const i = ci + a, j = cj + b;
+      if (i < 0 || j < 0 || i >= NC || j >= NC) continue;
+      const n = j * NC + i, k = b * clip.w + a;
+      if (prefs.pasteShape) {
+        // the copied ground's shape, blended in over the outer few cells so there's no cliff at the seam
+        const edge = Math.min(a, b, clip.w - 1 - a, clip.h - 1 - b);
+        const t = Math.min(1, (edge + 1) / (feather + 1));
+        const want = (clip.shape[k] - proc![n]) / Math.max(0.05, fade[n]);
+        this.off[n] = Math.max(-MAX_OFF, Math.min(MAX_OFF, this.off[n] + (want - this.off[n]) * t));
+      } else this.off[n] = clip.off[k];
+      this.paint[n] = clip.paint[k];
+    }
+    if (prefs.pasteMarkers) {
+      const px = nodeX(Math.max(0, Math.min(NC - 1, ci))) + ((clip.w - 1) * REGION_STEP) / 2, pz = nodeZ(Math.max(0, Math.min(NC - 1, cj)) * NC) + ((clip.h - 1) * REGION_STEP) / 2;
+      for (const k of MKINDS) {
+        const max = (regionShape[k] as { max?: number }).max ?? 60;
+        for (const m of clip.markers[k] ?? []) {
+          if (this.lists[k].length >= max) break;
+          const copy = { ...m, x: round1(clampR(px + m.x)), z: round1(clampR(pz + m.z)) } as Marker;
+          // story sites are found by id: keep them unique
+          if (k === 'sites') { const id = String(copy.id); let v = id, n = 2; while (this.lists.sites.some((o) => String(o.id) === v)) v = `${id}-${n++}`; (copy as unknown as Record<string, unknown>).id = v; }
+          this.lists[k].push(copy);
+        }
+      }
+    }
+    this.rebuild(0, N2);
+    this.commitLayers();
+    this.renderLists();
+    return true;
+  }
+
+  /** How long each spawn's pack takes to reach the Core (with the paths overlay on). */
+  private renderPaths() {
+    const el2 = this.aside.querySelector('#pack-paths');
+    if (!el2) return;
+    if (!prefs.paths) { el2.textContent = ''; return; }
+    el2.textContent = this.packStarts().map((sp, i) => {
+      const p = this.packPath(sp.x, sp.z);
+      return `${this.lists.spawns.length ? `Spawn ${i + 1}` : 'Corner (no spawns)'}: ${p.stuck ? 'gets stuck' : `${Math.round(p.secs)} s to the Core`}`;
+    }).join(' · ') + ` (at ${this.host.rules?.packSpeed ?? 6} u/s)`;
+  }
+
+  private clipInfo(): string {
+    try {
+      const c = JSON.parse(localStorage.getItem(CLIP_KEY) ?? 'null') as Clip | null;
+      if (!c?.w) return 'Nothing copied yet.';
+      const n = Object.values(c.markers).reduce((m, l) => m + (l?.length ?? 0), 0);
+      return `Copied: ${(c.w - 1) * REGION_STEP} × ${(c.h - 1) * REGION_STEP} u${n ? `, ${n} marker${n > 1 ? 's' : ''}` : ''}. Ctrl+V pastes it centred on the cursor (any region).`;
+    } catch { return ''; }
+  }
+  private renderClip() {
+    const el = this.aside.querySelector('#clip-info');
+    if (el) el.textContent = `${this.area ? `Selected: ${Math.round(Math.abs(this.area.x1 - this.area.x0))} × ${Math.round(Math.abs(this.area.z1 - this.area.z0))} u. ` : 'No area selected: Copy takes the whole region. '}${this.clipInfo()}`;
+  }
+
   // ---------- helpers for lines ----------
   private terrainRing(cx: number, cz: number, r: number, color: string, opacity: number) {
     const pts: THREE.Vector3[] = [];
@@ -489,7 +722,7 @@ export class MapEditor {
   }
 
   private updateCursor() {
-    const brush = !['select', 'herd', 'deposit', 'spawn', 'vent'].includes(prefs.tool);
+    const brush = !['select', 'area', 'herd', 'deposit', 'spawn', 'vent', 'camp', 'site'].includes(prefs.tool);
     this.cursor.visible = !!this.hover && brush;
     if (!this.hover || !brush) return;
     const p = this.cursor.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -521,13 +754,15 @@ export class MapEditor {
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) this.redoStep(); else this.undoStep(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redoStep(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); this.copyArea(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); if (this.hover) this.pasteArea(this.hover.x, this.hover.z); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const tool = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
     if (tool) { this.setTool(tool.id); return; }
     if (e.key === '[') this.setRadius(prefs.radius / 1.2);
     else if (e.key === ']') this.setRadius(prefs.radius * 1.2);
     else if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected) { e.preventDefault(); this.deleteMarker(this.selected); }
-    else if (e.key === 'Escape') this.select(null);
+    else if (e.key === 'Escape') { this.select(null); if (this.area) { this.area = null; this.drawOverlays(); this.renderClip(); } }
     else if (e.key.toLowerCase() === 'f') this.frameAll();
   };
   private onKeyUp = (e: KeyboardEvent) => { this.shift = e.shiftKey; };
@@ -539,6 +774,12 @@ export class MapEditor {
       this.shift = e.shiftKey;
       this.toNdc(e);
       this.hover = this.groundHit();
+      if (this.areaDrag && this.hover) {
+        this.area = { x0: this.areaDrag.x, z0: this.areaDrag.z, x1: clampR(this.hover.x), z1: clampR(this.hover.z) };
+        if (this.areaLine) { this.overlays.remove(this.areaLine); this.areaLine.geometry.dispose(); (this.areaLine.material as THREE.Material).dispose(); }
+        this.overlays.add(this.areaRect());
+        this.renderClip();
+      }
       if (this.dragging && this.hover) {
         const m = this.lists[this.dragging.k][this.dragging.i];
         m.x = round1(clampR(this.hover.x)); m.z = round1(clampR(this.hover.z));
@@ -552,6 +793,14 @@ export class MapEditor {
       this.toNdc(e);
       this.hover = this.groundHit();
       const tool = prefs.tool;
+      if (tool === 'area') {
+        if (!this.hover) return;
+        this.areaDrag = { x: clampR(this.hover.x), z: clampR(this.hover.z) };
+        this.area = null;
+        this.drawOverlays();
+        el.setPointerCapture(e.pointerId);
+        return;
+      }
       const adds = MKINDS.find((k) => MARKERS[k].tool === tool);
       if (tool === 'select' || adds) {
         const hit = this.pickMarker();
@@ -573,6 +822,12 @@ export class MapEditor {
       el.setPointerCapture(e.pointerId);
     };
     el.onpointerup = (e) => {
+      if (this.areaDrag) {
+        this.areaDrag = null;
+        // a click without a drag clears the selection
+        if (this.area && (Math.abs(this.area.x1 - this.area.x0) < REGION_STEP * 2 || Math.abs(this.area.z1 - this.area.z0) < REGION_STEP * 2)) { this.area = null; this.drawOverlays(); }
+        this.renderClip();
+      }
       if (this.dragging) {
         this.dragging = null;
         this.commitLayers();
@@ -618,7 +873,7 @@ export class MapEditor {
     const i = nearestNode(h.x, h.z);
     const sculpt = this.off[i] * fade[i];
     this.readout.textContent =
-      `x ${h.x.toFixed(1)}  z ${h.z.toFixed(1)}  ·  height ${this.heightAt(h.x, h.z).toFixed(1)} u` +
+      `x ${h.x.toFixed(1)}  z ${h.z.toFixed(1)}  ·  ${Math.hypot(h.x, h.z).toFixed(0)} u from the Core  ·  height ${this.heightAt(h.x, h.z).toFixed(1)} u` +
       `  ·  sculpt ${sculpt >= 0 ? '+' : ''}${sculpt.toFixed(1)}  ·  flora ${Math.round(this.paint[i] * 100)}%` +
       (pad[i] < 1 ? '  ·  landing pad' : '') + (fade[i] < 1 ? '  ·  edge fade' : '');
   }
@@ -678,6 +933,47 @@ export class MapEditor {
     cb.onchange = () => { prefs.showPaint = cb.checked; this.rebuild(0, N2); };
     paintToggle.append(cb, ' Show flora paint (green more, pink less)');
     a.append(paintToggle);
+
+    sec('Overlays');
+    const toggle = (key: 'build' | 'rings' | 'paths', label: string, tip: string) => {
+      const row = el('label', 'check');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = prefs[key];
+      box.dataset.overlay = key;
+      box.onchange = () => { prefs[key] = box.checked; savePrefs(); if (key === 'build') this.rebuild(0, N2); this.drawOverlays(); this.renderPaths(); };
+      row.title = tip;
+      row.append(box, ` ${label}`);
+      a.append(row);
+    };
+    toggle('build', 'Build area and unbuildable ground', 'Green: the Core\'s reach at the start (solid) and one building further out (faint). Red: water, ground too steep for a building, or too near the edge.');
+    toggle('rings', 'Distance rings from the Core (every 25 u)', 'Faint every 25 u, brighter every 50 u. The readout shows the distance under the cursor too.');
+    toggle('paths', 'The way packs walk in', 'From each predator spawn to the Core, steering as the game does (straight at it, around water). A dot every 10 s of walking; amber if they get stuck.');
+    const paths = el('div', 'help', '');
+    paths.id = 'pack-paths';
+    a.append(paths);
+
+    sec('Copy and paste');
+    const clip = el('div', 'help', '');
+    clip.id = 'clip-info';
+    const btn = (label: string, fn: () => void) => { const b = el('button', '', label) as HTMLButtonElement; b.onclick = fn; return b; };
+    const pasteOpt = (key: 'pasteShape' | 'pasteMarkers', label: string, tip: string) => {
+      const row = el('label', 'check');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = prefs[key];
+      box.onchange = () => { prefs[key] = box.checked; savePrefs(); };
+      row.title = tip;
+      row.append(box, ` ${label}`);
+      return row;
+    };
+    a.append(
+      el('div', 'help', 'Select area (A), drag a rectangle, Ctrl+C. Then Ctrl+V with the cursor where its centre should go: here or in another region.'),
+      el('div', 'actions-col', btn('Copy (Ctrl+C)', () => this.copyArea()), btn('Paste at the centre of the view', () => this.pasteArea(this.controls.target.x, -this.controls.target.z))),
+      pasteOpt('pasteShape', 'Paste the ground\'s shape, not just the sculpting', 'On: the pasted area takes the copied ground\'s actual heights (generated terrain included), blended in at the edges. Off: only the sculpting is copied, added to whatever terrain is generated here.'),
+      pasteOpt('pasteMarkers', 'Paste markers in the area too', 'Herds, deposits, spawns, vents, camps and story sites inside the copied area.'),
+      clip,
+    );
     this.asideEls = { tools, lists: {} as Record<MKind, HTMLElement>, form: {} as Record<MKind, HTMLElement> };
     for (const k of MKINDS) { this.asideEls.lists[k] = el('div', 'herd-list'); this.asideEls.form[k] = el('div', 'herd-form'); }
     this.setTool(prefs.tool);
@@ -711,6 +1007,8 @@ export class MapEditor {
       a.append(this.asideEls.lists[k], this.asideEls.form[k]);
     }
     this.renderLists();
+    this.renderClip();
+    this.renderPaths();
 
     sec('Layers');
     const clr = (label: string, fn: () => void) => { const b = el('button', '', label) as HTMLButtonElement; b.onclick = fn; return b; };

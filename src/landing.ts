@@ -8,25 +8,30 @@
  * Purely presentational: the sim is told 'burn' / 'touchdown' / 'deploy' at the
  * right moments and owns everything that matters (economy, fauna panic, when
  * the drone can take orders). Skippable at any point.
+ *
+ * The timeline is content (content/rules/landing.json, editor: Cinematics →
+ * Landing): the beats, the camera keys (the camera passes smoothly through
+ * them, PCHIP per channel) and the captions.
  */
 import * as THREE from 'three';
 import type { ZoomCamera } from './camera';
+import { content } from './content';
+import type { LandingDef } from './content/defs';
+import { pchip } from './world/curve';
 import type { LandingStage } from './sim/types';
 import { lerp, smoothstep } from './world/noise';
 import { R, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, U } from './world/planet';
 import { buildCore, orient, type RegionView } from './world/region';
 
-// ---------- timeline (seconds) ----------
-const T_BURN = 5.2; // retro thrusters light
-const T_TD = 12; // touchdown
-const T_OPEN = 13.3; // petals start folding out
-const T_POWER = 15.4; // core lights come up
-const T_DISSOLVE = 17.4;
-const T_DISSOLVED = 21.4;
-const T_HATCH = 21.4;
-const T_DRONE = 22.5; // drone appears in the bay
-const T_DRONE_POST = 25.2; // drone reaches its post
-const T_END = 27;
+// ---------- timeline (seconds; content/rules/landing.json) ----------
+let L: LandingDef = content.landing;
+let T_BURN = 0, T_TD = 0, T_OPEN = 0, T_POWER = 0, T_DISSOLVE = 0, T_DISSOLVED = 0, T_HATCH = 0, T_DRONE = 0, T_DRONE_POST = 0, T_END = 0;
+function useTimeline(def: LandingDef) {
+  L = def;
+  ({ burn: T_BURN, touchdown: T_TD, open: T_OPEN, power: T_POWER, dissolve: T_DISSOLVE, reclaimed: T_DISSOLVED, hatch: T_HATCH, drone: T_DRONE, post: T_DRONE_POST, end: T_END } = def);
+}
+useTimeline(L);
+
 
 const A0 = 2600; // entry altitude (units; ~26 km)
 const H0 = 1500; // downrange offset at entry
@@ -324,7 +329,9 @@ export class Landing {
   private v = 0; // probe speed, units/s
   private alt = A0;
 
-  constructor(private scene: THREE.Scene, private region: RegionView, private cam: ZoomCamera, private hooks: LandingHooks) {
+  /** `def`: an unsaved timeline from the editor (play test), else the content's. */
+  constructor(private scene: THREE.Scene, private region: RegionView, private cam: ZoomCamera, private hooks: LandingHooks, def: LandingDef = content.landing) {
+    useTimeline(def);
     this.core = buildCore();
     this.probe.add(this.core);
     this.core.traverse((o) => {
@@ -454,7 +461,7 @@ export class Landing {
       this.v = vel.length() / 0.05;
       const site = regionDir(p.x, p.z);
       const up = vel.lengthSq() > 1e-8 ? vel.normalize().negate() : site.clone();
-      up.lerp(site, smoothstep(9.5, 11.8, t)).normalize();
+      up.lerp(site, smoothstep(T_TD - 2.5, T_TD - 0.2, t)).normalize();
       // keep the probe's local -z (drone bay) facing region -z once down
       const ref = regionToWorld(0, -1, 0).sub(regionToWorld(0, 0, 0)).normalize().negate();
       const fwd = ref.addScaledVector(up, -ref.dot(up)).normalize();
@@ -470,10 +477,10 @@ export class Landing {
     }
 
     // ---- entry plasma ----
-    const heat = (1 - smoothstep(2.6, 5.4, t)) * (0.6 + 0.4 * Math.sin(t * 37) * Math.sin(t * 23));
+    const heat = (1 - smoothstep(T_BURN - 2.6, T_BURN + 0.2, t)) * (0.6 + 0.4 * Math.sin(t * 37) * Math.sin(t * 23));
     (this.sheath.material as THREE.MeshBasicMaterial).opacity = heat;
     (this.trail.material as THREE.MeshBasicMaterial).opacity = heat * 0.5;
-    this.trail.scale.set(1 - t * 0.08, 60 + 260 * (1 - smoothstep(0, 5, t)), 1 - t * 0.08);
+    this.trail.scale.set(1 - t * 0.08, 60 + 260 * (1 - smoothstep(0, T_BURN - 0.2, t)), 1 - t * 0.08);
     this.sheath.visible = this.trail.visible = heat > 0.01;
     const camDist = this.cam.camera.position.distanceTo(this.probe.position);
     this.plasma.visible = heat > 0.01;
@@ -556,55 +563,34 @@ export class Landing {
     this.captions(t);
   }
 
-  /** Camera: chase the probe down, frame the unfolding, then hand back the normal surface view. */
+  /**
+   * Camera: through the content's keys (chase the probe down, frame the
+   * unfolding, the drone bay, then the normal surface view). Each channel
+   * (focus x/y/z, log distance, pitch, yaw) is a monotone cubic over the keys'
+   * times; a key that looks at the probe follows it live.
+   */
   private direct(t: number, probePos: THREE.Vector3) {
-    const site = regionToWorld(0, 0, 0);
-    // A: chase
-    const fA = probePos.clone().addScaledVector(regionDir(0, 0), 8);
-    const dA = 62 + this.alt * 0.2;
-    const pA = lerp(0.42, 0.24, smoothstep(0, T_TD, t));
-    const yA = lerp(-1.1, -0.45, smoothstep(0, T_TD, t));
-    // B: watch the shell open
-    const fB = site.clone().addScaledVector(U, 6);
-    const dB = lerp(66, 92, smoothstep(T_TD, T_OPEN + 2.5, t));
-    const pB = lerp(0.24, 0.5, smoothstep(T_TD, T_DISSOLVE, t));
-    const yB = lerp(-0.45, 0.12, smoothstep(T_TD, T_HATCH, t));
-    // C: the drone bay
-    const fC = regionToWorld(0, -7, 2.5);
-    const dC = 46;
-    const pC = 0.32;
-    const yC = 0.22;
-    // D: normal surface view
-    const fD = regionToWorld(0, -8, 0);
-    const dD = 75, pD = 0.85, yD = 0.4;
-
-    const wB = smoothstep(T_TD - 0.6, T_TD + 1.2, t);
-    const wC = smoothstep(T_HATCH - 1.2, T_HATCH + 0.8, t);
-    const wD = smoothstep(T_DRONE_POST - 1.4, T_END - 0.2, t);
-    const f = fA.lerp(fB, wB).lerp(fC, wC).lerp(fD, wD);
-    const ld = lerp(lerp(lerp(Math.log(dA), Math.log(dB), wB), Math.log(dC), wC), Math.log(dD), wD);
-    const pitch = lerp(lerp(lerp(pA, pB, wB), pC, wC), pD, wD);
-    const yaw = lerp(lerp(lerp(yA, yB, wB), yC, wC), yD, wD);
-
+    const keys = L.camera, X = keys.map((k) => k.at), up = regionDir(0, 0);
+    const F = keys.map((k) => (k.target === 'probe' ? probePos.clone().addScaledVector(up, k.lift) : regionToWorld(k.x ?? 0, k.z ?? 0, k.lift)));
+    const f = new THREE.Vector3(pchip(X, F.map((v) => v.x), t), pchip(X, F.map((v) => v.y), t), pchip(X, F.map((v) => v.z), t));
+    const ld = pchip(X, keys.map((k) => Math.log(k.dist + (k.target === 'probe' ? (k.follow ?? 0) * this.alt : 0))), t);
     const c = this.cam;
     c.focusOverride.copy(f);
     c.overrideW = 1;
     c.fx = 0; c.fz = -8;
     c.dist = c.targetDist = Math.exp(ld);
-    c.pitch = c.targetPitch = pitch;
-    c.yaw = yaw;
+    c.pitch = c.targetPitch = pchip(X, keys.map((k) => k.pitch), t);
+    c.yaw = pchip(X, keys.map((k) => k.yaw), t);
   }
 
+  /** The caption whose time has come: {alt} km, {speed} m/s, {shield} °C filled in. */
   private captions(t: number) {
+    let cap: LandingDef['captions'][number] | undefined;
+    for (const c of L.captions) if (c.at <= t) cap = c;
     const km = (this.alt * 0.01).toFixed(this.alt < 100 ? 2 : 1);
-    const ms = Math.round(this.v * 10);
-    let title = '', sub = '';
-    if (t < T_BURN) { title = 'ENTRY INTERFACE'; sub = `ALT ${km} km · ${ms} m/s · shield ${Math.round(1400 + 900 * (1 - t / T_BURN))} °C`; }
-    else if (t < T_TD) { title = 'RETRO BURN · THROTTLE 100%'; sub = `ALT ${km} km · ${ms} m/s`; }
-    else if (t < T_OPEN) { title = 'TOUCHDOWN'; sub = 'Site 01 · Command Core secure'; }
-    else if (t < T_DISSOLVE) { title = 'SHELL DEPLOY'; sub = t < T_POWER ? 'Petals unlatched' : 'Core power online · cryo bank on reserve'; }
-    else if (t < T_HATCH) { title = 'SHELL RECLAIM'; sub = 'Fabricators breaking down the landing shell'; }
-    else { title = 'DRONE BAY OPEN'; sub = t < T_DRONE_POST ? 'Worker drone launching' : 'Worker drone on station'; }
+    const fill = (x: string) => x.replace(/\{alt\}/g, km).replace(/\{speed\}/g, String(Math.round(this.v * 10)))
+      .replace(/\{shield\}/g, String(Math.round(1400 + 900 * Math.max(0, 1 - t / Math.max(0.1, T_BURN)))));
+    const title = cap ? fill(cap.title) : '', sub = cap?.sub ? fill(cap.sub) : '';
     const key = title + sub;
     if (key !== this.lastCaption) { this.lastCaption = key; this.hooks.caption(title, sub); }
   }

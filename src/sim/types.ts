@@ -263,7 +263,14 @@ export type Command =
   | { type: 'contact'; camp: number; choice: ContactChoice }
   | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
-  | { type: 'debug'; mission?: string; story?: string; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
+  | { type: 'debug'; setup?: PlaySetup; mission?: string; story?: string; regard?: { camp: number; value: number }; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
+
+/**
+ * The editor's play test setup ("simulate to here"): jump the clock, put
+ * finished buildings round the Core, add colonists, alloys and story flags,
+ * optionally hold off the predators. Applied once, as the colony deploys.
+ */
+export interface PlaySetup { sol?: number; alloys?: number; colonists?: number; buildings?: string[]; flags?: string[]; peaceful?: boolean }
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
@@ -319,7 +326,8 @@ export interface Snapshot {
   /** Missions under way (with their objectives met so far) and done. */
   missions: { active: MissionSnap[]; done: string[] };
   /** Story cards waiting (ids, oldest first) and flags set. */
-  story: { inbox: string[]; flags: string[] };
+  /** `first`: the first pod-born colonist's name, for {first} in story text. */
+  story: { inbox: string[]; flags: string[]; first?: string };
   /** Inhabitant camps (structures show once explored). */
   camps: CampSnap[];
   /** Inhabitants in sight: x, z, heading, camp index, elder (1/0) per person. */

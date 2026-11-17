@@ -107,6 +107,9 @@ function condText(kind: Condition, c: ConditionDef) {
     case 'built': return `built ${n > 1 ? `${n}× ` : ''}${c.building ?? '?'}`;
     case 'colonists': return `${n} colonist${n > 1 ? 's' : ''}`;
     case 'pod': return 'a growth pod running';
+    case 'firstAge': return `first colonist ${c.count ?? 1} years old`;
+    case 'acceptance': return `acceptance ≥ ${c.count ?? 1}`;
+    case 'distrust': return `acceptance ≤ ${c.count ?? 1}`;
     case 'units': return `${n} combat unit${n > 1 ? 's' : ''}`;
     case 'drones': return `${n} drone${n > 1 ? 's' : ''}`;
     case 'packs': return `${n} pack${n > 1 ? 's' : ''} destroyed`;
