@@ -6,9 +6,10 @@ import { Input } from './input';
 import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type SimState, type Snapshot } from './sim/types';
-import { content, contentIssues } from './content';
+import { content, contentIssues, type RegionDef } from './content';
+import { PREVIEW_KEY } from './content/defs';
 import { lerp, smoothstep } from './world/noise';
-import { buildAtmosphere, globeMesh, R, U, regionHeight, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
+import { buildAtmosphere, globeMesh, R, U, regionHeight, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
@@ -120,8 +121,32 @@ if (contentIssues.length) {
   loaderEl.remove();
   throw new Error(`content: ${contentIssues.length} issue(s)`);
 }
-const regionDef = content.regions.touchdown;
 const skirmishMode = params.get('mode') === 'skirmish';
+// ---------- which region ----------
+// ?region=<id> picks one (the title's REGION choice, the editor's Play test);
+// otherwise the autosave's region, so CONTINUE lands where you left off.
+// ?scratch=1 neither reads nor writes the autosave; ?preview=1 plays the region
+// the editor's Play test button left in localStorage (unsaved edits included).
+const preview = params.get('preview') === '1' ? readPreview() : null;
+const scratch = params.get('scratch') === '1' || !!preview;
+function readPreview(): { id: string; def: RegionDef } | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
+    return p?.id && p.def ? p : null;
+  } catch { return null; }
+}
+let autosaved: AutoSave | undefined;
+if (!skirmishMode && !scratch) {
+  if (params.get('new') === '1') await delSave(AUTOSAVE).catch(() => {});
+  else {
+    const a = await getSave<AutoSave>(AUTOSAVE).catch(() => undefined);
+    if (a?.version === 2 && a.sim && !a.sim.over && a.sim.phase === 'deployed') autosaved = a;
+  }
+}
+const savedRegion = autosaved?.sim.region ?? 'touchdown';
+const askedRegion = params.get('region');
+const regionId = preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : 'touchdown';
+const regionDef: RegionDef = preview?.def ?? content.regions[regionId];
 const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
 // Start both workers first so their work overlaps everything below: the sim
 // (boots its module graph and a new game) and the globe/province generator.
@@ -133,12 +158,12 @@ const audio = new GameAudio(content.sound, content.assets, skirmishMode || param
 const sim = new SimClient((t, l, cue) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l); else early.push([t, l]);
-}, !skirmishMode);
+}, !skirmishMode, regionId, preview?.def);
 const gen = new Promise<{ globe: GlobeArrays; prov: ProvinceData; ms: Record<string, number> }>((res, rej) => {
   const w = new Worker(new URL('./world/gen-worker.ts', import.meta.url), { type: 'module' });
   w.onmessage = (e) => { res(e.data); w.terminate(); };
   w.onerror = (e) => rej(new Error(e.message || 'generation worker failed'));
-  w.postMessage({ look, region: { height: regionDef.height, flora: regionDef.flora } });
+  w.postMessage({ look, region: regionTerrain(regionDef) });
 });
 await loadStep('Shaping the landing site…');
 setRegionTerrain(regionDef);
@@ -219,7 +244,7 @@ function startSurfaceBake() {
     (window as unknown as { __surfaceMs: number }).__surfaceMs = e.data.ms;
     w.terminate();
   };
-  w.postMessage({ region: { height: regionDef.height, flora: regionDef.flora } });
+  w.postMessage({ region: regionTerrain(regionDef) });
 }
 await loadStep('Mapping regions…');
 const provinces = new Provinces(scene, globe, $('labels'), generated.prov);
@@ -276,13 +301,16 @@ function restoreCamera() {
     cam.targetPitch = c.pitch;
   } catch { /* ignore */ }
 }
-let resumed: AutoSave | null = null;
-if (!skirmishMode) {
-  if (params.get('new') === '1') await delSave(AUTOSAVE).catch(() => {});
-  else {
-    const a = await getSave<AutoSave>(AUTOSAVE).catch(() => undefined);
-    if (a?.version === 2 && a.sim && !a.sim.over && a.sim.phase === 'deployed') resumed = a;
-  }
+/** The autosave, if it's in this region (one in another region is `elsewhere`: CONTINUE goes there). */
+const resumed: AutoSave | null = autosaved && savedRegion === regionId ? autosaved : null;
+const elsewhere: AutoSave | null = autosaved && !resumed ? autosaved : null;
+const regionLabel = (id: string) => content.regions[id]?.name ?? id;
+/** Reload into another region, keeping the other URL options. */
+function goRegion(id: string, extra: Record<string, string> = {}) {
+  const u = new URL(location.href);
+  if (id === 'touchdown') u.searchParams.delete('region'); else u.searchParams.set('region', id);
+  for (const [k, v] of Object.entries(extra)) u.searchParams.set(k, v);
+  location.href = u.href;
 }
 
 /** "Sol 3, 14:22" for a sim tick. */
@@ -354,7 +382,7 @@ const canPlace = (kind: string, x: number, z: number) => {
   return placeProblem(placeWorld(c), content.buildings, content.colony, kind, x, z);
 };
 /** What placement rules see: the colony plus the region's static features (vents). */
-const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: content.regions.touchdown.vents ?? [] });
+const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: regionDef.vents ?? [] });
 const snapGate = (kind: string, x: number, z: number) => {
   const c = sim.cur;
   return c && content.buildings[kind]?.role === 'gate' ? gateSnap(c, content.buildings, x, z) : null;
@@ -397,7 +425,7 @@ const hud = new ColonyHud({
 $('b-build').onclick = () => hud.toggleMenu();
 $('b-new').onclick = () => { if (confirm('Start a new game? Your current colony will be lost (unless you Saved it).')) restartGame(); };
 if (!skirmishMode) {
-  sim.autosave(true);
+  sim.autosave(!scratch);
   // phones throw hidden tabs away: save the moment the page goes to the background
   const flush = () => { sim.flush(); saveCamera(); };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
@@ -628,15 +656,22 @@ const spatial: Spatial = (x, z) => {
 
 // ---------- title screen ----------
 function showTitle() {
+  // Touchdown first, then the rest by name
+  const regions = Object.keys(content.regions).sort((a, b) => (a === 'touchdown' ? -1 : b === 'touchdown' ? 1 : regionLabel(a).localeCompare(regionLabel(b))));
   const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
   const soundSub = () => (audio.disabled ? 'Off (turned off in the URL)' : audio.on ? 'On · tap to mute' : 'Muted · tap to turn on');
   const choices = [
     ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
+    ...(elsewhere ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony in ${regionLabel(savedRegion)} · ${solTime(elsewhere.sim.tick)}`, run: () => goRegion(savedRegion) }] : []),
     {
-      id: 'new', label: 'NEW GAME', sub: 'Land the probe on a fresh world',
-      ...(resumed ? { confirm: `Your colony at ${solTime(resumed.sim.tick)} will be lost · tap again` } : {}),
+      id: 'new', label: 'NEW GAME', sub: regions.length > 1 ? `Land in ${regionDef.name}` : 'Land the probe on a fresh world',
+      ...(autosaved && !scratch ? { confirm: `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` } : {}),
       run: go(startLanding),
     },
+    ...(regions.length > 1 ? [{
+      id: 'region', label: 'REGION', sub: `${regionDef.name} · tap for the next one`,
+      run: () => goRegion(regions[(regions.indexOf(regionId) + 1) % regions.length]),
+    }] : []),
     { id: 'skirmish', label: 'SKIRMISH', sub: 'Hundreds of units, one battlefield (prototype)', run: () => $('b-skirmish').click() },
     {
       id: 'sound', label: 'SOUND', sub: soundSub(),

@@ -3,12 +3,14 @@
  * fixed tick; the main thread only renders snapshots and sends commands.
  */
 import { AUTOSAVE, delSave, putSave, type AutoSave } from '../save';
-import { Sim } from './core';
+import { Sim, useRegion } from './core';
 import { TICK_MS, type FromWorker, type ToWorker } from './types';
 
 const ctx = self as unknown as Worker;
 const post = (msg: FromWorker, transfer: Transferable[] = []) => ctx.postMessage(msg, transfer);
-const sim = new Sim((text, level, cue) => post({ type: 'event', text, level, cue }));
+let region = 'touchdown';
+/** Created by the first message ('init'), once the region is known. */
+let sim: Sim = null!;
 let speed = 1;
 let autosave = false;
 let saving = false;
@@ -42,6 +44,15 @@ function snapshot() {
 
 ctx.onmessage = (e: MessageEvent<ToWorker>) => {
   const msg = e.data;
+  if (msg.type === 'init') {
+    region = useRegion(msg.region, msg.def);
+    sim = new Sim((text, level, cue) => post({ type: 'event', text, level, cue }));
+    snapshot();
+    last = performance.now();
+    setInterval(tick, TICK_MS / 2);
+    return;
+  }
+  if (!sim) return;
   switch (msg.type) {
     case 'cmd':
       sim.command(msg.cmd);
@@ -56,6 +67,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       return;
     case 'load':
       if (msg.state?.version !== 2) { post({ type: 'event', text: 'That save is from an older version of the game and can’t be loaded', level: 'bad' }); return; }
+      if ((msg.state.region ?? 'touchdown') !== region) { post({ type: 'event', text: 'That save is from another region and can’t be loaded here', level: 'bad' }); return; }
       sim.load(msg.state);
       snapshot();
       post({ type: 'event', text: 'Save restored', level: 'info' });
@@ -74,11 +86,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
   }
 };
 
-snapshot();
-
 let last = performance.now();
 let acc = 0;
-setInterval(() => {
+function tick() {
   const now = performance.now();
   acc += Math.min(1000, now - last);
   last = now;
@@ -88,4 +98,4 @@ setInterval(() => {
     for (let i = 0; i < speed; i++) { sim.step(); stepped = true; }
   }
   if (stepped) snapshot();
-}, TICK_MS / 2);
+}

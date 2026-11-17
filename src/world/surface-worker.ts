@@ -2,10 +2,10 @@
  * Bakes the planet's surface maps (surface.ts) after startup, off the main
  * thread, so the extra detail from orbit costs nothing at load time.
  */
-import { setRegionTerrain } from './planet';
+import { setRegionTerrain, type RegionTerrain } from './planet';
 import { bakeSurface } from './surface';
 
-self.onmessage = (e: MessageEvent<{ region: { height?: string[]; flora?: string[] } }>) => {
+self.onmessage = (e: MessageEvent<{ region: RegionTerrain }>) => {
   setRegionTerrain(e.data.region); // the map follows the sculpted landing patch
   const t0 = performance.now();
   const m = bakeSurface();

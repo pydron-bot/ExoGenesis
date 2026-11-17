@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.15.0',
+    date: '2026-11-17',
+    title: 'New regions',
+    notes: [
+      'Maps made in the editor are now playable: when there is more than one region, the title screen has a REGION choice and NEW GAME lands there',
+      'CONTINUE always takes you back to the region your colony is in',
+      'Each region can sit anywhere on the planet, with its own ground, and can set its own pack size, grace period, time between packs and starting alloys',
+      'Editor: ▶ Play this region opens a fresh test game on the map you are editing, unsaved changes included, without touching your colony',
+    ],
+  },
+  {
     version: '0.14.0',
     date: '2026-11-17',
     title: 'Health bars, smoother big battles',

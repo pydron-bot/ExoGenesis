@@ -335,7 +335,16 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   flora paint grid (both 121×121, one sample per 2 u, one run-length-encoded row per line), plus
   herds and flora seed/density. The landing pad and Command Core stay at the origin (the landing
   cinematic depends on them); sculpting fades out over the last 14 u so the patch meets the globe.
-  The game currently loads `touchdown`.
+  Since v0.15.0 any region is playable: `?region=<id>` (the title's REGION choice when there is
+  more than one) picks it, otherwise the autosave's region does, so CONTINUE goes back to the
+  colony; saves record `region` and refuse to load in another one. A region's `siteLat`/`siteLon`
+  (degrees from Touchdown) place it on the planet: the region frame and camera never move, the
+  generated ground turns under them (`setRegionSite` in `src/world/planet.ts`). Optional
+  `packScale`, `graceSeconds`, `waveInterval`, `startAlloys` override the rules per region. The
+  editor's **▶ Play this region** puts the draft in localStorage (`exo.preview`) and opens
+  `?preview=1&intro=0`, which plays it without reading or writing the autosave (`?scratch=1` does
+  only the latter). The sim worker gets its region in an `init` message before its first game.
+  Test: `tools/region-smoke.mjs`; headless: `node tools/balance.mjs --region <id>`.
 - **Assets** are a file in `public/media/<model|image|audio>/<id>.<ext>` plus a record in
   `content/assets/<id>.json` (name, source, credit, notes; models also import scale / rotation /
   lift, applied by `src/assets/models.ts` in both editor and game). Models are .glb, front +Z, Y
@@ -627,13 +636,13 @@ are just an output surge for now), aged colonists' retirement.
 **Structure**
 - Failure: is it losing **any one** of Command Core / cryo bank / colonists, or only when
   **all three** are gone? (Decided that these three are the failure conditions.)
-- Skirmish maps: hand-authored, procedural, or both? (Campaign regions are decided: hand-authored.)
 - Is there a skirmish / sandbox mode outside the campaign?
 
 **Mechanics**
 - Pod speed-vs-quality trade-off: still open (pod cycle is 1 sol, no fast/fragile option yet).
 
 **Decided**
+- 2026-11-17: skirmish maps are procedural (campaign regions stay hand-authored).
 - 2026-11-14: player is always the coop probe; all three land at the same time on different
   planets; growth pods accelerate maturation.
 - 2026-11-15: one solar system only; two acts (planet, system); C&C-style direct control;

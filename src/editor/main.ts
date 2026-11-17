@@ -289,7 +289,7 @@ function renderForm() {
       host,
     );
     const at = cur;
-    mapEd = new MapEditor(host, $('aside'), { draft: at.draft, changed, control });
+    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control });
     changed();
     return;
   }

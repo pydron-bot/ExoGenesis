@@ -9,15 +9,17 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { HEIGHT_SCALE, REGION_CELLS as NC, REGION_STEP, depositShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
+import { HEIGHT_SCALE, PREVIEW_KEY, REGION_CELLS as NC, REGION_STEP, depositShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
 import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
 import {
-  FLORA_PAINT_SHIFT, PAD_OUTER, SCULPT_FADE, floraAt, padBlend, padHeight, regionDir, regionProcBase, sculptFade, terrainColor,
+  FLORA_PAINT_SHIFT, PAD_OUTER, SCULPT_FADE, floraAt, padBlend, padHeight, regionDir, regionProcBase, sculptFade, setRegionSite, terrainColor,
 } from '../world/planet';
 
 export interface MapHost {
+  /** Region id (the file name). */
+  id: string;
   draft: Record<string, unknown>;
   /** The draft changed (dirty state, title, buttons). */
   changed(): void;
@@ -60,10 +62,13 @@ let renderer: THREE.WebGLRenderer | null = null;
 const camState = { pos: new THREE.Vector3(0, 190, -170), target: new THREE.Vector3(0, 0, 0) };
 const prefs = { tool: 'raise' as Tool, radius: 12, strength: 0.5, showPaint: true };
 
-// generated terrain never changes; compute it once
+// the generated terrain depends only on the region's site; recomputed when that moves
 let proc: Float32Array | null = null, fade: Float32Array, pad: Float32Array, floraBase: Float32Array;
-function precompute() {
-  if (proc) return;
+let procSite = '';
+function precompute(lat = 0, lon = 0) {
+  if (proc && procSite === `${lat},${lon}`) return;
+  procSite = `${lat},${lon}`;
+  setRegionSite(lat, lon);
   proc = new Float32Array(N2); fade = new Float32Array(N2); pad = new Float32Array(N2); floraBase = new Float32Array(N2);
   for (let i = 0; i < N2; i++) {
     const x = nodeX(i), z = nodeZ(i);
@@ -105,8 +110,8 @@ export class MapEditor {
   private asideEls: { tools: HTMLElement; lists: Record<MKind, HTMLElement>; form: Record<MKind, HTMLElement> } = null!;
 
   constructor(main: HTMLElement, private aside: HTMLElement, private host: MapHost) {
-    precompute();
     const d = host.draft;
+    precompute(d.siteLat as number | undefined, d.siteLon as number | undefined);
     this.off = Float32Array.from(decodeGrid(d.height as string[] | undefined, NC, NC), (v) => v * HEIGHT_SCALE);
     this.paint = Float32Array.from(decodeGrid(d.flora as string[] | undefined, NC, NC), (v) => v / 100);
     for (const k of MKINDS) this.lists[k] = Array.isArray(d[k]) ? (d[k] as Marker[]) : ((d[k] = []) as Marker[]);
@@ -281,6 +286,28 @@ export class MapEditor {
     // a change at the core moves the whole landing pad
     if (this.coreH() !== ch0) this.rebuild(0, 0, this.nodesNear(0, 0, PAD_OUTER + 2));
     this.rebuild(0, 0, touched);
+  }
+
+  /** The site moved: regenerate the ground under the sculpting. */
+  private resite() {
+    const d = this.host.draft;
+    precompute(d.siteLat as number | undefined, d.siteLon as number | undefined);
+    this.rebuild(0, N2);
+    this.geo.computeBoundingSphere();
+    this.geo.computeBoundingBox();
+    this.updateCore();
+    this.drawMarkers();
+  }
+
+  /** Hand the draft to the game (localStorage) and open it there. */
+  private playTest() {
+    try {
+      localStorage.setItem(PREVIEW_KEY, JSON.stringify({ id: this.host.id, def: this.host.draft }));
+    } catch (e) {
+      alert(`Couldn't hand the map to the game: ${(e as Error).message}`);
+      return;
+    }
+    window.open(`${import.meta.env.BASE_URL}?preview=1&intro=0`, 'exo-playtest');
   }
 
   private commitLayers() {
@@ -630,15 +657,29 @@ export class MapEditor {
     for (const k of MKINDS) { this.asideEls.lists[k] = el('div', 'herd-list'); this.asideEls.form[k] = el('div', 'herd-form'); }
     this.setTool(prefs.tool);
 
+    sec('Play test');
+    const play = el('button', 'primary', '▶ Play this region') as HTMLButtonElement;
+    play.title = 'Opens the game in a new tab on this region as it is now (unsaved edits too), starting deployed. Your own colony\'s autosave is left alone.';
+    play.onclick = () => this.playTest();
+    a.append(play, el('div', 'help', 'A fresh game on this map, as it is now. Nothing is saved from it.'));
+
     sec('Region');
     const d = this.host.draft;
-    for (const key of ['name', 'description', 'floraSeed', 'floraDensity'] as const) {
-      const f = regionShape[key];
-      const row = el('label', 'mini-row');
-      row.append(el('span', 'lbl', f.label ?? key), this.host.control(d, key, f, () => this.host.changed()));
-      if (f.help) row.append(el('span', 'help', f.help));
-      a.append(row);
-    }
+    const fields = (keys: (keyof typeof regionShape)[], onChange = () => this.host.changed()) => {
+      for (const key of keys) {
+        const f = regionShape[key];
+        const row = el('label', 'mini-row');
+        row.append(el('span', 'lbl', f.label ?? key), this.host.control(d, key, f, onChange));
+        if (f.help) row.append(el('span', 'help', f.help));
+        a.append(row);
+      }
+    };
+    fields(['name', 'description', 'floraSeed', 'floraDensity']);
+    sec('Place on the planet');
+    fields(['siteLat', 'siteLon'], () => { this.resite(); this.host.changed(); });
+    sec('Difficulty');
+    a.append(el('div', 'help', 'Overrides for this region only; empty fields use Rules → Threat rules and Colony rules.'));
+    fields(['packScale', 'graceSeconds', 'waveInterval', 'startAlloys']);
 
     for (const k of MKINDS) {
       sec(MARKERS[k].label);

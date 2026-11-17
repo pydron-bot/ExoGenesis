@@ -1,3 +1,4 @@
+import type { RegionDef } from '../content/defs';
 import { TICK_MS, type Command, type EventCue, type FromWorker, type SimState, type Snapshot } from './types';
 
 /** Main-thread handle on the simulation worker, with snapshot interpolation. */
@@ -10,7 +11,7 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue) => void, enabled = true) {
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue) => void, enabled = true, region = 'touchdown', draft?: RegionDef) {
     // disabled (skirmish mode): a stub that never produces snapshots
     this.worker = enabled
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
@@ -32,6 +33,8 @@ export class SimClient {
         this.onEvent(m.text, m.level, m.cue);
       }
     };
+    // the region comes first: the sim starts its first game from it
+    this.worker.postMessage({ type: 'init', region, def: draft });
   }
 
   /** 0..1 blend factor between prev and cur for this frame. */

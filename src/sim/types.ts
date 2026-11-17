@@ -132,6 +132,8 @@ export interface Deposit { x: number; z: number; alloys: number; max: number }
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
 
 export interface SimState {
+  /** Region id (content/regions/<id>.json); older saves are Touchdown. */
+  region?: string;
   version: 2;
   seed: number;
   rng: number;
@@ -192,6 +194,8 @@ export type Command =
   | { type: 'debug'; wave?: boolean; alloys?: number; hurt?: { id: number; hp: number }; spawn?: { unit: string; x: number; z: number; n?: number }; units?: { unit: string; x: number; z: number; n?: number }; people?: { colonists?: number; biomass?: number; stance?: number; wb?: number } };
 
 export type ToWorker =
+  /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
+  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef }
   | { type: 'cmd'; cmd: Command }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }

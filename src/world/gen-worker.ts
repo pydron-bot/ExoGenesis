@@ -4,10 +4,10 @@
  * thread builds the solar system, flora and landing patch meanwhile, then turns
  * these arrays into meshes.
  */
-import { globeArrays, setRegionTerrain } from './planet';
+import { globeArrays, setRegionTerrain, type RegionTerrain } from './planet';
 import { provinceData } from './provinces';
 
-export interface GenRequest { look: 'flat' | 'smooth'; region: { height?: string[]; flora?: string[] } }
+export interface GenRequest { look: 'flat' | 'smooth'; region: RegionTerrain }
 
 self.onmessage = (e: MessageEvent<GenRequest>) => {
   const { look, region } = e.data;

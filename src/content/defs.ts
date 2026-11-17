@@ -270,6 +270,12 @@ export const regionShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   floraSeed: int({ label: 'Flora seed', min: 1, max: 999999, help: 'Picks the plant species. ?flora=<seed> in the URL overrides it.' }),
   floraDensity: num({ label: 'Flora density', min: 0, max: 3, step: 0.05, default: 1, help: 'Multiplies the number of plants everywhere.' }),
+  siteLat: num({ label: 'Site: degrees north', min: -80, max: 80, step: 1, unit: '°', optional: true, help: 'Where on the planet the region sits, from Touchdown. Moving it changes the generated ground under your sculpting (0, 0 = Touchdown\'s spot).' }),
+  siteLon: num({ label: 'Site: degrees east', min: -180, max: 180, step: 1, unit: '°', optional: true, help: 'Degrees east of Touchdown.' }),
+  packScale: num({ label: 'Pack size ×', min: 0, max: 5, step: 0.05, optional: true, help: 'Multiplies every predator pack here (and the largest pack). Empty = 1, as the threat rules say.' }),
+  graceSeconds: num({ label: 'Grace period', min: 0, max: 7200, unit: 's', optional: true, help: 'No attacks before this. Empty = the threat rules\' grace period.' }),
+  waveInterval: num({ label: 'Time between packs', min: 10, max: 3600, unit: 's', optional: true, help: 'Empty = the threat rules\' interval.' }),
+  startAlloys: int({ label: 'Starting alloys', min: 0, max: 100000, optional: true, help: 'Empty = the colony rules\' starting alloys.' }),
   height: grid(REGION_CELLS, REGION_CELLS, -600, 600, { label: 'Height sculpt', optional: true, help: 'Added to the generated terrain, in tenths of a unit.' }),
   flora: grid(REGION_CELLS, REGION_CELLS, -100, 100, { label: 'Flora paint', optional: true, help: '−100 clears plants, +100 doubles them and makes the ground lush.' }),
   herds: list(herdShape, { label: 'Grazer herds', max: 60 }),
@@ -278,6 +284,8 @@ export const regionShape = {
   vents: list(ventShape, { label: 'Geothermal vents', max: 20, optional: true }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
+/** localStorage key: the editor's Play test leaves { id, def } here for the game's ?preview=1. */
+export const PREVIEW_KEY = 'exo.preview';
 
 export interface Collection {
   /** Folder under /content, or a single file for a singleton. */

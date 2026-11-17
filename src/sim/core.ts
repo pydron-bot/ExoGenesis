@@ -7,7 +7,7 @@
  * (src/sim/people.ts) → grazers.
  */
 import { content } from '../content';
-import type { BuildingDef, UnitDef, Weapon } from '../content/defs';
+import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
@@ -22,9 +22,27 @@ import {
 
 const RULES = content.colony;
 const THREATS = content.threats;
-const REGION = content.regions.touchdown;
 const DEFS = content.buildings;
-setRegionTerrain(REGION);
+let REGION_ID = 'touchdown';
+let REGION: RegionDef = content.regions.touchdown;
+let VENTS: NonNullable<RegionDef['vents']> = [];
+/**
+ * Pick the region the sim plays on (content/regions/<id>.json); unknown ids fall
+ * back to Touchdown; `draft` plays an unsaved editor version instead. Call before
+ * creating a Sim: the path grid reads the terrain.
+ */
+export function useRegion(id: string, draft?: RegionDef) {
+  REGION_ID = draft || content.regions[id] ? id : 'touchdown';
+  REGION = draft ?? content.regions[REGION_ID];
+  VENTS = REGION.vents ?? [];
+  setRegionTerrain(REGION);
+  return REGION_ID;
+}
+useRegion('touchdown');
+/** The region's own difficulty, falling back to the threat rules. */
+const packScale = () => REGION.packScale ?? 1;
+const graceSeconds = () => REGION.graceSeconds ?? THREATS.graceSeconds;
+const waveInterval = () => REGION.waveInterval ?? THREATS.waveInterval;
 
 const DT = 1 / TICK_HZ;
 const WALK = 2.2;
@@ -76,7 +94,6 @@ const bodyR = (b: Building) => def(b).clearance / 2;
 const maxHp = (b: Building) => def(b).hp;
 /** Walls and gates: predators collide with them and chew through; gates let units by. */
 const barrier = (b: Building) => isBarrier(def(b).role);
-const VENTS = REGION.vents ?? [];
 /** Each chain jump does this fraction of the previous hit. */
 const CHAIN_FALLOFF = 0.7;
 /** Burrowers surface this far (beyond their reach) from their target. */
@@ -127,10 +144,10 @@ export class Sim {
   // ---------- setup ----------
   newGame(seed: number) {
     const s: SimState = {
-      version: 2, seed, rng: seed, tick: 0, nextId: 2, alloys: RULES.startAlloys, cryo: 100, cryoWarn: 100, stored: 0,
+      version: 2, region: REGION_ID, seed, rng: seed, tick: 0, nextId: 2, alloys: REGION.startAlloys ?? RULES.startAlloys, cryo: 100, cryoWarn: 100, stored: 0,
       drones: [], buildings: [], herds: [], fauna: [], hostiles: [], units: [], packs: [],
       deposits: (REGION.deposits ?? []).map((d) => ({ x: d.x, z: d.z, alloys: d.alloys, max: d.alloys })),
-      waves: { n: 0, next: Math.round(THREATS.graceSeconds * TICK_HZ), spawned: 0 },
+      waves: { n: 0, next: Math.round(graceSeconds() * TICK_HZ), spawned: 0 },
       fab: { queued: 0, progress: 0 },
       phase: 'descent', panic: 0, over: null,
       stats: { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 },
@@ -139,7 +156,7 @@ export class Sim {
     this.people.init();
     s.buildings.push({ id: 1, kind: 'core', x: 0, z: 0, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
     s.drones.push({ id: s.nextId++, x: 0, z: -14, heading: Math.PI, hp: RULES.droneHp, task: { kind: 'idle' } });
-    // herds come from the region map (content/regions/touchdown.json)
+    // herds come from the region map (content/regions/<id>.json)
     REGION.herds.forEach((hd, herd) => {
       s.herds.push({ x: hd.x, z: hd.z });
       for (let i = 0; i < hd.grazers; i++) {
@@ -978,7 +995,7 @@ export class Sim {
     const s = this.s, w = s.waves;
     if (s.tick < w.next) return;
     const night = this.power.daylight < 0.3;
-    const size = Math.round(Math.min(THREATS.maxSize, THREATS.startSize + THREATS.growth * w.n) * (night ? THREATS.nightBoost : 1));
+    const size = Math.round(Math.min(THREATS.maxSize, THREATS.startSize + THREATS.growth * w.n) * packScale() * (night ? THREATS.nightBoost : 1));
     const spawns = REGION.spawns?.length ? REGION.spawns : [{ x: LIMIT - 10, z: LIMIT - 10 }];
     const sp = spawns[Math.floor(this.rnd() * spawns.length)];
     const pack = { id: s.nextId++, size, alive: 0, announced: false, from: compass(sp.x, sp.z) };
@@ -1005,7 +1022,7 @@ export class Sim {
       }
     }
     w.n++;
-    w.next = s.tick + Math.round((THREATS.waveInterval + (this.rnd() * 2 - 1) * THREATS.waveJitter) * TICK_HZ);
+    w.next = s.tick + Math.round((waveInterval() + (this.rnd() * 2 - 1) * THREATS.waveJitter) * TICK_HZ);
   }
 
   private freeSlot() {

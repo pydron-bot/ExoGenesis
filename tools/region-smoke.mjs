@@ -1,0 +1,120 @@
+/**
+ * Regions: a region moved elsewhere on the planet gets different ground, its
+ * difficulty overrides reach the sim, the editor's Play test (?preview=1)
+ * plays an unsaved draft, and a save from one region won't load in another.
+ *   node tools/region-smoke.mjs [--url http://localhost:5176/]
+ * Headless half (no browser): the sim's useRegion on the real content.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import { runnerImport } from 'vite';
+
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+let failed = 0;
+const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
+
+// ---------- headless: the sim ----------
+const root = path.resolve(import.meta.dirname, '..');
+const { module: core } = await runnerImport(path.join(root, 'src/sim/core.ts'));
+const { module: planet } = await runnerImport(path.join(root, 'src/world/planet.ts'));
+const { module: C } = await runnerImport(path.join(root, 'src/content/index.ts'));
+const { content } = C;
+const td = content.regions.touchdown;
+
+check(core.useRegion('no-such-region') === 'touchdown', 'unknown region falls back to Touchdown');
+let sim = new core.Sim(() => {});
+check(sim.s.region === 'touchdown', 'new game records its region');
+// (this import of planet.ts is its own copy, so it is pointed at each region by hand)
+const probe = () => [planet.regionHeightRaw(80, 60), planet.regionHeightRaw(-90, 30), planet.regionFlora(40, -70)];
+planet.setRegionTerrain(td);
+const h0 = probe();
+
+const moved = { ...td, name: 'Far Side', siteLat: 25, siteLon: 70, packScale: 0.5, graceSeconds: 30, waveInterval: 40, startAlloys: 777 };
+check(core.useRegion('farside', moved) === 'farside', 'a draft region is used as given');
+sim = new core.Sim(() => {});
+sim.command({ type: 'landing', stage: 'deploy' });
+planet.setRegionTerrain(moved);
+const h1 = probe();
+check(h0.some((h, i) => Math.abs(h - h1[i]) > 1), `moving the site changes the ground (${h0.map((h) => h.toFixed(1))} → ${h1.map((h) => h.toFixed(1))})`);
+check(sim.s.region === 'farside' && sim.s.alloys === 777, 'region starting alloys apply');
+check(sim.s.waves.next === 30 * 10, 'region grace period applies');
+for (let i = 0; i < 31 * 10; i++) sim.step();
+const first = sim.s.packs[0];
+const full = Math.round(content.threats.startSize);
+check(first && first.size <= Math.ceil(full * 0.5 * content.threats.nightBoost), `region pack scale applies (first pack ${first?.size}, rules say ${full})`);
+check(sim.s.waves.next - sim.s.tick <= (40 + content.threats.waveJitter) * 10, 'region pack interval applies');
+
+planet.setRegionTerrain(td);
+const back = probe();
+check(back.every((h, i) => Math.abs(h - h0[i]) < 1e-6), 'back at Touchdown the ground is as before');
+
+// ---------- browser: the game ----------
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+const ready = () => page.waitForFunction(() => window.__exo?.ready && window.__exo.sim.cur, null, { timeout: 120000 });
+
+// a known autosave in Touchdown, to check the play test leaves it alone
+await page.goto(`${url}?intro=0&new=1`);
+await ready();
+await page.evaluate(() => __exo.sim.flush());
+await page.waitForTimeout(1500);
+const autoBefore = await page.evaluate(() => new Promise((res) => {
+  const r = indexedDB.open('exogenesis', 1);
+  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
+}));
+check(autoBefore?.region === 'touchdown', 'Touchdown autosave written with its region');
+
+// the editor's Play test: draft in localStorage, ?preview=1
+await page.evaluate((def) => localStorage.setItem('exo.preview', JSON.stringify({ id: 'farside', def })), moved);
+await page.goto(`${url}?preview=1&intro=0`);
+await ready();
+const pv = await page.evaluate(() => ({ alloys: __exo.sim.cur.alloys, label: [...document.querySelectorAll('#labels *')].map((e) => e.textContent).join('|') }));
+check(pv.alloys >= 700, `preview plays the draft (alloys ${pv.alloys})`);
+check(/FAR SIDE/.test(pv.label), 'the globe labels the region with its name');
+const saved = await page.evaluate(() => __exo.sim.save());
+check(saved.region === 'farside', 'preview game state carries the draft region');
+await page.waitForTimeout(11000); // past an autosave interval
+const autoAfter = await page.evaluate(() => new Promise((res) => {
+  const r = indexedDB.open('exogenesis', 1);
+  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
+}));
+check(autoAfter?.region === 'touchdown' && autoAfter.seed === autoBefore.seed, 'play test leaves the real autosave alone');
+
+// a Touchdown save refuses to load in another region
+const tdState = await page.evaluate(() => new Promise((res) => {
+  const r = indexedDB.open('exogenesis', 1);
+  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result.sim); };
+}));
+const logBefore = await page.textContent('#log').catch(() => '');
+await page.evaluate((st) => __exo.sim.load(st), tdState);
+await page.waitForTimeout(800);
+const logAfter = await page.evaluate(() => document.body.innerText);
+check(/another region/.test(logAfter) && !/another region/.test(logBefore ?? ''), 'a save from another region is refused');
+
+// title, with a second region in content (a temporary file; the dev server reloads)
+const tmp = path.join(root, 'content/regions/zz-smoke.json');
+await page.goto('about:blank');
+fs.writeFileSync(tmp, JSON.stringify({ ...moved, name: 'Smoke Test Basin' }, null, 1));
+try {
+  await page.waitForTimeout(2500);
+  await page.goto(`${url}?region=zz-smoke`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.waitForFunction(() => document.body.innerText.includes('REGION'), null, { timeout: 120000 });
+  const t = await page.evaluate(() => document.body.innerText);
+  check(/Your colony in Touchdown/i.test(t), 'title offers CONTINUE into the other region\'s colony');
+  check(/Land in Smoke Test Basin/i.test(t), 'NEW GAME names the region it lands in');
+  check(/Smoke Test Basin · tap for the next one/i.test(t), 'title has a REGION choice');
+  await page.getByText('REGION', { exact: true }).click();
+  await page.waitForURL((u) => !u.searchParams.get('region'), { timeout: 20000 });
+  check(true, 'REGION cycles to the next region (back to Touchdown)');
+} finally {
+  fs.rmSync(tmp, { force: true });
+}
+
+check(errors.length === 0, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' / ')}` : ''}`);
+await browser.close();
+console.log(failed ? `\n${failed} check(s) failed` : '\nall region checks passed');
+process.exit(failed ? 1 : 0);

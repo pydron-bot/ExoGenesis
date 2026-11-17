@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { smoothstep } from './noise';
-import { R, U, E, N, globeHeight } from './planet';
+import { R, U, E, N, globeHeight, regionName } from './planet';
 
 export type ProvinceState = 'held' | 'tutorial' | 'unexplored';
 
@@ -25,7 +25,7 @@ const TUTORIAL_NAMES = ['BASALT RIDGE', 'SALT FLATS', 'VENT FIELD', 'NORTHERN RE
 
 function makeSeeds(): Province[] {
   const out: Province[] = [];
-  out.push({ id: 0, name: 'TOUCHDOWN', seed: U.clone(), state: 'held', tris: 0 });
+  out.push({ id: 0, name: regionName(), seed: U.clone(), state: 'held', tris: 0 });
   // tutorial ring
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + 0.5;

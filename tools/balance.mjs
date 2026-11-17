@@ -2,7 +2,7 @@
  * Headless balance runs: plays the real sim (src/sim/core.ts) for N game
  * minutes with scripted strategies and prints a timeline, so tuning content/
  * numbers is measured, not guessed.
- *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed|fortress|combined|people] [--imprint charter|heritage|unity] [--peaceful] [--policy hours=long,council=directive] [--quiet]
+ *   node tools/balance.mjs [--minutes 20] [--seed 1337] [--strategy all|idle|greedy|balanced|defensive|army|mixed|fortress|combined|people] [--imprint charter|heritage|unity] [--peaceful] [--policy hours=long,council=directive] [--region touchdown] [--quiet]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -19,6 +19,7 @@ const { module: core } = await runnerImport(path.join(root, 'src/sim/core.ts'));
 const { module: rules } = await runnerImport(path.join(root, 'src/sim/rules.ts'));
 const { module: C } = await runnerImport(path.join(root, 'src/content/index.ts'));
 const { content } = C;
+const REGION = core.useRegion(arg('--region', 'touchdown'));
 const DEFS = content.buildings, RULES = content.colony;
 const TICK_HZ = 10;
 
@@ -35,8 +36,8 @@ function spot(s, kind, px, pz) {
   return null;
 }
 const count = (s, kind) => s.buildings.filter((b) => b.kind === kind).length;
-const spawns = content.regions.touchdown.spawns;
-const VENTS = content.regions.touchdown.vents ?? [];
+const spawns = content.regions[REGION].spawns;
+const VENTS = content.regions[REGION].vents ?? [];
 
 const STRATEGIES = {
   idle: () => [],

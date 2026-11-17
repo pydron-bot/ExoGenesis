@@ -24,8 +24,32 @@ export function regionDir(x: number, z: number, out = new THREE.Vector3()) {
   return out.copy(U).multiplyScalar(R).addScaledVector(E, x).addScaledVector(N, z).normalize();
 }
 
+/**
+ * Where on the planet the loaded region sits. The region frame (U/E/N) never
+ * moves, so camera, sun and sky stay as they are; the planet's generated ground
+ * turns under it instead. Touchdown is the origin (no turn).
+ */
+const siteQ = new THREE.Quaternion();
+let siteTurned = false;
+const _sd = new THREE.Vector3();
+/** Planet-body direction for world direction `d` (identity at Touchdown). */
+const bodyDir = (d: THREE.Vector3) => (siteTurned ? _sd.copy(d).applyQuaternion(siteQ) : d);
+/** Point the region at `lat` degrees north and `lon` degrees east of Touchdown. */
+export function setRegionSite(lat = 0, lon = 0) {
+  siteTurned = lat !== 0 || lon !== 0;
+  const la = THREE.MathUtils.degToRad(lat), lo = THREE.MathUtils.degToRad(lon);
+  const t = new THREE.Vector3().copy(U).multiplyScalar(Math.cos(la) * Math.cos(lo))
+    .addScaledVector(E, Math.cos(la) * Math.sin(lo)).addScaledVector(N, Math.sin(la)).normalize();
+  siteQ.setFromUnitVectors(U, t);
+  coreH = null;
+}
+let siteName = 'TOUCHDOWN';
+/** The loaded region's name (the globe labels its province with it). */
+export const regionName = () => siteName;
+
 export function globeHeight(d: THREE.Vector3): number {
-  let h = fbm3(d.x * 2.1 + 3.1, d.y * 2.1, d.z * 2.1 - 1.7, 6, 7) * 90;
+  const b = bodyDir(d);
+  let h = fbm3(b.x * 2.1 + 3.1, b.y * 2.1, b.z * 2.1 - 1.7, 6, 7) * 90;
   // keep the landing site (and the tutorial regions around it) on dry land
   const ang = Math.acos(Math.min(1, d.dot(U)));
   h += (1 - smoothstep(0.04, 0.26, ang)) * 40;
@@ -33,7 +57,8 @@ export function globeHeight(d: THREE.Vector3): number {
 }
 
 export function floraAt(d: THREE.Vector3): number {
-  return fbm3(d.x * 14 + 11, d.y * 14, d.z * 14, 3, 33);
+  const b = bodyDir(d);
+  return fbm3(b.x * 14 + 11, b.y * 14, b.z * 14, 3, 33);
 }
 
 /** Generated terrain before any hand sculpting. */
@@ -49,9 +74,15 @@ let hOff: Float32Array | null = null;
 let fPaint: Float32Array | null = null;
 let coreH: number | null = null;
 
-/** Load a region's painted layers. Call before anything samples the terrain. */
-export function setRegionTerrain(t: { height?: string[]; flora?: string[] }) {
+/** What the terrain needs from a region record (workers get just this). */
+export interface RegionTerrain { name?: string; height?: string[]; flora?: string[]; siteLat?: number; siteLon?: number }
+export const regionTerrain = (r: RegionTerrain): RegionTerrain => ({ name: r.name, height: r.height, flora: r.flora, siteLat: r.siteLat, siteLon: r.siteLon });
+
+/** Load a region: its place on the planet and its painted layers. Call before anything samples the terrain. */
+export function setRegionTerrain(t: RegionTerrain) {
   const n = REGION_CELLS;
+  setRegionSite(t.siteLat, t.siteLon);
+  if (t.name) siteName = t.name.toUpperCase();
   setRegionLayers(
     t.height ? Float32Array.from(decodeGrid(t.height, n, n), (v) => v * HEIGHT_SCALE) : null,
     t.flora ? Float32Array.from(decodeGrid(t.flora, n, n), (v) => v / 100) : null,
