@@ -15,6 +15,23 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.20.0',
+    date: '2026-11-17',
+    title: 'Voices',
+    notes: [
+      'Story cards show who is speaking: the Director and your first colonist have their own names and colours',
+      'Your first colonist is called by name when they speak to you',
+      'Story moments can be conversations, one line at a time, and short radio messages now arrive in the corner without stopping play (they stay in the log)',
+      'Editor: undo and redo in every form, Rename (everything that refers to it follows) and Compare two records side by side',
+      'Editor: Checks lists every content problem, a Text page for a spelling pass over every word players read, and what changed since the last release',
+      'Editor: map overlays (where you can build, distance rings, the way predator packs walk in) and copy and paste of map areas, even between regions',
+      'Editor: a Planet map to place regions, and balance test runs on the Balance page',
+      'Editor: play tests can start further in: a later Sol, buildings, colonists, alloys and story flags',
+      'Editor: Characters, conversations and radio messages for story events, and triggers for the first colonist\'s age and the colony\'s trust in you',
+      'Editor: a timeline for the landing cinematic (beats, camera, captions), and Interface settings for the HUD\'s colours, size and log',
+    ],
+  },
+  {
     version: '0.19.0',
     date: '2026-11-17',
     title: 'Missions',
