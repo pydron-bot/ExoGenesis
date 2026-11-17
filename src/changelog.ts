@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.20.1',
+    date: '2026-11-17',
+    title: 'Lighter updates',
+    notes: [
+      'Updates download much less: the 3D engine is kept between releases instead of being fetched again, and so is any other part of the game that did not change',
+    ],
+  },
+  {
     version: '0.20.0',
     date: '2026-11-17',
     title: 'Voices',

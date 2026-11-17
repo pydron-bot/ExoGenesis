@@ -82,6 +82,12 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 900,
     // the editor ships too: on deeek.org it saves by committing to GitHub (src/editor/github.ts)
-    rolldownOptions: { input: { main: 'index.html', editor: 'editor.html' } },
+    rolldownOptions: {
+      input: { main: 'index.html', editor: 'editor.html' },
+      // three.js in a chunk of its own: it only changes when three is upgraded, so its file name
+      // (and the browser's / service worker's copy of it) survives releases. Without this it shares
+      // a chunk with the content and changelog, which change every release.
+      output: { codeSplitting: { groups: [{ name: 'three', test: /[\\/]node_modules[\\/]three[\\/]/ }] } },
+    },
   },
 });
