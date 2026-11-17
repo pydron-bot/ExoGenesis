@@ -1,6 +1,8 @@
 # Exo Genesis: working notes for Claude
 
-- Design: `docs/DESIGN.md` (read before building). Overview and tools: `README.md`.
+- Design: `docs/DESIGN.md` (read before building). As built (how each feature works, its tests and
+  measurements): `docs/TECH.md`; add to it when a feature lands, don't grow DESIGN.md. Story: `docs/STORY.md`.
+  Overview and tools: `README.md`.
 - `main` is live: every push deploys to https://deeek.org/ExoGenesis/ (GitHub Pages).
 - The web editor commits to GitHub directly, so **`git pull --rebase` before working**.
   Editor exports (`exo-changes-*.json`) go in with `node tools/import-changes.mjs <file> --dry-run`, then `--commit`.

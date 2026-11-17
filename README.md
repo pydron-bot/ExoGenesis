@@ -4,7 +4,8 @@ A browser base-building RTS with a strategy layer — Command & Conquer meets Ci
 solar system. You are the caretaker AI of humanity's last seed-probe: land on an alien world,
 keep the cryo bank alive, and raise the next generation.
 
-Built with Three.js + TypeScript + Vite. Design: [docs/DESIGN.md](docs/DESIGN.md).
+Built with Three.js + TypeScript + Vite. Design: [docs/DESIGN.md](docs/DESIGN.md). What's built, how it works and what was measured:
+[docs/TECH.md](docs/TECH.md). Story: [docs/STORY.md](docs/STORY.md).
 
 ## Status — M0 tech demo
 
@@ -99,7 +100,7 @@ cinematic's timeline; Rules → Interface is the HUD's look. **Checks** (top of 
 content problem, every player-facing string (Text) and what changed since the last release.
 Edit them at **http://hive1:5176/editor.html** (dev server only): saves write straight into
 `content/`, open game tabs reload with the new values, and the Commit button commits
-`content/` to the local repo. Schemas are in `src/content/defs.ts`; see DESIGN.md §6.4.
+`content/` to the local repo. Schemas are in `src/content/defs.ts`; see DESIGN.md §6.4 and, per feature, [docs/TECH.md](docs/TECH.md) §1.
 
 The same editor is live at **https://deeek.org/ExoGenesis/editor.html**. There it asks once per
 browser for a fine-grained GitHub token (this repo only, Contents: read and write). Saves stay in
