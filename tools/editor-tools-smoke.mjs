@@ -86,6 +86,16 @@ check((await page.locator('#side .search-hit').count()) >= 1, 'search: "/" focus
 await page.keyboard.press('Escape');
 check((await page.locator('#side .search-hit').count()) === 0, 'search: Esc clears it');
 
+// sidebar groups collapse from their heading, remembered across a reload
+const gameData = page.locator('#side .section', { has: page.locator('.group-head', { hasText: 'Game data' }) });
+await gameData.locator('.group-head').click();
+check(!(await gameData.locator('.item').first().isVisible()), 'sidebar: clicking a group heading collapses it');
+await page.reload();
+await page.waitForSelector('#side .group-head');
+check(await gameData.evaluate((e) => e.classList.contains('collapsed')), 'sidebar: a collapsed group stays collapsed after a reload');
+await gameData.locator('.group-head').click();
+check(await gameData.locator('.item').first().isVisible(), 'sidebar: clicking it again opens it');
+
 // review: make a change on disk through the editor API, look, put it back
 const p = 'units/rover.json';
 const orig = await page.evaluate(async (p) => (await (await fetch(`/__content/file?path=${p}`)).json()), p);

@@ -45,12 +45,31 @@ code { color: var(--accent); }
 }
 #open-game { color: var(--accent); text-decoration: none; white-space: nowrap; }
 
-#side { grid-area: side; overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); padding: 8px 0 24px; }
+#side { grid-area: side; overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); padding: 0 0 24px; }
 .group {
   font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim);
   padding: 14px 16px 6px;
 }
 .coll { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px 4px 16px; font-weight: 600; }
+/* sidebar groups: a heading bar that collapses its group */
+.section { border-top: 1px solid var(--line); }
+.section:first-child { border-top: 0; }
+button.group-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; width: 100%;
+  margin: 0; padding: 9px 12px; border: 0; border-left: 3px solid var(--accent); border-radius: 0;
+  background: var(--panel2); color: var(--text); text-align: left;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+}
+button.group-head:hover { background: #172333; }
+button.group-head .chev { display: inline-block; width: 12px; color: var(--accent); }
+button.group-head .chev::before { content: '▾'; }
+.section.collapsed button.group-head .chev::before { content: '▸'; }
+.section.collapsed button.group-head { border-left-color: var(--line); color: var(--dim); }
+.section.collapsed button.group-head .chev { color: var(--dim); }
+.section.collapsed.has-on button.group-head { border-left-color: var(--accent); }
+.section.collapsed.has-on button.group-head::after { content: '●'; margin-left: auto; color: var(--accent); font-size: 9px; }
+.section.collapsed .section-body { display: none; }
+.section-body { padding: 4px 0 10px; }
 button.mini { padding: 1px 8px; font-size: 12px; }
 button.item {
   display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%;

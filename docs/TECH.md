@@ -125,6 +125,11 @@ How content is stored and edited in general (one JSON record per file, schemas i
   portraits (Story → Characters). The 15 built-in procedural models are
   listed in the library and can be exported to .glb as Blender starting points.
 
+- **Sidebar groups** (v0.21.0): each group (Checks, Game data, Assets, Maps, Story, Rules, Cinematics) has a
+  heading bar that stays at the top while its group scrolls past and collapses the group on a click. Collapsed
+  groups are remembered per browser (`exo.editor.collapsed`); a collapsed group holding the open record shows a
+  dot. Test: `tools/editor-tools-smoke.mjs`.
+
 ## 2. Models, rendering and lights
 
 - **Blender set v1 (2026-11-16, overnight):** `blender/build.py` (headless: `blender -b --factory-startup -P

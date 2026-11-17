@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.21.0',
+    date: '2026-11-17',
+    title: 'Tidier editor',
+    notes: [
+      'Editor: the sidebar\'s group headings stand out, stay in view as you scroll, and fold away with a click (remembered in your browser)',
+    ],
+  },
+  {
     version: '0.20.1',
     date: '2026-11-17',
     title: 'Lighter updates',

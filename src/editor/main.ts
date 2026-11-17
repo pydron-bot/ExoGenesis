@@ -196,6 +196,9 @@ async function loadAll() {
 }
 
 // ---------- sidebar ----------
+/** Sidebar groups the user has collapsed (by heading), remembered in this browser. */
+const COLLAPSED_KEY = 'exo.editor.collapsed';
+const collapsed = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]') as string[]; } catch { return []; } })());
 /** Every record, for search and "used by". */
 function allRecords(singles = false): Rec[] {
   return (Object.keys(COLLECTIONS) as CollectionName[]).filter((c) => singles || coll(c).kind === 'many').flatMap((c) => recordsOf(c).map((r) => ({ coll: c, id: r.id, title: titleOf(c, r.id, r.rec.data), data: r.rec.data })));
@@ -238,43 +241,58 @@ function renderSide() {
     b.onclick = () => showPage(page);
     return b;
   };
-  side.append(
-    h('div', { cls: 'group', textContent: 'Checks' }),
+  section('Checks').append(
     tool('problems', bad.size ? `Problems in ${bad.size} file${bad.size > 1 ? 's' : ''}` : 'No problems', bad.size ? 'fix' : 'ok', bad.size ? 'bad' : ''),
     tool('text', 'Text', 'spelling'),
     tool('changes', 'Since last release', 'what changed'),
   );
   for (const [g, names] of groups) {
-    side.append(h('div', { cls: 'group', textContent: g }));
+    const body = section(g);
     if (g === 'Game data') {
       const bal = h('button', { cls: view === 'balance' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Balance table' }), h('small', { textContent: 'compare' }));
       bal.onclick = () => showPage('balance');
-      side.append(bal);
+      body.append(bal);
     }
-    if (g === 'Maps') side.append(tool('planet', 'Planet', 'all regions'));
+    if (g === 'Maps') body.append(tool('planet', 'Planet', 'all regions'));
     if (g === 'Story') {
       const fl = h('button', { cls: view === 'flow' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Story flow' }), h('small', { textContent: 'overview' }));
       fl.onclick = () => showPage('flow');
-      side.append(fl);
+      body.append(fl);
     }
     for (const name of names) {
       const c = coll(name);
       if (c.kind === 'single') {
-        side.append(item(name, name, c.label, pathOf(name, name)));
+        body.append(item(name, name, c.label, pathOf(name, name)));
         continue;
       }
       if (name === 'assets') {
         const lib = h('button', { cls: view === 'library' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Library' }), h('small', { textContent: `${recordsOf('assets').length + BUILTINS.length}` }));
         lib.onclick = () => showLibrary();
-        side.append(lib);
+        body.append(lib);
       }
       const head = h('div', { cls: 'coll' }, h('span', { textContent: name === 'assets' ? 'Files' : c.label }));
       const add = h('button', { cls: 'mini', textContent: name === 'assets' ? '+ Upload' : '+ New', title: name === 'assets' ? 'Add model, image or audio files' : `New ${c.label.toLowerCase().replace(/s$/, '')}` });
       add.onclick = name === 'assets' ? () => void pickFiles(ACCEPT_ALL, true).then(addFiles) : () => newRecord(name);
       head.append(add);
-      side.append(head);
-      for (const r of recordsOf(name)) side.append(item(name, r.id, titleOf(name, r.id, r.rec.data), r.path));
+      body.append(head);
+      for (const r of recordsOf(name)) body.append(item(name, r.id, titleOf(name, r.id, r.rec.data), r.path));
     }
+  }
+  for (const sec of side.querySelectorAll<HTMLElement>('.section')) sec.classList.toggle('has-on', !!sec.querySelector('.item.on'));
+  /** A collapsible group: its heading toggles it (remembered per browser); returns the body to fill. */
+  function section(name: string) {
+    const body = h('div', { cls: 'section-body' });
+    const head = h('button', { cls: 'group-head', title: 'Show or hide this group' }, h('span', { cls: 'chev' }), h('span', { textContent: name }));
+    const sec = h('div', { cls: `section${collapsed.has(name) ? ' collapsed' : ''}` }, head, body);
+    head.setAttribute('aria-expanded', String(!collapsed.has(name)));
+    head.onclick = () => {
+      if (collapsed.has(name)) collapsed.delete(name); else collapsed.add(name);
+      sec.classList.toggle('collapsed', collapsed.has(name));
+      head.setAttribute('aria-expanded', String(!collapsed.has(name)));
+      try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed])); } catch { /* private mode: not remembered */ }
+    };
+    side.append(sec);
+    return body;
   }
   function item(name: CollectionName, id: string, label: string, path: string) {
     const rec = files.get(path);
