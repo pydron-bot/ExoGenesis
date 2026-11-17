@@ -60,6 +60,8 @@ node tools/roster-smoke.mjs # headless checks for every unit, building and preda
 node tools/shot.mjs    # headless screenshots of each zoom level → shots/
 npm run content:check  # validate content/ against src/content/defs.ts
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
+node tools/editor-checks-smoke.mjs  # undo, content checks, Problems, Rename, Compare, Text, Since last release
+node tools/editor-more-smoke.mjs    # map overlays + copy/paste, Planet, balance runs, play test setup, characters, timeline, interface
 node tools/map-smoke.mjs     # map editor → game end-to-end (restores the region afterwards)
 node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores content/ + public/media/)
 node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)
@@ -92,6 +94,9 @@ Game numbers and maps live in `content/` as JSON (units, buildings, regions, col
 Open a region (Maps → Touchdown) to sculpt terrain, paint flora and place grazer herds.
 Assets → Library lists every model (files and the built-in procedural ones); drop .glb, image or
 audio files onto the editor to add them, then pick a model in a unit's or building's Model field.
+Story → Characters, missions and story events write the campaign; Cinematics → Landing is the opening
+cinematic's timeline; Rules → Interface is the HUD's look. **Checks** (top of the sidebar) lists every
+content problem, every player-facing string (Text) and what changed since the last release.
 Edit them at **http://hive1:5176/editor.html** (dev server only): saves write straight into
 `content/`, open game tabs reload with the new values, and the Commit button commits
 `content/` to the local repo. Schemas are in `src/content/defs.ts`; see DESIGN.md §6.4.

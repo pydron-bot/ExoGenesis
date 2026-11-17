@@ -387,14 +387,58 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
   **Used by** (right panel): every record that refers to the open one. **Review** (click the
   uncommitted-changes count): each changed file's diff against the last commit, before Commit
   (`GET /__content/orig` on both backends). Test: `tools/editor-tools-smoke.mjs`.
+- **Editor tools, part 2** (v0.20.0). Record forms: **undo / redo** (Ctrl+Z / Ctrl+Shift+Z; typing in
+  one field within a second is one step; the map keeps its own undo), **Rename** (new id: writes the new
+  file, points every `ref` at it, deletes the old one; refuses the ids in `REQUIRED`; warns that saves
+  remember ids), **Compare** (two records of a collection side by side, `#compare/<coll>/<a>/<b>`).
+  Every field shows the same problems `content:check` would (the editor runs `buildDb` with the draft in,
+  so rules that span records show at the field), and **Checks → Problems** lists them all. **Checks →
+  Text** (`src/editor/pages.ts`): every player-facing string, editable in place with the browser's
+  British spell check, style notes (double spaces, unmatched quotes, repeated words…) and a names index.
+  **Checks → Since last release**: field-by-field changes since the newest commit that changed
+  `package.json` (`GET /__content/release` on both backends; file mode compares with the deployed build),
+  with a first draft of release notes. **Map**: overlays (build area and unbuildable ground with the
+  placement rule's tests, distance rings, the way packs walk in: the sim's steering replayed from each
+  spawn, timed), **Select area** (A) + Ctrl+C / Ctrl+V copies sculpt, flora and markers between regions
+  (`exo.map.clip`; optionally the ground's absolute shape, feathered). **Maps → Planet**
+  (`src/editor/planet.ts`): all regions on an equirectangular map in Touchdown's frame, drag to set
+  `siteLat`/`siteLon`, overlaps flagged (`planet.ts` now exports `bodyHeight`, `siteLift`, `siteDir`).
+  **Balance → Test runs**: the balance bot moved to `src/sim/balance.ts` (strategies in
+  `src/sim/strategies.ts`; `tools/balance.mjs` output unchanged) and runs in a worker
+  (`balance-worker.ts`) on the editor's saved content, with curves and the change from the previous run.
+  Browser and Node runs of the same seed differ slightly (their maths functions round differently in
+  the last bit; each is deterministic). **Play test setup** (`src/editor/playsetup.ts`, `PlaySetup` in
+  `sim/types.ts`, `Sim.playSetup`): story and mission play tests can start at Sol N with finished
+  buildings, colonists, alloys, flags, no predators. Test: `tools/editor-checks-smoke.mjs`,
+  `tools/editor-more-smoke.mjs`.
+- **Characters and conversations** (v0.20.0): `content/characters/<id>.json` (Story → Characters: name,
+  role, colour, image portrait, writer's notes). Story events gain `character` (instead of free-text
+  `speaker`), `lines` (more lines, one page each, Next; the choices come last) and `style: radio` (a
+  transmission in its own corner panel that closes itself and is logged; no choices or lines). `{first}`
+  in story text and character names is the first pod-born colonist's given name (`PeopleState.first`,
+  set at their decant; older saves catch up). New conditions: `firstAge` (the first colonist is Count
+  years old), `acceptance` / `distrust` (adults' average AI acceptance ≥ / ≤ Count). The Director and the
+  Firstborn are the first two characters.
+- **Landing timeline** (v0.20.0): `content/rules/landing.json` (Cinematics → Landing): ten beats (burn,
+  touchdown, open, power, dissolve, reclaimed, hatch, drone, post, end), camera keys (look at the probe or
+  a ground point; distance, pitch, yaw; `follow` widens the chase with altitude) interpolated per channel
+  with a monotone cubic (`src/world/curve.ts`), and captions with `{alt}`, `{speed}`, `{shield}`. The keys
+  were fitted to the old hand-written camera (within ~2% distance and 0.7°). The editor's timeline
+  (`src/editor/timeline.ts`) drags beats, keys and captions (things on a beat move with it), plots the
+  curves, and plays the game's landing from any moment (`?cine=<s>`; the preview carries the draft).
+- **Interface** (v0.20.0): `content/rules/interface.json` (Rules → Interface): accent, warning, danger,
+  text and panel colours, panel and outline opacity, interface size (CSS `zoom` on the HUD's children)
+  and the log's length and timing. `src/ui-theme.ts` sets them as CSS variables; `style.css` derives
+  every tint with `color-mix`, so the defaults render pixel-identical to before. The editor shows a
+  sketch of the HUD and opens the game with the draft.
 - **Assets** are a file in `public/media/<model|image|audio>/<id>.<ext>` plus a record in
   `content/assets/<id>.json` (name, source, credit, notes; models also import scale / rotation /
   lift, applied by `src/assets/models.ts` in both editor and game). Models are .glb, front +Z, Y
   up, 1 u ≈ 10 m. A unit's or building's `model` field swaps its built-in mesh (units are flattened
   to one instanced mesh; animation is dropped). Wired today: skirmish units and the Solar Array;
   the Command Core stays procedural (the landing animates it). Audio assets can replace any built-in
-  sound through the Sound rules (`content/rules/sound.json`); images are stored and previewed but
-  nothing in the game shows them yet. The 15 built-in procedural models are
+  sound through the Sound rules (`content/rules/sound.json`); images show as character
+  portraits (Story → Characters). The 15 built-in procedural models are
   listed in the library and can be exported to .glb as Blender starting points.
 - **Binary assets** go in the repo while small; switch to Git LFS if audio grows past a few
   hundred MB.
@@ -464,10 +508,10 @@ campaign regions, assets a mix of hand-made, scripted-Blender and generated.
 | Data layer + schema forms | Units, buildings, colony rules | ✅ 2026-11-15 |
 | Asset browser | Library of files + built-in procedural models; previews (3D, image, audio); upload/replace; import fit; used-by; Model field on units/buildings ✅ 2026-11-15 | M1 |
 | Map / region editor | Terrain sculpt, flora paint, grazer herds ✅ 2026-11-15; resources, spawns, relic sites as their systems land | M1 (one region), M3 (the planet) |
-| Mission + trigger designer | "When X, do Y" trigger lists, objectives, win/lose | M4 tutorial missions |
-| Story + dialogue editor | Colonists, Trust beats, radio messages, story events | M2 → M4 |
-| Cinematic timeline | Camera keys, events, captions; landing sequence ported as the test | M4 |
-| Interface tweaker | HUD theme and layout values (not a WYSIWYG builder) | Late M4 |
+| Mission + trigger designer | "When X, do Y" trigger lists, objectives, win/lose ✅ v0.19.0 | M4 tutorial missions |
+| Story + dialogue editor | Story events ✅ v0.18.0; characters, conversations, radio messages, Trust and Firstborn triggers ✅ v0.20.0 | M2 → M4 |
+| Cinematic timeline | Camera keys, events, captions; landing sequence ported as the test ✅ v0.20.0 | M4 |
+| Interface tweaker | HUD theme and layout values (not a WYSIWYG builder) ✅ v0.20.0 | Late M4 |
 
 Rule: each tool is built when the milestone in progress needs it, not ahead of the game.
 
@@ -744,6 +788,10 @@ are just an output surge for now), aged colonists' retirement.
   runs (drifted humans, a machine remnant); stewardship stays, disguised as the Biosphere Report;
   endings Covenant / Severance / Inheritance / Proof / Cycle, chosen by the colony's blocs.
   Full story in `STORY.md`.
+- 2026-11-17 (tools): the rest of the §6.4 tool list (cinematic timeline, interface tweaker,
+  characters and conversations) built now, ahead of M4, at Derek's request, along with editor-wide
+  checks (Problems, Text, Since last release), Rename / Compare / undo, map overlays and copy/paste,
+  the Planet view, balance runs in the editor and play test setup.
 
 ## 9. Proof-of-concept results (2026-11-15)
 
