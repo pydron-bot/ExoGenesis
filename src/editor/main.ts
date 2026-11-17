@@ -22,7 +22,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { setMediaOverride } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -442,7 +442,7 @@ function storyPanel(): HTMLElement {
 function conditionText(kind: Condition | undefined, c: ConditionDef): string {
   if (!kind) return '?';
   const param = kind === 'time' ? `Sol ${c.sol ?? '?'}` : kind === 'built' ? `${c.count && c.count > 1 ? `${c.count}× ` : ''}${c.building ?? '?'}`
-    : ['colonists', 'packs', 'units', 'drones'].includes(kind) ? String(c.count ?? 1) : kind === 'site' ? `site "${c.site ?? '?'}"`
+    : ['colonists', 'packs', 'units', 'drones', 'firstAge', 'acceptance', 'distrust'].includes(kind) ? String(c.count ?? 1) : kind === 'site' ? `site "${c.site ?? '?'}"`
     : kind === 'contact' || kind === 'trust' ? c.group ?? '?' : kind === 'flag' ? `flag "${c.flag ?? '?'}"` : kind === 'after' ? `"${c.event ?? '?'}"`
     : kind === 'mission' ? `"${c.mission ?? '?'}"` : '';
   return `${CONDITION_HELP[kind]}${param ? ` (${param})` : ''}`;
@@ -496,18 +496,75 @@ function missionSummary(m: Partial<MissionDef>): string[] {
   return out;
 }
 
+/** Name, role and portrait for a line, as the game draws it ({first} shown as a sample name). */
+function speakerEl(character?: string, speaker?: string): { el: HTMLElement | null; color: string } {
+  const ch = character ? files.get(pathOf('characters', character))?.data as CharacterDef | undefined : undefined;
+  const name = ch?.name ?? speaker;
+  if (!name) return { el: null, color: '' };
+  const a = ch?.portrait ? files.get(pathOf('assets', ch.portrait))?.data as AssetDef | undefined : undefined;
+  const el = h('div', { cls: 'who' },
+    a?.kind === 'image' ? h('img', { cls: 'por', src: mediaUrl(a), alt: '' }) : null,
+    h('span', { textContent: sampleFirst(name) }, ch?.role ? h('small', { textContent: sampleFirst(ch.role) }) : null));
+  if (ch?.color) el.style.color = ch.color;
+  return { el, color: ch?.color ?? '' };
+}
+/** Every line a character speaks, across story events (a card's text, conversation lines, radio messages). */
+function linesOf(id: string): { ev: string; title: string; text: string }[] {
+  const out: { ev: string; title: string; text: string }[] = [];
+  for (const r of recordsOf('story')) {
+    const ev = r.rec.data as StoryDef | null;
+    if (!ev || typeof ev !== 'object') continue;
+    if (ev.character === id) out.push({ ev: r.id, title: ev.title, text: ev.text });
+    for (const l of ev.lines ?? []) if (l.character === id || (!l.character && !l.speaker && ev.character === id)) out.push({ ev: r.id, title: ev.title, text: l.text });
+  }
+  return out;
+}
+
+/** Characters: a sample card in their colours (from the draft), and everything they say. */
+function renderCharacter() {
+  const card = document.getElementById('char-card'), list = document.getElementById('char-lines');
+  if (!card || !list || !cur) return;
+  const ch = cur.draft as Partial<CharacterDef>;
+  const lines = linesOf(cur.id);
+  const a = ch.portrait ? files.get(pathOf('assets', ch.portrait))?.data as AssetDef | undefined : undefined;
+  const who = h('div', { cls: 'who' }, a?.kind === 'image' ? h('img', { cls: 'por', src: mediaUrl(a), alt: '' }) : null,
+    h('span', { textContent: sampleFirst(ch.name || '…') }, ch.role ? h('small', { textContent: sampleFirst(ch.role) }) : null));
+  if (ch.color) who.style.color = ch.color;
+  const page = h('div', { cls: 'story-page' }, who, h('div', { cls: 't', textContent: lines[0]?.title ?? 'A story card' }), h('p', { textContent: sampleFirst(lines[0]?.text ?? 'What they say goes here.') }));
+  if (ch.color) page.style.borderColor = ch.color;
+  card.replaceChildren(page, ...(ch.name?.includes('{first}') ? [h('div', { cls: 'note', textContent: '{first} becomes the first pod-born colonist\'s name (a sample here)' })] : []));
+  list.replaceChildren(h('div', { cls: 'group', textContent: lines.length ? `Says ${lines.length} line${lines.length > 1 ? 's' : ''}` : 'Says nothing yet: pick them as the Character on a story event' }),
+    ...lines.map((l) => {
+      const link = h('a', { cls: 'fl-link', href: `#story/${l.ev}.json`, textContent: l.title });
+      link.onclick = (e) => { e.preventDefault(); open('story', l.ev); };
+      return h('div', { cls: 'char-line' }, link, h('div', { textContent: l.text }));
+    }));
+}
+
+/** The preview stands in a sample name for {first}. */
+const sampleFirst = (t: string) => t.replaceAll('{first}', 'Ada');
+
 function renderStoryPreview() {
   const card = document.getElementById('story-card'), sum = document.getElementById('story-sum');
   if (!card || !sum || !cur) return;
   const ev = cur.draft as Partial<StoryDef>;
-  const btns = ev.choices?.length ? ev.choices.map((c) => h('button', { textContent: c.label || '…' })) : [h('button', { textContent: 'Continue' })];
-  card.replaceChildren(
-    ...(ev.speaker ? [h('div', { cls: 'who', textContent: ev.speaker })] : []),
-    h('div', { cls: 't', textContent: ev.title || 'Untitled' }),
-    h('p', { textContent: ev.text || '' }),
-    h('div', { cls: 'grp' }, ...btns),
-    ...(ev.pause ? [h('div', { cls: 'note', textContent: 'Pauses the game while open' })] : []),
-  );
+  // every page of the conversation, as the game shows them one at a time
+  const pages = [{ character: ev.character, speaker: ev.speaker, text: ev.text ?? '' }, ...(ev.lines ?? []).map((l) => ({
+    character: l.character ?? (l.speaker ? undefined : ev.character), speaker: l.speaker ?? (l.character ? undefined : ev.speaker), text: l.text ?? '',
+  }))];
+  const radio = ev.style === 'radio';
+  card.classList.toggle('radio', radio);
+  card.replaceChildren(...pages.map((pg, n) => {
+    const who = speakerEl(pg.character, pg.speaker ?? (radio ? 'Transmission' : undefined));
+    const last = n === pages.length - 1;
+    const btns = radio ? [] : !last ? [h('button', { textContent: 'Next ›' }), h('span', { cls: 'pg', textContent: `${n + 1} / ${pages.length}` })]
+      : ev.choices?.length ? ev.choices.map((c) => h('button', { textContent: sampleFirst(c.label || '…') })) : [h('button', { textContent: 'Continue' })];
+    const page = h('div', { cls: 'story-page' }, who.el, h('div', { cls: 't', textContent: sampleFirst(ev.title || 'Untitled') }), h('p', { textContent: sampleFirst(pg.text) }), btns.length ? h('div', { cls: 'grp' }, ...btns) : null);
+    if (who.color) page.style.borderColor = who.color;
+    return page;
+  }), ...(ev.pause && !radio ? [h('div', { cls: 'note', textContent: 'Pauses the game while open' })] : []),
+  ...(radio ? [h('div', { cls: 'note', textContent: 'A radio message: shown in the corner, closes by itself' })] : []),
+  ...([ev.text, ev.title, ...(ev.lines ?? []).map((l) => l.text)].some((t) => t?.includes('{first}')) ? [h('div', { cls: 'note', textContent: '{first} shows as a sample name here' })] : []));
   sum.replaceChildren(...storySummary(ev).map((line) => h('div', { textContent: line })));
   // effects' "When" lists follow the choices as they're edited
   for (const sel of document.querySelectorAll<HTMLSelectElement>('[data-item^="effects["][data-item$=".after"] select')) {
@@ -600,6 +657,7 @@ function renderForm() {
   let panel: HTMLElement | null = null;
   if (cur.coll === 'story') panel = storyPanel();
   if (cur.coll === 'missions') panel = missionPanel();
+  if (cur.coll === 'characters') panel = h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'char-card' }), h('div', { cls: 'char-lines', id: 'char-lines' }));
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
     panel = assetPanel.root;
@@ -650,6 +708,7 @@ function changed() {
 
   assetPanel?.update(cur.draft as unknown as AssetDef);
   if (cur.coll === 'story') renderStoryPreview();
+  if (cur.coll === 'characters') renderCharacter();
   if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {
     $('main').querySelector('.map-issues')?.remove();

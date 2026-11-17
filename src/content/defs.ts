@@ -282,7 +282,7 @@ export type InhabitantDef = Infer<typeof inhabitantShape>;
  * Conditions: what starts a story event (its trigger) and what completes a
  * mission objective. One evaluator (src/sim/conditions.ts) serves both.
  */
-export const CONDITIONS = ['start', 'time', 'built', 'colonists', 'pod', 'units', 'drones', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'mission', 'never'] as const;
+export const CONDITIONS = ['start', 'time', 'built', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'units', 'drones', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'mission', 'never'] as const;
 export type Condition = (typeof CONDITIONS)[number];
 /** Read as "… when <help>" / "Fires <help>". */
 export const CONDITION_HELP: Record<Condition, string> = {
@@ -291,6 +291,9 @@ export const CONDITION_HELP: Record<Condition, string> = {
   built: 'when Count (default 1) finished buildings of that kind stand',
   colonists: 'when the colony has Count colonists (children too)',
   pod: 'when a growth pod is running (or someone has come out of one)',
+  firstAge: 'when the first colonist out of a pod is Count years old (1 sol = 1 year; they come out at the People rules\' age)',
+  acceptance: 'when the adults\' average acceptance of the AI reaches Count (0–100)',
+  distrust: 'when the adults\' average acceptance of the AI falls to Count or below (0–100)',
   units: 'when the colony has Count combat units',
   drones: 'when the colony has Count worker drones',
   packs: 'when Count predator packs have been destroyed',
@@ -324,7 +327,7 @@ const conditionFields = <K extends string>(kindKey: K, label: string) => ({
   [kindKey]: choice(CONDITIONS, { label, helps: CONDITION_HELP }),
   sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on(kindKey, ['time']) }),
   building: ref('buildings', { label: 'Building', optional: true, when: on(kindKey, ['built']) }),
-  count: int({ label: 'Count', min: 1, max: 10000, optional: true, help: 'Empty = 1.', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs'], false) }),
+  count: int({ label: 'Count', min: 0, max: 10000, optional: true, help: 'Empty = 1.', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'firstAge', 'acceptance', 'distrust'], false) }),
   site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on(kindKey, ['contact', 'trust']) }),
   flag: str({ label: 'Flag', optional: true, when: on(kindKey, ['flag']) }),
@@ -354,6 +357,27 @@ export const storyEffectShape = {
 } satisfies Shape;
 export type StoryEffectDef = Infer<typeof storyEffectShape>;
 
+/**
+ * A character (STORY.md §3): who is talking on story cards and in radio
+ * messages. `{first}` in a name or line becomes the first pod-born colonist's
+ * name.
+ */
+export const characterShape = {
+  name: str({ label: 'Name', help: 'Shown above what they say. {first} = the first colonist out of a pod (their name).' }),
+  role: str({ label: 'Role', optional: true, help: 'Under the name, smaller ("Sol Mission Control").' }),
+  color: color({ label: 'Colour', default: '#5ff3ff', help: 'Their name, and the edge of their cards.' }),
+  portrait: ref('assets', { label: 'Portrait', optional: true, assetKind: 'image', help: 'An image from the asset library (Assets), shown beside their lines.' }),
+  description: str({ label: 'Who they are', multiline: true, optional: true, help: 'For writers (the game doesn\'t show it): voice, history, what they want.' }),
+} satisfies Shape;
+export type CharacterDef = Infer<typeof characterShape>;
+
+/** One more line of a conversation (after the card's text). */
+export const storyLineShape = {
+  character: ref('characters', { label: 'Character', optional: true, help: 'Who says it. Empty = the card\'s speaker.' }),
+  speaker: str({ label: 'Speaker', optional: true, help: 'Instead of a character: a name for this line only.' }),
+  text: str({ label: 'Line', multiline: true }),
+} satisfies Shape;
+
 export const storyChoiceShape = {
   label: str({ label: 'Button' }),
   reply: str({ label: 'Reply', multiline: true, optional: true, help: 'Logged when this choice is picked.' }),
@@ -365,8 +389,14 @@ export const storyChoiceShape = {
  */
 export const storyShape = {
   title: str({ label: 'Title' }),
-  speaker: str({ label: 'Speaker', optional: true, help: 'Who is talking (the Director, a colonist…). Shown above the text.' }),
-  text: str({ label: 'Text', multiline: true }),
+  style: choice(['card', 'radio'], { label: 'Shown as', optional: true, help: 'Empty = a card.', helps: {
+    card: 'A card at the top of the screen that waits for an answer.',
+    radio: 'A transmission in the corner: no choices; it closes by itself after a while (or when tapped) and stays in the log.',
+  } }),
+  character: ref('characters', { label: 'Character', optional: true, help: 'Who is talking (Story → Characters): their name, colour and portrait.' }),
+  speaker: str({ label: 'Speaker', optional: true, help: 'Or just a name for who is talking, shown above the text.' }),
+  text: str({ label: 'Text', multiline: true, help: '{first} = the first colonist\'s name.' }),
+  lines: list(storyLineShape, { label: 'More lines', max: 12, optional: true, help: 'A conversation: each line follows the text, one at a time (Next). The choices come with the last line.' }),
   ...conditionFields('trigger', 'Trigger'),
   delay: num({ label: 'Delay', min: 0, max: 3600, unit: 's', optional: true, help: 'Wait this long after the trigger before firing.' }),
   region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
@@ -493,6 +523,7 @@ export const COLLECTIONS = {
   missions: { path: 'missions', kind: 'many', shape: missionShape, label: 'Missions', title: 'title', group: 'Story' },
   story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },
   inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },
+  characters: { path: 'characters', kind: 'many', shape: characterShape, label: 'Characters', title: 'name', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },

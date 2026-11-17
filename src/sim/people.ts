@@ -120,6 +120,17 @@ export class People {
   // ---------- queries used by the Sim ----------
   embryos() { return this.s.bank.reduce((m, n) => m + n, 0); }
   age(c: Colonist) { return (this.secs - c.born) / SOL; }
+  /** The first colonist out of a pod (an older save without the record: the earliest pod-born one still here). */
+  first(): { id: number; name: string } | undefined {
+    const s = this.s;
+    if (!s.first) { const c = s.colonists.filter((x) => x.origin === 'pod').sort((a, b) => a.id - b.id)[0]; if (c) s.first = { id: c.id, name: c.name }; }
+    return s.first;
+  }
+  /** Average acceptance of the AI among adults (null with no adults). */
+  acceptance(): number | null {
+    const ad = this.s.colonists.filter((c) => this.adult(c));
+    return ad.length ? ad.reduce((m, c) => m + c.stance, 0) / ad.length : null;
+  }
   adult(c: Colonist) { return this.age(c) >= P.adultAge; }
 
   /** Extra MW a building wants for its pods. */
@@ -422,6 +433,7 @@ export class People {
       stance: clamp(cur.stance + (this.sim.rnd() - 0.5) * 12, 0, 100), wb: 62,
     });
     this.s.grown++;
+    this.s.first ??= { id: c.id, name: c.name };
     this.emit(`${c.name} steps out of the growth pod · ${cap(p.specialty)}, ${cur.name} imprint`, 'info', 'unitReady');
   }
 

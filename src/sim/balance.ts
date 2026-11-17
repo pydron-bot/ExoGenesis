@@ -12,19 +12,8 @@ import type { SimState } from './types';
 
 const TICK_HZ = 10;
 
-/** Build orders: [kind] or [kind, where]. A unit kind is produced at a Vehicle Bay; 'fab' fabricates a drone. */
-type Step = [string] | [string, 'near' | 'guard' | 'vent' | 'spawn'];
-export const STRATEGIES: Record<string, { help: string; plan: () => Step[] }> = {
-  idle: { help: 'Builds nothing: how long the Core lasts alone', plan: () => [] },
-  greedy: { help: 'Economy only, no defense', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['solar'], ['depot', 'near'], ['battery'], ['solar'], ['depot', 'near'], ['solar'], ['battery'], ['fab']] },
-  balanced: { help: 'Economy with turrets toward the spawns and a radar', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['turret', 'spawn'], ['radar'], ['depot', 'near'], ['turret', 'guard'], ['solar'], ['battery'], ['fab'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn'], ['battery'], ['solar'], ['turret', 'spawn'], ['turret', 'guard']] },
-  army: { help: 'Economy, a Vehicle Bay and an army that rushes to whatever attacks (one turret)', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['battery'], ['bay'], ['rover'], ['rover'], ['solar'], ['turret', 'guard'], ['tank'], ['radar'], ['depot', 'near'], ['solar'], ['rover'], ['tank'], ['battery'], ['solar'], ['tank'], ['rover'], ['tank'], ['solar'], ['tank'], ['tank']] },
-  mixed: { help: 'The balanced build with a small army mixed in', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['bay'], ['rover'], ['turret', 'spawn'], ['radar'], ['tank'], ['depot', 'near'], ['solar'], ['battery'], ['tank'], ['turret', 'spawn'], ['solar'], ['rover'], ['tank'], ['solar'], ['tank']] },
-  fortress: { help: 'Point defense close in, siege cannons toward the spawns, geothermal for the nights', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['pointdefense', 'spawn'], ['radar'], ['depot', 'near'], ['pointdefense', 'guard'], ['geothermal', 'vent'], ['battery'], ['fab'], ['cannon', 'spawn'], ['solar'], ['turret', 'spawn'], ['cannon', 'spawn'], ['solar'], ['pointdefense', 'spawn'], ['cannon', 'guard']] },
-  combined: { help: 'Arc casters for swarms, artillery behind them, an engineer, a repair pad', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['bay'], ['arc'], ['turret', 'spawn'], ['radar'], ['depot', 'near'], ['artillery'], ['engineer'], ['solar'], ['battery'], ['arc'], ['pointdefense', 'spawn'], ['solar'], ['artillery'], ['arc'], ['repairpad']] },
-  people: { help: 'The balanced build plus a Civilian Center and farms; keeps the growth pods busy', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['solar'], ['hydroponics'], ['battery'], ['civic'], ['solar'], ['hydroponics'], ['turret', 'spawn'], ['battery'], ['radar'], ['solar'], ['depot', 'near'], ['hydroponics'], ['turret', 'spawn'], ['solar'], ['battery'], ['civic'], ['hydroponics'], ['solar'], ['battery'], ['turret', 'spawn'], ['turret', 'guard'], ['solar'], ['hydroponics'], ['solar'], ['battery'], ['hydroponics']] },
-  defensive: { help: 'Turrets first, economy second', plan: () => [['solar'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn'], ['depot', 'near'], ['turret', 'guard'], ['battery'], ['turret', 'spawn'], ['solar'], ['radar'], ['battery'], ['turret', 'spawn'], ['solar'], ['turret', 'spawn']] },
-};
+export { STRATEGIES } from './strategies';
+import { STRATEGIES } from './strategies';
 
 export interface BalanceOptions {
   minutes?: number;

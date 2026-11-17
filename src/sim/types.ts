@@ -326,7 +326,8 @@ export interface Snapshot {
   /** Missions under way (with their objectives met so far) and done. */
   missions: { active: MissionSnap[]; done: string[] };
   /** Story cards waiting (ids, oldest first) and flags set. */
-  story: { inbox: string[]; flags: string[] };
+  /** `first`: the first pod-born colonist's name, for {first} in story text. */
+  story: { inbox: string[]; flags: string[]; first?: string };
   /** Inhabitant camps (structures show once explored). */
   camps: CampSnap[];
   /** Inhabitants in sight: x, z, heading, camp index, elder (1/0) per person. */

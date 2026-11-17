@@ -21,6 +21,13 @@ export function conditionMet(sim: Sim, kind: Condition, c: ConditionDef, w: Cond
     case 'built': return !!c.building && s.buildings.filter((b) => b.kind === c.building && b.progress >= 1).length >= n;
     case 'colonists': return (s.people?.colonists.length ?? 0) >= n;
     case 'pod': return (s.people?.pods.length ?? 0) > 0 || (s.people?.grown ?? 0) > 0;
+    case 'firstAge': {
+      const f = s.people ? sim.people.first() : undefined;
+      const who = f && s.people!.colonists.find((x) => x.id === f.id);
+      return !!who && sim.people.age(who) >= n;
+    }
+    case 'acceptance': { const a = s.people ? sim.people.acceptance() : null; return a !== null && a >= n; }
+    case 'distrust': { const a = s.people ? sim.people.acceptance() : null; return a !== null && a <= n; }
     case 'units': return (s.units?.length ?? 0) >= n;
     case 'drones': return s.drones.length >= n;
     case 'packs': return s.stats.packsBeaten >= n;

@@ -1,6 +1,6 @@
 {
   "title": "First Question",
-  "speaker": "Your first colonist",
+  "character": "firstborn",
   "text": "\"You chose what I learned in the pod. My history, what I believe about you. Why that one?\"",
   "trigger": "colonists",
   "count": 1,

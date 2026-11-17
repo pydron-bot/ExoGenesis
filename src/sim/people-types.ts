@@ -132,6 +132,8 @@ export interface PeopleState {
   lead?: Bloc | null;
   /** Lineages already announced as gone. */
   gone: number[];
+  /** The first colonist out of a pod (story cards call them {first}); kept after they die. */
+  first?: { id: number; name: string };
   /** Totals for the end screen. */
   grown: number;
   births: number;

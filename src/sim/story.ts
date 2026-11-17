@@ -58,7 +58,8 @@ export class Story {
     const ev = content.story[id], st = this.s;
     if (!ev || st.fired.includes(id)) return;
     st.fired.push(id);
-    this.sim.emit(ev.title, 'info', 'warning');
+    // a radio message logs what was said; a card logs its title (the card shows the rest)
+    this.sim.emit(ev.style === 'radio' ? `${this.fill(this.who(ev))}: ${this.fill(ev.text)}` : this.fill(ev.title), 'info', 'warning');
     st.inbox.push(id);
     this.apply(ev, 0);
   }
@@ -72,7 +73,7 @@ export class Story {
     const ch = ev.choices?.[choice];
     if (ev.choices?.length) {
       if (!ch) return;
-      if (ch.reply) this.sim.emit(ch.reply, 'info');
+      if (ch.reply) this.sim.emit(this.fill(ch.reply), 'info');
       this.apply(ev, choice + 1);
     }
     if (!st.answered.includes(id)) st.answered.push(id);
@@ -86,7 +87,7 @@ export class Story {
   effect(e: EffectDef) {
     const sim = this.sim, s = sim.s, st = this.s, n = e.amount ?? 0;
     switch (e.kind) {
-      case 'log': if (e.text) sim.emit(e.text, 'info'); break;
+      case 'log': if (e.text) sim.emit(this.fill(e.text), 'info'); break;
       case 'alloys': s.alloys = Math.max(0, s.alloys + n); break;
       case 'biomass': if (s.people) sim.people.debug({ biomass: n }); break;
       case 'stance': for (const c of s.people?.colonists ?? []) c.stance = clamp(c.stance + n, 0, 100); break;
@@ -101,7 +102,19 @@ export class Story {
     }
   }
 
+  /** Story text with {first} filled in (the first pod-born colonist's given name). */
+  fill(text: string) {
+    return text.includes('{first}') ? text.replaceAll('{first}', this.firstName() ?? 'your first colonist') : text;
+  }
+  private firstName() {
+    return this.sim.s.people ? this.sim.people.first()?.name.split(' ')[0] : undefined;
+  }
+  /** Who is talking on an event (its character's name, or its speaker). */
+  private who(ev: StoryDef) {
+    return (ev.character && content.characters[ev.character]?.name) || ev.speaker || 'Transmission';
+  }
+
   snapshot() {
-    return { inbox: [...this.s.inbox], flags: [...this.s.flags] };
+    return { inbox: [...this.s.inbox], flags: [...this.s.flags], first: this.firstName() };
   }
 }

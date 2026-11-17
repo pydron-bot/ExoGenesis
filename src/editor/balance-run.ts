@@ -4,7 +4,8 @@
  * colony did: outcome, a few curves over time, and the change from the run
  * before (so "did my change help?" is one click).
  */
-import { STRATEGIES, type BalanceResult } from '../sim/balance';
+import type { BalanceResult } from '../sim/balance';
+import { STRATEGIES } from '../sim/strategies';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
   const el = document.createElement(tag);
