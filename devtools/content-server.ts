@@ -11,6 +11,8 @@
  *   GET    /__content/git                → { changes: [{ status, path }] }
  *   GET    /__content/orig?path=…        → { text | null }   (the last committed version, for a diff)
  *   POST   /__content/commit             { message } → { commit }   (content/ + public/media/)
+ *   GET    /__content/release            → { version, commit, date, message, files: { path: text } }
+ *                                           (content/ at the last release: the newest commit that changed package.json)
  *
  * Writes are conflict-checked: `baseHash` must match the file on disk (null =
  * "create; must not exist"), so the editor can never silently overwrite a change
@@ -44,6 +46,7 @@ export function contentServer(): Plugin {
   let dir = '';
   let media = '';
   const hashCache = new Map<string, string>();
+  let releaseCache: { sha: string; out: unknown } | null = null;
 
   const resolveMedia = (rel: unknown) => {
     const m = typeof rel === 'string' ? rel.match(MEDIA_RE) : null;
@@ -196,6 +199,19 @@ export function contentServer(): Plugin {
         const changes = stdout.split('\n').filter(Boolean).map((l) => ({ status: l.slice(0, 2).trim(), path: l.slice(3).replace(/^content\//, '') }));
         const { stdout: last } = await git('log', '-1', '--format=%h %s (%cr)', '--', ...TRACKED);
         return { changes, last: last.trim() };
+      }
+      case 'GET /__content/release': {
+        const { stdout: line } = await git('log', '-1', '--format=%H%x09%cs%x09%s', '--', 'package.json');
+        const [sha, date, message] = line.trim().split('\t');
+        if (!sha) throw new HttpError(404, 'no release found');
+        if (releaseCache?.sha !== sha) {
+          const { stdout: pkg } = await git('show', `${sha}:package.json`);
+          const { stdout: names } = await git('ls-tree', '-r', '--name-only', sha, '--', 'content');
+          const files: Record<string, string> = {};
+          for (const n of names.split('\n').filter((x) => x.endsWith('.json'))) files[n.slice(8)] = (await git('show', `${sha}:${n}`)).stdout;
+          releaseCache = { sha, out: { version: JSON.parse(pkg).version ?? '', commit: sha.slice(0, 7), date, message, files } };
+        }
+        return releaseCache.out;
       }
       case 'POST /__content/commit': {
         const b = await body(req);

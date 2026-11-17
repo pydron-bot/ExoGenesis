@@ -291,3 +291,37 @@ table.bal td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-alig
 table.bal td:first-child { text-align: left; }
 table.bal td.num { font-variant-numeric: tabular-nums; }
 table.bal tr:hover td { background: var(--panel); }
+
+/* ---------- checks: problems, compare, text, since last release ---------- */
+.pb-file { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; }
+.pb-head { margin-bottom: 4px; }
+.pb-file .issue { font-size: 13px; padding: 1px 0; }
+.dim { color: var(--dim); }
+table.cmp td:first-child { color: var(--dim); white-space: nowrap; }
+table.cmp tr.diff td { background: rgba(255, 181, 71, 0.08); }
+table.cmp tr.diff td:first-child { color: var(--amber); }
+table.cmp td { max-width: 360px; overflow-wrap: anywhere; }
+.cmp-pick { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; max-width: 260px; }
+.cmp-only { display: flex; align-items: center; gap: 6px; color: var(--dim); white-space: nowrap; }
+.tx-bar { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; position: sticky; top: -20px; background: var(--bg); padding: 8px 0; z-index: 1; }
+.tx-filter { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+.tx-rec { margin: 18px 0 4px; font-weight: 600; }
+.tx-row { display: grid; grid-template-columns: 170px 1fr; column-gap: 12px; padding: 3px 0; }
+.tx-label { color: var(--dim); font-size: 12px; padding-top: 6px; }
+.tx-box { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; resize: vertical; line-height: 1.45; }
+.tx-box:focus { outline: none; border-color: var(--accent); }
+.tx-box.edited { border-color: var(--amber); }
+.tx-box.saved { border-color: var(--good); }
+.tx-notes { grid-column: 2; color: var(--amber); font-size: 12px; }
+.tx-notes:empty { display: none; }
+.tx-names { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 16px; }
+button.tx-name { padding: 1px 8px; font-size: 12px; }
+button.tx-name small { color: var(--dim); }
+.chg-t { border-collapse: collapse; margin: 4px 10px 6px; font-size: 13px; }
+.chg-t td { padding: 2px 8px; vertical-align: top; }
+.chg-t td:first-child { color: var(--dim); }
+.chg-t .was { color: var(--bad); text-decoration: line-through; text-decoration-color: rgba(255, 111, 97, 0.5); }
+.chg-t .now { color: var(--good); }
+.chg-notes { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 12px/1.5 ui-monospace, monospace; margin-bottom: 6px; }
+table.cmp th, table.cmp td { text-align: left; white-space: normal; }
+table.cmp th { cursor: default; }
