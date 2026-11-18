@@ -1270,18 +1270,29 @@ export class RegionView {
     if (!verts) return;
     const pos = this.patch.geometry.getAttribute('position') as THREE.BufferAttribute;
     const v = new THREE.Vector3();
-    let moved = 0;
+    let lo = Infinity, hi = -1;
     for (let i = 0; i < pos.count; i++) {
       const x = verts.x[i], z = verts.z[i];
       if (!changed.some((p) => Math.abs(x - p.x) < p.r + PAD_FALL + 1 && Math.abs(z - p.z) < p.r + PAD_FALL + 1)) continue;
       const raw = regionHeightRaw(x, z);
       regionDir(x, z, v).multiplyScalar(R + (raw < 0 ? padded(x, z, seabed(raw)) : regionHeight(x, z)) - verts.drop[i]);
       pos.setXYZ(i, v.x, v.y, v.z);
-      moved++;
+      lo = Math.min(lo, i); hi = Math.max(hi, i);
     }
-    if (!moved) return;
-    pos.needsUpdate = true;
-    this.patch.geometry.computeVertexNormals();
+    if (hi < 0) return;
+    const geo = this.patch.geometry;
+    if (geo.index) { pos.needsUpdate = true; geo.computeVertexNormals(); return; } // smooth look: shared corners, all of it
+    // flat look (a triangle per three vertices): only the triangles that moved get new normals, and only that
+    // stretch is uploaded (placing a building used to redo all ~90k vertices: a hitch on phones)
+    const nrm = geo.getAttribute('normal') as THREE.BufferAttribute;
+    const t0 = lo - (lo % 3), t1 = hi - (hi % 3) + 3;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    for (let t = t0; t < t1; t += 3) {
+      a.fromBufferAttribute(pos, t); b.fromBufferAttribute(pos, t + 1); c.fromBufferAttribute(pos, t + 2);
+      c.sub(b); a.sub(b); c.cross(a).normalize();
+      nrm.setXYZ(t, c.x, c.y, c.z); nrm.setXYZ(t + 1, c.x, c.y, c.z); nrm.setXYZ(t + 2, c.x, c.y, c.z);
+    }
+    for (const att of [pos, nrm]) { att.clearUpdateRanges(); att.addUpdateRange(t0 * 3, (t1 - t0) * 3); att.needsUpdate = true; }
   }
 
   /** While placing: faint rings showing where building is allowed. */

@@ -815,7 +815,31 @@ First results 2026-11-15; later measurements added below them.
   ~400 u. `?surface=0` turns it off. Planet view costs ~2× the old globe in SwiftShader (130 vs 65 ms at
   390 px); the ground view is unchanged. Versions: `package.json` + `src/changelog.ts` (What's new on the
   title and ⋯), checked by `tools/version-check.mjs` in `npm run build`.
-
+- **Performance pass (2026-11-18, v0.35.0):**
+  - Measured, phone size in SwiftShader: the main thread is idle ~92% of each frame, waiting on the GPU. JS per
+    frame is under 1 ms (region and HUD updates); submitting the draws is ~5 ms. Turning one feature off at a time
+    (lights, shadows, fog of war, simple water, flora) moved the frame time by less than run-to-run noise
+    (±20%; lights off was the clearest saving). No visual cuts without a real phone to measure on.
+  - **Sim tick** (`node tools/sim-bench.mjs`): 7.9 → ~3.4 ms on hive1. With ticks at 10 Hz and three per 100 ms at
+    ×3, a phone ~4× slower was close to falling behind in big fights.
+    - `src/sim/spatial.ts` `Buckets`: uniform grid buckets, arrays reused.
+    - Predator separation and push-out of buildings and walls, and wall-crossing checks: only nearby hostiles
+      (6 u cells) and buildings. Buildings are bucketed by body plus `BODY_MARGIN`, rebuilt when the set changes.
+    - Grazers flee only nearby drones, units and predators (`FLEE_R` cells) and keep out of nearby buildings.
+    - Units' push-out uses the building buckets. Idle units answering attacks share one list per tick
+      (`raiders()`) instead of each scanning every hostile and looking its target up in the building list.
+    - Candidates are sorted by index, so pushes apply in the same order a full scan would.
+  - **Building pads, flat look:** placing a building re-levels the patch under it. It used to recompute normals for
+    all ~90k vertices and re-upload both attributes (a hitch). Now only the moved triangles get face normals, and
+    only that range is uploaded (`addUpdateRange`). The smooth look (indexed) still recomputes all.
+  - **Units and water:** separation could push a ground unit into the water (or a boat ashore). A push that would
+    put a unit off its movement type's ground is undone.
+  - **Flaky tests fixed:**
+    - `tools/smoke.mjs` "Switch on": the test pressed while the card still said "Switch off" after a slow
+      frame. It now waits for the card.
+    - "Threat shown in the resource bar": the turrets could kill the pack before the check. A watcher now
+      records the bar from the wave on.
+    - `tools/skirmish-smoke.mjs` order drag: it now finds the moving unit again before each attempt.
 ## 6. Roster additions
 
 From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a-smoke.mjs`.

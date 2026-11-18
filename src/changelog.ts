@@ -26,6 +26,8 @@ export const CHANGELOG: Release[] = [
       'New: the Transport Barge carries four ground units across the water. Select them and tap the barge to load, then order the barge to a spot on land and it puts them ashore',
       'New predator: the Lurker, a sea creature that comes with packs whose spawn is near water and strikes at anything by the shore',
       'Predators no longer get stuck on the beach trying to reach something on an island or out on the water; they go for what they can reach',
+      'Faster: the colony simulation does about half the work it did in big fights (smoother on phones, especially at ×3), and placing a building no longer causes a brief stutter',
+      'Units no longer get pushed into the water when they crowd together on a beach',
     ],
   },
   {

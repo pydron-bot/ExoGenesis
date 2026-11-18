@@ -12,6 +12,7 @@ import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
 import { PathGrid, moveOf, offLimits, type Move } from './path';
+import { Buckets } from './spatial';
 import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
 import { Story } from './story';
@@ -71,6 +72,8 @@ const PATH_PAD = 1.4;
 const REPATH = 20;
 /** A unit that hasn't got closer to its goal for this many ticks re-plans, then gives up. */
 const STALL = 30;
+/** Building buckets cover each body plus this: more than any moving unit's radius (u). */
+const BODY_MARGIN = Math.max(2, ...Object.values(content.units).filter((u) => u.speed > 0).map((u) => u.radius)) + 1;
 /** Ground units board a transport within this of its hull, across the shallows (u). */
 const BOARD_REACH = 7;
 /** A transport lands its cargo on dry ground within this of its hull (u). */
@@ -147,6 +150,13 @@ const PACK_EXTRAS = Object.entries(content.units)
 export class Sim {
   s!: SimState;
   private fx: number[] = [];
+  /** Spatial buckets (reused every tick): hostiles by index; buildings by index, rebuilt when the set changes. */
+  private hostileBuckets = new Buckets<number>(6);
+  private scaryBuckets = new Buckets<number>(FLEE_R);
+  private bldBuckets = new Buckets<number>(8);
+  private bldKey = '';
+  private found: number[] = [];
+  private seen = new Set<number>();
   /** Colonists' paths: every building blocks (they walk round gates too). */
   private grid = new PathGrid(limit());
   /** Combat units' paths, per movement type (built on first use): buildings but not gates block. */
@@ -967,6 +977,37 @@ export class Sim {
   /** Combat units in the field plus those aboard transports (the army limit counts both). */
   private armySize() { return this.units.reduce((m, u) => m + 1 + (u.cargo?.length ?? 0), 0); }
 
+  /**
+   * Buildings by index, each in every cell its body (a wall: its whole segment) touches, plus a margin
+   * for the biggest body pushed against it. Rebuilt only when buildings come or go.
+   */
+  private buildingBuckets() {
+    const bs = this.s.buildings;
+    let sum = 0;
+    for (const b of bs) sum = (sum * 31 + b.id) | 0;
+    const key = `${bs.length}:${sum}`;
+    if (key !== this.bldKey) {
+      this.bldKey = key;
+      const B = this.bldBuckets;
+      B.clear();
+      bs.forEach((b, i) => {
+        if (barrier(b)) { const w = wallEnds(b); B.add(i, (w.ax + w.bx) / 2, (w.az + w.bz) / 2, Math.hypot(w.bx - w.ax, w.bz - w.az) / 2 + WALL_HALF + BODY_MARGIN); }
+        else B.add(i, b.x, b.z, bodyR(b) + BODY_MARGIN);
+      });
+    }
+    return this.bldBuckets;
+  }
+
+  /** Targetable hostiles at the building they're attacking (idle units answer these). */
+  private raiders() {
+    const byId = new Map(this.s.buildings.map((b) => [b.id, b]));
+    return this.s.hostiles.filter((h) => {
+      if (!this.targetable(h)) return false;
+      const b = byId.get(h.target);
+      return !!b && Math.hypot(b.x - h.x, b.z - h.z) <= bodyR(b) + 12;
+    });
+  }
+
   private unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
   private faunaGrid(m: Move) { return (this.faunaGrids[m] ??= new PathGrid(limit(), m)); }
 
@@ -1062,6 +1103,7 @@ export class Sim {
       for (const m of moves) this.unitGrid(m).setBodies(bodies, PATH_PAD);
     }
     const boarded: Unit[] = [];
+    let raiders: Hostile[] | undefined; // hostiles at a building, worked out once if an idle unit asks
     for (const u of us) {
       const d = content.units[u.unit];
       u.cd = Math.max(0, u.cd - DT);
@@ -1084,10 +1126,8 @@ export class Sim {
         }
         // idle: answer attacks on buildings near the guard post
         if (!tgt && !moving) {
-          for (const h of s.hostiles) {
-            if (!this.targetable(h) || Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse) continue;
-            const b = s.buildings.find((x) => x.id === h.target);
-            if (!b || Math.hypot(b.x - h.x, b.z - h.z) > bodyR(b) + 12) continue;
+          for (const h of (raiders ??= this.raiders())) {
+            if (h.hp <= 0 || Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse) continue; // (killed earlier this tick)
             const dist = Math.hypot(h.x - u.x, h.z - u.z);
             if (dist < bd && dist - this.unitDef(h).radius >= min) { bd = dist; tgt = h; }
           }
@@ -1122,7 +1162,9 @@ export class Sim {
       }
     }
     for (const u of boarded) us.splice(us.indexOf(u), 1);
-    // separation, and out of building bodies
+    // separation, and out of building bodies (but never pushed somewhere it can't go: a Rover into the sea, a boat ashore)
+    const before = us.map((u) => [u.x, u.z]);
+    const blds = this.buildingBuckets();
     for (let i = 0; i < us.length; i++) {
       const a = us[i], ra = content.units[a.unit].radius;
       for (let j = i + 1; j < us.length; j++) {
@@ -1134,13 +1176,23 @@ export class Sim {
           b.x += (dx / dd) * push; b.z += (dz / dd) * push;
         }
       }
-      for (const b of this.s.buildings) {
+      this.seen.clear();
+      blds.near(a.x, a.z, 0.5, this.found, this.seen);
+      this.found.sort((p, q) => p - q);
+      for (const k of this.found) {
+        const b = this.s.buildings[k];
         if (def(b).role === 'gate') continue;
         const dx = a.x - b.x, dz = a.z - b.z, dd = Math.hypot(dx, dz), min = bodyR(b) + ra;
         if (dd > 1e-3 && dd < min) { a.x = b.x + (dx / dd) * min; a.z = b.z + (dz / dd) * min; }
       }
       a.x = clamp(a.x, -limit(), limit()); a.z = clamp(a.z, -limit(), limit());
     }
+    us.forEach((u, i) => {
+      const [px, pz] = before[i];
+      if (u.x === px && u.z === pz) return;
+      const m = moveOf(content.units[u.unit]);
+      if (m !== 'hover' && offLimits(m, regionHeightRaw(u.x, u.z)) && !offLimits(m, regionHeightRaw(px, pz))) { u.x = px; u.z = pz; }
+    });
   }
 
   /** Hit points and alloy cost of a repair target (unit or building). */
@@ -1347,14 +1399,22 @@ export class Sim {
         if (block && block.id !== h.target) { h.target = block.id; h.chew = true; h.best = Infinity; }
       }
     }
-    // separation, and keep out of building bodies
+    // separation, and keep out of building bodies: only what's near each one (spatial buckets), in the same order
+    // as a check against everything would go (so the result doesn't depend on the buckets)
+    const near = this.hostileBuckets;
+    near.clear();
+    let maxR = 0;
+    hs.forEach((h, i) => { if (!h.under) { near.add(i, h.x, h.z); maxR = Math.max(maxR, this.unitDef(h).radius); } });
+    const blds = this.buildingBuckets(), found = this.found, seen = this.seen;
     for (let i = 0; i < hs.length; i++) {
       const a = hs[i], ra = this.unitDef(a).radius;
       if (a.under) continue; // tunnelling: nothing above ground pushes it about
       const an = this.unitDef(a).speed <= 0;
-      for (let j = i + 1; j < hs.length; j++) {
+      near.near(a.x, a.z, ra + maxR + 1, found);
+      found.sort((p, q) => p - q);
+      for (const j of found) {
+        if (j <= i) continue;
         const b = hs[j], rb = this.unitDef(b).radius;
-        if (b.under) continue;
         const bn = this.unitDef(b).speed <= 0;
         const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = ra + rb;
         if (d > 1e-3 && d < min && !(an && bn)) {
@@ -1365,7 +1425,11 @@ export class Sim {
         }
       }
       if (an) continue;
-      for (const b of s.buildings) {
+      seen.clear();
+      blds.near(a.x, a.z, 0.5, found, seen);
+      found.sort((p, q) => p - q);
+      for (const k of found) {
+        const b = s.buildings[k];
         let cx = b.x, cz = b.z, min = bodyR(b) + ra;
         if (barrier(b)) {
           // walls are thick line segments: push out from the nearest point on the segment
@@ -1380,7 +1444,11 @@ export class Sim {
       // never end up on the other side of a wall this tick
       if (!was[i]) continue; // spawned this tick (a nest's guards): nothing to cross yet
       const [px, pz] = was[i];
-      for (const b of s.buildings) {
+      seen.clear();
+      blds.near((px + a.x) / 2, (pz + a.z) / 2, Math.hypot(a.x - px, a.z - pz) / 2 + 1, found, seen);
+      found.sort((p, q) => p - q);
+      for (const k of found) {
+        const b = s.buildings[k];
         if (!barrier(b)) continue;
         const w = wallEnds(b);
         if (crosses(px, pz, a.x, a.z, w.ax, w.az, w.bx, w.bz)) { a.x = px; a.z = pz; break; }
@@ -1675,6 +1743,11 @@ export class Sim {
       s.herds[h] = this.herdSpot(h);
     }
     const scary = [...s.drones, ...this.units, ...s.hostiles.filter((h) => !h.under)];
+    // what's near each grazer, in list order (as a check against everything would go)
+    const sb = this.scaryBuckets, found = this.found;
+    sb.clear();
+    scary.forEach((o, i) => sb.add(i, o.x, o.z));
+    const blds = this.buildingBuckets(), seen = this.seen;
     for (const f of s.fauna) {
       let tx = f.tx, tz = f.tz, sp = WALK;
       const rc0 = Math.hypot(f.x, f.z);
@@ -1683,7 +1756,10 @@ export class Sim {
         // engine noise: bolt away from the landing site
         tx = f.x + (f.x / rc0) * 30; tz = f.z + (f.z / rc0) * 30; sp = RUN; fled = true;
       } else if (this.deployed) {
-        for (const o of scary) {
+        sb.near(f.x, f.z, FLEE_R, found);
+        found.sort((p, q) => p - q);
+        for (const k of found) {
+          const o = scary[k];
           const dx = f.x - o.x, dz = f.z - o.z, dd = Math.hypot(dx, dz);
           if (dd < FLEE_R && dd > 1e-3) { tx = f.x + (dx / dd) * 20; tz = f.z + (dz / dd) * 20; sp = RUN; fled = true; break; }
         }
@@ -1695,7 +1771,11 @@ export class Sim {
         tx = f.tx; tz = f.tz;
       }
       // keep grazers out of the base
-      for (const b of s.buildings) {
+      seen.clear();
+      blds.near(f.x, f.z, CORE_KEEP_OUT, found, seen);
+      found.sort((p, q) => p - q);
+      for (const k of found) {
+        const b = s.buildings[k];
         const r = b.kind === 'core' ? CORE_KEEP_OUT : bodyR(b) + 4;
         const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
         if (d < r && d > 1e-3) { tx = b.x + (dx / d) * (r + 8); tz = b.z + (dz / d) * (r + 8); }
