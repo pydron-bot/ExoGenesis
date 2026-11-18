@@ -15,7 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.27.0',
+    version: '0.29.0',
     date: '2026-11-18',
     title: 'Other worlds',
     notes: [
@@ -26,6 +26,28 @@ export const CHANGELOG: Release[] = [
       'Editor: the map editor paints the ground\'s colour, generates landforms (hills, ridges, craters, mesas, dunes, basins, plateaus, canyons), auto-paints by height and slope, and resizes a region',
       'Editor: cinematics are much quicker to make: fly the preview camera and add a key from the view, add captions, lines and sounds at the playhead, edit text in place, delete, copy and nudge with the keyboard, zoom the timeline, see the camera\'s path from above, and turn on framing guides',
       'Editor: Story → Story board lays out missions, events, cinematics, characters, inhabitants and a new story bible by chapter, with tags, writer\'s notes and filters; drag a card to move it to another chapter',
+    ],
+  },
+  {
+    version: '0.28.0',
+    date: '2026-11-18',
+    title: 'The relic grid',
+    notes: [
+      'North of the landing site, a ring of carved stones is a precursor defense grid. It sleeps until something of ours comes close, then scans us, and only half of it stands down',
+      'Grid Nodes power the grid: destroy every node and it shuts off and opens its cache (alloys and isotopes). Lancers outrange the sentinels',
+      'New research, Relic Studies: a Field Engineer parked next to a Grid Node re-tunes it instead, no fight needed',
+      'Two new story beats: Handshake and Deep Layer',
+    ],
+  },
+  {
+    version: '0.27.0',
+    date: '2026-11-18',
+    title: 'Research and isotopes',
+    notes: [
+      'Tech Lab: select it to research, one project at a time. Technicians working there speed it up',
+      'Exotic isotopes (◇): research Deep Survey, then put a Deep-Core Mine on one of the glowing violet seams. Touchdown has two, out past the build area, so a Relay Tower helps. The drill is loud: packs go for it first',
+      'Fusion Cell (research Isotope Cells): 16 MW day and night, as long as it has isotopes to burn',
+      'Building the Tech Lab sets off a new story beat',
     ],
   },
   {

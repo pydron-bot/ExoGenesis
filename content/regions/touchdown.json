@@ -96,6 +96,64 @@
       "r": 10
     }
   ],
+  "relics": [
+    {
+      "grid": "ridge",
+      "kind": "node",
+      "x": 10,
+      "z": 100
+    },
+    {
+      "grid": "ridge",
+      "kind": "node",
+      "x": 28,
+      "z": 104
+    },
+    {
+      "grid": "ridge",
+      "kind": "sentinel",
+      "x": 0,
+      "z": 86
+    },
+    {
+      "grid": "ridge",
+      "kind": "sentinel",
+      "x": 20,
+      "z": 84
+    },
+    {
+      "grid": "ridge",
+      "kind": "sentinel",
+      "x": 36,
+      "z": 92
+    },
+    {
+      "grid": "ridge",
+      "kind": "sentinel",
+      "x": -6,
+      "z": 104
+    },
+    {
+      "grid": "ridge",
+      "kind": "cache",
+      "x": 18,
+      "z": 110,
+      "alloys": 400,
+      "isotopes": 60
+    }
+  ],
+  "seams": [
+    {
+      "x": 30,
+      "z": -62,
+      "isotopes": 450
+    },
+    {
+      "x": -44,
+      "z": -86,
+      "isotopes": 700
+    }
+  ],
   "wrecks": [
     {
       "x": -72,

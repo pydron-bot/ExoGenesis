@@ -1,0 +1,18 @@
+{
+  "name": "Fusion Cell",
+  "description": "Steady, heavy power day and night, as long as it has isotopes to burn. With none in store it goes dark.",
+  "role": "reactor",
+  "research": "isotope-cells",
+  "buildable": true,
+  "cost": 180,
+  "isotopes": 20,
+  "hp": 400,
+  "powerMW": 16,
+  "fuelRate": 0.06,
+  "buildSeconds": 26,
+  "clearance": 9,
+  "lightColor": "#8fd8ff",
+  "lightRadius": 14,
+  "lightIntensity": 1.1,
+  "model": "exo-fusion"
+}

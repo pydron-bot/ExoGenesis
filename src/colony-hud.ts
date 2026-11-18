@@ -4,7 +4,7 @@
  * sends commands. Updated a few times a second, not every frame.
  */
 import type { ZoomCamera } from './camera';
-import type { BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, StoryDef, UnitDef } from './content/defs';
+import type { BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, ResearchDef, StoryDef, UnitDef } from './content/defs';
 import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
@@ -17,6 +17,7 @@ import * as THREE from 'three';
 interface HudDeps {
   defs: Record<string, BuildingDef>;
   units: Record<string, UnitDef>;
+  research: Record<string, ResearchDef>;
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
   missions: Record<string, MissionDef>;
@@ -40,7 +41,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 
 export class ColonyHud {
   private el = {
-    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'),
+    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), iso: $('r-iso'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'),
     goals: $('goals'), goalsHead: $('goals-head'), goalsList: $('goals-list'), menu: $('build-menu'), card: $('card'), mini: $<HTMLCanvasElement>('minimap'),
     over: $('over'),
   };
@@ -74,6 +75,8 @@ export class ColonyHud {
       const kind = (e.target as HTMLElement).closest<HTMLElement>('[data-kind]')?.dataset.kind;
       if (!kind) return;
       e.preventDefault();
+      const need = this.d.defs[kind]?.research;
+      if (need && this.d.research[need] && !this.cur?.research?.done.includes(need)) { this.d.log(`${this.d.defs[kind].name} needs research: ${this.d.research[need].name} (Tech Lab)`, 'warn'); return; }
       this.d.setBuild(kind);
       this.toggleMenu(false);
     });
@@ -151,6 +154,11 @@ export class ColonyHud {
     e.battery.className = `r ${s.storageMax <= 0 ? 'dim' : draining && pct < 25 ? 'warn' : ''}`;
     e.battery.title = s.storageMax > 0 ? 'Battery charge' : 'No Battery Bank yet';
     e.alloys.innerHTML = `◆ <b>${Math.floor(s.alloys)}</b>`;
+    // isotopes: dim until there are some (or something to make or burn them)
+    const isoOn = (s.isotopes ?? 0) >= 1 || s.buildings.some((b) => { const r = this.d.defs[b.kind]?.role; return r === 'deepmine' || r === 'reactor'; });
+    e.iso.innerHTML = isoOn ? `◇ <b>${Math.floor(s.isotopes ?? 0)}</b>` : '◇ <b>—</b>';
+    e.iso.className = `r ${isoOn ? '' : 'dim'}`;
+    e.iso.title = isoOn ? 'Exotic isotopes' : 'Exotic isotopes: a Deep-Core Mine on an isotope seam (research Deep Survey at a Tech Lab)';
     this.people.renderBar(s);
     const sol = this.d.rules.solSeconds;
     const sl = Math.floor(s.secs / sol) + 1, h = hourAt(s.secs, sol);
@@ -193,14 +201,16 @@ export class ColonyHud {
 
   private renderMenu() {
     const s = this.cur;
-    const alloys = s ? Math.floor(s.alloys) : 0;
-    const items = Object.entries(this.d.defs).filter(([, d]) => d.buildable && d.role !== 'core').sort((a, b) => a[1].cost - b[1].cost);
-    const key = items.map(([k, d]) => `${k}:${alloys >= d.cost}`).join() + this.d.ui.build;
+    const alloys = s ? Math.floor(s.alloys) : 0, iso = s ? Math.floor(s.isotopes ?? 0) : 0;
+    const done = (id?: string) => !id || !this.d.research[id] || !!s?.research?.done.includes(id);
+    const items = Object.entries(this.d.defs).filter(([, d]) => d.buildable && d.role !== 'core').sort((a, b) => Number(!done(a[1].research)) - Number(!done(b[1].research)) || a[1].cost - b[1].cost);
+    const key = items.map(([k, d]) => `${k}:${alloys >= d.cost && iso >= (d.isotopes ?? 0)}:${done(d.research)}`).join() + this.d.ui.build;
     if (key === this.menuKey) return;
     this.menuKey = key;
     this.el.menu.innerHTML = items.map(([k, d]) => {
       const pw = d.powerMW > 0 ? `+${d.powerMW} MW${d.role === 'solar' ? ' by day' : ''}` : d.powerMW < 0 ? `${d.powerMW} MW` : d.role === 'battery' ? `${d.storage} MJ` : d.role === 'wall' ? `per ${d.clearance} u` : d.role === 'gate' ? 'on a wall' : d.role === 'sensor' ? `sees ${d.sight} u` : d.role === 'civic' && d.housing ? `homes ${d.housing}` : '';
-      return `<button data-kind="${k}" class="${alloys < d.cost ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">${d.cost}◆</small> <small>${pw}</small></span></button>`;
+      if (!done(d.research)) return `<button data-kind="${k}" class="locked" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">🔒 ${esc(this.d.research[d.research!].name)}</small></span></button>`;
+      return `<button data-kind="${k}" class="${alloys < d.cost || iso < (d.isotopes ?? 0) ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">${d.cost}◆${d.isotopes ? ` ${d.isotopes}◇` : ''}</small> <small>${pw}</small></span></button>`;
     }).join('');
   }
 
@@ -212,6 +222,12 @@ export class ColonyHud {
     if (d.role === 'repair') return b.engaged ? ['Repairing units', ''] : ['Idle: park damaged units here', ''];
     if (d.role === 'gate') return ['Closed to predators · open to your units', ''];
     if (d.role === 'sensor') return ['Watching', ''];
+    if (d.role === 'lab') {
+      const a = s.research?.active;
+      return a ? [`Researching ${this.d.research[a.id]?.name ?? a.id} · ${Math.floor(a.progress * 100)}%`, ''] : ['Idle: pick something to research', ''];
+    }
+    if (d.role === 'deepmine' && (b.mining === undefined || b.mining < 0)) return ['Idle: no isotope seam in reach', 'warn'];
+    if (d.role === 'reactor' && !b.powered) return ['Out of isotopes', 'bad'];
     if (d.role === 'relay') return ['Relaying · build area extended', ''];
     if (d.role === 'factory') {
       if (!b.queue?.length) return ['Idle: queue a unit', ''];
@@ -281,6 +297,13 @@ export class ColonyHud {
       if (d.role === 'battery') rows.push(['Bank (all)', `${Math.round(s.stored)} / ${Math.round(s.storageMax)} MJ`]);
       if (d.role === 'radar') rows.push(['Next pack', s.nextPack !== null ? mmss(s.nextPack) : '—']);
       if (d.role === 'sensor' && d.sight) rows.push(['Sees', `${d.sight} u`]);
+      if (d.role === 'deepmine') {
+        const sm = b.mining !== undefined && b.mining >= 0 ? s.seams?.[b.mining] : undefined;
+        rows.push(['Mining', `${d.mineRate} isotopes/s`]);
+        if (sm) rows.push(['Seam left', `${Math.floor(sm.isotopes)} / ${sm.max}`]);
+        if (d.lure) rows.push(['Noise', 'loud: draws predator packs']);
+      }
+      if (d.role === 'reactor') rows.push(['Burns', `${d.fuelRate} isotopes/s · ${Math.floor(s.isotopes ?? 0)} in store`]);
       if (d.role === 'relay' && d.range) rows.push(['Build area', `${d.range} u around it`]);
       if (d.role === 'civic' && !d.pods && d.housing) rows.push(['Growth pods', 'none: housing only']);
       const pe = this.people.buildingRows(s, b, d);
@@ -299,9 +322,28 @@ export class ColonyHud {
         queue = q.length ? `<div class="q">${q.map((k, i) => `<i class="${i ? '' : 'now'}">${esc(this.d.units[k]?.name ?? k)}</i>`).join('')}</div>` : '';
         for (const [k, u] of Object.entries(this.d.units).sort((a, b) => (a[1].cost ?? 0) - (b[1].cost ?? 0))) {
           if (u.faction !== 'accord' || u.cost === undefined) continue;
-          btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆</small></button>`);
+          if (u.research && this.d.research[u.research] && !s.research?.done.includes(u.research)) continue; // not yet: the Tech Lab lists it
+          btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || (s.isotopes ?? 0) < (u.isotopes ?? 0) || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆${u.isotopes ? ` ${u.isotopes}◇` : ''}</small></button>`);
         }
         if (q.length) btn.push('<button data-act="unqueue" title="Cancel the last queued unit (full refund)">Cancel last</button>');
+      }
+      let lab = '';
+      if (d.role === 'lab' && b.progress >= 1) {
+        const R = s.research ?? { done: [], active: null };
+        const list = Object.entries(this.d.research).sort((a, b) => (a[1].order ?? 100) - (b[1].order ?? 100) || a[1].cost - b[1].cost);
+        const unlocks = (id: string) => [...Object.values(this.d.defs), ...Object.values(this.d.units)].filter((x) => x.research === id).map((x) => x.name).join(', ');
+        lab = `<div class="research">${list.map(([id, r]) => {
+          const isDone = R.done.includes(id), now = R.active?.id === id;
+          const ready = !r.requires || !this.d.research[r.requires] || R.done.includes(r.requires);
+          const what = unlocks(id);
+          const right = isDone ? '✓ done' : now ? `${Math.floor(R.active!.progress * 100)}%` : ready ? `${r.cost}◆${r.isotopes ? ` ${r.isotopes}◇` : ''} · ${r.seconds}s` : `after ${this.d.research[r.requires!].name}`;
+          return `<div class="rs ${isDone ? 'done' : now ? 'now' : ''}" title="${esc(r.description ?? '')}"><span>${esc(r.name)}${what ? ` → ${esc(what)}` : ''}</span><span>${esc(right)}</span></div>`;
+        }).join('')}</div>`;
+        if (R.active) btn.push('<button data-act="unresearch" title="Stop and get the cost back">Cancel research</button>');
+        else for (const [id, r] of list) {
+          if (R.done.includes(id) || (r.requires && this.d.research[r.requires] && !R.done.includes(r.requires))) continue;
+          btn.push(`<button data-act="research:${id}" class="${s.alloys < r.cost || (s.isotopes ?? 0) < (r.isotopes ?? 0) ? 'poor' : ''}" title="${esc(r.description ?? '')}">${esc(r.name)} <small>${r.cost}◆${r.isotopes ? ` ${r.isotopes}◇` : ''}</small></button>`);
+        }
       }
       btn.push(...pe.buttons);
       if (b.progress >= 1 && b.hp < d.hp) btn.push('<button data-act="repair">Repair</button>');
@@ -309,7 +351,7 @@ export class ColonyHud {
       if (d.role !== 'core') btn.push(`<button data-act="demolish">${b.progress < 1 ? 'Cancel' : 'Recycle'}</button>`);
       html = `<div class="t">${esc(d.name.toUpperCase())}</div><div class="s ${cls}">${esc(st)}</div>
         <div class="hp"><i style="width:${Math.min(100, (b.hp / d.hp) * 100).toFixed(0)}%;background:${b.hp / d.hp > 0.6 ? '#5bff9a' : b.hp / d.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${queue}${pe.html}
+        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${queue}${lab}${pe.html}
         <div class="grp">${btn.join('')}</div>`;
     }
     card.classList.add('on');
@@ -338,6 +380,8 @@ export class ColonyHud {
     if (act === 'fab') this.d.command({ type: 'fab' });
     else if (b && act.startsWith('produce:')) this.d.command({ type: 'produce', id: b.id, unit: act.slice(8) });
     else if (b && act === 'unqueue') this.d.command({ type: 'unqueue', id: b.id });
+    else if (act.startsWith('research:')) this.d.command({ type: 'research', id: act.slice(9) });
+    else if (act === 'unresearch') this.d.command({ type: 'unresearch' });
     else if (!b) return;
     else if (act === 'repair') this.d.command({ type: 'repair', id: b.id });
     else if (act === 'power') this.d.command({ type: 'power', id: b.id, on: !b.on });
@@ -382,6 +426,10 @@ export class ColonyHud {
     g.fillStyle = '#ffb547';
     for (const d of s.deposits) if (d.alloys > 0) { g.beginPath(); g.arc(px(d.x), pz(d.z), 2.5, 0, 7); g.fill(); }
     const fill = g.fillStyle;
+    g.fillStyle = '#9b86ff';
+    for (const v of s.seams ?? []) if (v.isotopes > 0) { g.beginPath(); g.arc(px(v.x), pz(v.z), 2.5, 0, 7); g.fill(); }
+    g.fillStyle = '#c9b8ff';
+    for (const c of s.caches ?? []) if (c.found && !c.opened) g.fillRect(px(c.x) - 2, pz(c.z) - 2, 4, 4);
     g.fillStyle = '#9aa3ab';
     for (const w of s.wrecks ?? []) if (w.found && w.alloys > 0) g.fillRect(px(w.x) - 2.5, pz(w.z) - 1.5, 5, 3);
     g.fillStyle = fill;

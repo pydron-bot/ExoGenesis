@@ -2,12 +2,13 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, REGION_SIZE_STEP, locate, regionCells, type AssetDef, type BodyDef, type ChapterDef, type LoreDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, type AssetDef, BEATS, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, locate, regionCells } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
   units: Record<string, UnitDef>;
   buildings: Record<string, BuildingDef>;
+  research: Record<string, ResearchDef>;
   regions: Record<string, RegionDef>;
   bodies: Record<string, BodyDef>;
   /** Editor only (the game ignores them). */
@@ -58,6 +59,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
   const db0 = {
     units: recs.units,
     buildings: recs.buildings,
+    research: recs.research,
     regions: recs.regions,
     bodies: recs.bodies,
     chapters: recs.chapters,
@@ -125,7 +127,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if (a && a.kind !== 'audio') out.push({ path: COLLECTIONS.sound.path, field: k, msg: `"${id}" is ${a.kind === 'image' ? 'an image' : 'a model'}, not audio` });
   }
   // each role's game logic needs its numbers
-  const NEEDS: Record<string, string[]> = { civic: ['housing'], farm: ['biomassRate'], core: ['range'], depot: ['range', 'mineRate'], battery: ['storage'], turret: ['fireRange', 'damage', 'cooldown'] };
+  const NEEDS: Record<string, string[]> = { civic: ['housing'], farm: ['biomassRate'], core: ['range'], depot: ['range', 'mineRate'], deepmine: ['range', 'mineRate'], reactor: ['fuelRate'], battery: ['storage'], turret: ['fireRange', 'damage', 'cooldown'] };
   for (const [id, b] of Object.entries(db.buildings)) {
     if (!b || typeof b !== 'object') continue;
     for (const f of NEEDS[b.role] ?? []) {
@@ -227,7 +229,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
       const v = r[g];
       if (Array.isArray(v) && v.length !== n) out.push({ path: P, field: g, msg: `has ${v.length} rows; a ${size} u region needs ${n} (resize it in the map editor)` });
     }
-    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites', 'wrecks'] as const) {
+    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites', 'wrecks', 'seams', 'relics'] as const) {
       (r[k] as { x?: number; z?: number }[] | undefined)?.forEach((m, i) => {
         if (m && (Math.abs(m.x ?? 0) > half || Math.abs(m.z ?? 0) > half)) out.push({ path: P, field: `${k}[${i}]`, msg: `outside the region (it's ${size} u across)` });
       });

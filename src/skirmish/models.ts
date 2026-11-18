@@ -132,6 +132,16 @@ export function nestGeo() {
   return merge(parts);
 }
 
+/** Relic sentinel (far-off look): a pale tapered obelisk on a plinth. */
+export function sentinelGeo() {
+  return merge([new THREE.CylinderGeometry(1.6, 1.9, 0.8, 6).translate(0, 0.4, 0), new THREE.CylinderGeometry(0.5, 1.1, 5.5, 4).translate(0, 3.5, 0), new THREE.OctahedronGeometry(0.7, 0).translate(0, 6.8, 0)]);
+}
+
+/** Relic grid node (far-off look): a squat crystal on a ring of stones. */
+export function gridNodeGeo() {
+  return merge([new THREE.CylinderGeometry(2.0, 2.2, 0.6, 8).translate(0, 0.3, 0), new THREE.OctahedronGeometry(1.4, 0).scale(1, 1.8, 1).translate(0, 2.8, 0)]);
+}
+
 export interface BuiltinUnitLook { geo(): THREE.BufferGeometry; glow?(): THREE.BufferGeometry; material(): THREE.Material }
 
 /**
@@ -150,7 +160,9 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },
   burrower: { geo: burrowerGeo, material: () => faunaMaterial('#7a5a3a', '#2e1a08') },
   lancer: { geo: tankGeo, glow: tankGlow, material: () => accordMaterial(0.55) },
-  nest: { geo: nestGeo, material: () => faunaMaterial('#6a3a3e', '#2a0a10') },
+  nest: { geo: nestGeo, material: () => faunaMaterial('#8a5048', '#3a1410') },
+  sentinel: { geo: sentinelGeo, material: () => faunaMaterial('#c9c0ae', '#4a3a8a') },
+  gridnode: { geo: gridNodeGeo, material: () => faunaMaterial('#b9b0a0', '#5a3cff') },
 };
 export const builtinUnitLook = (id: string, faction: string): BuiltinUnitLook =>
   BUILTIN_UNITS[id] ?? BUILTIN_UNITS[faction === 'accord' ? 'rover' : 'swarmer'];

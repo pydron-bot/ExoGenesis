@@ -608,4 +608,34 @@ From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a
   Engineer with nothing to mend strips any wreck within reach + 4 u at 4 alloys/s (repair beam, counts
   `stats.salvaged`); a stripped hull sinks. Model `exo-wreck` for all of them, built-in stand-in until it loads.
   Minimap: grey marks for found wrecks with salvage left. Blender set v6: nest (900 tris), wreck (860).
+- **Research (v0.27.0):** new collection `content/research/<id>.json` (name, description, requires, cost,
+  isotopes, seconds, order); the editor lists it under Game data. Units and buildings name the research they
+  need (`research`); the sim refuses them until it's done, the build menu shows them locked (🔒) and the Vehicle
+  Bay hides them. One project at a time (`SimState.research`: done ids, active id + progress), paid up front,
+  refunded in full if cancelled, run at the best powered finished Tech Lab (role `lab`; `people.mult` so staff
+  speed it up). Finishing sets story flag `research-<id>`. Play test setup takes `research` and `isotopes`.
+  Tech Lab card: the list (done / % / cost / "after X") and a button per available project.
+- **Isotopes (v0.27.0):** a second resource (`SimState.isotopes`, top bar ◇, dim until there's any or a mine
+  or reactor stands). Region list `seams` (x, z, isotopes): violet crystals (`buildSeam`, shrink as mined),
+  minimap dots; nothing else may be built on one (`SEAM_RADIUS` 4 + body). Deep-Core Mine (role `deepmine`,
+  needs Deep Survey): on a free seam within its Range, mines `mineRate` isotopes/s while powered (battery ok).
+  Building and unit records can cost `isotopes`. New building field `lure`: predators choosing a building
+  treat it as that much closer (the mine has 30). Touchdown's two seams are outside the starting build area.
+- **Fusion Cell (v0.27.0):** role `reactor` (needs Isotope Cells): `powerMW` while it burns `fuelRate`
+  isotopes/s; none in store → no power and one warning until it has 20 ticks' worth again.
+- **Too Good (E6, v0.27.0):** story card 20 s after a Tech Lab is built (`story/too-good.json`).
+- Blender set v7: Tech Lab (1,164 tris), Deep-Core Mine (1,268), Fusion Cell (1,788; glow parts `charge`).
+  Test: `tools/research-smoke.mjs` (lab → survey → relay → mine → isotopes → fusion).
+- **Relic grids (v0.28.0, STORY.md E2):** region list `relics` (grid id, part sentinel / node / cache, x, z,
+  cache alloys / isotopes). Sentinels and nodes are hostiles of a new faction `relic` (unit field `relic` names
+  the part: `units/sentinel.json`, `units/gridnode.json`) with `relic` = grid and `dormant` (inert, untargetable)
+  until the grid wakes: anything of ours (unit, drone, building) within a relic's aggro radius. Waking logs the
+  97.3% firmware match, sets `relic-woke` (card *Handshake*), and every other sentinel (by id) stays dormant;
+  the rest shoot (arc look, 26 u) and the nodes become targetable. A grid with no nodes left powers off (all
+  members dormant), its caches open and pay out, flag `relic-opened` (card *Deep Layer*), `stats.relicsDown`.
+  With research Relic Studies a Field Engineer with nothing to mend re-tunes a node in reach over 20 s (no kill).
+  Any speed-0 hostile is immovable in separation (nests and relics). Caches render from `exo-cache` once
+  sighted; their `seal` part goes dark when opened; minimap marks unopened found caches. Touchdown's grid
+  `ridge` is at about (15, 95): 2 nodes, 4 sentinels, 1 cache (400 alloys, 60 isotopes).
+  Blender set v8: sentinel (712 tris), grid node (612), cache (256). Test: `tools/relic-smoke.mjs`.
 

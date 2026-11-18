@@ -1,0 +1,17 @@
+{
+  "name": "Relic Sentinel",
+  "faction": "relic",
+  "relic": "sentinel",
+  "description": "A precursor guard tower, asleep until something comes close. Awake, it fires a violet discharge at anything of ours in reach. Some stand down when they scan us.",
+  "hp": 900,
+  "speed": 0,
+  "range": 26,
+  "damage": 30,
+  "cooldown": 1.5,
+  "weapon": "arc",
+  "radius": 1.8,
+  "aggro": 34,
+  "sight": 0,
+  "model": "exo-sentinel",
+  "modelScale": 1
+}

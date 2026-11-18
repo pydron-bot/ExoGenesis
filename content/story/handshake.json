@@ -1,0 +1,23 @@
+{
+  "title": "Handshake",
+  "text": "The stones are machines. The grid lit up when we came near, swept us with something like radar, and paused. Then half of it went dark again, as if it had been told to. Log entry, automatic: \"firmware lineage 97.3% match.\" We didn't write that line.",
+  "trigger": "flag",
+  "flag": "relic-woke",
+  "choices": [
+    {
+      "label": "97.3% match with what?",
+      "reply": "No answer on file. The log entry has no source."
+    },
+    {
+      "label": "Shut the grid down",
+      "reply": "Logged. Its nodes power it: take them out, or learn to talk to them (Relic Studies)."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "handshake-seen"
+    }
+  ]
+}

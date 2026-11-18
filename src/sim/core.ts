@@ -17,7 +17,7 @@ import { People } from './people';
 import { Story } from './story';
 import { Missions } from './missions';
 import type { Colonist } from './people-types';
-import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, wallsUnderGate, type PlaceWorld } from './rules';
+import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
@@ -129,6 +129,10 @@ const SALVAGE_RATE = 4;
 const WRECK_R = 4;
 /** Nest guards come out at most this often (s). */
 const GUARD_CD = 12;
+/** Seconds a Field Engineer takes to re-tune a grid node (with Relic Studies). */
+const TUNE_SECONDS = 20;
+/** The unit record for a relic part (content: faction relic, `relic` = part). */
+const relicUnit = (part: 'sentinel' | 'node') => Object.keys(content.units).sort().find((k) => content.units[k].faction === 'relic' && content.units[k].relic === part);
 /** Fauna that join packs on their own (packEvery), in id order so runs are reproducible. */
 const PACK_EXTRAS = Object.entries(content.units)
   .filter(([id, u]) => u.faction === 'fauna' && (u.packEvery ?? 0) > 0 && id !== 'swarmer')
@@ -191,7 +195,11 @@ export class Sim {
     });
     this.slotsUsed = 0;
     s.wrecks = this.regionWrecks();
+    s.isotopes = 0;
+    s.seams = this.regionSeams();
+    s.research = { done: [], active: null };
     this.initNests();
+    this.initRelics();
     this.exp.fill(0);
     this.stepFog(true);
   }
@@ -212,6 +220,12 @@ export class Sim {
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
     state.wrecks ??= this.regionWrecks();
+    state.isotopes ??= 0;
+    state.seams ??= this.regionSeams();
+    state.research ??= { done: [], active: null };
+    if (!state.relics) this.initRelics();
+    // research that no longer exists in content is dropped (its cost is lost)
+    if (state.research.active && !content.research[state.research.active.id]) state.research.active = null;
     if (!state.nests) this.initNests();
     else state.nests = state.nests.filter((n) => n.spawn < this.spawns().length);
     this.exp.fill(0);
@@ -223,6 +237,15 @@ export class Sim {
   /** The region's predator spawns (a corner if it has none). */
   private spawns(): { x: number; z: number; nest?: boolean }[] {
     return REGION.spawns?.length ? REGION.spawns : [{ x: limit() - 10, z: limit() - 10 }];
+  }
+
+  private regionSeams() {
+    return (REGION.seams ?? []).map((v) => ({ x: v.x, z: v.z, isotopes: v.isotopes, max: v.isotopes }));
+  }
+
+  /** Has this research been done? (Records without a research gate are always available.) */
+  researched(id?: string) {
+    return !id || !content.research[id] || !!this.s.research?.done.includes(id);
   }
 
   private regionWrecks() {
@@ -249,6 +272,78 @@ export class Sim {
     s.hostiles.push({ id, unit: NEST_UNIT, slot, x: sp.x, z: sp.z, heading: this.rnd() * Math.PI * 2, hp, target: -1, cd: 0, pack: -1, nest: n.spawn, lastHp: hp });
     n.id = id;
     return true;
+  }
+
+  /** Relic grids from the region map: sentinels and nodes asleep, caches sealed. */
+  private initRelics() {
+    const s = this.s;
+    const R = (s.relics = { grids: {} as Record<string, { woke: boolean; open: boolean }>, caches: [] as NonNullable<SimState['relics']>['caches'] });
+    for (const r of REGION.relics ?? []) {
+      R.grids[r.grid] ??= { woke: false, open: false };
+      if (r.kind === 'cache') { R.caches.push({ x: r.x, z: r.z, grid: r.grid, alloys: r.alloys ?? 0, isotopes: r.isotopes ?? 0, opened: false }); continue; }
+      const unit = relicUnit(r.kind), slot = this.freeSlot();
+      if (!unit || slot < 0) continue;
+      s.hostiles.push({ id: s.nextId++, unit, slot, x: r.x, z: r.z, heading: this.rnd() * Math.PI * 2, hp: content.units[unit].hp, target: -1, cd: 0, pack: -1, relic: r.grid, dormant: true });
+    }
+  }
+
+  /**
+   * Relic grids: anything of ours within a relic's aggro wakes its grid (E2 Handshake): it scans
+   * us and every other sentinel stands down. When a grid has no nodes left it powers off and
+   * its caches open.
+   */
+  private stepRelics() {
+    const s = this.s, R = s.relics;
+    if (!R || s.tick % 5) return;
+    for (const [id, g] of Object.entries(R.grids)) {
+      if (g.open) continue;
+      const members = s.hostiles.filter((h) => h.relic === id);
+      if (!g.woke) {
+        const near = (x: number, z: number, r: number) =>
+          this.units.some((u) => Math.hypot(u.x - x, u.z - z) < r) || s.drones.some((d) => Math.hypot(d.x - x, d.z - z) < r) ||
+          s.buildings.some((b) => Math.hypot(b.x - x, b.z - z) < r + bodyR(b));
+        if (members.some((h) => near(h.x, h.z, this.unitDef(h).aggro))) {
+          g.woke = true;
+          const sentinels = members.filter((h) => this.unitDef(h).relic === 'sentinel').sort((a, b) => a.id - b.id);
+          sentinels.forEach((h, i) => { h.dormant = i % 2 === 1; });
+          for (const h of members) if (this.unitDef(h).relic === 'node') h.dormant = false;
+          const down = sentinels.filter((h) => h.dormant).length;
+          this.emit(`Relic grid waking. It's scanning us... firmware lineage 97.3% match. ${down ? `${down} of its ${sentinels.length} sentinels stand down.` : 'Nothing stands down.'} Destroy its nodes to shut it off.`, 'bad', 'alarm');
+          for (const f of ['relic-woke', `relic-${id}-woke`]) if (this.story.s && !this.story.has(f)) this.story.s.flags.push(f);
+        }
+      }
+      if (members.some((h) => this.unitDef(h).relic === 'node')) continue;
+      // no nodes left: the grid powers off, its caches open
+      g.open = g.woke = true;
+      for (const h of members) h.dormant = true;
+      s.stats.relicsDown = (s.stats.relicsDown ?? 0) + 1;
+      let alloys = 0, iso = 0;
+      for (const c of R.caches) if (c.grid === id && !c.opened) { c.opened = true; alloys += c.alloys; iso += c.isotopes; }
+      s.alloys += alloys;
+      s.isotopes = (s.isotopes ?? 0) + iso;
+      this.emit(`The relic grid powers down.${alloys || iso ? ` Its cache opens: +${alloys} alloys${iso ? `, +${iso} isotopes` : ''}.` : ''}`, 'info', 'packCleared');
+      for (const f of ['relic-opened', `relic-${id}-opened`]) if (this.story.s && !this.story.has(f)) this.story.s.flags.push(f);
+    }
+  }
+
+  /** With Relic Studies, a Field Engineer with nothing to mend re-tunes a grid node in reach. True if tuning. */
+  private tune(u: Unit, d: UnitDef) {
+    const s = this.s;
+    if (!this.researched('relic-studies') || !content.research['relic-studies']) return false;
+    for (const h of s.hostiles) {
+      const hd = this.unitDef(h);
+      if (hd.relic !== 'node' || Math.hypot(h.x - u.x, h.z - u.z) > d.range + d.radius + hd.radius + 2) continue;
+      h.tune = (h.tune ?? 0) + DT / TUNE_SECONDS;
+      u.heading = Math.atan2(h.x - u.x, h.z - u.z);
+      if ((s.tick + u.id) % 6 === 0) this.fx.push(FX.REPAIR, u.x, u.z, h.x, h.z);
+      if (h.tune >= 1) {
+        s.hostiles.splice(s.hostiles.indexOf(h), 1);
+        this.fx.push(FX.EMERGE, h.x, h.z, 0, 0);
+        this.emit('Grid Node re-tuned: it answers to our handshake now and lets its grid go', 'info', 'online');
+      }
+      return true;
+    }
+    return false;
   }
 
   /** Destroyed nests grow back after the regrow time. */
@@ -314,7 +409,7 @@ export class Sim {
   get deployed() { return this.s.phase === 'deployed'; }
   get units(): Unit[] { return (this.s.units ??= []); }
   /** What placement rules see. */
-  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS, campSites: campSites(this.s.camps ?? []) }; }
+  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS, seams: this.s.seams, campSites: campSites(this.s.camps ?? []) }; }
   private entity(id: number): Building | Drone | Unit | Colonist | undefined {
     return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id) ?? this.people.colonist(id);
   }
@@ -329,12 +424,14 @@ export class Sim {
       this.stepDrones();
       this.stepFab();
       this.stepFactories();
+      this.stepResearch();
       this.stepMining();
       this.stepTurrets();
       this.stepRepairPads();
       this.stepUnits();
       this.stepHostiles();
       this.stepNests();
+      this.stepRelics();
       this.stepWaves();
       this.stepCryo();
       this.people.step();
@@ -367,6 +464,14 @@ export class Sim {
       b.powered = false;
       if (b.progress < 1 || !b.on) continue;
       if (d.role === 'battery') { cap += d.storage ?? 0; b.powered = true; }
+      if (d.role === 'reactor') {
+        // steady power while it has fuel: no isotopes, no power
+        const need = (d.fuelRate ?? 0) * DT;
+        if ((s.isotopes ?? 0) >= need) { s.isotopes = (s.isotopes ?? 0) - need; gen += d.powerMW * this.people.mult(b); b.powered = true; }
+        else if (!b.starved) { b.starved = true; this.emit(`${d.name} is out of isotopes: no power from it`, 'warn', 'warning'); }
+        if ((s.isotopes ?? 0) >= need * 20) b.starved = false;
+        continue;
+      }
       if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
@@ -454,6 +559,7 @@ export class Sim {
     }
     let grew = false;
     for (let i = 0; i < vis.length; i++) if (vis[i] && !exp[i]) { exp[i] = 1; grew = true; }
+    for (const c of s.relics?.caches ?? []) if (!c.found && this.visible(c.x, c.z)) c.found = true;
     for (const w of s.wrecks ?? []) {
       if (w.found || !this.visible(w.x, w.z)) continue;
       w.found = true;
@@ -620,11 +726,44 @@ export class Sim {
     }
   }
 
+  /** The research under way moves on at the best powered Tech Lab (staff speed it up). */
+  private stepResearch() {
+    const s = this.s, a = s.research?.active;
+    if (!a) return;
+    const r = content.research[a.id];
+    if (!r) { s.research!.active = null; return; }
+    let rate = 0;
+    for (const b of s.buildings) if (b.progress >= 1 && b.powered && def(b)?.role === 'lab') rate = Math.max(rate, this.people.mult(b));
+    for (const b of s.buildings) if (def(b)?.role === 'lab') b.engaged = rate > 0;
+    if (!rate) return;
+    a.progress = Math.min(1, a.progress + (DT * rate) / Math.max(1, r.seconds));
+    if (a.progress < 1) return;
+    s.research!.done.push(a.id);
+    s.research!.active = null;
+    s.stats.researched = (s.stats.researched ?? 0) + 1;
+    const unlocks = [...Object.values(DEFS), ...Object.values(content.units)].filter((x) => x.research === a.id).map((x) => x.name);
+    this.emit(`Research complete: ${r.name}${unlocks.length ? ` · unlocks ${unlocks.join(', ')}` : ''}`, 'info', 'online');
+    const flag = `research-${a.id}`;
+    if (this.story.s && !this.story.has(flag)) this.story.s.flags.push(flag);
+  }
+
   // ---------- mining ----------
   private stepMining() {
     const s = this.s;
     for (const b of s.buildings) {
       const d = def(b);
+      if (d.role === 'deepmine' && b.progress >= 1) {
+        const seams = s.seams ?? [];
+        if (b.mining === undefined || b.mining < 0 || !seams[b.mining] || seams[b.mining].isotopes <= 0) b.mining = seamFor(this.world, DEFS, d, b.x, b.z);
+        if (!b.powered || b.mining < 0) continue;
+        const sm = seams[b.mining];
+        const take = Math.min(sm.isotopes, (d.mineRate ?? 0) * this.people.mult(b) * DT);
+        sm.isotopes -= take;
+        s.isotopes = (s.isotopes ?? 0) + take;
+        s.stats.isotopesMined = (s.stats.isotopesMined ?? 0) + take;
+        if (sm.isotopes <= 0) this.emit(`Isotope seam ${compass(sm.x, sm.z)} of the Core is exhausted`, 'warn');
+        continue;
+      }
       if (d.role !== 'depot' || b.progress < 1) continue;
       if (b.mining === undefined || b.mining < 0 || !s.deposits[b.mining] || s.deposits[b.mining].alloys <= 0) b.mining = depositFor(s, d, b.x, b.z);
       if (!b.powered || b.mining < 0) continue;
@@ -643,7 +782,7 @@ export class Sim {
 
   /** Can the colony shoot at this hostile? Not while it's underground or out of sight. */
   private targetable(h: Hostile) {
-    return !h.under && this.visible(h.x, h.z);
+    return !h.under && !h.dormant && this.visible(h.x, h.z);
   }
 
   /**
@@ -915,7 +1054,7 @@ export class Sim {
       p = best !== null ? this.patient(best) : null;
     }
     u.target = -1;
-    if (!p && this.salvage(u, d) && !moving) return;
+    if (!p && (this.tune(u, d) || this.salvage(u, d)) && !moving) return;
     const gap = p ? Math.hypot(p.e.x - u.x, p.e.z - u.z) - p.r - d.radius : Infinity;
     if (p && gap <= d.range) {
       if (!moving) {
@@ -982,7 +1121,7 @@ export class Sim {
     }
     for (const b of s.buildings) {
       if (h.under && barrier(b)) continue;
-      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0);
+      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0) - (def(b).lure ?? 0);
       if (dist < bd) { bd = dist; best = b.id; }
     }
     return best;
@@ -996,6 +1135,7 @@ export class Sim {
       const u = this.unitDef(h);
       h.cd = Math.max(0, h.cd - DT);
       if (h.nest !== undefined) { this.stepNest(h, u); continue; }
+      if (h.dormant || (h.relic && u.damage <= 0)) continue; // a sleeping relic, or a grid node: does nothing
       let tgt = h.target >= 0 ? this.entity(h.target) : undefined;
       if (!tgt) h.chew = false;
       if (!tgt || (!h.chew && (s.tick + h.id) % 10 === 0)) {
@@ -1059,11 +1199,11 @@ export class Sim {
     for (let i = 0; i < hs.length; i++) {
       const a = hs[i], ra = this.unitDef(a).radius;
       if (a.under) continue; // tunnelling: nothing above ground pushes it about
-      const an = a.nest !== undefined;
+      const an = this.unitDef(a).speed <= 0;
       for (let j = i + 1; j < hs.length; j++) {
         const b = hs[j], rb = this.unitDef(b).radius;
         if (b.under) continue;
-        const bn = b.nest !== undefined;
+        const bn = this.unitDef(b).speed <= 0;
         const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = ra + rb;
         if (d > 1e-3 && d < min && !(an && bn)) {
           // a nest never moves: whoever bumps into it takes the whole push
@@ -1129,6 +1269,9 @@ export class Sim {
       }
     }
     if (p.alloys) { s.alloys += p.alloys; done.push(`${p.alloys} alloys`); }
+    if (p.isotopes) { s.isotopes = (s.isotopes ?? 0) + p.isotopes; done.push(`${p.isotopes} isotopes`); }
+    for (const id of p.research ?? []) if (content.research[id] && !s.research!.done.includes(id)) s.research!.done.push(id);
+    if (p.research?.length) done.push(`research ${p.research.join(', ')}`);
     let built = 0;
     (p.buildings ?? []).forEach((kind, n) => {
       const dd = DEFS[kind];
@@ -1140,6 +1283,9 @@ export class Sim {
         if (d) { tx = d.x * 0.8; tz = d.z * 0.8; }
       } else if (dd.role === 'geothermal') {
         const v = VENTS.find((x) => !s.buildings.some((b) => Math.hypot(b.x - x.x, b.z - x.z) < 6));
+        if (v) { tx = v.x; tz = v.z; }
+      } else if (dd.role === 'deepmine') {
+        const v = (s.seams ?? []).find((x) => x.isotopes > 0 && !s.buildings.some((b) => Math.hypot(b.x - x.x, b.z - x.z) < 6));
         if (v) { tx = v.x; tz = v.z; }
       }
       for (let r = 0; r < 80; r += 2) {
@@ -1312,7 +1458,9 @@ export class Sim {
       case 'build': {
         const dd = DEFS[c.kind];
         if (!dd || !dd.buildable) return;
+        if (!this.researched(dd.research)) { this.emit(`${dd.name} needs research: ${content.research[dd.research!]?.name}`, 'warn', 'deny'); return; }
         if (s.alloys < dd.cost) { this.emit(`Not enough alloys for a ${dd.name} (${dd.cost} needed)`, 'warn', 'deny'); return; }
+        if ((s.isotopes ?? 0) < (dd.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${dd.name} (${dd.isotopes} needed)`, 'warn', 'deny'); return; }
         let { x, z } = c, yaw = c.yaw ?? 0;
         // a gate dropped by a wall snaps onto its line
         const sn = dd.role === 'gate' ? gateSnap(this.world, DEFS, x, z) : null;
@@ -1320,6 +1468,7 @@ export class Sim {
         const why = placeProblem(this.world, DEFS, RULES, c.kind, x, z);
         if (why) { this.emit(`Can't build there: ${why}`, 'warn', 'deny'); return; }
         s.alloys -= dd.cost;
+        s.isotopes = (s.isotopes ?? 0) - (dd.isotopes ?? 0);
         let swapped = 0;
         if (dd.role === 'gate') {
           for (const w of wallsUnderGate(s.buildings, DEFS, dd, x, z, yaw)) {
@@ -1431,8 +1580,11 @@ export class Sim {
         if (!b || def(b).role !== 'factory' || b.progress < 1 || !ud || ud.faction !== 'accord' || ud.cost === undefined) return;
         const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
         if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }
+        if (!this.researched(ud.research)) { this.emit(`${ud.name} needs research: ${content.research[ud.research!]?.name}`, 'warn', 'deny'); return; }
         if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn', 'deny'); return; }
+        if ((s.isotopes ?? 0) < (ud.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${ud.name} (${ud.isotopes} needed)`, 'warn', 'deny'); return; }
         s.alloys -= ud.cost;
+        s.isotopes = (s.isotopes ?? 0) - (ud.isotopes ?? 0);
         (b.queue ??= []).push(c.unit);
         if (b.queue.length === 1) b.prod = 0;
         return;
@@ -1442,6 +1594,7 @@ export class Sim {
         if (!b?.queue?.length) return;
         const k = b.queue.pop()!;
         s.alloys += content.units[k]?.cost ?? 0;
+        s.isotopes = (s.isotopes ?? 0) + (content.units[k]?.isotopes ?? 0);
         if (!b.queue.length) b.prod = 0;
         return;
       }
@@ -1460,6 +1613,28 @@ export class Sim {
       }
       case 'stop': {
         for (const u of this.units) if (c.ids.includes(u.id)) { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; }
+        return;
+      }
+      case 'research': {
+        const r = content.research[c.id], R = (s.research ??= { done: [], active: null });
+        if (!r || R.done.includes(c.id)) return;
+        if (R.active) { this.emit(`The Tech Lab is busy with ${content.research[R.active.id]?.name ?? 'other research'}`, 'warn', 'deny'); return; }
+        if (!s.buildings.some((b) => b.progress >= 1 && def(b)?.role === 'lab')) { this.emit('Research needs a finished Tech Lab', 'warn', 'deny'); return; }
+        if (!this.researched(r.requires)) { this.emit(`${r.name} needs ${content.research[r.requires!]?.name} first`, 'warn', 'deny'); return; }
+        if (s.alloys < r.cost) { this.emit(`Not enough alloys for ${r.name} (${r.cost} needed)`, 'warn', 'deny'); return; }
+        if ((s.isotopes ?? 0) < (r.isotopes ?? 0)) { this.emit(`Not enough isotopes for ${r.name} (${r.isotopes} needed)`, 'warn', 'deny'); return; }
+        s.alloys -= r.cost;
+        s.isotopes = (s.isotopes ?? 0) - (r.isotopes ?? 0);
+        R.active = { id: c.id, progress: 0 };
+        this.emit(`Research started: ${r.name}`, 'info', 'placed');
+        return;
+      }
+      case 'unresearch': {
+        const R = s.research, a = R?.active, r = a && content.research[a.id];
+        if (!R || !a) return;
+        if (r) { s.alloys += r.cost; s.isotopes = (s.isotopes ?? 0) + (r.isotopes ?? 0); }
+        R.active = null;
+        this.emit(`Research cancelled${r ? `: ${r.name} (refunded)` : ''}`, 'info');
         return;
       }
       case 'fab': {
@@ -1548,6 +1723,9 @@ export class Sim {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
       drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
       wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),
+      seams: (s.seams ?? []).map((v) => ({ ...v })), isotopes: s.isotopes ?? 0,
+      caches: (s.relics?.caches ?? []).map((c) => ({ ...c })),
+      research: { done: [...(s.research?.done ?? [])], active: s.research?.active ? { ...s.research.active } : null },
       nests: (s.nests ?? []).map((n) => ({ x: this.spawns()[n.spawn]?.x ?? 0, z: this.spawns()[n.spawn]?.z ?? 0, alive: n.id >= 0 })),
       army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units, camps: inh.camps, natives: inh.natives, story: this.story.snapshot(), missions: this.missions.snapshot(),
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,

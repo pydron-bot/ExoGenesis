@@ -1,0 +1,17 @@
+{
+  "name": "Tech Lab",
+  "description": "Runs research, one project at a time: select it to pick one. Technicians working here speed it up. Research unlocks new buildings and vehicles.",
+  "role": "lab",
+  "buildable": true,
+  "cost": 160,
+  "hp": 500,
+  "powerMW": -3,
+  "buildSeconds": 22,
+  "clearance": 11,
+  "staff": 2,
+  "specialty": "technician",
+  "lightColor": "#bfe8ff",
+  "lightRadius": 14,
+  "lightIntensity": 0.9,
+  "model": "exo-lab"
+}

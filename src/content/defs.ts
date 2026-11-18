@@ -15,7 +15,8 @@ export type Weapon = (typeof WEAPONS)[number];
 
 export const unitShape = {
   name: str({ label: 'Name' }),
-  faction: choice(['accord', 'fauna'], { label: 'Faction', help: 'Accord units are the player\'s; fauna attack them.' }),
+  faction: choice(['accord', 'fauna', 'relic'], { label: 'Faction', help: 'Accord units are the player\'s; fauna attack them; relics are precursor defenses on a relic grid (region map).' }),
+  relic: choice(['sentinel', 'node'], { label: 'Relic part', optional: true, help: 'Relics: a sentinel shoots once its grid wakes; a node powers its grid (destroy or re-tune every node to shut the grid down and open its cache).' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
   hp: int({ label: 'Hit points', min: 1, max: 100000 }),
   speed: num({ label: 'Speed', min: 0, max: 60, step: 0.1, unit: 'u/s', help: '1 world unit ≈ 10 m.' }),
@@ -37,13 +38,15 @@ export const unitShape = {
   aggro: num({ label: 'Aggro radius', min: 0, max: 200, unit: 'u', help: 'How far it notices enemies on its own.' }),
   sight: num({ label: 'Sight', min: 0, max: 240, unit: 'u', optional: true, help: 'How far it sees through the fog of war. Empty = its aggro or attack range (whichever is longer) + 8.' }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys', optional: true, help: 'Accord units with a cost can be produced at a Vehicle Bay (factory role).' }),
+  isotopes: int({ label: 'Isotope cost', min: 0, max: 100000, optional: true, help: 'Exotic isotopes, on top of the alloy cost.' }),
+  research: ref('research', { label: 'Needs research', optional: true, help: 'Can\'t be produced until this research is done (Tech Lab).' }),
   buildSeconds: num({ label: 'Production time', min: 0, max: 600, step: 0.5, unit: 's', optional: true }),
   model: ref('assets', { label: 'Model', optional: true, help: 'A model from the asset library. Empty = the built-in procedural model.' }),
   modelScale: num({ label: 'Model scale', min: 0.1, max: 10, step: 0.05, default: 1, help: 'Gameplay size, on top of the asset\'s own scale.' }),
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay', 'lab', 'deepmine', 'reactor'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -51,10 +54,12 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core.',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core. lab: runs research (Tech Lab). deepmine: mines exotic isotopes from an isotope seam within Range. reactor: steady power while it burns isotopes (Fuel use).',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
+  isotopes: int({ label: 'Isotope cost', min: 0, max: 100000, optional: true, help: 'Exotic isotopes, on top of the alloy cost.' }),
+  research: ref('research', { label: 'Needs research', optional: true, help: 'Not in the build menu until this research is done (Tech Lab).' }),
   hp: int({ label: 'Hit points', min: 1, max: 100000 }),
   powerMW: num({ label: 'Power', min: -100, max: 100, step: 0.1, unit: 'MW', help: 'Positive generates (solar: at noon), negative draws.' }),
   buildSeconds: num({ label: 'Build time', min: 0, max: 600, step: 0.5, unit: 's' }),
@@ -67,7 +72,9 @@ export const buildingShape = {
   minRange: num({ label: 'Minimum range', min: 0, max: 200, step: 0.5, unit: 'u', optional: true, help: 'Shooters: can\'t fire at anything closer than this.' }),
   weapon: choice(WEAPONS, { label: 'Weapon look', optional: true, help: 'How its shots look and sound. Empty = cannon (shell if it has splash).' }),
   repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', optional: true, help: 'Repair pads: hit points per second for each unit in Range, while powered.' }),
-  mineRate: num({ label: 'Mining rate', min: 0, max: 100, step: 0.05, unit: 'alloys/s', optional: true, help: 'Depots, while powered.' }),
+  mineRate: num({ label: 'Mining rate', min: 0, max: 100, step: 0.01, unit: '/s', optional: true, help: 'Depots (alloys) and deep-core mines (isotopes), while powered.' }),
+  fuelRate: num({ label: 'Fuel use', min: 0, max: 10, step: 0.005, unit: 'isotopes/s', optional: true, help: 'Reactors: isotopes burned per second while generating. No isotopes, no power.' }),
+  lure: num({ label: 'Noise', min: 0, max: 200, unit: 'u', optional: true, help: 'Predators choosing a building to attack treat this one as this much closer (a loud deep-core drill draws packs).' }),
   storage: num({ label: 'Storage', min: 0, max: 100000, unit: 'MJ', optional: true, help: 'Batteries. 1 MJ = 1 MW for 1 s.' }),
   sight: num({ label: 'Sight', min: 0, max: 240, unit: 'u', optional: true, help: 'How far it sees through the fog of war. Empty = the colony rule\'s building sight (or firing range + 4 if longer).' }),
   housing: int({ label: 'Housing', min: 0, max: 100, optional: true, help: 'Colonists who can live here (civic).' }),
@@ -388,6 +395,21 @@ export type StoryEffectDef = Infer<typeof storyEffectShape>;
  * messages. `{first}` in a name or line becomes the first pod-born colonist's
  * name.
  */
+/**
+ * Research (content/research/<id>.json): run at a Tech Lab, one at a time. Units and buildings
+ * name the research they need; finishing one also sets the story flag research-<id>.
+ */
+export const researchShape = {
+  name: str({ label: 'Name' }),
+  description: str({ label: 'Description', multiline: true, optional: true, help: 'What it unlocks, for the Tech Lab card.' }),
+  requires: ref('research', { label: 'Needs first', optional: true, help: 'Another research that must be done before this one can start.' }),
+  cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
+  isotopes: int({ label: 'Isotope cost', min: 0, max: 100000, optional: true }),
+  seconds: num({ label: 'Time', min: 1, max: 3600, unit: 's', help: 'At one unstaffed Tech Lab; staff speed it up.' }),
+  order: int({ label: 'Order', min: 0, max: 1000, optional: true, help: 'Position in the Tech Lab list (lower first).' }),
+} satisfies Shape;
+export type ResearchDef = Infer<typeof researchShape>;
+
 export const characterShape = {
   name: str({ label: 'Name', help: 'Shown above what they say. {first} = the first colonist out of a pod (their name).' }),
   role: str({ label: 'Role', optional: true, help: 'Under the name, smaller ("Sol Mission Control").' }),
@@ -555,6 +577,23 @@ export const spawnShape = {
   nest: bool({ label: 'Nest', optional: true, default: true, help: 'A nest grows here (a fauna unit with Nest set). Destroy it and packs stop coming from here until it regrows. Off = packs come from open ground.' }),
 } satisfies Shape;
 
+export const seamShape = {
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  isotopes: int({ label: 'Isotopes', min: 1, max: 100000 }),
+} satisfies Shape;
+export type SeamDef = Infer<typeof seamShape>;
+
+export const relicShape = {
+  grid: str({ label: 'Grid', help: 'Relics with the same grid id wake together and fall with their nodes. Lowercase, no spaces.' }),
+  kind: choice(['sentinel', 'node', 'cache'], { label: 'Part', help: 'sentinel: a guard tower (the unit with Relic part = sentinel). node: powers the grid. cache: opens when every node of its grid is down, paying out what it holds.' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  alloys: int({ label: 'Cache: alloys', min: 0, max: 100000, optional: true }),
+  isotopes: int({ label: 'Cache: isotopes', min: 0, max: 100000, optional: true }),
+} satisfies Shape;
+export type RelicDef = Infer<typeof relicShape>;
+
 export const wreckShape = {
   x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
   z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
@@ -613,6 +652,8 @@ export const regionShape = {
   vents: list(ventShape, { label: 'Geothermal vents', max: 20, optional: true }),
   camps: list(campShape, { label: 'Inhabitant camps', max: 8, optional: true }),
   sites: list(siteShape, { label: 'Story sites', max: 40, optional: true }),
+  relics: list(relicShape, { label: 'Relics', max: 40, optional: true, help: 'Precursor relic grids (STORY.md E2 Handshake). A grid wakes when anything of ours comes within a relic\'s aggro radius: it scans us and half its sentinels stand down. Sets flags relic-woke and relic-opened.' }),
+  seams: list(seamShape, { label: 'Isotope seams', max: 20, optional: true, help: 'Glowing outcrops of exotic isotopes. A Deep-Core Mine (role deepmine) sits on one.' }),
   wrecks: list(wreckShape, { label: 'Wrecks', max: 20, optional: true, help: 'Hulls from an earlier run, in our own build style. The first sight of one sets the story flag wreck-found; Field Engineers salvage alloys from them.' }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
@@ -774,6 +815,7 @@ export interface Collection {
 export const COLLECTIONS = {
   units: { path: 'units', kind: 'many', shape: unitShape, label: 'Units', title: 'name', group: 'Game data' },
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
+  research: { path: 'research', kind: 'many', shape: researchShape, label: 'Research', title: 'name', group: 'Game data' },
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   bodies: { path: 'bodies', kind: 'many', shape: bodyShape, label: 'Worlds', title: 'name', group: 'Maps' },

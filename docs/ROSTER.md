@@ -1,7 +1,8 @@
 # Exo Genesis — Roster proposal (units, buildings, world objects)
 
-Status: **proposal, 2026-11-17.** Nothing here is built yet. Pick items, then they move into
-`content/` and get a TECH.md entry as they land. Each item lists what it is for, the story
+Status: **batches A and B built (2026-11-18, v0.25.0–v0.28.0)**: Lancer, Sensor Mast, Habitat Block, Relay
+Tower, Nest, wrecks, Tech Lab + research, isotopes, Deep-Core Mine, Fusion Cell (added: an isotope sink),
+relic grids. How each works: `TECH.md` §6. Batch C and the rest of the lists below are still proposals. Each item lists what it is for, the story
 hook (if any), and **cost to build**:
 
 - **Data**: content JSON + a Blender model; the sim already supports the behaviour.

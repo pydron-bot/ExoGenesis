@@ -1,0 +1,24 @@
+{
+  "title": "Too Good",
+  "text": "First job for the new lab: the growth pods' own diagnostics. The report comes back flagged. Field-grade gene printing, closed-loop nutrient synthesis, self-healing seals. \"This isn't wartime tech. Nobody on a dying Earth built this.\" The archive dates the design to the year we launched.",
+  "trigger": "built",
+  "building": "lab",
+  "delay": 20,
+  "choices": [
+    {
+      "label": "Keep digging",
+      "reply": "Logged. The lab will look at the pods again when it has time."
+    },
+    {
+      "label": "It works. Leave it",
+      "reply": "Logged and set aside."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "pods-too-good"
+    }
+  ]
+}
