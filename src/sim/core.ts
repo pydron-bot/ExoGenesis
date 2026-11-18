@@ -11,7 +11,7 @@ import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
-import { PathGrid } from './path';
+import { PathGrid, WET, moveOf, type Move } from './path';
 import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
 import { Story } from './story';
@@ -141,7 +141,12 @@ const PACK_EXTRAS = Object.entries(content.units)
 export class Sim {
   s!: SimState;
   private fx: number[] = [];
+  /** Colonists' paths: every building blocks (they walk round gates too). */
   private grid = new PathGrid(limit());
+  /** Combat units' paths, per movement type (built on first use): buildings but not gates block. */
+  private unitGrids: Partial<Record<Move, PathGrid>> = {};
+  /** Fauna's paths: terrain only (they go round water, but walk up to walls and chew through them). */
+  private faunaGrid: PathGrid | null = null;
   /** Fog of war: in sight now / ever seen (mirrored into s.explored for saves). */
   private vis = new Uint8Array(FOG_N * FOG_N);
   private exp = new Uint8Array(FOG_N * FOG_N);
@@ -889,13 +894,38 @@ export class Sim {
     }
   }
 
-  /** Turn and step toward (tx, tz), sliding around water. */
-  private steer(o: { x: number; z: number; heading: number }, tx: number, tz: number, speed: number) {
+  private unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
+
+  /**
+   * A predator heads for (tx, tz): ground fauna follow a path round water (re-planned every few
+   * seconds, or when the target has moved off), hover fauna go straight.
+   */
+  private chase(h: Hostile, u: UnitDef, tx: number, tz: number, speed: number) {
+    const move = moveOf(u);
+    if (move === 'hover') { this.steer(h, tx, tz, speed, move); return; }
+    const t = this.s.tick;
+    const moved = !h.goal || Math.hypot(h.goal[0] - tx, h.goal[1] - tz) > 3;
+    if (!h.path || (h.repath ?? 0) <= t || (moved && t - (h.planned ?? 0) >= 10)) {
+      this.faunaGrid ??= new PathGrid(limit(), 'ground');
+      h.goal = [tx, tz];
+      h.path = this.faunaGrid.find(h.x, h.z, tx, tz) ?? [tx, tz];
+      h.planned = t;
+      h.repath = t + REPATH * 2 + (h.id % 11);
+    }
+    const p = h.path;
+    while (p.length > 2 && Math.hypot(p[0] - h.x, p[1] - h.z) < 1.5) p.splice(0, 2);
+    // the last waypoint is where the target was: once there, head straight for where it is
+    const [wx, wz] = p.length > 2 ? [p[0], p[1]] : [tx, tz];
+    this.steer(h, wx, wz, speed, move);
+  }
+
+  /** Turn and step toward (tx, tz), sliding around water (hover movers skim over it). */
+  private steer(o: { x: number; z: number; heading: number }, tx: number, tz: number, speed: number, move: Move = 'ground') {
     let ang = Math.atan2(tx - o.x, tz - o.z);
     const step = Math.min(speed * DT, Math.hypot(tx - o.x, tz - o.z));
     for (const off of [0, 0.5, -0.5, 1, -1, 1.6, -1.6]) {
       const a = ang + off;
-      if (!this.blocked(o.x + Math.sin(a) * (step + 2), o.z + Math.cos(a) * (step + 2))) { ang = a; break; }
+      if (!this.blocked(o.x + Math.sin(a) * (step + 2), o.z + Math.cos(a) * (step + 2), move)) { ang = a; break; }
     }
     let dh = ang - o.heading;
     dh = Math.atan2(Math.sin(dh), Math.cos(dh));
@@ -914,13 +944,13 @@ export class Sim {
     if (far || !u.path || (u.repath ?? 0) <= t) {
       if (far) { u.best = Infinity; u.stall = 0; }
       u.goal = [tx, tz];
-      u.path = this.grid.find(u.x, u.z, tx, tz) ?? [];
+      u.path = this.unitGrid(moveOf(content.units[u.unit])).find(u.x, u.z, tx, tz) ?? [];
       u.repath = t + REPATH + (u.id % 7);
     }
     const p = u.path;
     while (p.length > 2 && Math.hypot(p[0] - u.x, p[1] - u.z) < 1.5) p.splice(0, 2);
     if (!p.length) return false;
-    this.steer(u, p[0], p[1], speed);
+    this.steer(u, p[0], p[1], speed, moveOf(content.units[u.unit]));
     const d = Math.hypot(tx - u.x, tz - u.z);
     if (d < (u.best ?? Infinity) - 0.5) { u.best = d; u.stall = 0; }
     else if ((u.stall = (u.stall ?? 0) + 1) > STALL * 3) return false;
@@ -942,7 +972,11 @@ export class Sim {
   private stepUnits() {
     const s = this.s, us = this.units;
     // gates are open to units: they aren't obstacles on the path grid
-    if (us.length) this.grid.setBodies(s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) })), PATH_PAD);
+    if (us.length) {
+      const bodies = s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) }));
+      const moves = new Set(us.map((u) => moveOf(content.units[u.unit])));
+      for (const m of moves) this.unitGrid(m).setBodies(bodies, PATH_PAD);
+    }
     for (const u of us) {
       const d = content.units[u.unit];
       u.cd = Math.max(0, u.cd - DT);
@@ -1109,9 +1143,9 @@ export class Sim {
     }
   }
 
-  private blocked(x: number, z: number) {
+  private blocked(x: number, z: number, move: Move = 'ground') {
     if (Math.abs(x) > limit() || Math.abs(z) > limit()) return true;
-    return regionHeightRaw(x, z) < 0.3;
+    return move === 'ground' && regionHeightRaw(x, z) < WET;
   }
 
   private chooseTarget(h: Hostile, u: UnitDef) {
@@ -1197,7 +1231,7 @@ export class Sim {
         }
         continue;
       }
-      this.steer(h, tgt.x, tgt.z, u.speed);
+      this.chase(h, u, tgt.x, tgt.z, u.speed);
       // pressed against something (a wall) and getting nowhere: chew through what's in the way
       const left = dist - tr;
       if (left < (h.best ?? Infinity) - 0.3) { h.best = left; h.stall = 0; }
@@ -1287,7 +1321,7 @@ export class Sim {
       tx = g.route[i * 2]; tz = g.route[i * 2 + 1];
       if (Math.hypot(tx - h.x, tz - h.z) < 2.5) g.leg = (i + 1) % legs;
     } else if (Math.hypot(tx - h.x, tz - h.z) < Math.max(2, g.r * 0.4)) return;
-    this.steer(h, tx, tz, u.speed * (g.route ? 0.6 : 1));
+    this.chase(h, u, tx, tz, u.speed * (g.route ? 0.6 : 1));
   }
 
   /**

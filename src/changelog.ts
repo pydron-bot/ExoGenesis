@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.34.0',
+    date: '2026-11-18',
+    title: 'Hover craft and waders',
+    notes: [
+      'New: the Hover Skiff, a fast gun platform on an air skirt that crosses water as easily as land (Vehicle Bay)',
+      'The Scout Skimmer now skims over water too',
+      'New predator: the Strider, a long-legged wader that walks straight through water and joins the later packs',
+      'Predators now find their way round lakes and bays instead of getting stuck on the shore',
+      'Wide shallow flats no longer turn white with foam',
+    ],
+  },
+  {
     version: '0.33.0',
     date: '2026-11-18',
     title: 'Water',

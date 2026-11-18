@@ -10,7 +10,7 @@ import { content, contentIssues, onContentHot, type RegionDef } from './content'
 import { PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
-import { buildAtmosphere, globeMesh, HALF, R, U, regionHeight, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
+import { buildAtmosphere, globeMesh, HALF, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
@@ -1037,6 +1037,8 @@ const exo = {
   capture: () => { post ? post.render(0) : renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
   post,
   height: regionHeight,
+  /** Test hook: raw ground height (below 0.3 is water to the sim). */
+  heightRaw: regionHeightRaw,
   fogView,
   audio,
   res,

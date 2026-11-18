@@ -1,0 +1,17 @@
+{
+  "name": "Hover Skiff",
+  "faction": "accord",
+  "description": "A gun platform on an air skirt: skims over water as easily as land, so it can cut across bays and reach shores the ground army can't. Lightly armoured.",
+  "hp": 190,
+  "speed": 9,
+  "range": 16,
+  "damage": 7,
+  "cooldown": 0.35,
+  "weapon": "bolt",
+  "radius": 1.1,
+  "aggro": 20,
+  "move": "hover",
+  "modelScale": 1,
+  "cost": 75,
+  "buildSeconds": 15
+}

@@ -13,6 +13,7 @@ import { HEIGHT_SCALE, PREVIEW_KEY, REGION_SIZE_MAX, REGION_SIZE_MIN, REGION_SIZ
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
 import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
+import { PathGrid } from '../sim/path';
 import {
   DEFAULT_PAINTS, FLORA_PAINT_SHIFT, PAD_OUTER, R, SCULPT_FADE, currentBody, decodePaint, encodePaint, floraAt, padBlend, padHeight, regionDir, regionProcBase,
   regionSize, regionTerrain, sculptFade, setRegionTerrain, terrainColor,
@@ -712,20 +713,25 @@ export class MapEditor {
   }
 
   /**
-   * The way a pack walks from (x, z) to the Core: the sim's steering (straight
-   * at the target, sidestepping water, turning at most 6 rad/s), at the
-   * predators' speed, 10 steps a second. `stuck` = it never got there.
+   * The way a pack walks from (x, z) to the Core, as the sim moves ground fauna:
+   * a path round water (src/sim/path.ts), followed by its steering (sidestepping
+   * water, turning at most 6 rad/s), at the predators' speed, 10 steps a second.
+   * `stuck` = it never got there.
    */
   packPath(x: number, z: number): { pts: [number, number][]; secs: number; stuck: boolean } {
     const speed = this.host.rules?.packSpeed ?? 6, DT = 0.1, step = speed * DT;
     const blocked = (px: number, pz: number) => Math.abs(px) > packLimit() || Math.abs(pz) > packLimit() || this.rawAt(px, pz) < WATER_PATH;
+    // a fresh grid each time: the terrain may have been sculpted since
+    const way = new PathGrid(packLimit(), 'ground', (px, pz) => this.rawAt(px, pz)).find(x, z, 0, 0) ?? [0, 0];
     let heading = Math.atan2(-x, -z);
     const pts: [number, number][] = [[x, z]];
     let best = Infinity, stall = 0;
     for (let t = 0; t < 3000; t++) {
       const left = Math.hypot(x, z);
       if (left < 14) return { pts, secs: t * DT, stuck: false };
-      let ang = Math.atan2(-x, -z);
+      while (way.length > 2 && Math.hypot(way[0] - x, way[1] - z) < 1.5) way.splice(0, 2);
+      const [wx, wz] = way.length > 2 ? [way[0], way[1]] : [0, 0];
+      let ang = Math.atan2(wx - x, wz - z);
       for (const off of [0, 0.5, -0.5, 1, -1, 1.6, -1.6]) {
         const a = ang + off;
         if (!blocked(x + Math.sin(a) * (step + 2), z + Math.cos(a) * (step + 2))) { ang = a; break; }

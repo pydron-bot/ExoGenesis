@@ -63,11 +63,11 @@ export const BUILTINS: Builtin[] = [
   { id: 'tank', name: 'Tank', group: 'Units', where: 'src/skirmish/models.ts tankGeo()', usedBy: { coll: 'units', id: 'tank' }, swappable: true, build: () => unit(tankGeo(), unitMaterials()[1], tankGlow()) },
   { id: 'swarmer', name: 'Swarmer', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(false)', usedBy: { coll: 'units', id: 'swarmer' }, swappable: true, build: () => unit(creatureGeo(false), unitMaterials()[2]) },
   { id: 'brute', name: 'Brute', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(true)', usedBy: { coll: 'units', id: 'brute' }, swappable: true, build: () => unit(creatureGeo(true), unitMaterials()[3]) },
-  ...(['artillery', 'arc', 'engineer', 'scout'] as const).map((id): Builtin => ({
+  ...(['artillery', 'arc', 'engineer', 'scout', 'skiff'] as const).map((id): Builtin => ({
     id, name: id[0].toUpperCase() + id.slice(1), group: 'Units', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
     build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
   })),
-  ...(['spitter', 'burrower'] as const).map((id): Builtin => ({
+  ...(['spitter', 'burrower', 'strider'] as const).map((id): Builtin => ({
     id, name: id[0].toUpperCase() + id.slice(1), group: 'Fauna', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
     build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material()),
   })),
