@@ -15,6 +15,7 @@ import { balanceRunPanel } from './balance-run';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
 import { WorldPreview } from './world-preview';
+import { KINDS as BOARD_KINDS, renderBoard, tagsOf, type BoardItem } from './board';
 import { CinePreview } from './cine-preview';
 import { applyInterface } from '../ui-theme';
 import { analyzeFlow } from './flow';
@@ -26,7 +27,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef, type ChapterDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -267,7 +268,7 @@ function renderSide() {
     if (g === 'Story') {
       const fl = h('button', { cls: view === 'flow' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Story flow' }), h('small', { textContent: 'overview' }));
       fl.onclick = () => showPage('flow');
-      body.append(fl);
+      body.append(tool('board', 'Story board', 'by chapter'), fl);
     }
     for (const name of names) {
       const c = coll(name);
@@ -285,7 +286,20 @@ function renderSide() {
       add.onclick = name === 'assets' ? () => void pickFiles(ACCEPT_ALL, true).then(addFiles) : () => newRecord(name);
       head.append(add);
       body.append(head);
-      for (const r of recordsOf(name)) body.append(item(name, r.id, titleOf(name, r.id, r.rec.data), r.path));
+      const recs = recordsOf(name);
+      const chs = recordsOf('chapters').map((r) => ({ id: r.id, d: (r.rec.data ?? {}) as Partial<ChapterDef> })).sort((a, b) => (a.d.order ?? 0) - (b.d.order ?? 0));
+      const chapterOf = (d: unknown) => { const c = (d as { chapter?: unknown } | undefined)?.chapter; return typeof c === 'string' && chs.some((x) => x.id === c) ? c : ''; };
+      if (c.group === 'Story' && name !== 'chapters' && chs.length && recs.some((r) => chapterOf(r.rec.data))) {
+        // story records under their chapters, in chapter order
+        for (const ch of [...chs, { id: '', d: { title: 'No chapter' } as Partial<ChapterDef> }]) {
+          const inCh = recs.filter((r) => chapterOf(r.rec.data) === ch.id);
+          if (!inCh.length) continue;
+          const sub = h('div', { cls: 'chap-head' }, h('i', {}), h('span', { textContent: ch.d.title || ch.id }));
+          (sub.firstChild as HTMLElement).style.background = ch.d.color ?? 'transparent';
+          body.append(sub);
+          for (const r of inCh) body.append(item(name, r.id, titleOf(name, r.id, r.rec.data), r.path));
+        }
+      } else for (const r of recs) body.append(item(name, r.id, titleOf(name, r.id, r.rec.data), r.path));
     }
   }
   for (const sec of side.querySelectorAll<HTMLElement>('.section')) sec.classList.toggle('has-on', !!sec.querySelector('.item.on'));
@@ -1221,6 +1235,59 @@ async function drawChanges() {
     if (view === 'changes' && !cur) $('main').replaceChildren(h('div', { cls: 'head' }, h('h1', { textContent: 'Since last release' })), h('p', { cls: 'err', textContent: `Couldn't load the last release: ${(e as Error).message}` }));
   }
 }
+function drawBoard() {
+  viewHandle?.dispose();
+  const bad = contentIssues();
+  const missions = Object.fromEntries(recordsOf('missions').map((r) => [r.id, r.rec.data as MissionDef]));
+  // campaign order: how many missions come before each (its `after` chain)
+  const depth = (id: string, seen = new Set<string>()): number => { const a = missions[id]?.after; return a && missions[a] && !seen.has(a) ? 1 + depth(a, seen.add(id)) : 0; };
+  const names = Object.fromEntries(recordsOf('characters').map((r) => [r.id, (r.rec.data as CharacterDef)?.name || r.id]));
+  const items: BoardItem[] = [];
+  for (const k of BOARD_KINDS) {
+    const name = k.coll as CollectionName;
+    for (const r of recordsOf(name)) {
+      const d = (r.rec.data ?? {}) as Record<string, unknown>;
+      let summary = '';
+      const who = new Set<string>();
+      if (name === 'missions') summary = missionSummary(d as Partial<MissionDef>).slice(0, 2).join(' · ');
+      else if (name === 'story') summary = storySummary(d as Partial<StoryDef>).slice(0, 2).join(' · ');
+      else if (name === 'cinematics') { const c = d as Partial<CinematicDef>; summary = `${c.length ?? '?'} s · ${c.camera?.length ?? 0} camera keys · ${c.lines?.length ?? 0} lines${c.trigger && c.trigger !== 'never' ? ` · plays on ${c.trigger}` : ''}`; for (const l of c.lines ?? []) if (l.character) who.add(l.character); }
+      else if (name === 'characters') summary = String(d.role ?? '');
+      else if (name === 'inhabitants') summary = String(d.description ?? '').slice(0, 110);
+      else if (name === 'lore') summary = `${d.kind ?? ''} · ${String(d.text ?? '').slice(0, 90)}`;
+      if (name === 'story') { const ev = d as Partial<StoryDef>; if (ev.character) who.add(ev.character); for (const l of ev.lines ?? []) if (l.character) who.add(l.character); }
+      items.push({
+        coll: name, id: r.id, title: titleOf(name, r.id, d), chapter: typeof d.chapter === 'string' ? d.chapter : undefined,
+        tags: tagsOf(d.tags), summary, characters: [...who], problems: bad.filter((i) => i.path === r.path).length,
+        order: name === 'missions' ? depth(r.id) : undefined, secret: d.secret === true,
+      });
+    }
+  }
+  viewHandle = renderBoard($('main'), $('aside'), {
+    items, names,
+    chapters: recordsOf('chapters').map((r) => { const c = (r.rec.data ?? {}) as Partial<ChapterDef>; return { id: r.id, title: c.title || r.id, order: c.order ?? 0, act: c.act, color: c.color ?? '#5ff3ff', summary: c.summary }; }),
+    open: (c, id) => open(c as CollectionName, id),
+    newChapter: () => void newRecord('chapters', undefined, { order: Math.max(0, ...recordsOf('chapters').map((r) => (r.rec.data as ChapterDef)?.order ?? 0)) + 1 }),
+    newItem: (c, chapter) => void newRecord(c as CollectionName, undefined, chapter ? { chapter } : undefined),
+    async save(moves) {
+      for (const m of moves) {
+        const p = pathOf(m.coll as CollectionName, m.id), rec = files.get(p);
+        if (!rec?.data) continue;
+        const data = structuredClone(rec.data) as Record<string, unknown>;
+        if (m.chapter) data.chapter = m.chapter; else delete data.chapter;
+        const text = serialize(m.coll as CollectionName, data);
+        try {
+          const r = await api<{ hash: string }>('PUT', '/__content/file', { path: p, text, baseHash: rec.hash });
+          files.set(p, { path: p, hash: r.hash, data: JSON.parse(text) });
+        } catch (e) { toast(`Couldn't save ${m.id}: ${(e as Error).message}`, true); return; }
+      }
+      librarySig = signature();
+      toast(`Moved ${moves.length} record${moves.length > 1 ? 's' : ''}`);
+      void refreshGit();
+      renderSide();
+    },
+  });
+}
 function drawPlanet() {
   viewHandle?.dispose();
   viewHandle = renderPlanet($('main'), $('aside'), {
@@ -1259,7 +1326,7 @@ function drawPlanet() {
 }
 const PAGES = {
   flow: drawFlow, balance: drawBalance, review: () => void drawReview(), problems: drawProblems, compare: drawCompare, text: drawText,
-  changes: () => void drawChanges(), planet: drawPlanet,
+  changes: () => void drawChanges(), planet: drawPlanet, board: drawBoard,
 } as const;
 type PageName = keyof typeof PAGES;
 const isPage = (v: unknown): v is PageName => typeof v === 'string' && v in PAGES;

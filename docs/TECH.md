@@ -174,6 +174,17 @@ How content is stored and edited in general (one JSON record per file, schemas i
   seed, add or replace, and a feathered edge; **Smooth area** and a **Roughen** brush (7). The region's own
   generated bumps are fields too (`detail`, `detailSize`, `detailSeed`; Touchdown's values are the defaults).
   **Maps → Planet map** picks the body, draws each region at its size, and ＋ New region starts one where you click.
+- **Story organisation** (v0.24.0): **Chapters** (`content/chapters/<id>.json`: title, order, act, colour, summary,
+  notes) and the **Story bible** (`content/lore/<id>.json`: places, history, factions, objects and ideas, with a
+  "secret" mark) are editor-only collections; missions, story events, cinematics, characters, inhabitant groups and
+  bible entries gain editor-only `chapter`, `tags` (comma-separated) and `notes` fields (`organizeFields` in
+  `src/content/defs.ts`; the game ignores all of it). **Story → Story board** (`src/editor/board.ts`): a column per
+  chapter in order (act headings above), then "No chapter"; each card shows its kind, a one-line summary (the same
+  summaries as the forms), tags and problems; missions run in campaign order. Filter by kind, tag (click a tag on a
+  card), character (records they speak in) or text; drag a card to another column and Save writes the chapters;
+  ＋ in a column starts a record already in that chapter. The sidebar lists story records under their chapters
+  once any have one. Seeded with Act 1's four chapters, Act 2 and the endings, and eight bible entries from
+  STORY.md.
 - **Interface** (v0.20.0): `content/rules/interface.json` (Rules → Interface): accent, warning, danger,
   text and panel colours, panel and outline opacity, interface size (CSS `zoom` on the HUD's children)
   and the log's length and timing. `src/ui-theme.ts` sets them as CSS variables; `style.css` derives

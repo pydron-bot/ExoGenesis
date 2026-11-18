@@ -210,5 +210,6 @@
       "sub": "Worker drone on station"
     }
   ],
-  "trigger": "never"
+  "trigger": "never",
+  "chapter": "touchdown"
 }

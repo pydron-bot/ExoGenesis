@@ -5,5 +5,6 @@
   "sol": 1.5,
   "effects": [
     { "after": 0, "kind": "log", "text": "Tip: Battery Banks store daytime power for the night. Turrets draw full power only while they're firing." }
-  ]
+  ],
+  "chapter": "first-night"
 }

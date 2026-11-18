@@ -10,5 +10,6 @@
   ],
   "rewards": [
     { "kind": "alloys", "amount": 80 }
-  ]
+  ],
+  "chapter": "first-night"
 }

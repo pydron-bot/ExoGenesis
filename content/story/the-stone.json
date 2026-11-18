@@ -10,5 +10,6 @@
   "effects": [
     { "after": 0, "kind": "flag", "flag": "stone-found" },
     { "after": 1, "kind": "flag", "flag": "stone-scanned" }
-  ]
+  ],
+  "chapter": "beyond-the-ridge"
 }

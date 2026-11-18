@@ -255,6 +255,17 @@ export type AssetDef = Infer<typeof assetShape>;
  * region map places. Neutral; their regard for the colony rises and falls with
  * how you treat them and their land.
  */
+/**
+ * Story organisation, for the editor only (the game ignores these): which
+ * chapter a story record belongs to, free tags, and writer's notes. The story
+ * board (Story → Story board) and the sidebar group and filter by them.
+ */
+export const organizeFields = {
+  chapter: ref('chapters', { label: 'Chapter', optional: true, help: 'For the editor: groups it on the story board and in the sidebar (Story → Chapters). The game ignores it.' }),
+  tags: str({ label: 'Tags', optional: true, help: 'For the editor: comma-separated words to filter by on the story board (e.g. "act 1, vell, tutorial").' }),
+  notes: str({ label: 'Writer\'s notes', multiline: true, optional: true, help: 'For the editor: anything for the writers. Players never see it.' }),
+} satisfies Shape;
+
 export const inhabitantShape = {
   name: str({ label: 'Name', help: 'What the log calls them ("the Vell").' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
@@ -283,6 +294,7 @@ export const inhabitantShape = {
   trustTitle: str({ label: 'Trust: title' }),
   trustText: str({ label: 'Trust: text', multiline: true }),
   leaveText: str({ label: 'They leave', multiline: true }),
+  ...organizeFields,
 } satisfies Shape;
 export type InhabitantDef = Infer<typeof inhabitantShape>;
 
@@ -378,6 +390,7 @@ export const characterShape = {
   color: color({ label: 'Colour', default: '#5ff3ff', help: 'Their name, and the edge of their cards.' }),
   portrait: ref('assets', { label: 'Portrait', optional: true, assetKind: 'image', help: 'An image from the asset library (Assets), shown beside their lines.' }),
   description: str({ label: 'Who they are', multiline: true, optional: true, help: 'For writers (the game doesn\'t show it): voice, history, what they want.' }),
+  ...organizeFields,
 } satisfies Shape;
 export type CharacterDef = Infer<typeof characterShape>;
 
@@ -414,6 +427,7 @@ export const storyShape = {
   pause: bool({ label: 'Pause the game', optional: true, help: 'Pauses while the card is open (tutorials, big moments).' }),
   choices: list(storyChoiceShape, { label: 'Choices', max: 4, optional: true, help: 'None = a single Continue button.' }),
   effects: list(storyEffectShape, { label: 'Effects', max: 16, optional: true }),
+  ...organizeFields,
 } satisfies Shape;
 export type StoryDef = Infer<typeof storyShape>;
 
@@ -436,6 +450,7 @@ export const missionShape = {
   onStart: ref('story', { label: 'Event at start', optional: true, help: 'A story event fired when the mission starts (a briefing).' }),
   onDone: ref('story', { label: 'Event when done', optional: true, help: 'A story event fired when it\'s complete.' }),
   rewards: list(effectShape, { label: 'Rewards', max: 12, optional: true, help: 'Effects when the mission is complete.' }),
+  ...organizeFields,
 } satisfies Shape;
 export type MissionDef = Infer<typeof missionShape>;
 
@@ -668,11 +683,49 @@ export const cinematicShape = {
   trigger: { ...cineTrigger.trigger, default: 'never' as const },
   region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
   unless: str({ label: 'Unless flag', optional: true, help: 'Doesn\'t play if this flag is set.' }),
+  ...organizeFields,
 } satisfies Shape;
 export type CinematicDef = Infer<typeof cinematicShape>;
 /** @deprecated name: the landing is a cinematic. */
 export type LandingDef = CinematicDef;
 export const BEATS = ['burn', 'touchdown', 'open', 'power', 'dissolve', 'reclaimed', 'hatch', 'drone', 'post'] as const;
+
+/**
+ * Chapters (content/chapters/<id>.json): how the writers divide the story, for
+ * the editor only. Story records name theirs in `chapter`; the story board has
+ * a column per chapter, in order.
+ */
+export const chapterShape = {
+  title: str({ label: 'Title' }),
+  order: int({ label: 'Order', min: 0, max: 999, default: 1, help: 'Chapters run in this order on the story board and in the sidebar.' }),
+  act: str({ label: 'Act', optional: true, help: 'A heading above a run of chapters (e.g. "Act 1 — The Planet").' }),
+  color: color({ label: 'Colour', default: '#5ff3ff', help: 'Its column and its records\' marks in the sidebar.' }),
+  summary: str({ label: 'Summary', multiline: true, optional: true, help: 'What happens in it, in a few lines.' }),
+  notes: str({ label: 'Writer\'s notes', multiline: true, optional: true }),
+} satisfies Shape;
+export type ChapterDef = Infer<typeof chapterShape>;
+
+/**
+ * The story bible (content/lore/<id>.json): places, history, factions, objects
+ * and ideas the story leans on, for the writers. Editor only: the game doesn't
+ * show them (yet).
+ */
+export const LORE_KINDS = ['place', 'history', 'faction', 'object', 'idea', 'other'] as const;
+export const loreShape = {
+  title: str({ label: 'Title' }),
+  kind: choice(LORE_KINDS, { label: 'Kind', helps: {
+    place: 'A location: a region, a ruin, a world.',
+    history: 'Something that happened before the game (an earlier run, a war, a landing).',
+    faction: 'A group with its own aims (a probe, an inhabitant people, the ASI).',
+    object: 'A thing: an artefact, a ship, a weapon.',
+    idea: 'A theme, a rule of the world, a mystery and its answer.',
+    other: 'Anything else.',
+  } }),
+  text: str({ label: 'Text', multiline: true }),
+  secret: bool({ label: 'A secret', optional: true, help: 'Something the player only learns late (or never): keep it out of early text.' }),
+  ...organizeFields,
+} satisfies Shape;
+export type LoreDef = Infer<typeof loreShape>;
 
 /** The HUD's look (src/ui-theme.ts sets them as CSS variables; style.css uses them). */
 export const interfaceShape = {
@@ -710,10 +763,12 @@ export const COLLECTIONS = {
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   bodies: { path: 'bodies', kind: 'many', shape: bodyShape, label: 'Worlds', title: 'name', group: 'Maps' },
+  chapters: { path: 'chapters', kind: 'many', shape: chapterShape, label: 'Chapters', title: 'title', group: 'Story' },
   missions: { path: 'missions', kind: 'many', shape: missionShape, label: 'Missions', title: 'title', group: 'Story' },
   story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },
   inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },
   characters: { path: 'characters', kind: 'many', shape: characterShape, label: 'Characters', title: 'name', group: 'Story' },
+  lore: { path: 'lore', kind: 'many', shape: loreShape, label: 'Story bible', title: 'title', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },

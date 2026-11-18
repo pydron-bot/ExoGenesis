@@ -8,5 +8,6 @@
   "pause": true,
   "effects": [
     { "after": 0, "kind": "flag", "flag": "briefed" }
-  ]
+  ],
+  "chapter": "touchdown"
 }

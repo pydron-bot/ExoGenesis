@@ -24,5 +24,6 @@
   "uneasyText": "The Choir's loop is faltering. Our buildings stand in their circuit.",
   "trustTitle": "Shared Signal",
   "trustText": "The Choir starts relaying its sensor sweeps to us, in our own packet format. We didn't teach it that. They will flag predators on the move.",
-  "leaveText": "The Choir has left its tower."
+  "leaveText": "The Choir has left its tower.",
+  "chapter": "beyond-the-ridge"
 }

@@ -7,5 +7,6 @@
     { "text": "Build Hydroponics to grow biomass", "kind": "built", "building": "hydroponics" },
     { "text": "Build a Civilian Center and start a growth pod", "kind": "pod" },
     { "text": "Welcome your first colonist", "kind": "colonists", "count": 1 }
-  ]
+  ],
+  "chapter": "firstborn"
 }

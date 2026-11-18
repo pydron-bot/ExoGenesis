@@ -7,5 +7,6 @@
   ],
   "rewards": [
     { "kind": "log", "text": "The cryo bank is stable. Now we need alloys to build anything else." }
-  ]
+  ],
+  "chapter": "touchdown"
 }

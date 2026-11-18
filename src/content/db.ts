@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, REGION_SIZE_STEP, locate, regionCells, type AssetDef, type BodyDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, REGION_SIZE_STEP, locate, regionCells, type AssetDef, type BodyDef, type ChapterDef, type LoreDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -10,6 +10,9 @@ export interface ContentDb {
   buildings: Record<string, BuildingDef>;
   regions: Record<string, RegionDef>;
   bodies: Record<string, BodyDef>;
+  /** Editor only (the game ignores them). */
+  chapters: Record<string, ChapterDef>;
+  lore: Record<string, LoreDef>;
   assets: Record<string, AssetDef>;
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
@@ -57,6 +60,8 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     buildings: recs.buildings,
     regions: recs.regions,
     bodies: recs.bodies,
+    chapters: recs.chapters,
+    lore: recs.lore,
     assets: recs.assets,
     inhabitants: recs.inhabitants,
     story: recs.story,

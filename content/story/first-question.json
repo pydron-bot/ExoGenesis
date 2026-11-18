@@ -15,5 +15,6 @@
     { "after": 1, "kind": "flag", "flag": "told-truth" },
     { "after": 2, "kind": "wellbeing", "amount": 6 },
     { "after": 2, "kind": "stance", "amount": 3 }
-  ]
+  ],
+  "chapter": "firstborn"
 }
