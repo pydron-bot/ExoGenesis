@@ -216,6 +216,8 @@ export interface ArmyLights {
   readonly lx: Float32Array;
   readonly lz: Float32Array;
   readonly hd: Float32Array;
+  /** Height above the ground per slot (flyers): the shadow falls away from the unit, down-sun. */
+  readonly lift?: Float32Array;
 }
 
 export class ColonyLights {
@@ -338,6 +340,19 @@ export class ColonyLights {
     }
   }
 
+  /**
+   * The shadow of something `r` across flying `h` up over (x, z): detached from it, cast down-sun (straight
+   * under it at night, faint), a little softer and lighter the higher it is.
+   */
+  airShadow(x: number, z: number, r: number, h: number) {
+    if (!this.shade) return;
+    const s = this.sun;
+    const day = THREE.MathUtils.smoothstep(s.up, -0.02, 0.2);
+    const len = day > 0 ? Math.min(h * Math.sqrt(Math.max(0, 1 - s.up * s.up)) / Math.max(s.up, 0.12), h * 3) * day : 0;
+    const heading = Math.atan2(-s.x, -s.z);
+    this.shadowBlob(x + Math.sin(heading) * len, z + Math.cos(heading) * len, r * 1.4, r * 1.6, heading, 0.25 + 0.3 * day);
+  }
+
   private shadowBlob(x: number, z: number, w: number, half: number, heading: number, dark: number) {
     if (this.n >= MAX_BLOBS) return;
     if (Math.abs(x) > HALF + half || Math.abs(z) > HALF + half) return;
@@ -442,8 +457,9 @@ export class ColonyLights {
       for (const { army, size } of this.armies) {
         for (let s = 0; s < army.slots; s++) {
           if (!army.visible[s]) continue;
-          const r = size(army.type[s]);
-          this.shadow(army.lx[s], army.lz[s], r, r * 1.3, false);
+          const r = size(army.type[s]), up = army.lift?.[s] ?? 0;
+          if (up > 2) this.airShadow(army.lx[s], army.lz[s], r, up);
+          else this.shadow(army.lx[s], army.lz[s], r, r * 1.3, false);
         }
       }
     }

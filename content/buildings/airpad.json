@@ -1,0 +1,17 @@
+{
+  "name": "Airpad",
+  "description": "Builds flyers while powered, and nothing else: a landing pad with a hangar and a control mast. Select it to queue Gunships.",
+  "role": "factory",
+  "airfield": true,
+  "buildable": true,
+  "cost": 140,
+  "hp": 800,
+  "powerMW": -1.5,
+  "buildSeconds": 20,
+  "clearance": 13,
+  "staff": 1,
+  "specialty": "engineer",
+  "lightColor": "#ffe2b0",
+  "lightRadius": 16,
+  "lightIntensity": 1.1
+}

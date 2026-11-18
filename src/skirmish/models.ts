@@ -225,6 +225,44 @@ export function gridNodeGeo() {
   return merge([new THREE.CylinderGeometry(2.0, 2.2, 0.6, 8).translate(0, 0.3, 0), new THREE.OctahedronGeometry(1.4, 0).scale(1, 1.8, 1).translate(0, 2.8, 0)]);
 }
 
+/** Gunship (flies): a slim fuselage with a bubble canopy, stub wings carrying two ducted rotors, a chin gun, a tail boom and fin. */
+export function gunshipGeo() {
+  const body = new THREE.CylinderGeometry(0.55, 0.42, 3.0, 8).rotateX(Math.PI / 2).translate(0, 1.0, 0.2);
+  const nose = cone(0.55, 0.9, 8).rotateX(Math.PI / 2).translate(0, 1.0, 2.15);
+  const boom = new THREE.CylinderGeometry(0.16, 0.24, 2.2, 6).rotateX(Math.PI / 2).translate(0, 1.15, -2.3);
+  const duct = (x: number) => new THREE.TorusGeometry(0.72, 0.12, 4, 12).rotateX(Math.PI / 2).translate(x, 1.35, -0.1);
+  const hub = (x: number) => new THREE.CylinderGeometry(0.12, 0.12, 0.25, 6).translate(x, 1.35, -0.1);
+  return merge([
+    body, nose, boom, box(3.0, 0.12, 0.6, 0, 1.15, -0.1), duct(-1.7), duct(1.7), hub(-1.7), hub(1.7),
+    box(1.5, 0.08, 0.06, -1.7, 1.37, -0.1), box(0.06, 0.08, 1.5, 1.7, 1.37, -0.1),
+    box(0.08, 0.8, 0.6, 0, 1.55, -3.2), box(1.1, 0.08, 0.4, 0, 1.2, -3.25),
+    new THREE.CylinderGeometry(0.07, 0.07, 1.0, 5).rotateX(Math.PI / 2).translate(0, 0.55, 1.6),
+    box(0.3, 0.25, 0.3, 0, 0.62, 1.1),
+  ]);
+}
+export function gunshipGlow() {
+  return merge([ico(0.36).scale(1, 0.75, 1.4).translate(0, 1.45, 1.2), box(0.08, 0.08, 0.08, -3.05, 1.15, -0.1), box(0.08, 0.08, 0.08, 3.05, 1.15, -0.1), box(0.1, 0.1, 0.1, 0, 2.0, -3.3)]);
+}
+
+/** Skimmerwing (flies): a lean body slung between two wide swept membrane wings, a hooked beak and a forked tail. */
+export function skimmerwingGeo() {
+  const parts: THREE.BufferGeometry[] = [];
+  parts.push(ico(0.5).scale(0.7, 0.55, 1.6).translate(0, 1.0, 0));
+  parts.push(cone(0.22, 0.9, 4).rotateX(Math.PI / 2 + 0.3).translate(0, 0.9, 1.15));
+  for (const x of [-1, 1]) {
+    // a wing: a flat triangle swept back, its tip dipping a little
+    const wing = new THREE.BufferGeometry();
+    wing.setAttribute('position', new THREE.Float32BufferAttribute([
+      x * 0.3, 1.05, 0.5, x * 2.6, 0.85, -0.7, x * 0.3, 1.05, -0.6,
+      x * 0.3, 1.0, -0.6, x * 2.6, 0.8, -0.7, x * 0.3, 1.0, 0.5,
+    ], 3));
+    wing.computeVertexNormals();
+    parts.push(wing, new THREE.CylinderGeometry(0.05, 0.03, 2.4, 3).rotateZ(Math.PI / 2 - x * 0.08).translate(x * 1.45, 0.98, -0.05));
+    parts.push(cone(0.12, 1.0, 3).rotateX(-Math.PI / 2 - 0.2).translate(x * 0.18, 1.05, -1.3));
+  }
+  return merge(parts);
+}
+
 export interface BuiltinUnitLook { geo(): THREE.BufferGeometry; glow?(): THREE.BufferGeometry; material(): THREE.Material }
 
 /**
@@ -243,6 +281,8 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   gunboat: { geo: gunboatGeo, glow: gunboatGlow, material: () => accordMaterial(0.5) },
   barge: { geo: bargeGeo, glow: bargeGlow, material: () => accordMaterial(0.4) },
   lurker: { geo: lurkerGeo, material: () => faunaMaterial('#2f5a5e', '#3ad6c8') },
+  gunship: { geo: gunshipGeo, glow: gunshipGlow, material: () => accordMaterial(0.5) },
+  skimmerwing: { geo: skimmerwingGeo, material: () => faunaMaterial('#6a4a8a', '#2a1040') },
   swarmer: { geo: () => creatureGeo(false), material: () => faunaMaterial('#c0563a', '#5a1408') },
   brute: { geo: () => creatureGeo(true), material: () => faunaMaterial('#8a3550', '#3a0a1c') },
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },

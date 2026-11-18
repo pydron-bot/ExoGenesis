@@ -1,0 +1,17 @@
+{
+  "name": "Skimmerwing",
+  "faction": "fauna",
+  "description": "A flying pack hunter on wide membrane wings. Flies straight over walls and water and dives on whatever it reaches first. Only anti-air guns can touch it: Point Defense, the Arc Caster, the Flak Tower and the Core's own gun.",
+  "hp": 55,
+  "speed": 9,
+  "range": 2,
+  "damage": 8,
+  "cooldown": 0.7,
+  "weapon": "bite",
+  "radius": 0.9,
+  "aggro": 22,
+  "move": "air",
+  "modelScale": 1,
+  "packEvery": 7,
+  "packFrom": 6
+}

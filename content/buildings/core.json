@@ -15,5 +15,6 @@
   "sight": 52,
   "lightColor": "#d8f4ff",
   "lightRadius": 28,
-  "lightIntensity": 1.4
+  "lightIntensity": 1.4,
+  "antiAir": true
 }

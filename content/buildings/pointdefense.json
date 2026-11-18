@@ -1,6 +1,6 @@
 {
   "name": "Point Defense",
-  "description": "Rapid-fire gun for close work: tears through swarms that reach the base. Short reach.",
+  "description": "Rapid-fire gun for close work: tears through swarms that reach the base, and can hit flyers. Short reach.",
   "role": "turret",
   "buildable": true,
   "cost": 80,
@@ -15,5 +15,6 @@
   "lightColor": "#ffd27a",
   "lightRadius": 8,
   "lightIntensity": 0.6,
-  "model": "exo-pointdefense"
+  "model": "exo-pointdefense",
+  "antiAir": true
 }

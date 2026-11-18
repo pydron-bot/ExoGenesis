@@ -118,3 +118,17 @@ BUILTINS.push(
     note: 'Built on the water: its origin is the waterline, piles reach down into the sea.', build,
   })),
 );
+
+// Air layer (v0.36): built-ins only so far
+import { buildAirpad, buildFlak } from '../world/air-models';
+BUILTINS.push(
+  ...([['airpad', 'Airpad', buildAirpad], ['flak', 'Flak Tower', buildFlak]] as const).map(([id, name, build]): Builtin => ({
+    id, name, group: 'Buildings', where: 'src/world/air-models.ts', usedBy: { coll: 'buildings', id }, swappable: true,
+    note: id === 'flak' ? 'An asset model won\'t aim: the built-in turns its "head" part.' : 'Flyers lift off the pad on the door side (local −Z).', build,
+  })),
+  ...([['gunship', 'Gunship', 'Units'], ['skimmerwing', 'Skimmerwing', 'Fauna']] as const).map(([id, name, group]): Builtin => ({
+    id, name, group, where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
+    note: 'Flies: drawn 10 u up with a shadow on the ground under it.',
+    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+  })),
+);

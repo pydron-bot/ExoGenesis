@@ -2,7 +2,8 @@
 
 Status: **batches A and B built (2026-11-18, v0.25.0–v0.28.0)**: Lancer, Sensor Mast, Habitat Block, Relay
 Tower, Nest, wrecks, Tech Lab + research, isotopes, Deep-Core Mine, Fusion Cell (added: an isotope sink),
-relic grids. How each works: `TECH.md` §6. Batch C and the rest of the lists below are still proposals. Each item lists what it is for, the story
+relic grids. From batch C, the Skimmerwing and the air layer are built (v0.36.0, see "Air layer" below).
+How each works: `TECH.md` §6. The rest of batch C and the rest of the lists below are still proposals. Each item lists what it is for, the story
 hook (if any), and **cost to build**:
 
 - **Data**: content JSON + a Blender model; the sim already supports the behaviour.
@@ -58,7 +59,7 @@ spawns, camps and sites.
 | **Stalker** | Ambush predator, unseen until close, hunts only at night | First Night tension | Small (reuse burrower's unseen state) |
 | **Matriarch** | Slow boss beast that sheds swarmers as it takes damage. Rare, late | Why the Lancer exists | Small |
 | **Grazer bull** | Herd defender: neutral until you shoot its herd, then it charges | Stewardship: hunting has a price | Small |
-| **Skimmerwing** | Flying pack; ignores walls; only Point Defense and the Arc can hit it | Makes the defense mix matter | System (air layer) |
+| **Skimmerwing** | Flying pack; ignores walls; only anti-air (Point Defense, the Arc, the Flak Tower, the Core's gun) can hit it | Makes the defense mix matter | Built (v0.36.0, air layer) |
 
 Designer marks (E9): give the Burrower and Spitter a visible engineered detail on the models
 now, so the reveal later has something to point at.
@@ -82,7 +83,12 @@ now, so the reveal later has something to point at.
 | **Bloom grove** | Alien flora you can harvest for biomass, or leave alone for planet health | Stewardship choice | Small |
 | **Tar flats / sinkholes** | Slow ground and burrower holes; shape where you fight | Terrain variety | Small |
 
-## Air layer: release 3 plan (agreed 2026-11-18, not built yet)
+## Air layer: release 3 plan (agreed 2026-11-18, built in v0.36.0)
+
+Built as planned: see TECH.md "Air units and anti-air". The factory question was settled with a new
+Airpad (a factory with `airfield`: flyers only), the colony flyer is the Gunship (not anti-air), the AA
+options are the Core's gun, Point Defense, the Arc and a new Flak Tower (flyers only), and the Spitter can
+spit at flyers. The plan as agreed:
 
 Water, hover and air units ship in stages. Stage 1 (v0.34: ground/hover movement, predators path round
 water) and stage 2 (v0.35: water units, shore/offshore buildings, Transport Barge) are built: see TECH.md

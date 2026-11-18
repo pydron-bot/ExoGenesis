@@ -3,6 +3,7 @@
  * everything the sim puts on it (Command Core, drone, buildings, fauna).
  */
 import * as THREE from 'three';
+import { buildAirpad, buildFlak } from './air-models';
 import { BATCHED_KINDS, BuildingBatch } from './batch';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
@@ -680,6 +681,7 @@ export function buildFarm(): THREE.Group {
 const KIND_MODELS: Record<string, () => THREE.Group> = {
   cannon: buildCannon, pointdefense: buildPointDefense, ...ROSTER_BUILDINGS,
   shipyard: buildShipyard, tidal: buildTidal, pier: buildPier, seaturret: buildSeaTurret,
+  airpad: buildAirpad, flak: buildFlak,
 };
 
 /** Sea Turret: the Defense Turret on a platform over the water (its `head` still aims). */

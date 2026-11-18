@@ -17,10 +17,15 @@ export const WET = 0.3;
 /** Water movers need ground below this (open water, not the beach). */
 export const SHALLOW = -0.6;
 
-/** How a unit gets about: ground (land only), hover (land and water) or water (open water only). */
-export type Move = 'ground' | 'hover' | 'water';
+/**
+ * How a unit gets about: ground (land only), hover (land and water), water (open water only) or
+ * air (anywhere, over walls and buildings too: flyers never path, they fly straight).
+ */
+export type Move = 'ground' | 'hover' | 'water' | 'air';
 /** Whether a mover of type `m` can't be at ground height `h`. */
 export const offLimits = (m: Move, h: number) => (m === 'ground' ? h < WET : m === 'water' ? h >= SHALLOW : false);
+/** Movers that go straight at their goal over any ground (no path round water). */
+export const straight = (m: Move) => m === 'hover' || m === 'air';
 /** A unit record's movement type (ground when unset). */
 export const moveOf = (u: { move?: Move }): Move => u.move ?? 'ground';
 
@@ -47,7 +52,7 @@ export class PathGrid {
     const nn = this.n * this.n;
     this.water = new Uint8Array(nn);
     this.blocked = new Uint8Array(nn);
-    if (move !== 'hover') for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
+    if (!straight(move)) for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
       const { x, z } = this.centre(i, j);
       this.water[j * this.n + i] = offLimits(move, height(x, z)) ? 1 : 0;
     }

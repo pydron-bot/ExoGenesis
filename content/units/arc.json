@@ -1,7 +1,7 @@
 {
   "name": "Arc Caster",
   "faction": "accord",
-  "description": "Short-range discharge that jumps between targets. Shreds swarms; struggles against single big beasts.",
+  "description": "Short-range discharge that jumps between targets. Shreds swarms, and arcs up into flyers; struggles against single big beasts.",
   "hp": 320,
   "speed": 5.5,
   "range": 10,
@@ -15,5 +15,6 @@
   "model": "exo-arc",
   "modelScale": 1,
   "cost": 95,
-  "buildSeconds": 18
+  "buildSeconds": 18,
+  "antiAir": true
 }

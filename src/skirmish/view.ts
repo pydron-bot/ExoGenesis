@@ -62,6 +62,9 @@ const barFrag = /* glsl */ `
     else gl_FragColor = vec4(0.02, 0.03, 0.05, 0.75);
   }`;
 
+/** Flyers cruise this high over the ground (or the water), plus up to 2 u by slot so a flock isn't flat. */
+const FLY_HEIGHT = 9;
+
 const C = {
   roverShot: new THREE.Color('#7ff8ff'), tankShot: new THREE.Color('#ffc46b'), bite: new THREE.Color('#ff6a4d'),
   dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
@@ -80,6 +83,11 @@ export class ArmyView {
   /** Interpolated heading per slot (headlights). */
   readonly hd = new Float32Array(MAX_UNITS);
   readonly visible = new Uint8Array(MAX_UNITS);
+  /** Height above the ground per slot this frame: flyers' shadows fall away from them, shots go up to them. */
+  readonly lift = new Float32Array(MAX_UNITS);
+  /** Flyers' bank angle per slot (eased toward the turn they're in). */
+  private bank = new Float32Array(MAX_UNITS);
+  private roll = new THREE.Matrix4();
   readonly type = new Uint8Array(MAX_UNITS);
   private counts = new Int32Array(DEFS.length);
   slots = 0;
@@ -96,6 +104,9 @@ export class ArmyView {
   private flashes: Pool;
   private lastTick = -1;
   private clock = 0;
+  /** Flyer heights at the ends of the effect being spawned (0 on the ground). */
+  private up1 = 0;
+  private up2 = 0;
   private m = new THREE.Matrix4();
   private v1 = new THREE.Vector3();
   private v2 = new THREE.Vector3();
@@ -179,24 +190,34 @@ export class ArmyView {
       this.visible[s] = 0;
       if (!b[o + F.ALIVE]) continue;
       const t = b[o + F.TYPE];
-      let x = b[o], z = b[o + 1], h = b[o + 2];
+      let x = b[o], z = b[o + 1], h = b[o + 2], turn = 0;
       if (s < prevSlots && a[o + F.ALIVE] && a[o + F.GEN] === b[o + F.GEN]) {
         x = a[o] + (x - a[o]) * alpha;
         z = a[o + 1] + (z - a[o + 1]) * alpha;
         let dh = h - a[o + 2];
         dh = Math.atan2(Math.sin(dh), Math.cos(dh));
         h = a[o + 2] + dh * alpha;
+        turn = dh;
       }
       const scale = DEFS[t].scale;
-      // hover craft ride on the water (and bob a little), boats sit in it (rocking gently), others stand on the ground
+      // hover craft ride on the water (and bob a little), boats sit in it (rocking gently), flyers fly high
+      // (bobbing slowly, banking into turns), others stand on the ground
       let lift = 0;
       const mv = DEFS[t].move;
       if (mv) {
         const g = sampleRaw(x, z);
         const sea = Math.max(0, WATER_LIFT - Math.max(0, g));
-        lift = mv === 'hover' ? sea + 0.15 + 0.08 * Math.sin(this.clock * 2.3 + s * 1.7) : sea - 0.25 + 0.06 * Math.sin(this.clock * 1.4 + s * 2.1);
+        lift = mv === 'air' ? sea + FLY_HEIGHT + (s % 5) * 0.5 + 0.35 * Math.sin(this.clock * 1.1 + s * 1.9)
+          : mv === 'hover' ? sea + 0.15 + 0.08 * Math.sin(this.clock * 2.3 + s * 1.7) : sea - 0.25 + 0.06 * Math.sin(this.clock * 1.4 + s * 2.1);
       }
+      this.lift[s] = lift;
       placeMatrix(x, z, h, lift, scale, this.m);
+      if (mv === 'air') {
+        // right turns (heading growing) dip the right wing: a negative roll about the nose
+        const want = -Math.max(-0.6, Math.min(0.6, turn * 2.2));
+        this.bank[s] += (want - this.bank[s]) * Math.min(1, dt * 4);
+        this.m.multiply(this.roll.makeRotationZ(this.bank[s]));
+      } else this.bank[s] = 0;
       const i = counts[t]++;
       const model = near ? this.models[t] : null;
       const body = model ?? this.bodies[t];
@@ -213,13 +234,13 @@ export class ArmyView {
         const g = model ? null : this.glows[t];
         if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, sel ? C.glowSel : C.glow); }
         if (sel) {
-          placeMatrix(x, z, 0, 0.25, DEFS[t].radius * 1.1, this.m);
+          placeMatrix(x, z, 0, 0.25 + (mv === 'air' ? lift : 0), DEFS[t].radius * 1.1, this.m);
           this.rings.setMatrixAt(rings++, this.m);
         }
       }
       if (hp < 0.995 || sel) {
         const r = DEFS[t].radius;
-        regionPoint(x, z, r * 1.3 + 1.6, this.v1);
+        regionPoint(x, z, r * 1.3 + 1.6 + (mv === 'air' ? lift : 0), this.v1);
         const w = Math.max(1.8, r * 2.2);
         this.m.makeScale(w, w, w).setPosition(this.v1);
         this.bars.setMatrixAt(bars, this.m);
@@ -257,9 +278,18 @@ export class ArmyView {
     this.tickPool(this.flashes, dt, true);
   }
 
+  /** How high a flyer is at (x, z) (within 1.5 u), else 0: shots to and from flyers go up to them. */
+  private airAt(x: number, z: number) {
+    for (let s = 0; s < this.slots; s++) {
+      if (this.visible[s] && DEFS[this.type[s]].move === 'air' && Math.abs(this.lx[s] - x) < 1.5 && Math.abs(this.lz[s] - z) < 1.5) return this.lift[s];
+    }
+    return 0;
+  }
+
   private spawnFx(fx: Float32Array) {
     for (let i = 0; i < fx.length; i += FX_STRIDE) {
       const k = fx[i], x1 = fx[i + 1], z1 = fx[i + 2], x2 = fx[i + 3], z2 = fx[i + 4];
+      this.up1 = this.airAt(x1, z1); this.up2 = this.airAt(x2, z2);
       colonyLights?.fx(k, x1, z1, x2, z2);
       switch (k) {
         case FX.ROVER_SHOT: this.tracer(x1, z1, 1.3, x2, z2, 0.14, 0.12, C.roverShot); break;
@@ -309,6 +339,7 @@ export class ArmyView {
 
   /** A glowing streak from (x1, z1) at height h1 to (x2, z2) at h2, `max` long at most. */
   private tracer(x1: number, z1: number, h1: number, x2: number, z2: number, w: number, life: number, color: THREE.Color, max = Infinity, h2 = 1.0) {
+    h1 += this.up1; h2 += this.up2;
     regionPoint(x1, z1, h1, this.v1);
     regionPoint(x2, z2, h2, this.v2);
     const len = this.v1.distanceTo(this.v2);
@@ -328,7 +359,7 @@ export class ArmyView {
     const p = this.flashes;
     const j = p.next; p.next = (j + 1) % p.life.length;
     p.mesh.count = Math.max(p.mesh.count, j + 1);
-    regionPoint(x, z, 1, this.v1);
+    regionPoint(x, z, 1 + this.airAt(x, z), this.v1);
     p.pos[j * 3] = this.v1.x; p.pos[j * 3 + 1] = this.v1.y; p.pos[j * 3 + 2] = this.v1.z;
     p.size[j] = size;
     this.m.makeScale(size * 0.4, size * 0.4, size * 0.4).setPosition(this.v1);

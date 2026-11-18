@@ -1,0 +1,21 @@
+{
+  "name": "Flak Tower",
+  "description": "Anti-air guns: bursts in the air that catch whole flocks of flyers. Never fires at anything on the ground, so pair it with turrets.",
+  "role": "turret",
+  "buildable": true,
+  "cost": 90,
+  "hp": 500,
+  "powerMW": -2,
+  "buildSeconds": 14,
+  "clearance": 7,
+  "fireRange": 32,
+  "damage": 20,
+  "cooldown": 0.9,
+  "splash": 3.5,
+  "weapon": "cannon",
+  "antiAir": true,
+  "airOnly": true,
+  "lightColor": "#ffb47a",
+  "lightRadius": 8,
+  "lightIntensity": 0.6
+}

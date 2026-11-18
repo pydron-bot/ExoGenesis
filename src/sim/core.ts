@@ -11,7 +11,7 @@ import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
-import { PathGrid, moveOf, offLimits, type Move } from './path';
+import { PathGrid, moveOf, offLimits, straight, type Move } from './path';
 import { Buckets } from './spatial';
 import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
@@ -146,6 +146,9 @@ const relicUnit = (part: 'sentinel' | 'node') => Object.keys(content.units).sort
 const PACK_EXTRAS = Object.entries(content.units)
   .filter(([id, u]) => u.faction === 'fauna' && (u.packEvery ?? 0) > 0 && id !== 'swarmer')
   .sort(([a], [b]) => a.localeCompare(b));
+
+/** Flies (moves on air): only anti-air shooters can hit it, and nothing on the ground blocks it. */
+const flies = (u: UnitDef) => u.move === 'air';
 
 export class Sim {
   s!: SimState;
@@ -819,19 +822,28 @@ export class Sim {
     return !h.under && !h.dormant && this.visible(h.x, h.z);
   }
 
+  /** Can a shooter (anti-air or not) hit this hostile: targetable, and not a flyer unless it can hit flyers. */
+  private canHit(h: Hostile, antiAir: boolean | undefined, airOnly = false) {
+    if (!this.targetable(h)) return false;
+    const f = flies(this.unitDef(h));
+    return f ? !!antiAir : !airOnly;
+  }
+
   /**
    * One hit on `tgt` from (fx, fz): splash does half damage around the target;
    * a chain jumps on to the nearest unhit hostile within `chainRange`, losing
    * 30% each jump. Effects are pushed here so every shooter looks the same.
    */
-  private strike(fx: number, fz: number, tgt: Hostile, dmg: number, fxKind: number, o: { splash?: number; chain?: number; chainRange?: number } = {}) {
+  private strike(fx: number, fz: number, tgt: Hostile, dmg: number, fxKind: number, o: { splash?: number; chain?: number; chainRange?: number; antiAir?: boolean } = {}) {
     const s = this.s;
     const tx = tgt.x, tz = tgt.z;
+    // splash stays at the target's level (a burst in the air catches flyers, one on the ground doesn't); a chain reaches flyers only if anti-air
+    const air = flies(this.unitDef(tgt));
     this.fx.push(fxKind, fx, fz, tx, tz);
     tgt.hp -= dmg;
     if (o.splash) {
       for (const h of [...s.hostiles]) {
-        if (h !== tgt && !h.under && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.killHostile(h); }
+        if (h !== tgt && !h.under && flies(this.unitDef(h)) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.killHostile(h); }
       }
     }
     if (o.chain && o.chainRange) {
@@ -840,7 +852,7 @@ export class Sim {
       for (let j = 0; j < o.chain; j++) {
         let next: Hostile | null = null, bd = o.chainRange;
         for (const h of s.hostiles) {
-          if (hit.has(h) || h.under) continue;
+          if (hit.has(h) || h.under || (!o.antiAir && flies(this.unitDef(h)))) continue;
           const dist = Math.hypot(h.x - from.x, h.z - from.z);
           if (dist < bd) { bd = dist; next = h; }
         }
@@ -866,7 +878,7 @@ export class Sim {
       const min = d.minRange ?? 0;
       let best: Hostile | null = null, bd = d.fireRange;
       for (const h of s.hostiles) {
-        if (!this.targetable(h)) continue;
+        if (!this.canHit(h, d.antiAir, d.airOnly)) continue;
         const dist = Math.hypot(h.x - b.x, h.z - b.z) - this.unitDef(h).radius;
         if (dist <= bd && dist >= min) { bd = dist; best = h; }
       }
@@ -875,7 +887,7 @@ export class Sim {
       b.aim = Math.atan2(best.x - b.x, best.z - b.z);
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
-      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash });
+      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir });
     }
     this.stepWardens();
   }
@@ -892,7 +904,7 @@ export class Sim {
       if (!k) continue;
       let best: Hostile | null = null, bd = P.militiaRange + bodyR(b);
       for (const h of this.s.hostiles) {
-        if (!this.targetable(h)) continue;
+        if (!this.canHit(h, false)) continue;
         const dist = Math.hypot(h.x - b.x, h.z - b.z) - this.unitDef(h).radius;
         if (dist <= bd) { bd = dist; best = h; }
       }
@@ -1018,7 +1030,7 @@ export class Sim {
    */
   private canReach(h: Hostile, u: UnitDef, x: number, z: number, r: number) {
     const m = moveOf(u);
-    if (m === 'hover' || h.under || u.burrows || u.speed <= 0) return true;
+    if (straight(m) || h.under || u.burrows || u.speed <= 0) return true;
     return this.faunaGrid(m).reaches(h.x, h.z, x, z, r + u.range + 1.5);
   }
 
@@ -1028,7 +1040,7 @@ export class Sim {
    */
   private chase(h: Hostile, u: UnitDef, tx: number, tz: number, speed: number) {
     const move = moveOf(u);
-    if (move === 'hover') { this.steer(h, tx, tz, speed, move); return; }
+    if (straight(move)) { this.steer(h, tx, tz, speed, move); return; }
     const t = this.s.tick;
     const moved = !h.goal || Math.hypot(h.goal[0] - tx, h.goal[1] - tz) > 3;
     if (!h.path || (h.repath ?? 0) <= t || (moved && t - (h.planned ?? 0) >= 10)) {
@@ -1069,7 +1081,8 @@ export class Sim {
     if (far || !u.path || (u.repath ?? 0) <= t) {
       if (far) { u.best = Infinity; u.stall = 0; }
       u.goal = [tx, tz];
-      u.path = this.unitGrid(moveOf(content.units[u.unit])).find(u.x, u.z, tx, tz) ?? [];
+      const m = moveOf(content.units[u.unit]);
+      u.path = m === 'air' ? [tx, tz] : this.unitGrid(m).find(u.x, u.z, tx, tz) ?? [];
       u.repath = t + REPATH + (u.id % 7);
     }
     const p = u.path;
@@ -1100,7 +1113,7 @@ export class Sim {
     if (us.length) {
       const bodies = s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) }));
       const moves = new Set(us.map((u) => moveOf(content.units[u.unit])));
-      for (const m of moves) this.unitGrid(m).setBodies(bodies, PATH_PAD);
+      for (const m of moves) if (m !== 'air') this.unitGrid(m).setBodies(bodies, PATH_PAD);
     }
     const boarded: Unit[] = [];
     let raiders: Hostile[] | undefined; // hostiles at a building, worked out once if an idle unit asks
@@ -1112,7 +1125,7 @@ export class Sim {
       if (d.repairRate) { this.stepRepairer(u, d); continue; }
       const moving = u.order.kind === 'move';
       let tgt = u.target >= 0 ? s.hostiles.find((h) => h.id === u.target) : undefined;
-      if (tgt && !this.targetable(tgt)) tgt = undefined;
+      if (tgt && !this.canHit(tgt, d.antiAir)) tgt = undefined;
       const leash = Math.max(d.aggro * LEASH, RULES.unitResponse + 10);
       const min = d.minRange ?? 0;
       if (!tgt || (s.tick + u.id) % 5 === 0) {
@@ -1120,14 +1133,14 @@ export class Sim {
         let bd = Infinity;
         tgt = undefined;
         for (const h of s.hostiles) {
-          if (!this.targetable(h)) continue;
+          if (!this.canHit(h, d.antiAir)) continue;
           const dist = Math.hypot(h.x - u.x, h.z - u.z) - this.unitDef(h).radius;
           if (dist <= seek && dist >= min && dist < bd) { bd = dist; tgt = h; }
         }
         // idle: answer attacks on buildings near the guard post
         if (!tgt && !moving) {
           for (const h of (raiders ??= this.raiders())) {
-            if (h.hp <= 0 || Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse) continue; // (killed earlier this tick)
+            if (h.hp <= 0 || Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse || !this.canHit(h, d.antiAir)) continue; // (killed earlier this tick)
             const dist = Math.hypot(h.x - u.x, h.z - u.z);
             if (dist < bd && dist - this.unitDef(h).radius >= min) { bd = dist; tgt = h; }
           }
@@ -1148,7 +1161,7 @@ export class Sim {
         if (u.cd <= 0) {
           u.cd = d.cooldown;
           const dead = tgt.hp <= d.damage;
-          this.strike(u.x, u.z, tgt, d.damage, weaponFx(unitWeapon(d), false), d);
+          this.strike(u.x, u.z, tgt, d.damage, weaponFx(unitWeapon(d), false), d); // (d carries antiAir)
           if (dead) u.target = -1;
         }
       }
@@ -1166,9 +1179,10 @@ export class Sim {
     const before = us.map((u) => [u.x, u.z]);
     const blds = this.buildingBuckets();
     for (let i = 0; i < us.length; i++) {
-      const a = us[i], ra = content.units[a.unit].radius;
+      const a = us[i], ra = content.units[a.unit].radius, af = flies(content.units[a.unit]);
       for (let j = i + 1; j < us.length; j++) {
         const b = us[j], rb = content.units[b.unit].radius;
+        if (flies(content.units[b.unit]) !== af) continue; // flyers pass over the ground units (and they under them)
         const dx = b.x - a.x, dz = b.z - a.z, dd = Math.hypot(dx, dz), min = ra + rb + 0.3;
         if (dd > 1e-3 && dd < min) {
           const push = (min - dd) / 2;
@@ -1176,6 +1190,7 @@ export class Sim {
           b.x += (dx / dd) * push; b.z += (dz / dd) * push;
         }
       }
+      if (af) { a.x = clamp(a.x, -limit(), limit()); a.z = clamp(a.z, -limit(), limit()); continue; } // over buildings
       this.seen.clear();
       blds.near(a.x, a.z, 0.5, this.found, this.seen);
       this.found.sort((p, q) => p - q);
@@ -1289,6 +1304,11 @@ export class Sim {
     return offLimits(move, regionHeightRaw(x, z));
   }
 
+  /** A predator can attack a colony flyer only if it can hit flyers (spitters, flying packs). */
+  private canBite(u: UnitDef, o: object) {
+    return u.antiAir || flies(u) || !('unit' in o) || !flies(content.units[(o as Unit).unit]);
+  }
+
   private chooseTarget(h: Hostile, u: UnitDef) {
     const s = this.s;
     let best = -1, bd = Infinity;
@@ -1297,6 +1317,7 @@ export class Sim {
       // a guard: only what comes near its post (and near it), never the base beyond
       const post = (o: { x: number; z: number }, r: number) => Math.hypot(o.x - g.x, o.z - g.z) <= r;
       for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
+        if (!this.canBite(u, d)) continue;
         const dist = Math.hypot(d.x - h.x, d.z - h.z);
         if (dist < Math.max(u.aggro, 6) && dist < bd && post(d, g.r * 1.6 + u.aggro)) { bd = dist; best = d.id; }
       }
@@ -1310,21 +1331,23 @@ export class Sim {
     // underground, a burrower can't sense drones or units: it heads for the base (never a wall)
     if (!h.under) {
       for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
+        if (!this.canBite(u, d)) continue;
         const dist = Math.hypot(d.x - h.x, d.z - h.z);
         if (dist < u.aggro && dist < bd && this.canReach(h, u, d.x, d.z, 1)) { bd = dist; best = d.id; }
       }
       if (best >= 0) return best;
     }
-    // nearest building it can get at (not one across the water, or inland for a sea creature)
+    // nearest building it can get at (not one across the water, or inland for a sea creature); flyers go over walls
+    const over = h.under || flies(u);
     for (const b of s.buildings) {
-      if (h.under && barrier(b)) continue;
+      if (over && barrier(b)) continue;
       const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0) - (def(b).lure ?? 0);
       if (dist < bd && this.canReach(h, u, b.x, b.z, bodyR(b))) { bd = dist; best = b.id; }
     }
     if (best >= 0) return best;
     // nothing it can get at: make for the nearest anyway and wait as close as it can (a sea creature off the coast)
     for (const b of s.buildings) {
-      if (h.under && barrier(b)) continue;
+      if (over && barrier(b)) continue;
       const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
       if (dist < bd) { bd = dist; best = b.id; }
     }
@@ -1381,6 +1404,7 @@ export class Sim {
         continue;
       }
       this.chase(h, u, tgt.x, tgt.z, u.speed);
+      if (flies(u)) continue; // nothing is in a flyer's way
       // pressed against something (a wall) and getting nowhere: chew through what's in the way
       const left = dist - tr;
       if (left < (h.best ?? Infinity) - 0.3) { h.best = left; h.stall = 0; }
@@ -1405,16 +1429,18 @@ export class Sim {
     near.clear();
     let maxR = 0;
     hs.forEach((h, i) => { if (!h.under) { near.add(i, h.x, h.z); maxR = Math.max(maxR, this.unitDef(h).radius); } });
+    const air = hs.map((h) => flies(this.unitDef(h)));
     const blds = this.buildingBuckets(), found = this.found, seen = this.seen;
     for (let i = 0; i < hs.length; i++) {
       const a = hs[i], ra = this.unitDef(a).radius;
       if (a.under) continue; // tunnelling: nothing above ground pushes it about
-      const an = this.unitDef(a).speed <= 0;
+      const an = this.unitDef(a).speed <= 0, af = air[i];
       near.near(a.x, a.z, ra + maxR + 1, found);
       found.sort((p, q) => p - q);
       for (const j of found) {
         if (j <= i) continue;
         const b = hs[j], rb = this.unitDef(b).radius;
+        if (air[j] !== af) continue; // flyers only jostle flyers
         const bn = this.unitDef(b).speed <= 0;
         const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = ra + rb;
         if (d > 1e-3 && d < min && !(an && bn)) {
@@ -1425,6 +1451,8 @@ export class Sim {
         }
       }
       if (an) continue;
+      // flyers: over buildings and walls alike
+      if (af) { a.x = clamp(a.x, -limit(), limit()); a.z = clamp(a.z, -limit(), limit()); continue; }
       seen.clear();
       blds.near(a.x, a.z, 0.5, found, seen);
       found.sort((p, q) => p - q);

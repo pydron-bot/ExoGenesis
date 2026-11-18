@@ -34,11 +34,12 @@ export const siteOf = (d: { site?: Site }): Site => d.site ?? 'land';
 export const OFFSHORE_DEPTH = -1;
 
 /**
- * Whether a factory makes a unit: one on the shore (a Shipyard) makes boats and hover craft,
- * one on land makes ground units and hover craft.
+ * Whether a factory makes a unit: an airfield (an Airpad) makes flyers and nothing else; otherwise one
+ * on the shore (a Shipyard) makes boats and hover craft, one on land ground units and hover craft.
  */
-export function factoryMakes(f: { site?: Site }, u: Pick<UnitDef, 'move'>) {
+export function factoryMakes(f: { site?: Site; airfield?: boolean }, u: Pick<UnitDef, 'move'>) {
   const m = u.move ?? 'ground';
+  if (f.airfield || m === 'air') return !!f.airfield && m === 'air';
   return m === 'hover' || (siteOf(f) === 'shore' ? m === 'water' : m === 'ground');
 }
 

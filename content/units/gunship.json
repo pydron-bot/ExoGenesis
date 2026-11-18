@@ -1,0 +1,17 @@
+{
+  "name": "Gunship",
+  "faction": "accord",
+  "description": "A twin-rotor gunship. Flies straight over walls, water and buildings and strafes packs from above, out of reach of bites. Spitters and Skimmerwings can hit it, and it can't shoot back at flyers. Built at an Airpad.",
+  "hp": 240,
+  "speed": 11,
+  "range": 16,
+  "damage": 12,
+  "cooldown": 0.5,
+  "weapon": "bolt",
+  "radius": 1.3,
+  "aggro": 24,
+  "move": "air",
+  "modelScale": 1,
+  "cost": 130,
+  "buildSeconds": 22
+}

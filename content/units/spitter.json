@@ -1,7 +1,7 @@
 {
   "name": "Spitter",
   "faction": "fauna",
-  "description": "Hangs back and spits acid from just beyond a Defense Turret's reach. Fragile up close.",
+  "description": "Hangs back and spits acid from just beyond a Defense Turret's reach, at the ground or up at flyers. Fragile up close.",
   "hp": 70,
   "speed": 5,
   "range": 30,
@@ -13,5 +13,6 @@
   "model": "exo-spitter",
   "modelScale": 1,
   "packEvery": 5,
-  "packFrom": 4
+  "packFrom": 4,
+  "antiAir": true
 }

@@ -535,6 +535,42 @@ How content is stored and edited in general (one JSON record per file, schemas i
     - a Lurker stays in the sea;
     - a Swarmer by the shore doesn't pick a Sea Turret 11 u out;
     - three Rovers board a barge, cross the water and are put ashore.
+- **Air units and anti-air (v0.36.0):** stage 3 of water, hover and air (plan: `docs/ROSTER.md` "Air layer").
+  - **Moves on: air** (`src/sim/path.ts`): `offLimits('air', h)` is always false and `straight(m)` (hover or air)
+    means "never paths". Flyers have no `PathGrid`: `goTo` gives a unit a one-point path to the goal and `chase`
+    steers a predator straight at it. Nothing on the ground blocks them: they skip the push-out from building bodies
+    and walls, the "never cross a wall" check and the chew-through-what's-in-the-way logic. Flyers jostle only flyers
+    (units and hostiles alike). `canReach` is always true for them.
+  - **Anti-air** (unit and building `antiAir`; building `airOnly`): `canHit(h, antiAir, airOnly)` in `core.ts` is the
+    one rule. Turrets, combat units (also when answering raids) and autonomist wardens (never anti-air) use it. In
+    `strike`, splash stays at the target's level (a burst in the air catches flyers, one on the ground doesn't) and a
+    chain jumps to flyers only from an anti-air weapon. Anti-air: the Command Core's gun, Point Defense, the Arc
+    Caster, the new Flak Tower (flyers only). Fauna: `canBite` lets a predator go for a colony flyer only if it flies
+    itself or is `antiAir` (the Spitter). Flying predators ignore walls when picking a building (they go over them).
+  - **Factories** (`factoryMakes`, `src/sim/rules.ts`): a factory with `airfield` (the Airpad) builds flyers and only
+    flyers; no other factory builds them. Flyers lift off at the door like vehicles.
+  - **Packs:** flying fauna join through `packEvery`/`packFrom` like the others, with no water check.
+  - **Drawing** (`src/skirmish/view.ts`): flyers cruise `FLY_HEIGHT` (9 u) over the ground or the water, plus 0–2 u
+    by slot so a flock isn't flat, bobbing 0.35 u, banking up to 0.6 rad into turns (eased; a roll about the nose).
+    Health bars and the selection ring sit at the flyer. `ArmyView.lift` is the height per slot: tracers and impact
+    flashes go up to a flyer (`airAt`, a flyer within 1.5 u of the effect's end), and `ColonyLights.airShadow` puts
+    a detached shadow down-sun (straight under it at night, fainter). Picking uses the lifted world position, so a
+    flyer is tapped where it's drawn.
+  - **Content:**
+    - **Skimmerwing:** fauna, air, 55 hp, speed 9, bite 8 every 0.7 s; every 7th pack slot from pack 6.
+    - **Gunship:** accord, air, 240 hp, speed 11, range 16, 12 damage every 0.5 s, not anti-air; 130 alloys, 22 s.
+    - **Airpad:** factory, `airfield`, 140 alloys, clearance 13, staff 1 engineer.
+    - **Flak Tower:** turret, `antiAir` + `airOnly`, range 32, 20 damage every 0.9 s, splash 3.5, 90 alloys.
+    - Built-in looks: `gunshipGeo`, `skimmerwingGeo` (`src/skirmish/models.ts`), `buildAirpad`, `buildFlak`
+      (`src/world/air-models.ts`; the Flak Tower's `head` aims). No Blender assets yet.
+  - Skirmish is unchanged: its flow fields don't know about flyers.
+  - **Test:** `tools/air-smoke.mjs` (coastal site keeping its sea). It checks:
+    - the Airpad builds a Gunship and refuses a Rover, the Vehicle Bay refuses a Gunship;
+    - the Gunship flies straight across the water and straight over a wall;
+    - a Skimmerwing pack crosses a wall without touching it and attacks the building behind;
+    - a Defense Turret ignores a Skimmerwing, a Flak Tower shoots it down, and ignores a Swarmer;
+    - a Swarmer doesn't go for a Gunship, a Spitter does.
+  - `node tools/sim-bench.mjs`: unchanged within its noise (3.1 to 3.6 ms/tick before, 3.3 to 3.5 after).
 ## 3. M1 — one region
 
 First playtest build (2026-11-15).
