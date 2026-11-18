@@ -1,6 +1,6 @@
 {
   "title": "Test Cinematic",
-  "length": 8,
+  "length": 16,
   "letterbox": true,
   "fadeIn": 0.5,
   "fadeOut": 0.5,
@@ -22,6 +22,15 @@
       "dist": 40,
       "pitch": 0.35,
       "yaw": 1.4
+    },
+    {
+      "target": "building",
+      "pitch": 0.6,
+      "yaw": 2.5,
+      "at": 16,
+      "building": "core",
+      "lift": 2,
+      "dist": 100
     }
   ],
   "trigger": "never"
