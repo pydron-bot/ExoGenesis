@@ -24,6 +24,14 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
+    version: '0.29.1',
+    date: '2026-11-18',
+    title: 'Library fill-in',
+    notes: [
+      'Editor: the Civilian Center and Hydroponics built-in models are now in the asset library, so every Blender model has its procedural twin there to compare against or export',
+    ],
+  },
+  {
     version: '0.29.0',
     date: '2026-11-18',
     title: 'Other worlds',
