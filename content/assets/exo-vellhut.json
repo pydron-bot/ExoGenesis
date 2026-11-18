@@ -7,5 +7,6 @@
   "notes": "Inhabitant camp: round hut on stilts, hide cone roof, ladder at the front (−Z), ember lantern. About 8 u across. Used by the Vell (content/inhabitants/vell.json). Built to size: scale 1. Rebuild with `blender -b --factory-startup -P blender/build.py -- --only vellhut`.",
   "scale": 1,
   "yaw": 0,
-  "lift": 0
+  "lift": 0,
+  "far": "vellhut"
 }

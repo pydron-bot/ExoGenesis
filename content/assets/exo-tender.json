@@ -7,5 +7,6 @@
   "notes": "Inhabitant (the Choir): a small treaded repair machine with one arm and a welding glow (treads so it never reads as a predator). Used by the Choir (content/inhabitants/choir.json). Built to size: scale 1. Rebuild with `blender -b --factory-startup -P blender/build.py -- --only tender`.",
   "scale": 1,
   "yaw": 0,
-  "lift": 0
+  "lift": 0,
+  "far": "tender"
 }

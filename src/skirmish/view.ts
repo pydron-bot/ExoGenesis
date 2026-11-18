@@ -31,7 +31,7 @@ function pool(geo: THREE.BufferGeometry, n: number): Pool {
 }
 
 /** Camera distance below which asset models draw (hysteresis: switch back beyond LOD_FAR). */
-const LOD_NEAR = 90, LOD_FAR = 105; // the colony's default view is 75, the skirmish's 150
+export const LOD_NEAR = 90, LOD_FAR = 105; // the colony's default view is 75, the skirmish's 150
 
 /** Health bars: camera-facing quads drawn in one instanced call; the fill comes from aHp. */
 const barVert = /* glsl */ `

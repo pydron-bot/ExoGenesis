@@ -7,5 +7,6 @@
   "notes": "Inhabitant camp centre: fire ring with embers, sitting logs at the front, three story-stones behind carved with glowing star patterns. About 9 u across. Used by the Vell (content/inhabitants/vell.json). Built to size: scale 1. Rebuild with `blender -b --factory-startup -P blender/build.py -- --only vellstones`.",
   "scale": 1,
   "yaw": 0,
-  "lift": 0
+  "lift": 0,
+  "far": "vellstones"
 }

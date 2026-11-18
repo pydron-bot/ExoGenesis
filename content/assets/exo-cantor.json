@@ -7,5 +7,6 @@
   "notes": "Inhabitant (the Choir): a tall rusted tripod carrying organ pipes and one dim eye. About 8 u tall. Used by the Choir (content/inhabitants/choir.json). Built to size: scale 1. Rebuild with `blender -b --factory-startup -P blender/build.py -- --only cantor`.",
   "scale": 1,
   "yaw": 0,
-  "lift": 0
+  "lift": 0,
+  "far": "cantor"
 }

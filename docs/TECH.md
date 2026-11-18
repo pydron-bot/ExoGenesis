@@ -182,6 +182,16 @@ How content is stored and edited in general (one JSON record per file, schemas i
   circle** with story-stones (1,336); the Choir **cantor** (tripod of organ pipes, 1,744), **tender** (treaded repair
   machine, 640; treads so it never reads as a predator) and **pylon** (dead tower, glow band as `charge`, 616). The Vell
   stand a head taller than a colonist. Built with Blender 4.0 (Ubuntu package + python3-numpy for the glTF exporter).
+- **Inhabitant stand-ins and LOD (2026-11-18):** `src/world/inhabitant-models.ts` builds a low-poly, flat-shaded
+  stand-in for each v4 model, with the Blender model's size, silhouette and colours (one mesh per material):
+  walker 140 tris, song-keeper 200, stilt hut 188, fire circle 177, cantor 182, tender 140, pylon 234 (its glow
+  band and glyphs stay one mesh named `charge`, so the pulse works on it). In the editor's library (group
+  Inhabitants; export to .glb). Asset records get an optional **Far stand-in** (`far`, models only): the built-in
+  drawn instead when the colony camera is zoomed out, set on the seven `exo-*` inhabitant records.
+  `src/world/inhabitants.ts` uses the skirmish's thresholds (`LOD_NEAR` 90 / `LOD_FAR` 105, hysteresis: stand-ins
+  beyond 105, models again under 90; the colony's default view is 75). People keep a second InstancedMesh per crowd;
+  camp structures swap visibility. While a model loads, or if it fails to, the stand-in is drawn, so a camp is never
+  invisible. `__exo.natives.stats()` reports `far` (parts and people drawn as stand-ins) and `near`.
 - **Blender models assigned (v0.13.0):** every unit and every building except the Command Core now has its
   `exo-<id>` model set in content.
   `node tools/model-gallery.mjs [dir] [--only …] [--q …]` stages one of everything in daylight and shoots built-in

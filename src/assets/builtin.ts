@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { buildBattery, buildCannon, buildCore, buildCreature, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPointDefense, buildRadar, buildBay, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
+import { STANDINS } from '../world/inhabitant-models';
 import { BUILTIN_UNITS, creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from '../skirmish/models';
 
 export interface Builtin {
@@ -72,6 +73,14 @@ export const BUILTINS: Builtin[] = [
     id: 'grazer', name: 'Grazer', group: 'Fauna', where: 'src/world/region.ts buildCreature()', swappable: false, note: 'Not a content record yet.',
     build: () => new THREE.Mesh(buildCreature(), new THREE.MeshStandardMaterial({ color: '#c78a5a', roughness: 0.8, flatShading: true, emissive: '#3a1a10', emissiveIntensity: 0.4 })),
   },
+  ...([
+    ['vell', 'Vell walker'], ['vellkeeper', 'Vell song-keeper'], ['vellhut', 'Vell stilt hut'], ['vellstones', 'Vell fire circle'],
+    ['cantor', 'Choir cantor'], ['tender', 'Choir tender'], ['pylon', 'Choir pylon'],
+  ] as const).map(([id, name]): Builtin => ({
+    id, name, group: 'Inhabitants', where: 'src/world/inhabitant-models.ts STANDINS', swappable: false,
+    note: `Low-poly stand-in for exo-${id}: drawn instead when the camera is zoomed out (the asset's Far stand-in field), and while the file loads.`,
+    build: STANDINS[id],
+  })),
   ...ARCHETYPES.map((a, i): Builtin => ({
     id: `flora-${a.name}`, name: `Flora: ${a.name}`, group: 'Flora', where: `src/world/flora.ts ARCHETYPES[${i}]`, swappable: false,
     note: 'One random variant; every seed builds its own species from this archetype.', build: () => floraSpecies(i),

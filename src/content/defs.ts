@@ -229,6 +229,13 @@ export const mediaUrl = (a: { kind: string; file: string }) => mediaOverride?.(`
 /** Adds a cache-busting version, except to blob: URLs (which a query string breaks). */
 export const withVersion = (url: string, v: string) => (v && !url.startsWith('blob:') ? `${url}?v=${v}` : url);
 
+/**
+ * Built-in procedural models an asset can name as its far stand-in (`far`):
+ * src/world/inhabitant-models.ts builds them (its STANDINS must cover this list).
+ */
+export const FAR_MODELS = ['vell', 'vellkeeper', 'vellhut', 'vellstones', 'cantor', 'tender', 'pylon'] as const;
+export type FarModel = (typeof FAR_MODELS)[number];
+
 export const assetShape = {
   name: str({ label: 'Name' }),
   kind: choice(ASSET_KINDS, { label: 'Kind' }),
@@ -239,6 +246,7 @@ export const assetShape = {
   scale: num({ label: 'Import scale', min: 0.0001, max: 1000, step: 0.01, default: 1, help: 'Models: file units → world units (1 u ≈ 10 m). Use Fit to match a built-in.' }),
   yaw: num({ label: 'Import rotation', min: -180, max: 180, step: 5, unit: '°', default: 0, help: 'Models: turn so the front faces +Z (the way units drive).' }),
   lift: num({ label: 'Import lift', min: -50, max: 50, step: 0.05, unit: 'u', default: 0, help: 'Models: raise or sink so it sits on the ground.' }),
+  far: choice(FAR_MODELS, { label: 'Far stand-in', optional: true, help: 'Models: the built-in low-poly model drawn instead when the camera is zoomed out (and while this file loads). Empty = none. Inhabitant camps only, for now.' }),
 } satisfies Shape;
 export type AssetDef = Infer<typeof assetShape>;
 
