@@ -394,7 +394,7 @@ export const EFFECT_HELP: Record<StoryEffect, string> = {
   waypoint: 'mark the Site on the ground and the minimap, labelled with the Text',
   clearWaypoint: 'remove the Site\'s marker (no Site = every marker)',
   camera: 'move the player\'s view to the Site (or the first Building of a kind)',
-  hint: 'point at a part of the HUD with the Text, until an unhint or the next hint',
+  hint: 'point at a part of the HUD with the Text. It goes when the player uses it (opens the Build menu, places the Building…), on an unhint, or with the next hint',
   unhint: 'take the hint down',
   cinematic: 'play the Cinematic (the game pauses while it plays)',
   win: 'end the game as a win, with the Text on the end screen',
@@ -436,6 +436,11 @@ export interface ConditionDef {
   panel?: HudPanel; research?: string; event?: string; mission?: string;
   /** all / any: the conditions in the group. */
   of?: SubConditionDef[];
+}
+/** Every condition in a trigger or objective, groups opened up. */
+export function conditionsIn(kind: Condition, c: ConditionDef): { kind: Condition; c: ConditionDef }[] {
+  if (kind === 'all' || kind === 'any') return (c.of ?? []).map((x) => ({ kind: x.kind as Condition, c: x as ConditionDef }));
+  return [{ kind, c }];
 }
 /** One condition inside an all / any group (it can be turned round with `not`). */
 export const subConditionShape = {

@@ -20,6 +20,8 @@ import type { Sim } from './core';
 import { TICK_HZ, type StoryState } from './types';
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+/** Hints that clear themselves when the player uses what they point at (others stay until an unhint or the next hint). */
+const HINT_DONE: Record<string, string> = { build: 'build', people: 'people', mood: 'mood', army: 'army', goals: 'goals', minimap: 'minimap', pause: 'speed', fast: 'speed' };
 
 export class Story {
   constructor(private sim: Sim, readonly region: () => { id: string; sites: { id: string; x: number; z: number; r: number }[] }) {}
@@ -179,8 +181,19 @@ export class Story {
   /** Is this building or unit kind out of the build menus? */
   locked(id: string) { return !!this.s.locked?.includes(id); }
 
-  /** The player opened part of the HUD (renderer → 'ui' command). */
-  opened(what: string) { if (!(this.s.opened ??= []).includes(what)) this.s.opened.push(what); }
+  /** The player opened part of the HUD (renderer → 'ui' command); a hint pointing at it has done its job. */
+  opened(what: string) {
+    if (!(this.s.opened ??= []).includes(what)) this.s.opened.push(what);
+    const h = this.s.hint;
+    if (h && HINT_DONE[h.target] === what) this.s.hint = null;
+  }
+
+  /** The player placed a building: a build-menu hint for it has done its job. */
+  placed(kind: string) {
+    if (!(this.s.placed ??= []).includes(kind)) this.s.placed.push(kind);
+    const h = this.s.hint;
+    if (h?.target === 'buildItem' && h.building === kind) this.s.hint = null;
+  }
 
   /** Story text with {first} filled in (the first pod-born colonist's given name). */
   fill(text: string) {

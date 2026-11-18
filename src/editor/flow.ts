@@ -13,7 +13,9 @@
  * Read-only; every name is a link that opens the record. `analyzeFlow` is pure
  * (the editor smoke test checks it).
  */
-import { CONDITION_HELP, EFFECT_HELP, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
+import { CONDITION_HELP, EFFECT_HELP, conditionsIn, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
+
+export { conditionsIn };
 
 export interface FlowLink { coll: 'missions' | 'story'; id: string }
 export interface FlowProblem { at: FlowLink; msg: string }
@@ -32,11 +34,6 @@ export interface Flow {
   problems: FlowProblem[];
 }
 
-/** Every condition in a trigger or objective, groups opened up. */
-export function conditionsIn(kind: Condition, c: ConditionDef): { kind: Condition; c: ConditionDef }[] {
-  if (kind === 'all' || kind === 'any') return (c.of ?? []).map((x) => ({ kind: x.kind as Condition, c: x as ConditionDef }));
-  return [{ kind, c }];
-}
 
 /** Short form of an effect: "add 60 alloys", "spawn 4× brute at ridge". */
 export function effectShort(e: Partial<EffectDef>): string {

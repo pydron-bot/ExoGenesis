@@ -13,7 +13,7 @@ import type { SimState } from './types';
 const TICK_HZ = 10;
 
 export { STRATEGIES } from './strategies';
-import { STRATEGIES } from './strategies';
+import { STRATEGIES, type Step } from './strategies';
 
 export interface BalanceOptions {
   minutes?: number;
@@ -26,6 +26,8 @@ export interface BalanceOptions {
   imprint?: string;
   /** Every 10 s while hostiles are about: a line about the Core, hostiles and units. */
   trace?: (line: string) => void;
+  /** Called every tick before the sim steps (the story playthrough answers cards here). */
+  hook?: (sim: Sim, tick: number, plan: Step[]) => void;
 }
 
 export interface BalanceRow {
@@ -163,6 +165,7 @@ export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult 
         if (far.length && bay) sim.command({ type: 'order', ids: far.map((u) => u.id), x: bay.x, z: bay.z - 14 } as never);
       }
     }
+    o.hook?.(sim, tick, plan);
     sim.step();
     if (o.trace && tick % (10 * TICK_HZ) === 0 && s.hostiles.length) {
       const c = s.buildings.find((b) => b.kind === 'core');

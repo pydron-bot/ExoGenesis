@@ -202,6 +202,26 @@ const ev = (id, effects, extra = {}) => { C.story[id] = { title: id, text: id, t
   delete C.missions['m-i'];
 }
 
+// ---------- tutorial hints clear themselves ----------
+{
+  const g = game();
+  ev('t-h1', [{ kind: 'hint', target: 'build', text: 'Tap Build' }]);
+  fire(g, 't-h1');
+  g.sim.command({ type: 'ui', what: 'people' });
+  check(!!g.st().hint, 'a Build hint stays while the player does something else');
+  g.sim.command({ type: 'ui', what: 'build' });
+  check(!g.st().hint, 'opening the Build menu clears it');
+  ev('t-h2', [{ kind: 'hint', target: 'buildItem', building: 'solar', text: 'Pick the Solar Array' }]);
+  fire(g, 't-h2');
+  g.sim.s.alloys = 999;
+  g.sim.command({ type: 'build', kind: 'solar', x: 0, z: -20 });
+  check(!g.st().hint, 'placing the pointed-at building clears a build-menu hint');
+  ev('t-h3', [{ kind: 'hint', target: 'alloys', text: 'Alloys' }]);
+  fire(g, 't-h3');
+  g.sim.command({ type: 'ui', what: 'build' });
+  check(!!g.st().hint, 'a hint on a read-only part of the HUD stays until an unhint');
+}
+
 // ---------- save round trip ----------
 {
   const g = game();

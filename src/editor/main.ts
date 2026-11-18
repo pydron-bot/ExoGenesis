@@ -12,6 +12,10 @@ import { applies, blank, type Field, type IdIndex, type Issue, type ListField } 
 import { condText, effectShort, renderFlow } from './flow';
 import { renderPlanet } from './planet';
 import { balanceRunPanel } from './balance-run';
+import { renderPlaythrough } from './playthrough';
+import { renderScript, type ScriptEvent } from './script';
+import { renderGraph } from './graph';
+import { renderLedger } from './ledger';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
 import { WorldPreview } from './world-preview';
@@ -271,7 +275,7 @@ function renderSide() {
     if (g === 'Story') {
       const fl = h('button', { cls: view === 'flow' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Story flow' }), h('small', { textContent: 'overview' }));
       fl.onclick = () => showPage('flow');
-      body.append(tool('board', 'Story board', 'by chapter'), fl);
+      body.append(tool('board', 'Story board', 'by chapter'), fl,  tool('graph', 'Branch graph', 'how it links up'), tool('ledger', 'Endings ledger', 'what choices move'), tool('playthrough', 'Playthrough', 'the bot plays it'), tool('script', 'Script import', 'write scenes'));
     }
     for (const name of names) {
       const c = coll(name);
@@ -1173,6 +1177,87 @@ function drawBalance() {
   $('aside').replaceChildren(h('div', { cls: 'group', textContent: 'Reading the table' }), h('div', { cls: 'help-block', textContent:
     'DPS = damage ÷ cooldown, against one target (splash, chains and minimum range aren\'t counted). "/ 100 ◆" columns divide by cost, so they show value for money. Fauna have no cost. Built-in rules (drone cost, pack sizes) are in Rules.' }));
 }
+function drawPlaythrough() {
+  const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
+  const story = data<StoryDef>('story'), missions = data<MissionDef>('missions');
+  renderPlaythrough($('main'), $('aside'), {
+    files: () => Object.fromEntries([...files.values()].filter((f) => !f.parseError).map((f) => [f.path, f.data])),
+    regions: recordsOf('regions').map((r) => r.id),
+    open: (c, id) => open(c, id),
+    title: (c, id) => (c === 'story' ? story[id]?.title : missions[id]?.title) ?? id,
+    trigger: (id) => (story[id] ? conditionText(story[id].trigger, story[id]) : '?'),
+  });
+}
+function drawGraph() {
+  const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
+  const problems: Record<string, number> = {};
+  for (const i of savedProblems()) {
+    const at = locate(i.path);
+    if (at) { const key = `${at.coll === 'missions' ? 'mission' : at.coll === 'cinematics' ? 'cinematic' : at.coll}:${at.id}`; problems[key] = (problems[key] ?? 0) + 1; }
+  }
+  renderGraph($('main'), $('aside'), { missions: data<MissionDef>('missions'), story: data<StoryDef>('story'), cinematics: data<CinematicDef>('cinematics'), problems, open: (c, id) => open(c, id) });
+}
+function drawLedger() {
+  const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
+  renderLedger($('main'), $('aside'), { missions: data<MissionDef>('missions'), story: data<StoryDef>('story'), open: (c, id) => open(c, id) });
+}
+function drawScript() {
+  const names = (c: CollectionName) => recordsOf(c).map((r) => r.id);
+  renderScript($('main'), $('aside'), {
+    refs: {
+      characters: Object.fromEntries(recordsOf('characters').map((r) => [r.id, (r.rec.data as CharacterDef)?.name ?? r.id])),
+      buildings: names('buildings'), units: names('units'), research: names('research'), existing: names('story'),
+    },
+    chapters: recordsOf('chapters').map((r) => ({ id: r.id, title: (r.rec.data as ChapterDef)?.title ?? r.id, order: (r.rec.data as ChapterDef)?.order ?? 0 })).sort((a, b) => a.order - b.order),
+    cinematics: recordsOf('cinematics').map((r) => { const c = r.rec.data as CinematicDef; return { id: r.id, title: c?.title ?? r.id, length: c?.length ?? 0, lines: c?.lines?.length ?? 0 }; }),
+    check(drafts: ScriptEvent[]) {
+      const fl: Record<string, unknown> = {};
+      for (const r of files.values()) if (!r.parseError) fl[r.path] = r.data;
+      for (const d of drafts) fl[pathOf('story', d.id)] = d.def;
+      const { db, issues } = buildDb(fl);
+      const out: Record<string, string[]> = {};
+      for (const i of [...issues, ...requiredIssues(db)]) {
+        const d = drafts.find((x) => pathOf('story', x.id) === i.path);
+        if (d) (out[d.id] ??= []).push(`${i.field ? `${i.field}: ` : ''}${i.msg}`);
+      }
+      return out;
+    },
+    async create(drafts) {
+      let made = 0;
+      for (const d of drafts) {
+        const p = pathOf('story', d.id);
+        if (files.has(p)) { toast(`${d.id} already exists: skipped`, true); continue; }
+        const text = serialize('story', d.def as unknown as Record<string, unknown>);
+        try {
+          const r = await api<{ hash: string }>('PUT', '/__content/file', { path: p, text, baseHash: null });
+          files.set(p, { path: p, hash: r.hash, data: JSON.parse(text) });
+          made++;
+        } catch (e) { toast(`Couldn't create ${d.id}: ${(e as Error).message}`, true); break; }
+      }
+      toast(`Created ${made} story event${made === 1 ? '' : 's'}`);
+      void refreshGit();
+      librarySig = signature();
+      renderSide();
+      if (made) open('story', drafts[0].id, true);
+    },
+    async addLines(id, lines) {
+      const p = pathOf('cinematics', id), rec = files.get(p);
+      if (!rec?.data) return;
+      const data = structuredClone(rec.data) as CinematicDef;
+      data.lines = [...(data.lines ?? []), ...lines].sort((a, b) => a.at - b.at);
+      const text = serialize('cinematics', data as unknown as Record<string, unknown>);
+      try {
+        const r = await api<{ hash: string }>('PUT', '/__content/file', { path: p, text, baseHash: rec.hash });
+        files.set(p, { path: p, hash: r.hash, data: JSON.parse(text) });
+        toast(`Added ${lines.length} line${lines.length === 1 ? '' : 's'} to ${id}`);
+        void refreshGit();
+        open('cinematics', id, true);
+      } catch (e) { toast(`Couldn't save ${id}: ${(e as Error).message}`, true); }
+    },
+    open: (id) => open('story', id),
+    summary: (def) => storySummary(def).slice(0, 1).concat((def.effects ?? []).map((e) => `${e.after ? `After “${def.choices?.[e.after - 1]?.label ?? e.after}”` : 'When it fires'}: ${effectText(e)}`)),
+  });
+}
 async function drawReview() {
   const g = await api<{ changes: { status: string; path: string }[] }>('GET', '/__content/git');
   const out: ReviewFile[] = [];
@@ -1338,7 +1423,7 @@ function drawPlanet() {
 }
 const PAGES = {
   flow: drawFlow, balance: drawBalance, review: () => void drawReview(), problems: drawProblems, compare: drawCompare, text: drawText,
-  changes: () => void drawChanges(), planet: drawPlanet, board: drawBoard,
+  changes: () => void drawChanges(), planet: drawPlanet, board: drawBoard, playthrough: drawPlaythrough, script: drawScript, graph: drawGraph, ledger: drawLedger,
 } as const;
 type PageName = keyof typeof PAGES;
 const isPage = (v: unknown): v is PageName => typeof v === 'string' && v in PAGES;

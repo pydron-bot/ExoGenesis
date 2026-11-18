@@ -1579,7 +1579,7 @@ export class Sim {
           }
         }
         s.buildings.push({ id: s.nextId++, kind: c.kind, x, z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
-        if (!(this.story.s.placed ??= []).includes(c.kind)) this.story.s.placed.push(c.kind);
+        this.story.placed(c.kind);
         this.emit(`${dd.name} placed${swapped ? ` · replaces ${swapped} wall segment${swapped > 1 ? 's' : ''}` : ''}${s.drones.length ? '' : ' · waiting for a drone'}`, 'info', 'placed');
         return;
       }
@@ -1595,7 +1595,7 @@ export class Sim {
           s.buildings.push({ id: s.nextId++, kind: c.kind, x: p.x, z: p.z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
           placed++;
         }
-        if (placed && !(this.story.s.placed ??= []).includes(c.kind)) this.story.s.placed.push(c.kind);
+        if (placed) this.story.placed(c.kind);
         if (placed) this.emit(`${placed} ${dd.name} segment${placed > 1 ? 's' : ''} placed${skipped ? ` · ${skipped} spots blocked` : ''}${poor ? ' · ran out of alloys' : ''}`, 'info', 'placed');
         else this.emit(poor ? `Not enough alloys for a ${dd.name} (${dd.cost} each)` : `Can't build a ${dd.name} there`, 'warn', 'deny');
         return;
