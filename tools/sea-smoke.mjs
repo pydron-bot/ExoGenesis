@@ -121,6 +121,72 @@ if (boat) {
   }
 }
 
+// transport: a Barge loads three Rovers on the near shore, carries them across the water and lands them on the far side
+await cmd({ type: 'produce', id: yardId, unit: 'barge' });
+await page.waitForFunction(() => __exo.sim.cur.units.some((u) => u.unit === 'barge'), null, { timeout: 90000, polling: 500 }).catch(() => {});
+const barge = await page.evaluate(() => __exo.sim.cur.units.find((u) => u.unit === 'barge'));
+check(!!barge, 'a Shipyard builds a Transport Barge');
+if (barge) {
+  const shore = await page.evaluate(([x, z]) => {
+    for (let r = 4; r < 40; r += 1) for (let a = 0; a < 6.28; a += 0.2) {
+      const px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
+      if (__exo.heightRaw(px, pz) > 1 && !__exo.canPlace('solar', px, pz)?.includes('water')) return { x: px, z: pz };
+    }
+    return null;
+  }, [barge.x, barge.z]);
+  await cmd({ type: 'debug', units: { unit: 'rover', x: shore.x, z: shore.z, n: 3 } });
+  await wait(400);
+  const rovers = await page.evaluate(() => __exo.sim.cur.units.filter((u) => u.unit === 'rover').map((u) => u.id));
+  await cmd({ type: 'board', ids: rovers, transport: barge.id });
+  await page.waitForFunction((id) => __exo.sim.cur.units.find((u) => u.id === id)?.cargo === 3, barge.id, { timeout: 60000, polling: 250 }).catch(() => {});
+  const loaded = await page.evaluate((id) => ({ cargo: __exo.sim.cur.units.find((u) => u.id === id)?.cargo, rovers: __exo.sim.cur.units.filter((u) => u.unit === 'rover').length }), barge.id);
+  check(loaded.cargo === 3 && loaded.rovers === 0, `three Rovers go aboard (${loaded.cargo} aboard, ${loaded.rovers} still ashore)`);
+  // somewhere dry across the water: from where the barge is now, the far end of the longest run of water in some direction
+  const at = await page.evaluate((id) => __exo.sim.cur.units.find((u) => u.id === id), barge.id);
+  const far = await page.evaluate(([x, z]) => {
+    const raw = __exo.heightRaw;
+    let best = null;
+    for (let a = 0; a < 6.28; a += 0.1) {
+      const dx = Math.sin(a), dz = Math.cos(a);
+      // one unbroken stretch of water deep enough to sail (not shallows, a sandbar and a lagoon), then dry land
+      let wet = 0;
+      for (let r = 2; r < 90; r++) {
+        const h = raw(x + dx * r, z + dz * r);
+        if (h < -0.6) { wet++; continue; }
+        if (wet < r - 2 - 20) break;
+        if (h < 0.3) continue; // the beach
+        if (wet > 15 && h > 0.6 && [3, 6].every((k) => raw(x + dx * (r + k), z + dz * (r + k)) > 0.6)) {
+          if (!best || wet > best.wet) best = { x: x + dx * (r + 4), z: z + dz * (r + 4), wet };
+          break;
+        }
+      }
+    }
+    return best;
+  }, [at.x, at.z]);
+  if (!far && process.env.DBG) console.log(await page.evaluate(([x, z]) => {
+    const out = [];
+    for (let a = 0; a < 6.28; a += 0.5) out.push(a.toFixed(1) + ':' + [...Array(30).keys()].map((k) => { const h = __exo.heightRaw(x + Math.sin(a) * (2 + k * 3), z + Math.cos(a) * (2 + k * 3)); return h < -0.6 ? '~' : h < 0.3 ? '.' : '#'; }).join(''));
+    return `barge ${x.toFixed(0)},${z.toFixed(0)}\n` + out.join('\n');
+  }, [at.x, at.z]));
+  check(!!far, `found a far shore (${far ? `${far.wet} u of water away` : 'none'})`);
+  if (far) {
+    await cmd({ type: 'order', ids: [barge.id], x: far.x, z: far.z });
+    await page.waitForFunction(() => __exo.sim.cur.units.filter((u) => u.unit === 'rover').length === 3, null, { timeout: 90000, polling: 500 }).catch(() => {});
+    // ashore, they drive on to the drop point
+    await page.waitForFunction(() => __exo.sim.cur.units.filter((u) => u.unit === 'rover').every((u) => u.order === 'idle'), null, { timeout: 30000, polling: 500 }).catch(() => {});
+    const start = await page.evaluate((id) => __exo.sim.cur.units.find((u) => u.id === id), barge.id);
+    const landed = await page.evaluate(([x, z]) => __exo.sim.cur.units.filter((u) => u.unit === 'rover').map((u) => ({ d: Math.hypot(u.x - x, u.z - z), h: __exo.heightRaw(u.x, u.z) })), [far.x, far.z]);
+    const sailed = Math.hypot(start.x - at.x, start.z - at.z);
+    // (the drop point can be past shallows the barge can't cross: then they land on the nearest beach it reaches)
+    check(sailed > 15 && landed.length === 3 && landed.every((r) => r.h > 0 && r.d < 20), `…carries them across the water and lands them on dry ground near the drop point (${JSON.stringify(landed.map((r) => `${r.d.toFixed(0)} u, ground ${r.h.toFixed(1)}`))} u from it; barge sailed ${sailed.toFixed(0)} u)`);
+    if (shots) {
+      await page.evaluate(([x, z]) => { __exo.cam.fx = x; __exo.cam.fz = z; __exo.cam.targetDist = 40; __exo.cam.targetPitch = 0.65; }, [far.x, far.z]);
+      await wait(2500);
+      await page.screenshot({ path: `${shots}/barge-landed.png` });
+    }
+  }
+}
+
 // fauna: a Lurker stays in the sea; a Swarmer won't go for the unreachable Sea Turret
 await cmd({ type: 'debug', spawn: { unit: 'lurker', x: seaT.x, z: seaT.z, n: 1 } });
 await wait(400);

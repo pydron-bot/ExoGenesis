@@ -32,6 +32,7 @@ export const unitShape = {
   nest: bool({ label: 'Nest', optional: true, help: 'Fauna: a nest. One grows on every predator spawn (unless the spawn says no); packs only come from spawns whose nest stands. It never moves or attacks, and regrows after the threat rules\' regrow time.' }),
   guards: int({ label: 'Nest guards', min: 0, max: 30, optional: true, help: 'Nests: swarmers it releases when hurt (at most every 12 s).' }),
   move: choice(['ground', 'hover', 'water'], { label: 'Moves on', optional: true, help: 'ground (empty): land only, finds its way round water. hover: skims over land and water alike. water: boats and sea creatures, open water only (built at a shore factory, a Shipyard; in packs they start from the nearest water to the spawn).' }),
+  carries: int({ label: 'Carries', min: 0, max: 20, optional: true, help: 'Accord transports: how many ground units it can carry. Select ground units and tap it to load them; order it to a spot on land to land them there.' }),
   burrows: bool({ label: 'Burrows', optional: true, help: 'Fauna: travels underground to its target, through walls and unseen (radar still shows it), then surfaces to attack.' }),
   packEvery: int({ label: 'Joins packs: every', min: 0, max: 100, optional: true, help: 'Fauna: every Nth attacker in a pack is one of these (0 or empty = only if the threat rules name it).' }),
   packFrom: int({ label: 'Joins packs: from pack', min: 0, max: 200, optional: true, help: 'Fauna: first pack (0 = the first) it can join.' }),

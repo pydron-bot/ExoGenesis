@@ -515,13 +515,26 @@ How content is stored and edited in general (one JSON record per file, schemas i
     - **Lurker:** fauna, water, 160 hp, bite 18, every 6th pack slot from pack 3.
     - Built-in looks: `src/world/sea-models.ts` (piles reach below the waterline), `buildSeaTurret` (region.ts),
       `gunboatGeo` and `lurkerGeo` (skirmish/models.ts). There are no Blender assets yet.
+  - **Transport** (unit `carries`: how many ground units fit; the **Transport Barge**: water, unarmed, carries 4,
+    80 alloys):
+    - Board: command `board` (ground units, a transport). Input sends it when ground units are selected and a
+      transport is tapped. Riders get `ride` and drive to the nearest land to it. The transport comes in to the
+      water nearest them (in its own sea). Within hull + 7 u (`BOARD_REACH`, across the shallows) a rider goes
+      into its `cargo`: off the map, slot −1.
+    - Land: an `order` to a spot on dry land (or the card's Unload, the nearest shore) sets `drop`. The
+      transport sails to the water in its own sea nearest that spot (`openNear(…, from)`: same open area, never
+      a lagoon past a sandbar). Then everyone goes ashore within 16 u (`LAND_REACH`), on ground connected to the
+      drop point when there is some, and drives on to the spot.
+    - Sunk with cargo: all lost, counted in units lost. The army limit counts those aboard (`armySize`). Unarmed
+      units never chase. The card shows Carrying n / max and the Load tip.
   - **Test:** `tools/sea-smoke.mjs`. It checks:
     - each building fits only where it should;
     - the Tidal Generator comes online;
     - the Bay refuses a Gunboat and the Shipyard a Rover;
     - the Gunboat launches and stays on the water, and stops at the water's edge when ordered inland;
     - a Lurker stays in the sea;
-    - a Swarmer by the shore doesn't pick a Sea Turret 11 u out.
+    - a Swarmer by the shore doesn't pick a Sea Turret 11 u out;
+    - three Rovers board a barge, cross the water and are put ashore.
 ## 3. M1 — one region
 
 First playtest build (2026-11-15).

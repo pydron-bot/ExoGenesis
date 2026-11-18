@@ -99,9 +99,17 @@ export class PathGrid {
     return true;
   }
 
-  /** The centre of the nearest open cell to (x, z) within `reach` u, or null. */
-  openNear(x: number, z: number, reach = 24) {
-    const c = this.nearestOpen(x, z, Math.ceil(reach / CELL));
+  /**
+   * The centre of the nearest open cell to (x, z) within `reach` u, or null. With `from`, only
+   * cells a mover at `from` can get to (the same open area: the sea a boat is on, not a lagoon past a sandbar).
+   */
+  openNear(x: number, z: number, reach = 24, from?: { x: number; z: number }) {
+    let want = -1;
+    if (from) {
+      const a = this.nearestOpen(from.x, from.z, 4);
+      if (a >= 0) want = this.components()[a];
+    }
+    const c = this.nearestOpen(x, z, Math.ceil(reach / CELL), want);
     return c < 0 ? null : this.centre(c % this.n, (c / this.n) | 0);
   }
 
@@ -149,14 +157,15 @@ export class PathGrid {
     return (this.comp = comp);
   }
 
-  /** Nearest open cell to a point (spiral search), or -1. */
-  private nearestOpen(x: number, z: number, rings = 12) {
+  /** Nearest open cell to a point (spiral search), or -1; `area` ≥ 0: only cells in that open area. */
+  private nearestOpen(x: number, z: number, rings = 12, area = -1) {
     const c = this.cellOf(x, z), n = this.n;
+    const comp = area >= 0 ? this.components() : null;
     for (let r = 0; r < rings; r++) {
       let best = -1, bd = Infinity;
       for (let j = c.j - r; j <= c.j + r; j++) for (let i = c.i - r; i <= c.i + r; i++) {
         if (i < 0 || j < 0 || i >= n || j >= n || (Math.abs(i - c.i) !== r && Math.abs(j - c.j) !== r)) continue;
-        if (this.blocked[j * n + i]) continue;
+        if (this.blocked[j * n + i] || (comp && comp[j * n + i] !== area)) continue;
         const p = this.centre(i, j), d = Math.hypot(p.x - x, p.z - z);
         if (d < bd) { bd = d; best = j * n + i; }
       }

@@ -71,6 +71,10 @@ const PATH_PAD = 1.4;
 const REPATH = 20;
 /** A unit that hasn't got closer to its goal for this many ticks re-plans, then gives up. */
 const STALL = 30;
+/** Ground units board a transport within this of its hull, across the shallows (u). */
+const BOARD_REACH = 7;
+/** A transport lands its cargo on dry ground within this of its hull (u). */
+const LAND_REACH = 16;
 /** Sea creatures join a pack only if there's open water this close to its spawn (u). */
 const SEA_REACH = 40;
 /** Predators treat walls as this much farther away when picking a target (they'd rather get past them). */
@@ -908,6 +912,61 @@ export class Sim {
     }
   }
 
+  /** A unit on its way to board a transport: aboard (true) once it's alongside, else on its way to the shore by it. */
+  private stepBoarding(u: Unit, d: UnitDef) {
+    const t = this.units.find((x) => x.id === u.ride);
+    const td = t && content.units[t.unit];
+    if (!t || !td?.carries || (t.cargo?.length ?? 0) >= td.carries) { u.ride = undefined; this.arrive(u); return false; }
+    if (Math.hypot(t.x - u.x, t.z - u.z) < td.radius + d.radius + BOARD_REACH) {
+      (t.cargo ??= []).push(u);
+      u.ride = undefined; u.slot = -1; u.target = -1; u.path = undefined; u.goal = undefined; u.order = { kind: 'idle' };
+      if (t.cargo.length === td.carries || !this.units.some((o) => o !== u && o.ride === t.id)) this.emit(`${td.name}: ${t.cargo.length} aboard`, 'info');
+      return true;
+    }
+    this.goTo(u, t.x, t.z, d.speed); // as near as the land goes: the transport comes in to meet it
+    return false;
+  }
+
+  /** A transport landing its cargo: to the water nearest the drop point, then everyone ashore. */
+  private stepLanding(t: Unit, d: UnitDef) {
+    const o = t.drop!;
+    if (!t.cargo?.length) { t.drop = undefined; this.arrive(t); return; }
+    const there = Math.hypot(o.wx - t.x, o.wz - t.z) < 3;
+    if (!there && this.goTo(t, o.wx, o.wz, d.speed)) return;
+    // there, or as close as the water goes: ashore on the nearest dry ground
+    // the bit of shore that leads on to the drop point (not a sandbar on the way), else any
+    const g = this.unitGrid('ground'), shore = g.openNear(t.x, t.z, LAND_REACH, o) ?? g.openNear(t.x, t.z, LAND_REACH);
+    if (!shore) { if (!there) return; t.drop = undefined; this.arrive(t); this.emit(`${d.name}: no shore close enough to land on`, 'warn', 'deny'); return; }
+    let n = 0;
+    while (t.cargo.length) {
+      const slot = this.freeSlot();
+      if (slot < 0) break;
+      const u = t.cargo.shift()!, a = n * 2.39996, r = n ? SPREAD * Math.sqrt(n) * 0.6 : 0;
+      const at = g.openNear(shore.x + Math.cos(a) * r, shore.z + Math.sin(a) * r, 8) ?? shore;
+      u.slot = slot; u.x = at.x; u.z = at.z; u.heading = t.heading; u.target = -1;
+      const r2 = SPREAD * Math.sqrt(n);
+      u.order = { kind: 'move', x: clamp(o.x + Math.cos(a) * r2, -limit(), limit()), z: clamp(o.z + Math.sin(a) * r2, -limit(), limit()) };
+      u.gx = u.order.x; u.gz = u.order.z;
+      this.units.push(u);
+      n++;
+    }
+    if (n) this.emit(`${d.name}: ${n} landed`, 'info', 'unitReady');
+    if (!t.cargo.length) { t.drop = undefined; this.arrive(t); }
+  }
+
+  /** Send a loaded transport to land its cargo at (x, z) on land: it makes for the nearest water to it. */
+  private sendToLand(t: Unit, x: number, z: number) {
+    const w = this.unitGrid('water').openNear(x, z, 140, t);
+    if (!w) return false;
+    t.drop = { x, z, wx: w.x, wz: w.z };
+    t.order = { kind: 'move', x: w.x, z: w.z };
+    t.target = -1;
+    return true;
+  }
+
+  /** Combat units in the field plus those aboard transports (the army limit counts both). */
+  private armySize() { return this.units.reduce((m, u) => m + 1 + (u.cargo?.length ?? 0), 0); }
+
   private unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
   private faunaGrid(m: Move) { return (this.faunaGrids[m] ??= new PathGrid(limit(), m)); }
 
@@ -1002,9 +1061,12 @@ export class Sim {
       const moves = new Set(us.map((u) => moveOf(content.units[u.unit])));
       for (const m of moves) this.unitGrid(m).setBodies(bodies, PATH_PAD);
     }
+    const boarded: Unit[] = [];
     for (const u of us) {
       const d = content.units[u.unit];
       u.cd = Math.max(0, u.cd - DT);
+      if (u.ride !== undefined) { if (this.stepBoarding(u, d)) boarded.push(u); continue; }
+      if (u.drop) { this.stepLanding(u, d); continue; }
       if (d.repairRate) { this.stepRepairer(u, d); continue; }
       const moving = u.order.kind === 'move';
       let tgt = u.target >= 0 ? s.hostiles.find((h) => h.id === u.target) : undefined;
@@ -1034,6 +1096,7 @@ export class Sim {
       if (tgt && !moving && Math.hypot(tgt.x - u.gx, tgt.z - u.gz) > leash) tgt = undefined;
       // too close for a gun with a minimum range: let it go (others deal with it)
       if (tgt && min && Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.unitDef(tgt).radius < min) tgt = undefined;
+      if (!d.damage) tgt = undefined; // unarmed (a transport): never chases anything
       u.target = tgt?.id ?? -1;
       const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.unitDef(tgt).radius - d.radius : Infinity;
       if (tgt && gap <= d.range && d.damage > 0) {
@@ -1058,6 +1121,7 @@ export class Sim {
         if (!this.goTo(u, u.gx, u.gz, d.speed)) this.arrive(u);
       }
     }
+    for (const u of boarded) us.splice(us.indexOf(u), 1);
     // separation, and out of building bodies
     for (let i = 0; i < us.length; i++) {
       const a = us[i], ra = content.units[a.unit].radius;
@@ -1518,9 +1582,11 @@ export class Sim {
     const i = this.units.indexOf(u);
     if (i < 0) return;
     this.units.splice(i, 1);
-    s.stats.unitsLost = (s.stats.unitsLost ?? 0) + 1;
+    const aboard = u.cargo?.length ?? 0;
+    s.stats.unitsLost = (s.stats.unitsLost ?? 0) + 1 + aboard;
     this.fx.push(dieFx(content.units[u.unit].radius), u.x, u.z, 0, 0);
-    this.emit(`${content.units[u.unit].name} destroyed`, 'bad', 'lost');
+    this.emit(`${content.units[u.unit].name} destroyed${aboard ? ` with ${aboard} aboard` : ''}`, 'bad', 'lost');
+    for (const o of this.units) if (o.ride === u.id) { o.ride = undefined; this.arrive(o); }
   }
 
   lose(why: 'core' | 'cryo' | 'people') {
@@ -1798,7 +1864,7 @@ export class Sim {
         if (!factoryMakes(def(b), ud)) { this.emit(`The ${def(b).name} can't build a ${ud.name}`, 'warn', 'deny'); return; }
         if (this.story.locked(c.unit)) { this.emit(`${ud.name} isn't available yet`, 'warn', 'deny'); return; }
         const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
-        if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }
+        if (this.armySize() + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }
         if (!this.researched(ud.research)) { this.emit(`${ud.name} needs research: ${content.research[ud.research!]?.name}`, 'warn', 'deny'); return; }
         if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn', 'deny'); return; }
         if ((s.isotopes ?? 0) < (ud.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${ud.name} (${ud.isotopes} needed)`, 'warn', 'deny'); return; }
@@ -1818,9 +1884,12 @@ export class Sim {
         return;
       }
       case 'order': {
-        const sel = this.units.filter((u) => c.ids.includes(u.id));
-        // spread out around the point (sunflower), nearest units take the inner spots
+        let sel = this.units.filter((u) => c.ids.includes(u.id));
         const x = clamp(c.x, -limit(), limit()), z = clamp(c.z, -limit(), limit());
+        for (const u of sel) { u.ride = undefined; u.drop = undefined; }
+        // a loaded transport sent to a spot on land goes to land its cargo there
+        if (!offLimits('ground', regionHeightRaw(x, z))) sel = sel.filter((u) => !(u.cargo?.length && this.sendToLand(u, x, z)));
+        // spread out around the point (sunflower), nearest units take the inner spots
         sel.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
         sel.forEach((u, i) => {
           const r = SPREAD * Math.sqrt(i) * (i ? 1 : 0), a = i * 2.39996;
@@ -1831,7 +1900,30 @@ export class Sim {
         return;
       }
       case 'stop': {
-        for (const u of this.units) if (c.ids.includes(u.id)) { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; }
+        for (const u of this.units) if (c.ids.includes(u.id)) { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; u.ride = undefined; u.drop = undefined; }
+        return;
+      }
+      case 'board': {
+        const t = this.units.find((u) => u.id === c.transport), td = t && content.units[t.unit];
+        if (!t || !td?.carries) return;
+        // ground units only, as many as there's room for (nearest first)
+        const room = td.carries - (t.cargo?.length ?? 0) - this.units.filter((u) => u.ride === t.id && !c.ids.includes(u.id)).length;
+        const riders = this.units.filter((u) => c.ids.includes(u.id) && u !== t && !content.units[u.unit].carries && moveOf(content.units[u.unit]) === 'ground')
+          .sort((a, b) => Math.hypot(a.x - t.x, a.z - t.z) - Math.hypot(b.x - t.x, b.z - t.z)).slice(0, Math.max(0, room));
+        if (!riders.length) { this.emit(room <= 0 ? `${td.name} is full (${td.carries})` : `Only ground units can board the ${td.name}`, 'warn', 'deny'); return; }
+        for (const u of riders) { u.ride = t.id; u.drop = undefined; u.target = -1; u.order = { kind: 'idle' }; }
+        // it comes in to the water nearest them
+        const cx = riders.reduce((m, u) => m + u.x, 0) / riders.length, cz = riders.reduce((m, u) => m + u.z, 0) / riders.length;
+        const w = this.unitGrid('water').openNear(cx, cz, 80, t);
+        if (w && Math.hypot(w.x - t.x, w.z - t.z) > 4) { t.drop = undefined; t.order = { kind: 'move', x: w.x, z: w.z }; t.target = -1; }
+        return;
+      }
+      case 'unload': {
+        for (const t of this.units) {
+          if (!c.ids.includes(t.id) || !t.cargo?.length) continue;
+          const at = this.unitGrid('ground').openNear(t.x, t.z, 80);
+          if (at) this.sendToLand(t, at.x, at.z);
+        }
         return;
       }
       case 'research': {
@@ -1909,7 +2001,10 @@ export class Sim {
       army[o + F.HP] = u.hp / d.hp;
       army[o + F.GEN] = u.id & 0xffff; army[o + F.ALIVE] = 1;
       const mv = u.order.kind === 'move' ? u.order : null;
-      return { id: u.id, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0 };
+      return {
+        id: u.id, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0,
+        cargo: d.carries ? u.cargo?.length ?? 0 : undefined, boarding: u.ride !== undefined || undefined,
+      };
     });
     // effects in the fog stay hidden too
     const kept: number[] = [];

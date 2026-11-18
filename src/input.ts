@@ -37,6 +37,9 @@ interface Handlers {
   buildings(): Building[];
   units(): UnitSnap[];
   order(ids: number[], x: number, z: number): void;
+  /** Ground units in `ids` that could go aboard transport `t` (empty: it isn't one, or none can). */
+  riders?(ids: number[], t: number): number[];
+  board?(ids: number[], t: number): void;
   setBuild(kind: string | null): void;
   select(): void;
   view(v: ViewName): void;
@@ -283,7 +286,13 @@ export class Input {
       if (!this.held && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) <= TAP_PX) {
         // event timestamps: a slow frame mustn't break a double-tap
         const u = this.downUnit, kind = (id: number) => this.h.units().find((x) => x.id === id)?.unit;
-        if (this.lastTap.id >= 0 && e.timeStamp - this.lastTap.t < DOUBLE_MS && kind(this.lastTap.id) === kind(u)) {
+        // ground units selected, a tap on a transport: they go aboard
+        const riders = e.shiftKey || this.selIds().includes(u) ? [] : this.h.riders?.(this.selIds(), u) ?? [];
+        if (riders.length) {
+          this.h.board?.(riders, u);
+          const t = this.h.units().find((x) => x.id === u);
+          if (t) this.ui.mark = { x: t.x, z: t.z, until: performance.now() + 900 };
+        } else if (this.lastTap.id >= 0 && e.timeStamp - this.lastTap.t < DOUBLE_MS && kind(this.lastTap.id) === kind(u)) {
           this.selectType(u);
           this.lastTap = { t: 0, id: -1 };
         } else {

@@ -148,6 +148,17 @@ export function gunboatGeo() {
 }
 export function gunboatGlow() { return merge([box(1.24, 0.12, 0.08, 0, 1.45, -0.3), box(2.0, 0.06, 0.06, 0, 0.95, -2.75), box(0.12, 0.12, 0.12, 0, 3.25, -1.1)]); }
 
+/** Transport Barge: a wide flat hull with a hinged bow ramp, low side walls round the deck and a wheelhouse at the stern. */
+export function bargeGeo() {
+  return merge([
+    box(2.6, 0.7, 4.6, 0, 0.35, 0), box(2.4, 0.5, 0.25, 0, 0.75, 2.2).rotateX(0.35).translate(0, 0.25, 0.25),
+    box(0.18, 0.55, 4.0, -1.22, 0.95, -0.1), box(0.18, 0.55, 4.0, 1.22, 0.95, -0.1),
+    box(1.6, 1.1, 1.0, 0, 1.25, -2.0), box(1.2, 0.3, 0.8, 0, 1.95, -2.0),
+    new THREE.CylinderGeometry(0.05, 0.05, 1.0, 4).translate(0.4, 2.55, -2.1),
+  ]);
+}
+export function bargeGlow() { return merge([box(1.62, 0.12, 0.08, 0, 1.45, -1.48), box(2.64, 0.06, 0.06, 0, 0.72, -2.32), box(0.1, 0.1, 0.1, 0.4, 3.1, -2.1)]); }
+
 /** Lurker: a sea creature mostly under the water: a ridged back, two dorsal fins, a wide jaw breaking the surface. */
 export function lurkerGeo() {
   const parts: THREE.BufferGeometry[] = [];
@@ -230,6 +241,7 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   skiff: { geo: skiffGeo, glow: skiffGlow, material: () => accordMaterial(0.5) },
   strider: { geo: striderGeo, material: () => faunaMaterial('#4f7f86', '#0f3a40') },
   gunboat: { geo: gunboatGeo, glow: gunboatGlow, material: () => accordMaterial(0.5) },
+  barge: { geo: bargeGeo, glow: bargeGlow, material: () => accordMaterial(0.4) },
   lurker: { geo: lurkerGeo, material: () => faunaMaterial('#2f5a5e', '#3ad6c8') },
   swarmer: { geo: () => creatureGeo(false), material: () => faunaMaterial('#c0563a', '#5a1408') },
   brute: { geo: () => creatureGeo(true), material: () => faunaMaterial('#8a3550', '#3a0a1c') },
