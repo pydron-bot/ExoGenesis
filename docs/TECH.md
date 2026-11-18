@@ -638,4 +638,13 @@ From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a
   sighted; their `seal` part goes dark when opened; minimap marks unopened found caches. Touchdown's grid
   `ridge` is at about (15, 95): 2 nodes, 4 sentinels, 1 cache (400 alloys, 60 isotopes).
   Blender set v8: sentinel (712 tris), grid node (612), cache (256). Test: `tools/relic-smoke.mjs`.
+- **Zoomed-out built-ins (v0.28.1):** every roster model has a procedural, flat-shaded twin with its size,
+  silhouette and colours: buildings, wreck and cache in `src/world/roster-models.ts` (sensor, habitat, relay,
+  lab, deep mine, fusion; KIND_MODELS), units in `src/skirmish/models.ts` (lancer, nest, sentinel, grid node). All
+  listed in the editor's library. `RegionView` now has a level of detail like the army's (`LOD_NEAR` 90 /
+  `LOD_FAR` 105 on `cam.dist`, hysteresis): any non-batched building with an asset model, and every wreck and
+  cache, holds the asset and its built-in side by side (`lodPair`, the set `lods`) and shows one. Batched kinds
+  (walls, solar, defences, radar, …) stay asset-only. Animated parts (`ring`, `plume`, `door`, civic `gpod`) are
+  driven on both halves; placement ghosts drop the far half. Checked in `tools/roster-a-smoke.mjs`. Inhabitants
+  get the same treatment on the `claude/gallant-hawking-3lse24` branch via an asset `far` field.
 

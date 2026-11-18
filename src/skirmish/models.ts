@@ -30,6 +30,16 @@ export function tankGeo() {
     new THREE.CylinderGeometry(0.14, 0.14, 1.8, 6).rotateX(Math.PI / 2).translate(0, 1.42, 1.3),
   ]);
 }
+/** Lancer (far-off look): a long low tracked hull, capacitor drums behind, the rail lance far past the nose. */
+export function lancerGeo() {
+  return merge([
+    box(1.6, 0.6, 3.0, 0, 0.85, -0.1), box(0.5, 0.62, 3.2, -1.05, 0.42, 0), box(0.5, 0.62, 3.2, 1.05, 0.42, 0),
+    new THREE.CylinderGeometry(0.32, 0.32, 1.1, 8).rotateX(Math.PI / 2).translate(-0.45, 1.35, -1.05),
+    new THREE.CylinderGeometry(0.32, 0.32, 1.1, 8).rotateX(Math.PI / 2).translate(0.45, 1.35, -1.05),
+    box(0.8, 0.5, 1.0, 0, 1.45, 0.1), box(0.44, 0.3, 3.6, 0, 1.5, 1.9), box(0.5, 0.42, 0.25, 0, 1.5, 3.6),
+  ]);
+}
+export function lancerGlow() { return merge([box(0.1, 0.1, 2.6, 0, 1.68, 1.9), box(1.7, 0.08, 0.08, 0, 1.1, -1.62)]); }
 export function tankGlow() { return merge([box(1.25, 0.08, 0.1, 0, 1.4, 0.52), box(2.05, 0.08, 0.08, 0, 1.12, -1.38)]); }
 export function creatureGeo(spiky: boolean) {
   const parts: THREE.BufferGeometry[] = [];
@@ -134,7 +144,13 @@ export function nestGeo() {
 
 /** Relic sentinel (far-off look): a pale tapered obelisk on a plinth. */
 export function sentinelGeo() {
-  return merge([new THREE.CylinderGeometry(1.6, 1.9, 0.8, 6).translate(0, 0.4, 0), new THREE.CylinderGeometry(0.5, 1.1, 5.5, 4).translate(0, 3.5, 0), new THREE.OctahedronGeometry(0.7, 0).translate(0, 6.8, 0)]);
+  const parts = [new THREE.CylinderGeometry(1.9, 1.9, 0.6, 6).translate(0, 0.3, 0)];
+  for (let k = 0; k < 7; k++) {
+    const r = 1.15 - (k / 6) * 0.55;
+    parts.push(new THREE.CylinderGeometry(r, r, 0.78, 4).rotateY((k % 2) * Math.PI / 4 + k * 0.12).translate(0, 0.6 + k * 0.85 + 0.42, 0));
+  }
+  parts.push(new THREE.ConeGeometry(0.7, 0.5, 4).translate(0, 7.4, 0));
+  return merge(parts);
 }
 
 /** Relic grid node (far-off look): a squat crystal on a ring of stones. */
@@ -159,7 +175,7 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   brute: { geo: () => creatureGeo(true), material: () => faunaMaterial('#8a3550', '#3a0a1c') },
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },
   burrower: { geo: burrowerGeo, material: () => faunaMaterial('#7a5a3a', '#2e1a08') },
-  lancer: { geo: tankGeo, glow: tankGlow, material: () => accordMaterial(0.55) },
+  lancer: { geo: lancerGeo, glow: lancerGlow, material: () => accordMaterial(0.55) },
   nest: { geo: nestGeo, material: () => faunaMaterial('#8a5048', '#3a1410') },
   sentinel: { geo: sentinelGeo, material: () => faunaMaterial('#c9c0ae', '#4a3a8a') },
   gridnode: { geo: gridNodeGeo, material: () => faunaMaterial('#b9b0a0', '#5a3cff') },

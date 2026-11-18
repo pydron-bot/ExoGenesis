@@ -29,6 +29,15 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
+    version: '0.28.1',
+    date: '2026-11-18',
+    title: 'Lighter from afar',
+    notes: [
+      'Zoomed out, buildings, wrecks and relic caches switch to simpler built-in models, like units already do (and they show those while their detailed models load)',
+      'The new buildings, the Lancer and the relic sentinel have proper zoomed-out looks of their own',
+    ],
+  },
+  {
     version: '0.28.0',
     date: '2026-11-18',
     title: 'The relic grid',
