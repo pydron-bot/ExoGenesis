@@ -56,6 +56,19 @@ if (made) {
   check(killed, 'lancer kills a brute');
 }
 
+
+// Level of detail: zoomed out, the asset models give way to their procedural built-ins
+const lodAt = (d) => page.evaluate(async (d) => {
+  const c = __exo.cam; c.dist = c.targetDist = d;
+  await new Promise((r) => setTimeout(r, 600));
+  const r = __exo.region, pairs = [...r.lods];
+  return { near: r.lodNear, pairs: pairs.length, shown: pairs.filter((l) => l.near.visible && !l.far.visible).length, far: pairs.filter((l) => l.far.visible && !l.near.visible).length };
+}, d);
+const zoomedOut = await lodAt(160);
+check(!zoomedOut.near && zoomedOut.pairs >= 4 && zoomedOut.far === zoomedOut.pairs, `zoomed out: built-ins drawn (${zoomedOut.far}/${zoomedOut.pairs} pairs)`);
+const zoomedIn = await lodAt(60);
+check(zoomedIn.near && zoomedIn.shown === zoomedIn.pairs, `zoomed in: asset models drawn (${zoomedIn.shown}/${zoomedIn.pairs})`);
+
 // Nests: one per spawn; killing one stops packs from that side until it regrows
 const nests0 = await page.evaluate(() => __exo.sim.cur.nests);
 check(nests0.length >= 2 && nests0.every((n) => n.alive), `a nest on every spawn (${nests0.length})`);

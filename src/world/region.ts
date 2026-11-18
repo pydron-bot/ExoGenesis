@@ -9,6 +9,7 @@ import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
 import { Flora } from './flora';
 import { addFog } from './fog';
+import { ROSTER_BUILDINGS, buildCache, buildWreck } from './roster-models';
 import {
   E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, worldToRegion,
   type GroundPad,
@@ -599,20 +600,6 @@ export function buildSeam(seed: number): THREE.Group {
   return g;
 }
 
-/** Wreck (built-in stand-in until the asset loads): a broken hull section half sunk in the ground. */
-export function buildWreck(): THREE.Group {
-  const g = new THREE.Group();
-  const hull = metal('#7d8288'), dark = metal('#3a3f45');
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 9, 8, 1, false, 0, Math.PI * 1.4), hull);
-  body.rotation.set(Math.PI / 2, 0, 0.5);
-  body.position.y = 0.8;
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3, 3.5), dark);
-  fin.position.set(1.4, 1.8, 3);
-  fin.rotation.z = 0.6;
-  g.add(body, fin);
-  return g;
-}
-
 /** Alloy deposit: a cluster of metallic crystals. */
 export function buildDeposit(seed: number): THREE.Group {
   const g = new THREE.Group();
@@ -683,7 +670,10 @@ export function buildFarm(): THREE.Group {
 }
 
 /** Built-in models for particular building kinds (variants that share a role but not a look). */
-const KIND_MODELS: Record<string, () => THREE.Group> = { cannon: buildCannon, pointdefense: buildPointDefense };
+const KIND_MODELS: Record<string, () => THREE.Group> = { cannon: buildCannon, pointdefense: buildPointDefense, ...ROSTER_BUILDINGS };
+
+/** Camera distance below which asset models draw instead of the built-ins (hysteresis: built-ins again beyond LOD_FAR); as the army's (src/skirmish/view.ts). */
+const LOD_NEAR = 90, LOD_FAR = 105;
 
 /** Built-in model for a building kind: its own if it has one, else its role's. */
 export function buildForKind(kind: string, role: string): THREE.Group {
@@ -808,6 +798,16 @@ export interface RegionUi {
 
 interface BEntry { kind: string; done: boolean; obj: THREE.Group; powered: boolean; emissive: [THREE.MeshStandardMaterial, number][]; bar: THREE.Group }
 
+/** Every part called `name` in a model (an asset and its zoomed-out built-in both have one). */
+function parts(root: THREE.Object3D, name: string): THREE.Object3D[] {
+  const out: THREE.Object3D[] = [];
+  root.traverse((o) => { if (o.name === name) out.push(o); });
+  return out;
+}
+
+/** A model with a zoomed-out built-in beside it: one of the two shows (RegionView.lodNear). */
+interface Lod { near: THREE.Object3D; far: THREE.Object3D }
+
 export class RegionView {
   readonly patch: THREE.Mesh;
   readonly details = new THREE.Group();
@@ -827,6 +827,9 @@ export class RegionView {
   private partM = new THREE.Matrix4();
   private deposits: THREE.Group[] = [];
   private wrecks: THREE.Group[] = [];
+  /** Zoomed in: asset models draw (else their built-ins). */
+  private lodNear = true;
+  private lods = new Set<Lod>();
   private seams: THREE.Group[] = [];
   private caches: THREE.Group[] = [];
   private cacheModel: THREE.Object3D | null = null;
@@ -1001,20 +1004,53 @@ export class RegionView {
   }
 
   private dropBuilding(id: number, e: BEntry) {
+    this.dropLod(e.obj);
     this.details.remove(e.obj, e.bar);
     this.batches.get(e.kind)?.remove(id);
   }
 
   private modelFor(kind: string): THREE.Group {
     const m = this.models[kind];
-    if (m) { const g = new THREE.Group(); g.add(m.clone(true)); return g; }
-    return buildForKind(kind, this.rules.defs[kind]?.role ?? 'solar');
+    const builtin = () => buildForKind(kind, this.rules.defs[kind]?.role ?? 'solar');
+    if (!m) return builtin();
+    // the asset up close, the built-in when zoomed out (batched kinds draw through their batch: asset only)
+    const g = new THREE.Group();
+    const near = m.clone(true);
+    g.add(near);
+    if (!BATCHED_KINDS.has(kind)) this.lodPair(g, near, builtin());
+    return g;
+  }
+
+  /** Put `far` beside `near` in `g` and remember the pair for the level-of-detail switch. */
+  private lodPair(g: THREE.Group, near: THREE.Object3D, far: THREE.Object3D) {
+    far.name = far.name || 'lod-far';
+    g.add(far);
+    const l: Lod = { near, far };
+    near.visible = this.lodNear; far.visible = !this.lodNear;
+    g.userData.lod = l;
+    this.lods.add(l);
+  }
+
+  /** Swap every model pair at the zoom thresholds (with hysteresis). */
+  private updateLod(dist: number) {
+    const near = dist < (this.lodNear ? LOD_FAR : LOD_NEAR);
+    if (near === this.lodNear) return;
+    this.lodNear = near;
+    for (const l of this.lods) { l.near.visible = near; l.far.visible = !near; }
+  }
+
+  /** Forget a removed object's model pair. */
+  private dropLod(obj: THREE.Object3D) {
+    const l = obj.userData.lod as Lod | undefined;
+    if (l) this.lods.delete(l);
   }
 
   private ghostFor(kind: string): THREE.Group {
     let g = this.ghosts.get(kind);
     if (!g) {
       g = this.modelFor(kind);
+      const l = g.userData.lod as Lod | undefined;
+      if (l) { this.lods.delete(l); l.near.visible = true; g.remove(l.far); }
       g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = this.ghostOk; });
       this.ghosts.set(kind, g);
       this.details.add(g);
@@ -1029,6 +1065,7 @@ export class RegionView {
   update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: RegionUi, dist: number, camera: THREE.Camera, gameT = t) {
     this.gameT = gameT;
     this.updateOverlay(dist, t);
+    this.updateLod(dist);
 
     // drones (interpolated)
     const seen = new Set<number>();
@@ -1310,28 +1347,29 @@ export class RegionView {
         }
         if (role === 'depot') this.hauler(b, cur, this.gameT);
         if (role === 'repair') {
-          const ring = e.obj.getObjectByName('ring');
-          if (ring) ring.rotation.z = lit && b.engaged ? this.gameT * 2.5 : ring.rotation.z;
+          for (const ring of parts(e.obj, 'ring')) ring.rotation.z = lit && b.engaged ? this.gameT * 2.5 : ring.rotation.z;
         }
         if (role === 'geothermal') {
-          const plume = e.obj.getObjectByName('plume');
-          if (plume) { plume.visible = lit; plume.scale.set(1 + Math.sin(this.gameT * 1.7 + b.id) * 0.12, 1 + Math.sin(this.gameT * 1.1) * 0.15, 1); }
+          for (const plume of parts(e.obj, 'plume')) { plume.visible = lit; plume.scale.set(1 + Math.sin(this.gameT * 1.7 + b.id) * 0.12, 1 + Math.sin(this.gameT * 1.1) * 0.15, 1); }
         }
         if (role === 'civic') {
           // growth pods glow while a child grows inside (pulsing red when it's failing)
           const pods = cur.people?.pods.find((p) => p.b === b.id)?.running ?? [];
+          const lod = e.obj.userData.lod as Lod | undefined;
+          // count pods per model: the asset and its zoomed-out built-in each have their own
+          for (const root of lod ? [lod.near, lod.far] : [e.obj]) {
           let i = 0;
-          e.obj.traverse((o) => {
+          root.traverse((o) => {
             if (!o.name.startsWith('gpod')) return; // built-in: 'gpod'; Blender: gpod_a, gpod_b
             const p = pods[i++];
             const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
             m.emissive.set(p && p.dark > 0 ? '#ff5a4a' : '#7ff7ff');
             m.emissiveIntensity = !p ? 0.15 : p.dark > 0 ? 0.6 + Math.max(0, Math.sin(this.gameT * 8)) * 2 : 1 + p.progress * 1.5 + Math.sin(this.gameT * 2 + i) * 0.3;
           });
+          }
         }
         if (role === 'factory') {
-          const door = e.obj.getObjectByName('door') as THREE.Mesh | undefined;
-          if (door) (door.material as THREE.MeshStandardMaterial).emissiveIntensity = !lit ? 0.1 : b.queue?.length ? 1.2 + Math.max(0, Math.sin(this.gameT * 5)) * 2 : 0.5;
+          for (const door of parts(e.obj, 'door') as THREE.Mesh[]) (door.material as THREE.MeshStandardMaterial).emissiveIntensity = !lit ? 0.1 : b.queue?.length ? 1.2 + Math.max(0, Math.sin(this.gameT * 5)) * 2 : 0.5;
         }
       }
       this.hpBar(b, d, ui, camera, e.bar);
@@ -1418,7 +1456,7 @@ export class RegionView {
   /** The relic caches' model (an asset; a part named `seal` glows while it's shut). */
   setCacheModel(obj: THREE.Object3D | null) {
     this.cacheModel = obj;
-    for (const g of this.caches) this.details.remove(g);
+    for (const g of this.caches) { this.dropLod(g); this.details.remove(g); }
     this.caches = [];
   }
 
@@ -1428,15 +1466,8 @@ export class RegionView {
       let g = this.caches[i];
       if (!g) {
         g = new THREE.Group();
-        if (this.cacheModel) g.add(this.cacheModel.clone(true));
-        else {
-          const box = new THREE.Mesh(new THREE.BoxGeometry(4, 2.4, 4), metal('#b9b2a2'));
-          box.position.y = 1.2;
-          const seal = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.3, 4.1), glow('#a58cff', 2));
-          seal.position.y = 1.6;
-          seal.name = 'seal';
-          g.add(box, seal);
-        }
+        if (this.cacheModel) { const near = this.cacheModel.clone(true); g.add(near); this.lodPair(g, near, buildCache()); }
+        else g.add(buildCache());
         if (this.fog) this.fogObj(g);
         orient(g, c.x, c.z, i * 1.1, 0);
         this.flora?.clear(c.x, c.z, 5);
@@ -1451,7 +1482,7 @@ export class RegionView {
   /** The wrecks' model (an asset), replacing the built-in stand-in. */
   setWreckModel(obj: THREE.Object3D | null) {
     this.wreckModel = obj;
-    for (const g of this.wrecks) this.details.remove(g);
+    for (const g of this.wrecks) { this.dropLod(g); this.details.remove(g); }
     this.wrecks = [];
   }
 
@@ -1461,7 +1492,8 @@ export class RegionView {
       let g = this.wrecks[i];
       if (!g) {
         g = new THREE.Group();
-        g.add(this.wreckModel ? this.wreckModel.clone(true) : buildWreck());
+        if (this.wreckModel) { const near = this.wreckModel.clone(true); g.add(near); this.lodPair(g, near, buildWreck()); }
+        else g.add(buildWreck());
         if (this.fog) this.fogObj(g);
         orient(g, w.x, w.z, w.yaw, 0);
         this.flora?.clear(w.x, w.z, 7);
@@ -1470,7 +1502,7 @@ export class RegionView {
       }
       g.visible = !!w.found;
       const f = w.max > 0 ? w.alloys / w.max : 0;
-      g.children[0].position.y = -1.2 * (1 - f);
+      for (const c of g.children) c.position.y = -1.2 * (1 - f);
     });
   }
 

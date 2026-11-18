@@ -79,3 +79,21 @@ export const BUILTINS: Builtin[] = [
 ];
 
 export const builtinById = (id: string) => BUILTINS.find((b) => b.id === id);
+
+// Roster batches A and B (docs/ROSTER.md, v0.25–v0.28): the built-ins drawn when zoomed out
+// (RegionView level of detail; the army's far look for units) and while the Blender files load.
+import { ROSTER_BUILDINGS, buildCache, buildWreck } from '../world/roster-models';
+BUILTINS.push(
+  ...([['sensor', 'Sensor Mast'], ['habitat', 'Habitat Block'], ['relay', 'Relay Tower'], ['lab', 'Tech Lab'], ['deepmine', 'Deep-Core Mine'], ['fusion', 'Fusion Cell']] as const).map(([id, name]): Builtin => ({
+    id, name, group: 'Buildings', where: 'src/world/roster-models.ts', usedBy: { coll: 'buildings', id }, swappable: true,
+    note: `Drawn instead of exo-${id} when the camera is zoomed out, and while it loads.`, build: ROSTER_BUILDINGS[id],
+  })),
+  ...([['lancer', 'Lancer', 'Units'], ['nest', 'Nest', 'Fauna'], ['sentinel', 'Relic Sentinel', 'Relics'], ['gridnode', 'Grid Node', 'Relics']] as const).map(([id, name, group]): Builtin => ({
+    id, name, group, where: `src/skirmish/models.ts BUILTIN_UNITS.${id}`, usedBy: { coll: 'units', id }, swappable: true,
+    note: `The far-off look of exo-${id} (the army draws it beyond the zoom threshold).`,
+    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+  })),
+  { id: 'wreck', name: 'Wreck', group: 'World', where: 'src/world/roster-models.ts buildWreck()', swappable: false, note: 'Region wrecks: drawn instead of exo-wreck when zoomed out.', build: buildWreck },
+  { id: 'cache', name: 'Relic Cache', group: 'Relics', where: 'src/world/roster-models.ts buildCache()', swappable: false, note: 'Relic caches: drawn instead of exo-cache when zoomed out.', build: buildCache },
+);
+
