@@ -15,5 +15,6 @@
   "weapon": "cannon",
   "lightColor": "#ffd27a",
   "lightRadius": 9,
-  "lightIntensity": 0.7
+  "lightIntensity": 0.7,
+  "model": "exo-seaturret"
 }

@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.36.1',
+    date: '2026-11-18',
+    title: 'Sea and sky, up close',
+    notes: [
+      'New detailed models for the Shipyard, Tidal Generator, Pier, Sea Turret, Airpad and Flak Tower',
+      'New detailed models for the Hover Skiff, Gunboat, Transport Barge and Gunship, and for the Strider, Lurker and Skimmerwing',
+    ],
+  },
+  {
     version: '0.36.0',
     date: '2026-11-18',
     title: 'Wings',

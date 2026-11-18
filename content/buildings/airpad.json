@@ -13,5 +13,6 @@
   "specialty": "engineer",
   "lightColor": "#ffe2b0",
   "lightRadius": 16,
-  "lightIntensity": 1.1
+  "lightIntensity": 1.1,
+  "model": "exo-airpad"
 }

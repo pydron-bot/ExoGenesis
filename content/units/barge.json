@@ -12,6 +12,7 @@
   "move": "water",
   "carries": 4,
   "sight": 24,
+  "model": "exo-barge",
   "modelScale": 1,
   "cost": 80,
   "buildSeconds": 16

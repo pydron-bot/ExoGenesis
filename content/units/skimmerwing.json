@@ -11,6 +11,7 @@
   "radius": 0.9,
   "aggro": 22,
   "move": "air",
+  "model": "exo-skimmerwing",
   "modelScale": 1,
   "packEvery": 7,
   "packFrom": 6

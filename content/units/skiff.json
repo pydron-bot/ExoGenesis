@@ -11,6 +11,7 @@
   "radius": 1.1,
   "aggro": 20,
   "move": "hover",
+  "model": "exo-skiff",
   "modelScale": 1,
   "cost": 75,
   "buildSeconds": 15

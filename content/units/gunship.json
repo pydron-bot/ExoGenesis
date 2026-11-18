@@ -11,6 +11,7 @@
   "radius": 1.3,
   "aggro": 24,
   "move": "air",
+  "model": "exo-gunship",
   "modelScale": 1,
   "cost": 130,
   "buildSeconds": 22

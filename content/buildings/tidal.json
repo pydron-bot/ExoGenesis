@@ -11,5 +11,6 @@
   "clearance": 9,
   "lightColor": "#7ff7ff",
   "lightRadius": 7,
-  "lightIntensity": 0.6
+  "lightIntensity": 0.6,
+  "model": "exo-tidal"
 }

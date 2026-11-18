@@ -117,6 +117,11 @@ def join(objs, name, pivot=(0, 0, 0)):
     """Apply modifiers, merge into one object named `name` whose origin is `pivot`."""
     for o in objs:
         bpy.context.view_layer.objects.active = o
+        if tuple(o.rotation_euler) != (0, 0, 0) or tuple(o.scale) != (1, 1, 1):
+            # bake rotation and scale so the joined object has none (else it inherits the first part's)
+            bpy.ops.object.select_all(action="DESELECT")
+            o.select_set(True)
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         for md in list(o.modifiers):
             bpy.ops.object.modifier_apply(modifier=md.name)
     bpy.ops.object.select_all(action="DESELECT")
@@ -436,6 +441,19 @@ def poly(verts, faces, m, name="poly"):
     o = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(o)
     o.data.materials.append(m)
+    return o
+
+
+def solid_poly(verts, faces, m, name="poly"):
+    """A closed mesh from verts/faces, normals made consistent (outward)."""
+    o = poly(verts, faces, m, name)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.select_all(action="DESELECT")
+    o.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
     return o
 
 
@@ -1483,6 +1501,447 @@ def cache(M):
     export("cache", [join(parts, "body"), join(seal, "seal")])
 
 
+# ---------------------------------------------------------------- set v9: water and air (2026-11-18)
+# Water buildings follow src/world/sea-models.ts: the origin is where they meet the water (or the
+# quay), piles reach down below z = 0 into the sea. Boats and the Lurker are drawn 0.25 u down in
+# the water, so their waterline sits about z = 0.25. Flyers are drawn ~9 u up; z = 0 is just a
+# reference (the game lifts them), like the built-ins.
+
+def pile_grid(w, d, top, nx, ny, m, depth=6.0):
+    out = []
+    for i in range(nx):
+        for k in range(ny):
+            x = -w / 2 + w * i / (nx - 1) if nx > 1 else 0
+            y = -d / 2 + d * k / (ny - 1) if ny > 1 else 0
+            out.append(cyl(0.28, top + depth, (x, y, top - (top + depth) / 2), m, verts=6, bevel=0))
+            out.append(cyl(0.36, 0.3, (x, y, -0.3), m, verts=6, bevel=0))    # collar at the waterline
+    return out
+
+
+def sea_mats():
+    return {"pile": mat("pile", "#4a4f55", 0.5, 0.65), "weed": mat("weed", "#2e3d32", 0.1, 0.9)}
+
+
+def shipyard(M):
+    """Shipyard: a deck across the waterline on piles, a ribbed hangar over a slipway running down
+    into the sea at the front (−Y), a gantry crane at the back corner and a hull on the slip. ~14 u."""
+    S = sea_mats()
+    parts = [box((14.0, 13.0, 0.6), (0, 0, 0.3), M["dark"], bevel=0.12)]
+    parts += pile_grid(13, 12, 0, 4, 4, S["pile"])
+    parts.append(box((6.0, 9.0, 0.3), (0, -6.2, -0.6), M["hull2"], bevel=0.04, rot=(0.22, 0, 0)))     # slipway
+    for k in range(6):   # slip rails, lit
+        parts.append(box((0.12, 8.6, 0.12), (-2.2 + k * 0.88, -6.2, -0.4), M["dark"] if k % 5 else M["cyan"], bevel=0, rot=(0.22, 0, 0)))
+    for sx in (-1, 1):
+        parts.append(box((0.5, 10.0, 5.0), (sx * 4.0, 0.5, 3.1), M["hull"], bevel=0.1))
+        parts.append(box((0.12, 9.4, 0.3), (sx * 3.7, 0.5, 4.6), M["cyan"], bevel=0))
+        for k in range(4):   # buttresses
+            parts.append(box((0.9, 0.5, 3.0), (sx * 4.6, -3.4 + k * 2.6, 1.9), M["hull2"], bevel=0.06))
+        parts.append(box((0.9, 9.6, 0.4), (sx * 4.3, 0.5, 5.75), M["dark"], bevel=0.05))
+    for k in range(5):   # arched ribs over the slip
+        bpy.ops.mesh.primitive_torus_add(major_radius=4.0, minor_radius=0.22, major_segments=12, minor_segments=4,
+                                         location=(0, 5.0 - k * 2.2, 5.4), rotation=(math.pi / 2, 0, 0))
+        t = bpy.context.active_object
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="DESELECT")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        for v in t.data.vertices:
+            v.select = v.co.y < -0.05
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.delete(type="VERT")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        parts.append(_finish(t, M["hull2"], 0))
+    parts.append(box((8.4, 10.4, 0.25), (0, 0.5, 9.55), M["hull"], bevel=0.05))
+    for k in range(3):
+        parts.append(box((1.2, 0.8, 0.5), (-2.4 + k * 2.4, 2.8, 9.9), M["dark"], bevel=0.05))
+    # gantry crane: two legs, a boom over the slip, a trolley
+    for x in (5.6, -5.6):
+        parts.append(box((0.5, 0.5, 9.0), (x, 5.4, 4.8), M["dark"], bevel=0.05))
+    parts.append(box((11.7, 0.6, 0.6), (0, 5.4, 9.6), M["dark"], bevel=0.05))
+    parts.append(box((0.5, 8.0, 0.5), (5.6, 1.6, 9.3), M["dark"], bevel=0.05))
+    parts.append(box((0.8, 0.8, 0.8), (5.6, -1.8, 8.6), M["accent"], bevel=0.06))
+    parts.append(cyl(0.04, 3.5, (5.6, -1.8, 6.5), M["black"], verts=4, bevel=0))
+    parts.append(sphere(0.2, (5.6, 5.4, 9.95), M["red"], seg=6, rings=4))
+    # a hull on the slip
+    parts.append(cyl(0.9, 0.8, (0, -1.2, 0.9), M["hull2"], verts=6, r2=1.1, bevel=0.06))
+    parts[-1].scale = (1, 2.6, 1)
+    parts.append(cyl(0.5, 1.4, (0, -4.0, 0.95), M["hull2"], verts=6, r2=0.05, rot=(math.pi / 2, 0, 0), bevel=0))
+    parts.append(box((1.2, 1.4, 0.7), (0, -0.6, 1.65), M["hull"], bevel=0.08))
+    # bollards, the deck edge light and a control hut
+    for x in (-6.4, -5.0, 5.0, 6.4):
+        parts.append(cyl(0.22, 0.5, (x, -6.2, 0.85), M["black"], verts=6, bevel=0))
+    parts.append(box((13.8, 0.14, 0.1), (0, -6.45, 0.65), M["cyan"], bevel=0))
+    parts.append(box((2.2, 2.0, 2.0), (-5.8, 4.6, 1.6), M["hull2"], bevel=0.1))
+    parts.append(box((1.6, 0.08, 0.5), (-5.8, 3.58, 1.9), M["glass"], bevel=0))
+    export("shipyard", [join(parts, "body")])
+
+
+def tidal(M):
+    """Tidal Generator: a deck on piles over two ducted turbines half under the water (flow along
+    X), a housing with a glowing band and a beacon. ~8 u."""
+    S = sea_mats()
+    parts = [box((8.0, 6.0, 0.5), (0, 0, 1.0), M["dark"], bevel=0.1)]
+    parts += pile_grid(7, 5, 0.8, 2, 2, S["pile"])
+    for sx in (-1, 1):
+        x = sx * 2.1
+        bpy.ops.mesh.primitive_torus_add(major_radius=1.4, minor_radius=0.32, major_segments=14, minor_segments=6,
+                                         location=(x, 0, -0.3), rotation=(0, math.pi / 2, 0))
+        parts.append(_finish(bpy.context.active_object, M["hull2"], 0))
+        parts.append(cyl(0.35, 1.6, (x, 0, -0.3), M["dark"], verts=8, rot=(0, math.pi / 2, 0), bevel=0))
+        parts.append(cyl(0.38, 0.5, (x - sx * 0.9, 0, -0.3), M["hull"], verts=8, r2=0.05, rot=(0, -sx * math.pi / 2, 0), bevel=0))
+        for k in range(3):   # blades
+            a = k / 3 * math.tau + 0.3
+            parts.append(box((0.1, 0.32, 1.05), (x, math.cos(a) * 0.6, -0.3 + math.sin(a) * 0.6), M["hull"], bevel=0, rot=(a - math.pi / 2, 0, 0)))
+        parts.append(cyl(0.25, 1.4, (x, 0, 0.4), S["pile"], verts=6, bevel=0))
+        parts.append(box((0.2, 5.6, 0.6), (sx * 3.9, 0, 1.35), M["hull2"], bevel=0.04))   # deck kerb
+    parts.append(box((3.2, 3.4, 2.2), (0, 0, 2.35), M["hull"], bevel=0.12))
+    parts.append(box((3.3, 3.5, 0.3), (0, 0, 2.9), M["cyan"], bevel=0))
+    parts.append(box((1.0, 0.08, 1.4), (0, -1.72, 2.0), M["dark"], bevel=0))
+    for sx in (-1, 1):
+        parts.append(box((0.6, 0.9, 0.6), (sx * 1.0, 1.2, 3.75), M["dark"], bevel=0.05))   # breakers
+    parts.append(cyl(0.6, 0.6, (0, 0, 3.75), M["hull2"], verts=8))
+    parts.append(cyl(0.06, 0.5, (0, 0, 4.3), M["dark"], verts=4, bevel=0))
+    parts.append(sphere(0.16, (0, 0, 4.6), M["red"], seg=6, rings=4))
+    parts.append(box((7.8, 0.1, 0.08), (0, -2.98, 1.2), M["amber"], bevel=0))
+    export("tidal", [join(parts, "body")])
+
+
+def pier(M):
+    """Pier: a long plank deck from the shore (+Y) out over the water (−Y) on piles, rails, a
+    platform at the far end with a relay mast; its beacon band is `charge`. ~16 u long."""
+    S = sea_mats()
+    parts, band = [], []
+    parts.append(box((3.0, 14.0, 0.4), (0, -2.0, 0.6), M["hull2"], bevel=0.05))
+    for k in range(14):   # planks
+        parts.append(box((3.04, 0.12, 0.06), (0, 4.6 - k * 1.0, 0.82), M["dark"], bevel=0))
+    for i, y in enumerate([4.5 - k * 2.6 for k in range(6)]):
+        for sx in (-1, 1):
+            parts.append(cyl(0.28, 6.4, (sx * 1.3, y, -2.8), S["pile"], verts=6, bevel=0))
+            parts.append(cyl(0.36, 0.3, (sx * 1.3, y, -0.3), S["weed"], verts=6, bevel=0))
+        parts.append(box((2.6, 0.18, 0.18), (0, y, 0.2), S["pile"], bevel=0))
+    for sx in (-1, 1):
+        parts.append(box((0.12, 14.0, 0.12), (sx * 1.45, -2.0, 1.5), M["dark"], bevel=0))
+        for k in range(8):
+            parts.append(box((0.12, 0.12, 0.8), (sx * 1.45, 4.8 - k * 1.9, 1.1), M["dark"], bevel=0))
+    parts.append(box((4.0, 4.0, 0.5), (0, -9.5, 0.65), M["dark"], bevel=0.08))
+    for x, y in ((-1.7, -11.3), (1.7, -11.3), (-1.7, -7.7), (1.7, -7.7)):
+        parts.append(cyl(0.3, 6.4, (x, y, -2.8), S["pile"], verts=6, bevel=0))
+        parts.append(cyl(0.2, 0.45, (x, y, 1.1), M["black"], verts=6, bevel=0))   # bollards
+    parts.append(cyl(0.4, 0.8, (0, -9.5, 1.3), M["hull"], verts=8, bevel=0.05))
+    parts.append(cyl(0.18, 6.0, (0, -9.5, 3.9), M["hull"], verts=6, bevel=0))
+    parts.append(box((0.8, 0.12, 1.2), (0, -9.1, 5.0), M["hull2"], bevel=0.03))      # antenna panel
+    parts.append(cyl(0.04, 1.0, (0, -9.5, 7.0), M["dark"], verts=4, bevel=0))
+    parts.append(sphere(0.2, (0, -9.5, 7.6), M["red"], seg=6, rings=4))
+    parts.append(box((2.8, 0.1, 0.1), (0, -11.52, 0.92), M["amber"], bevel=0))
+    band.append(cyl(0.5, 0.25, (0, -9.5, 6.2), M["cyan"], verts=8, bevel=0))
+    export("pier", [join(parts, "body"), join(band, "charge")])
+
+
+def turret_top(M, z0, parts, head):
+    """The Defense Turret's column and head, standing on z0 (for the Sea Turret's platform)."""
+    parts.append(cyl(1.6, 0.6, (0, 0, z0 + 0.3), M["hull2"], verts=8, r2=1.3))
+    parts.append(cyl(0.95, 1.0, (0, 0, z0 + 1.1), M["dark"], verts=10))
+    parts.append(cyl(1.25, 0.25, (0, 0, z0 + 1.7), M["hull2"], verts=10))
+    P = z0 + 2.35
+    head.append(box((2.2, 2.5, 1.1), (0, 0.15, P), M["hull"], bevel=0.14))
+    head.append(box((1.8, 1.2, 0.5), (0, 0.4, P + 0.7), M["hull2"], bevel=0.1))
+    head.append(box((2.4, 0.5, 0.35), (0, 1.35, P - 0.1), M["dark"]))
+    for x in (-0.5, 0.5):
+        head.append(cyl(0.17, 2.6, (x, -2.1, P - 0.1), M["dark"], verts=8, rot=(math.pi / 2, 0, 0)))
+        head.append(cyl(0.24, 0.45, (x, -3.3, P - 0.1), M["black"], verts=8, rot=(math.pi / 2, 0, 0)))
+        head.append(cyl(0.26, 0.5, (x, -0.95, P - 0.1), M["hull2"], verts=8, rot=(math.pi / 2, 0, 0)))
+    head.append(box((1.3, 0.1, 0.22), (0, -1.1, P + 0.25), M["red"], bevel=0))
+    head.append(box((0.35, 0.35, 0.6), (0.85, 0.6, P + 0.95), M["dark"]))
+    head.append(sphere(0.12, (0.85, 0.6, P + 1.3), M["red"], seg=6, rings=4))
+    return P
+
+
+def seaturret(M):
+    """Sea Turret: a hexagonal deck on six raked piles with fenders and a lit rim, the Defense
+    Turret's gun on top (`head` aims). ~7 u across."""
+    S = sea_mats()
+    parts, head = [], []
+    rim = glow_mat("rim", "#ffd27a", 1.4)
+    parts.append(cyl(3.4, 0.6, (0, 0, 0.9), M["dark"], verts=6, bevel=0.08))
+    parts.append(cyl(3.45, 0.12, (0, 0, 1.25), rim, verts=6, bevel=0))
+    parts.append(cyl(2.6, 0.15, (0, 0, 1.28), M["hull2"], verts=6, bevel=0.02))
+    for k in range(6):
+        a = k / 6 * math.tau
+        c, s = math.cos(a), math.sin(a)
+        parts.append(strut((c * 2.6, s * 2.6, 0.6), (c * 3.2, s * 3.2, -6.0), 0.3, S["pile"], verts=6))
+        parts.append(cyl(0.4, 0.3, (c * 2.68, s * 2.68, -0.3), S["weed"], verts=6, bevel=0))
+        b = a + math.pi / 6   # fenders on the flats
+        parts.append(box((0.3, 1.2, 0.5), (math.cos(b) * 3.0, math.sin(b) * 3.0, 0.45), M["black"], bevel=0.08, rot=(0, 0, b)))
+    parts.append(box((1.0, 0.8, 0.7), (-1.8, 1.2, 1.7), M["hull2"], bevel=0.06))     # ammo locker
+    P = turret_top(M, 1.35, parts, head)
+    export("seaturret", [join(parts, "body"), join(head, "head", pivot=(0, 0, P))])
+
+
+def airpad(M):
+    """Airpad: a raised octagonal landing pad toward the door side (+Y, where flyers lift off) with
+    a glowing ring and H, edge lamps, a half-barrel hangar behind (−Y) and a control tower. ~12 u."""
+    pad_glow = glow_mat("padglow", "#ffc46a", 2.2)
+    parts = []
+    cy = 1.4
+    parts.append(cyl(4.6, 0.6, (0, cy, 0.3), M["dark"], verts=8, bevel=0.1, rot=(0, 0, math.pi / 8)))
+    parts.append(cyl(4.2, 0.1, (0, cy, 0.65), M["hull2"], verts=8, bevel=0, rot=(0, 0, math.pi / 8)))
+    bpy.ops.mesh.primitive_torus_add(major_radius=2.6, minor_radius=0.12, major_segments=24, minor_segments=4, location=(0, cy, 0.72))
+    parts.append(_finish(bpy.context.active_object, pad_glow, 0))
+    parts.append(box((0.3, 2.4, 0.06), (-0.7, cy, 0.72), pad_glow, bevel=0))
+    parts.append(box((0.3, 2.4, 0.06), (0.7, cy, 0.72), pad_glow, bevel=0))
+    parts.append(box((1.7, 0.3, 0.06), (0, cy, 0.72), pad_glow, bevel=0))
+    ring(16, 4.0, 0, lambda i, a, x, y, z: parts.append(box((0.5, 0.25, 0.05), (x, cy + y, 0.72), M["accent"] if i % 2 else M["black"], bevel=0, rot=(0, 0, a + math.pi / 2))))
+    for k in range(8):
+        a = k / 8 * math.tau + math.pi / 8
+        parts.append(sphere(0.18, (math.cos(a) * 4.35, cy + math.sin(a) * 4.35, 0.8), M["cyan"], seg=6, rings=4))
+    for x in (-1.4, 1.4):   # steps up to the pad
+        parts.append(box((1.0, 0.8, 0.3), (x, cy + 4.8, 0.15), M["hull2"], bevel=0.03))
+    # hangar at the back
+    parts.append(box((7.2, 4.0, 0.4), (0, -4.4, 0.2), M["dark"], bevel=0.06))
+    parts.append(box((7.0, 3.6, 2.6), (0, -4.4, 1.5), M["hull"], bevel=0.12))
+    parts.append(cyl(1.8, 7.0, (0, -4.4, 2.8), M["hull2"], verts=12, rot=(0, math.pi / 2, 0), bevel=0.05))
+    for k in range(4):
+        parts.append(cyl(1.88, 0.2, (-2.6 + k * 1.75, -4.4, 2.8), M["dark"], verts=12, rot=(0, math.pi / 2, 0), bevel=0))
+    parts.append(box((4.6, 0.1, 1.8), (0, -2.58, 1.3), M["dark"], bevel=0))       # hangar door
+    parts.append(box((5.0, 0.12, 0.12), (0, -2.56, 2.35), M["cyan"], bevel=0))
+    # fuel tanks and the control tower
+    for x in (-3.6, -2.6):
+        parts.append(cyl(0.45, 1.6, (x, -1.6, 0.8), M["accent"], verts=8, rot=(0, math.pi / 2, 0)))
+    parts.append(box((0.6, 0.6, 6.0), (4.6, -3.6, 3.0), M["dark"], bevel=0.05))
+    parts.append(box((1.6, 1.6, 1.0), (4.6, -3.6, 6.4), M["hull"], bevel=0.1))
+    parts.append(box((1.66, 1.66, 0.35), (4.6, -3.6, 6.45), glow_mat("cab", "#bfefff", 1.6), bevel=0))
+    parts.append(box((1.8, 1.8, 0.15), (4.6, -3.6, 6.98), M["dark"], bevel=0.02))
+    parts.append(cyl(0.04, 0.8, (4.6, -3.6, 7.4), M["dark"], verts=4, bevel=0))
+    parts.append(sphere(0.22, (4.6, -3.6, 7.85), M["red"], seg=6, rings=4))
+    parts.append(cyl(0.45, 0.1, (4.0, -4.1, 7.1), M["hull"], verts=10, rot=(0.5, 0, 0.6), bevel=0))   # dish
+    export("airpad", [join(parts, "body")])
+
+
+def flak(M):
+    """Flak Tower: a splayed four-leg tower on a hex footing, a gun platform, and a quad-barrelled
+    mount raised toward the sky (`head` aims; front is −Y). ~8 u tall."""
+    orange = glow_mat("orange", "#ff9a3d", 3.0)
+    parts, head = [], []
+    parts.append(cyl(2.8, 0.8, (0, 0, 0.4), M["dark"], verts=6, r2=2.4, bevel=0.1))
+    for k in range(4):
+        a = k / 4 * math.tau + math.pi / 4
+        c, s = math.cos(a), math.sin(a)
+        parts.append(strut((c * 1.9, s * 1.9, 0.8), (c * 0.85, s * 0.85, 4.7), 0.17, M["dark"], verts=5))
+        b = a + math.pi / 4
+        for z0, f0, f1 in ((1.6, 0.92, 0.8), (3.3, 0.7, 0.55)):   # bracing
+            n = (k + 1) % 4
+            a2 = n / 4 * math.tau + math.pi / 4
+            r0 = 1.9 - (z0 - 0.8) / 3.9 * 1.05
+            parts.append(strut((c * r0, s * r0, z0), (math.cos(a2) * r0, math.sin(a2) * r0, z0), 0.06, M["hull2"], verts=4))
+    parts.append(box((0.8, 0.8, 1.2), (0, 0, 1.4), M["hull2"], bevel=0.06))       # ammo hoist
+    parts.append(cyl(0.3, 3.6, (0, 0, 3.0), M["hull2"], verts=8, bevel=0))
+    parts.append(cyl(1.5, 0.35, (0, 0, 4.85), M["hull2"], verts=8, bevel=0.05))
+    parts.append(cyl(1.3, 0.3, (0, 0, 5.15), M["dark"], verts=10, bevel=0.03))
+    P, T = 5.6, 0.75
+    head.append(box((1.8, 1.6, 0.9), (0, 0.1, P + 0.1), M["hull"], bevel=0.12))
+    head.append(box((1.5, 0.8, 0.5), (0, 0.6, P + 0.7), M["hull2"], bevel=0.08))
+    for sx in (-1, 1):
+        head.append(cyl(0.38, 0.4, (sx * 1.05, 0.0, P + 0.15), M["dark"], verts=8, rot=(0, math.pi / 2, 0)))   # trunnions
+    axis = Vector((0, -math.cos(T), math.sin(T)))
+    rot = (math.pi / 2 - T, 0, 0)
+    for x in (-0.55, -0.25, 0.25, 0.55):
+        root = Vector((x, -0.6, P + 0.3))
+        head.append(cyl(0.13, 0.6, tuple(root + axis * 0.2), M["hull2"], verts=6, rot=rot, bevel=0))
+        head.append(cyl(0.09, 2.2, tuple(root + axis * 1.3), M["dark"], verts=6, rot=rot, bevel=0))
+        head.append(cyl(0.13, 0.3, tuple(root + axis * 2.4), M["black"], verts=6, rot=rot, bevel=0))
+    head.append(box((1.2, 0.1, 0.14), (0, -0.72, P + 0.25), orange, bevel=0))
+    head.append(box((0.3, 0.3, 0.6), (-0.7, 0.7, P + 1.2), M["dark"]))             # rangefinder
+    head.append(cyl(0.16, 0.6, (-0.7, 0.45, P + 1.5), M["glass"], verts=8, rot=(math.pi / 2, 0, 0), bevel=0))
+    export("flak", [join(parts, "body"), join(head, "head", pivot=(0, 0, P))])
+
+
+def skiff(M):
+    """Hover Skiff: a broad flat hull on a black air skirt, a twin gun on a small turret, two fans
+    in ducts at the back. ~1.1 u body radius."""
+    parts = []
+    hull = cyl(1.0, 0.45, (0, 0, 0.75), M["hull"], verts=8, r2=0.9, bevel=0.06)
+    skirt = cyl(1.22, 0.3, (0, 0, 0.42), M["black"], verts=8, r2=1.15, bevel=0.06)
+    for o in (hull, skirt):
+        o.scale = (1, 1.5, 1)
+    parts += [hull, skirt]
+    # prow: a wedge from the hull's front edge to a low nose
+    v = [(0, -2.45, 0.68), (-0.85, -1.25, 0.5), (0.85, -1.25, 0.5), (0.75, -1.25, 0.98), (-0.75, -1.25, 0.98)]
+    parts.append(solid_poly(v, [(0, 2, 1), (0, 3, 2), (0, 4, 3), (0, 1, 4), (1, 2, 3, 4)], M["hull2"], "prow"))
+    parts.append(box((0.8, 0.9, 0.4), (0, -0.1, 1.18), M["hull2"], bevel=0.08))
+    parts.append(box((0.6, 0.4, 0.22), (0, 0.15, 1.45), M["glass"], bevel=0.06))
+    for x in (-0.18, 0.18):
+        parts.append(cyl(0.08, 1.2, (x, -0.95, 1.3), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    for x in (-0.55, 0.55):
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.42, minor_radius=0.08, major_segments=12, minor_segments=4,
+                                         location=(x, 1.55, 1.15), rotation=(math.pi / 2, 0, 0))
+        parts.append(_finish(bpy.context.active_object, M["dark"], 0))
+        parts.append(cyl(0.1, 0.25, (x, 1.55, 1.15), M["hull2"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+        parts.append(box((0.7, 0.04, 0.08), (x, 1.55, 1.15), M["hull2"], bevel=0, rot=(0, 0.6, 0)))
+        parts.append(box((0.08, 0.2, 0.5), (x, 1.2, 0.95), M["dark"], bevel=0))
+    parts.append(box((1.9, 0.06, 0.08), (0, -0.9, 0.58), M["cyan"], bevel=0))
+    parts.append(box((0.82, 0.08, 0.08), (0, -0.56, 1.25), M["cyan"], bevel=0))
+    parts.append(box((1.6, 0.06, 0.06), (0, 1.75, 1.15), M["red"], bevel=0))
+    export("skiff", [join(parts, "body")])
+
+
+def strider(M):
+    """Strider: a wader. A small armoured body slung high on four long jointed legs, a long
+    probing snout, gill fronds glowing under the chin. ~2.5 u tall."""
+    F = fauna_mats("#4f7f86", "#0f3a40", "#2e5056", "#7affe8")
+    parts = [blob(0.6, (0, 0, 2.3), F["skin"], scale=(0.8, 1.3, 0.55), sub=2)]
+    for k in range(3):
+        parts.append(blob(0.34, (0, 0.45 - k * 0.4, 2.62), F["plate"], scale=(1.4, 0.8, 0.4), sub=1))
+    parts.append(strut((0, -0.65, 2.25), (0, -1.9, 1.75), 0.2, F["skin"], verts=5, r2=0.04))   # snout
+    for x in (-0.12, 0.12):
+        parts.append(sphere(0.07, (x, -0.72, 2.42), F["eye"], seg=6, rings=4))
+    for k in range(3):   # gill fronds
+        parts.append(strut((-0.2 + k * 0.2, -0.45, 2.0), (-0.3 + k * 0.3, -0.6, 1.55), 0.04, F["eye"], verts=3, r2=0.01))
+    parts += legs(F, [(x * 0.35, y) for x in (-1, 1) for y in (-0.55, 0.55)], 2.35, 1.9, knee_up=0.65, r=0.09)
+    export("strider", [join(parts, "body")])
+
+
+def gunboat(M):
+    """Gunboat: a pointed hull riding low, a stepped wheelhouse aft with a mast, a gun turret on the
+    foredeck. ~5 u long; waterline about z 0.25."""
+    parts = []
+    hull = cyl(1.0, 0.9, (0, 0.2, 0.45), M["hull"], verts=6, r2=0.75, bevel=0.06)
+    hull.scale = (1, 2.4, 1)
+    hull.rotation_euler = (math.pi, 0, 0)   # wide at the deck, narrow at the keel
+    parts.append(hull)
+    parts.append(cyl(1.0, 1.6, (0, -2.4, 0.5), M["hull"], verts=6, r2=0.05, rot=(math.pi / 2, 0, 0), bevel=0))
+    parts[-1].scale = (1, 0.9, 1)
+    parts.append(box((1.9, 4.2, 0.12), (0, 0.1, 0.92), M["hull2"], bevel=0.02))      # deck
+    parts.append(box((2.1, 4.0, 0.2), (0, 0.2, 0.3), M["dark"], bevel=0.04))         # rubbing strake
+    parts.append(box((1.2, 1.4, 0.9), (0, 1.0, 1.3), M["hull"], bevel=0.1))
+    parts.append(box((1.24, 0.08, 0.2), (0, 0.29, 1.5), M["glass"], bevel=0))
+    parts.append(box((0.9, 0.9, 0.3), (0, 1.1, 1.9), M["hull2"], bevel=0.06))
+    parts.append(cyl(0.04, 1.2, (0, 1.1, 2.6), M["dark"], verts=4, bevel=0))
+    parts.append(box((0.6, 0.04, 0.04), (0, 1.1, 2.9), M["dark"], bevel=0))
+    parts.append(sphere(0.07, (0, 1.1, 3.25), M["cyan"], seg=6, rings=4))
+    parts.append(cyl(0.6, 0.45, (0, -1.0, 1.15), M["hull2"], verts=8, r2=0.5, bevel=0.04))
+    parts.append(box((0.6, 0.6, 0.3), (0, -0.9, 1.45), M["hull"], bevel=0.06))
+    parts.append(cyl(0.1, 1.6, (0, -1.85, 1.25), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    parts.append(cyl(0.14, 0.25, (0, -2.6, 1.25), M["black"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    for sx in (-1, 1):   # life rafts and the stern light
+        parts.append(cyl(0.18, 0.7, (sx * 0.85, 1.9, 1.15), M["accent"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    parts.append(box((1.24, 0.12, 0.08), (0, 0.29, 1.65), M["cyan"], bevel=0))
+    parts.append(box((2.0, 0.06, 0.06), (0, 2.75, 0.95), M["red"], bevel=0))
+    export("gunboat", [join(parts, "body")])
+
+
+def barge(M):
+    """Transport Barge: a wide flat hull with low side walls, a hinged bow ramp, deck tie-downs and a
+    wheelhouse at the stern (+Y). Carries four ground units. ~5 u long."""
+    parts = []
+    parts.append(box((2.6, 4.6, 0.7), (0, 0, 0.35), M["hull"], bevel=0.1))
+    parts.append(box((2.7, 4.7, 0.18), (0, 0, 0.35), M["dark"], bevel=0.03))         # strake
+    parts.append(box((2.3, 3.6, 0.06), (0, -0.2, 0.72), M["hull2"], bevel=0))       # deck
+    for k in range(4):
+        parts.append(box((0.08, 0.08, 0.06), (-0.6 + (k % 2) * 1.2, -1.4 + (k // 2) * 1.6, 0.77), M["accent"], bevel=0))
+    parts.append(box((2.4, 0.25, 0.5), (0, -2.35, 1.0), M["hull2"], bevel=0.04, rot=(-0.35, 0, 0)))   # ramp
+    for k in range(4):
+        parts.append(box((2.2, 0.04, 0.04), (0, -2.45, 0.85 + k * 0.1), M["dark"], bevel=0, rot=(-0.35, 0, 0)))
+    for sx in (-1, 1):
+        parts.append(box((0.18, 4.0, 0.55), (sx * 1.22, 0.1, 0.95), M["hull2"], bevel=0.03))
+        parts.append(cyl(0.12, 0.25, (sx * 1.22, -2.2, 1.0), M["dark"], verts=6, rot=(0, math.pi / 2, 0), bevel=0))   # ramp hinges
+    parts.append(box((1.6, 1.0, 1.1), (0, 2.0, 1.25), M["hull"], bevel=0.1))
+    parts.append(box((1.2, 0.8, 0.3), (0, 2.0, 1.95), M["hull2"], bevel=0.05))
+    parts.append(box((1.62, 0.08, 0.12), (0, 1.48, 1.45), M["cyan"], bevel=0))
+    parts.append(cyl(0.05, 1.0, (0.4, 2.1, 2.55), M["dark"], verts=4, bevel=0))
+    parts.append(sphere(0.07, (0.4, 2.1, 3.1), M["amber"], seg=6, rings=4))
+    parts.append(box((2.64, 0.06, 0.06), (0, 2.32, 0.72), M["red"], bevel=0))
+    export("barge", [join(parts, "body")])
+
+
+def lurker(M):
+    """Lurker: a sea creature mostly under the water: a ridged back of four plates, two dorsal fins,
+    a wide jaw breaking the surface, a row of glowing pits along the flank. ~5 u long."""
+    F = fauna_mats("#2f5a5e", "#3ad6c8", "#1e3a3e", "#7affe8")
+    parts = []
+    for i in range(4):
+        r = 0.85 - abs(i - 1.2) * 0.13
+        z = 0.15 + math.sin(i * 1.1) * 0.12
+        parts.append(blob(r, (0, -1.1 + i * 1.15, z), F["skin"], scale=(1.1, 1.3, 0.55), sub=2))
+        parts.append(blob(r * 0.7, (0, -1.1 + i * 1.15, z + r * 0.35), F["plate"], scale=(1.0, 1.0, 0.35), sub=1))
+        for sx in (-1, 1):
+            parts.append(sphere(0.07, (sx * r * 0.95, -1.1 + i * 1.15, z), F["eye"], seg=6, rings=4))
+    parts.append(poly([(0, -0.6, 0.45), (0, 0.6, 0.45), (0, 0.5, 1.4)], [(0, 1, 2)], F["claw"], "fin1"))
+    parts.append(poly([(0, 1.6, 0.4), (0, 2.4, 0.3), (0, 2.3, 1.0)], [(0, 1, 2)], F["claw"], "fin2"))
+    for o in parts[-2:]:
+        s = o.modifiers.new("solid", "SOLIDIFY")
+        s.thickness = 0.12
+    # the jaw: upper and lower wedges, a little open, teeth along the gap
+    parts.append(cyl(0.75, 1.5, (0, -2.4, 0.35), F["skin"], verts=4, r2=0.05, rot=(math.pi / 2 - 0.15, 0, math.pi / 4), bevel=0))
+    parts[-1].scale = (1, 0.4, 1)
+    parts.append(cyl(0.65, 1.3, (0, -2.3, 0.0), F["plate"], verts=4, r2=0.05, rot=(math.pi / 2 + 0.2, 0, math.pi / 4), bevel=0))
+    parts[-1].scale = (1, 0.35, 1)
+    for k in range(5):
+        x = -0.4 + k * 0.2
+        parts.append(cyl(0.05, 0.25, (x, -2.2, 0.22), F["claw"], verts=3, r2=0.0, rot=(math.pi, 0, 0), bevel=0))
+    for sx in (-1, 1):
+        parts.append(sphere(0.1, (sx * 0.45, -1.85, 0.5), F["eye"], seg=6, rings=4))
+    parts.append(cyl(0.3, 1.0, (0, 3.3, 0.15), F["claw"], verts=3, r2=0.02, rot=(-math.pi / 2, 0, 0), bevel=0))   # tail
+    export("lurker", [join(parts, "body")])
+
+
+def gunship(M):
+    """Gunship: a slim fuselage with a bubble canopy, stub wings carrying two ducted rotors, a chin
+    gun, a tail boom with a fin and stabiliser. ~6 u long, ~7 u span."""
+    parts = []
+    parts.append(cyl(0.55, 3.0, (0, -0.2, 1.0), M["hull"], verts=8, r2=0.42, rot=(math.pi / 2, 0, 0), bevel=0.04))
+    parts.append(cyl(0.55, 0.9, (0, -2.15, 1.0), M["hull"], verts=8, r2=0.08, rot=(math.pi / 2, 0, 0), bevel=0))
+    parts.append(cyl(0.24, 2.2, (0, 2.3, 1.15), M["hull2"], verts=6, r2=0.16, rot=(-math.pi / 2, 0, 0), bevel=0))
+    parts.append(sphere(0.36, (0, -1.2, 1.45), M["glass"], seg=10, rings=6, scale=(1, 1.4, 0.75)))
+    parts.append(box((3.0, 0.6, 0.12), (0, 0.1, 1.15), M["hull2"], bevel=0.03))      # stub wing
+    for sx in (-1, 1):
+        x = sx * 1.7
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.72, minor_radius=0.12, major_segments=14, minor_segments=4, location=(x, 0.1, 1.35))
+        parts.append(_finish(bpy.context.active_object, M["dark"], 0))
+        parts.append(cyl(0.12, 0.25, (x, 0.1, 1.35), M["hull2"], verts=6, bevel=0))
+        parts.append(box((1.3, 0.1, 0.03), (x, 0.1, 1.38), M["black"], bevel=0, rot=(0, 0, 0.4)))
+        parts.append(box((0.1, 1.3, 0.03), (x, 0.1, 1.38), M["black"], bevel=0, rot=(0, 0, 0.4)))
+        parts.append(box((0.3, 0.2, 0.2), (sx * 0.9, 0.0, 0.95), M["dark"], bevel=0.03))   # rocket pods
+        parts.append(cyl(0.12, 0.8, (sx * 0.9, -0.3, 0.8), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+        parts.append(sphere(0.06, (sx * 2.5, 0.1, 1.35), M["red"] if sx < 0 else M["cyan"], seg=6, rings=4))
+        parts.append(strut((sx * 0.3, -0.3, 0.55), (sx * 0.45, -0.3, 0.15), 0.04, M["dark"], verts=4))   # skids
+    for sx in (-1, 1):
+        parts.append(box((0.08, 2.0, 0.08), (sx * 0.45, -0.2, 0.12), M["dark"], bevel=0))
+    parts.append(box((0.08, 0.6, 0.8), (0, 3.2, 1.55), M["hull"], bevel=0.02))       # fin
+    parts.append(box((1.1, 0.4, 0.08), (0, 3.25, 1.2), M["hull"], bevel=0.02))
+    parts.append(cyl(0.07, 1.0, (0, -1.6, 0.55), M["dark"], verts=5, rot=(math.pi / 2, 0, 0), bevel=0))   # chin gun
+    parts.append(box((0.3, 0.3, 0.25), (0, -1.1, 0.62), M["hull2"], bevel=0.04))
+    parts.append(sphere(0.06, (0, 3.3, 2.0), M["red"], seg=6, rings=4))
+    parts.append(box((0.9, 0.06, 0.06), (0, 1.3, 1.2), M["cyan"], bevel=0))
+    export("gunship", [join(parts, "body")])
+
+
+def skimmerwing(M):
+    """Skimmerwing: a lean body slung between two wide swept membrane wings on finger bones, a hooked
+    beak and a forked tail; the engineered mark is a pale panel line down the spine. ~5 u span."""
+    F = fauna_mats("#6a4a8a", "#2a1040", "#3e2a56", "#ff7ae0")
+    membrane = mat("membrane", "#8a5aa8", 0.0, 0.7, emit="#2a1040", strength=0.6)
+    membrane.use_backface_culling = False
+    parts = [blob(0.5, (0, 0, 1.0), F["skin"], scale=(0.7, 1.6, 0.55), sub=2)]
+    parts.append(blob(0.3, (0, -0.85, 1.05), F["skin"], scale=(0.8, 1.0, 0.8)))
+    parts.append(strut((0, -1.05, 1.05), (0, -1.6, 0.8), 0.13, F["claw"], verts=4, r2=0.01))   # beak
+    for sx in (-1, 1):
+        parts.append(sphere(0.06, (sx * 0.15, -1.0, 1.15), F["eye"], seg=6, rings=4))
+        # membrane: root, two finger tips, trailing edge
+        # root front, wrist, tip, two scallops on the trailing edge, root back
+        v = [(sx * 0.3, -0.45, 1.05), (sx * 1.3, -0.55, 1.12), (sx * 2.8, 0.75, 0.82), (sx * 2.05, 0.55, 0.9),
+             (sx * 1.35, 0.95, 0.95), (sx * 0.3, 0.7, 1.0)]
+        w = poly(v, [(0, 1, 2, 3), (0, 3, 4, 5)], membrane, "wing")
+        s = w.modifiers.new("solid", "SOLIDIFY")
+        s.thickness = 0.04
+        parts.append(w)
+        parts.append(strut(v[0], v[1], 0.06, F["plate"], verts=4))
+        parts.append(strut(v[1], v[2], 0.045, F["plate"], verts=4, r2=0.02))
+        parts.append(strut(v[1], v[3], 0.03, F["plate"], verts=3, r2=0.015))
+        parts.append(strut(v[1], v[4], 0.03, F["plate"], verts=3, r2=0.015))
+        parts.append(strut((sx * 0.18, 0.7, 1.05), (sx * 0.4, 1.8, 0.85), 0.08, F["skin"], verts=4, r2=0.01))   # forked tail
+    parts.append(box((0.06, 1.2, 0.03), (0, 0.0, 1.29), mat("mark", "#d8d4e8", 0.5, 0.4), bevel=0))
+    export("skimmerwing", [join(parts, "body")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
@@ -1493,7 +1952,10 @@ MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, 
           "lancer": lancer, "sensor": sensor, "habitat": habitat, "relay": relay,
           "nest": nest, "wreck": wreck,
           "lab": lab, "deepmine": deepmine, "fusion": fusion,
-          "sentinel": sentinel, "gridnode": gridnode, "cache": cache}
+          "sentinel": sentinel, "gridnode": gridnode, "cache": cache,
+          "shipyard": shipyard, "tidal": tidal, "pier": pier, "seaturret": seaturret, "airpad": airpad, "flak": flak,
+          "skiff": skiff, "strider": strider, "gunboat": gunboat, "barge": barge, "lurker": lurker,
+          "gunship": gunship, "skimmerwing": skimmerwing}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":

@@ -400,6 +400,15 @@ How content is stored and edited in general (one JSON record per file, schemas i
 - **Blender set v5 (2026-11-18): roster batch A** (`docs/ROSTER.md`): Lancer (1,372 tris), Sensor Mast (752; head is
   `dish`), Habitat Block (1,204), Relay Tower (944; beacon bands are `charge`). Same script and conventions.
 
+- **Blender set v9 (2026-11-18, v0.36.1): water and air**, assigned in content. Buildings: Shipyard (2,316 tris),
+  Tidal Generator (1,160), Pier (1,428; beacon band `charge`), Sea Turret (1,804; the Defense Turret's gun as `head`),
+  Airpad (1,708), Flak Tower (1,104; quad mount as `head`). Units: Hover Skiff (634), Strider (428), Gunboat (576),
+  Transport Barge (528), Lurker (828), Gunship (1,040), Skimmerwing (340; membrane is double-sided). Water buildings
+  follow `sea-models.ts`: origin at the water, piles go below z = 0. Boats keep their waterline near z 0.25 (they are
+  drawn 0.25 u down). Built with Blender 5.2 (`~/.local/bin/blender`). `join()` now bakes each part's rotation and scale
+  before joining, so a rotated or scaled first part no longer leaves its transform on the joined node. Flyers sit 9 u
+  up, out of `model-gallery.mjs`'s frame: check them in the editor or in `air-smoke.mjs --shots`.
+
 - **Glow, ground shadows, printed construction (v0.32.0):**
   - **Glow** (`src/world/post.ts`): with glow on, the scene renders into a HalfFloat target, then `UnrealBloomPass`
     (run at half the canvas size) and `OutputPass` (tone mapping + sRGB). With glow off the renderer draws straight to
@@ -514,7 +523,7 @@ How content is stored and edited in general (one JSON record per file, schemas i
     - **Gunboat:** accord, water, 420 hp, speed 6.5, range 24, 26 damage, splash 2.5, 100 alloys.
     - **Lurker:** fauna, water, 160 hp, bite 18, every 6th pack slot from pack 3.
     - Built-in looks: `src/world/sea-models.ts` (piles reach below the waterline), `buildSeaTurret` (region.ts),
-      `gunboatGeo` and `lurkerGeo` (skirmish/models.ts). There are no Blender assets yet.
+      `gunboatGeo` and `lurkerGeo` (skirmish/models.ts). Blender models: set v9 (§2).
   - **Transport** (unit `carries`: how many ground units fit; the **Transport Barge**: water, unarmed, carries 4,
     80 alloys):
     - Board: command `board` (ground units, a transport). Input sends it when ground units are selected and a
@@ -562,7 +571,7 @@ How content is stored and edited in general (one JSON record per file, schemas i
     - **Airpad:** factory, `airfield`, 140 alloys, clearance 13, staff 1 engineer.
     - **Flak Tower:** turret, `antiAir` + `airOnly`, range 32, 20 damage every 0.9 s, splash 3.5, 90 alloys.
     - Built-in looks: `gunshipGeo`, `skimmerwingGeo` (`src/skirmish/models.ts`), `buildAirpad`, `buildFlak`
-      (`src/world/air-models.ts`; the Flak Tower's `head` aims). No Blender assets yet.
+      (`src/world/air-models.ts`; the Flak Tower's `head` aims). Blender models: set v9 (§2).
   - Skirmish is unchanged: its flow fields don't know about flyers.
   - **Test:** `tools/air-smoke.mjs` (coastal site keeping its sea). It checks:
     - the Airpad builds a Gunship and refuses a Rover, the Vehicle Bay refuses a Gunship;
