@@ -433,6 +433,29 @@ How content is stored and edited in general (one JSON record per file, schemas i
     after a reload, desktop and phone).
   - Shots: `node tools/polish-shot.mjs [--hours 23,12] [--modes "on:&bloom=1,off:&bloom=0&shadows=0"] [--fight] [--perf]`
     stages a colony with buildings under construction, vehicles and a pack.
+- **Water (v0.33.0):** `src/world/water.ts`. Seas used to be the ground painted blue at sea level. Now, on a body
+  with seas, a water surface sits 0.2 u above sea level (so ground the sim calls wet, raw < 0.3, reads wet) over the
+  region on the patch's 2 u grid, plus a coarse 10 u frame out to 520 u past the edge (cells lined up on the region's
+  edge, foam halved there since the globe under it is coarse). Dry cells (all corners > 0.8 u) are left out; no
+  water anywhere in reach means no mesh. It lives in the region's `details` group, so it goes with them from orbit,
+  where the globe's own ocean shading (surface.ts) takes over. Underwater ground sinks below it (`seabed`: 0.6 × depth,
+  capped at −7 u) in the patch, the pads' re-levelling and the globe, and the patch colours it as the body's shore,
+  darker with depth. The sim still reads the raw heights.
+  - Each vertex carries its depth (`aDepth`, from `surfaceAt`), so with no depth pass the shader shades shallow to
+    deep (the body's Shallow ×1.35 and Deep colours), lets the seabed show near the shore (alpha 0.36 → 0.95 over
+    3.2 u), draws a wet line where water meets ground and lapping foam bands that run in toward the beach (within
+    1.4 u of depth), tilts the normal by scrolling layers of a baked 256² tileable ripple map (rgb normals, alpha a
+    foam breakup noise), calmer on the beach and fading with distance so far water doesn't shimmer, and mirrors the
+    sky colour (main.ts passes the day/night background) by fresnel. Sun glints come from roughness 0.14 on the
+    ripples. It is a patched MeshStandardMaterial, so the sun, colony lights, ground shadows, fog and fog of war
+    apply. Clock: game time (skirmish: real time). Picking hits the water before the seabed.
+  - **Detailed** (desktop default): three ripple layers and lapping foam. **Simple** (phones, `pointer: coarse`): one
+    ripple layer and a still wet line. Options → Detailed water (remembered, `exo.water`); `?water=0|1`.
+    Cost (phone size, dpr 1, SwiftShader, looking over the sea): ~257 ms/frame with the water hidden, ~203 simple,
+    ~247 detailed: within noise, no measurable cost. Tests: `tools/region-smoke.mjs` (no water inside dry Touchdown;
+    a coastal region keeping its sea gets it, detailed by default), `tools/options-smoke.mjs` (the toggle).
+  - Test site: Touchdown moved to `siteLat: -16, siteLon: -12` with `keepSea: true` (as in `tools/region-smoke.mjs`),
+    played through the editor preview.
 
 ## 3. M1 — one region
 

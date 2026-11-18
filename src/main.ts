@@ -38,6 +38,7 @@ import { TitleScreen } from './title';
 import { VERSION } from './changelog';
 import { hasUnseen, openWhatsNew } from './whatsnew';
 import { registerServiceWorker } from './pwa';
+import { updateWater } from './world/water';
 import { surfaceUniforms, addSurfaceDetail, buildClouds, setSurfaceMaps, updateClouds, updateSurface, type SurfaceMaps } from './world/surface';
 
 const params = new URLSearchParams(location.search);
@@ -232,7 +233,7 @@ if (lights) {
 }
 // glow (bloom, src/world/post.ts): on by default on desktop, off on phones; ⋯ menu ✺ Glow, remembered; ?bloom=0|1 overrides
 // (automated browsers default to off: SwiftShader halves the frame rate with it, and tests time things in frames)
-const GLOW_KEY = 'exo.glow', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print';
+const GLOW_KEY = 'exo.glow', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print', WATER_KEY = 'exo.water';
 /** A remembered on/off option: the URL (?name=0|1) wins, then what the player chose, then the default. */
 function setting(key: string, param: string, dflt: boolean) {
   const q = params.get(param);
@@ -259,6 +260,8 @@ const region = new RegionView(
 );
 if (!skirmishMode) region.setVents(regionDef.vents ?? []);
 region.printing = setting(PRINT_KEY, 'print', true);
+// detailed water (src/world/water.ts) on desktop, the simple one on phones; ?water=0|1
+region.waterDetail = setting(WATER_KEY, 'water', !coarse);
 const cam = new ZoomCamera(camera);
 // the globe and provinces were generated in a worker meanwhile
 await loadStep('Forming the planet…');
@@ -801,6 +804,10 @@ const graphicsToggles: Toggle[] = [
     get: () => region.printing, set: (v) => { region.printing = v; remember(PRINT_KEY, v); }, locked: urlLock('print'),
   },
   {
+    id: 'water', label: 'Detailed water', help: 'Rippling, glinting seas with foam lapping the shore. Off: calmer, simpler water that is lighter on phones.',
+    get: () => region.waterDetail, set: (v) => { region.waterDetail = v; remember(WATER_KEY, v); }, locked: urlLock('water'),
+  },
+  {
     id: 'lights', label: 'Colony lights', help: 'Floodlights, headlights and gunfire light the ground at night. Off saves battery on older phones.',
     get: () => !!lights?.enabled, set: (v) => { if (lights) { lights.enabled = v; remember(LIGHTS_KEY, v); syncLights(); } },
     locked: () => (!lights ? 'Off in URL' : null),
@@ -899,6 +906,7 @@ function frame(now: number) {
   // cam.dist alone undercounts during the landing chase (close to the probe, high above the ground)
   const air = 1 - smoothstep(90, 420, Math.max(cam.dist, cam.altitude() * 0.8));
   scene.background = bg.clone().lerp(space, 1 - air);
+  updateWater(skirmish ? t : gameT, bg);
   fog.color.copy(bg);
   fog.near = air > 0.01 ? cam.dist * 2.2 : 1e9;
   fog.far = air > 0.01 ? lerp(cam.dist * 9, cam.dist * 60, 1 - air) : 1e9 + 1;

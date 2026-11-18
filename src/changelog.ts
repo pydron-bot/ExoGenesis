@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.33.0',
+    date: '2026-11-18',
+    title: 'Water',
+    notes: [
+      'Seas are real water now: rippling and glinting in the sun, mirroring the sky, clear in the shallows where you can see the sea floor and deep blue further out',
+      'Foam laps onto beaches and the water line follows the shore smoothly instead of in blocks',
+      'Phones get a lighter version with calmer ripples and a still shoreline; Options → Detailed water switches between the two',
+    ],
+  },
+  {
     version: '0.32.0',
     date: '2026-11-18',
     title: 'Glow, shadows and printed construction',

@@ -10,10 +10,11 @@ import { makeGroundTextures } from './terrainTex';
 import { Flora } from './flora';
 import { addFog } from './fog';
 import { Printed } from './print';
+import { buildWater, seabedColor, setWaterDetail } from './water';
 
 import { ROSTER_BUILDINGS, buildCache, buildWreck } from './roster-models';
 import {
-  E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, applyGroundPaint, worldToRegion,
+  E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, applyGroundPaint, worldToRegion, seabed,
   type GroundPad,
 } from './planet';
 
@@ -48,10 +49,12 @@ function buildPatch(look: Look): THREE.Mesh {
       const z = -HALF + Math.min(n, Math.max(0, j)) * step;
       const raw = regionHeightRaw(x, z);
       regionDir(x, z, d);
-      v.copy(d).multiplyScalar(R + Math.max(0, raw) - (skirt ? 10 : 0));
+      v.copy(d).multiplyScalar(R + seabed(raw) - (skirt ? 10 : 0));
       pos.push(v.x, v.y, v.z);
       vx.push(x); vz.push(z); vdrop.push(skirt ? 10 : 0);
-      terrainColor(raw, regionFlora(x, z), c);
+      // under the sea: the shore's colour, darker with depth (the water on top tints it)
+      if (raw < 0) seabedColor(raw, terrainColor(1, regionFlora(x, z), c), c);
+      else terrainColor(raw, regionFlora(x, z), c);
       applyGroundPaint(x, z, c);
       col.push(c.r, c.g, c.b);
       uv.push(x / 22, z / 22); // one texture tile per 22 units (~220 m)
@@ -871,11 +874,23 @@ export class RegionView {
   private padKey = '';
   private lineGhosts: THREE.Group[] = [];
   private fog = false;
+  /** The sea at ground level (water.ts), or null on a dry body. */
+  readonly water: THREE.Mesh | null;
+  private waterOn = true;
+  /** Detailed water (ripple layers, lapping foam) or the simple one (phones). */
+  get waterDetail() { return this.waterOn; }
+  set waterDetail(v: boolean) {
+    if (v === this.waterOn) return;
+    this.waterOn = v;
+    if (this.water) setWaterDetail(this.water.material as THREE.Material, v);
+  }
 
   constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1, private rules: RegionRules = { defs: {}, buildRadius: 30 }) {
     this.patch = buildPatch(look);
     scene.add(this.patch);
     scene.add(this.details);
+    this.water = buildWater(this.waterOn);
+    if (this.water) this.details.add(this.water);
 
     this.core = buildCore();
     orient(this.core, 0, 0, 0, 0);
@@ -943,7 +958,7 @@ export class RegionView {
   /** Ground point under a screen position (NDC), or null. */
   pick(ndc: THREE.Vector2, camera: THREE.Camera): { x: number; z: number } | null {
     this.raycaster.setFromCamera(ndc, camera);
-    const hit = this.raycaster.intersectObject(this.patch, false)[0];
+    const hit = this.raycaster.intersectObjects(this.water ? [this.water, this.patch] : [this.patch], false)[0];
     if (!hit) return null;
     const p = worldToRegion(hit.point);
     if (Math.abs(p.x) > HALF - 6 || Math.abs(p.z) > HALF - 6) return null;
@@ -966,6 +981,7 @@ export class RegionView {
   enableFog() {
     this.fog = true;
     addFog(this.patch.material as THREE.Material);
+    if (this.water) addFog(this.water.material as THREE.Material);
     addFog(this.faunaMesh.material as THREE.Material);
     this.flora?.group.traverse((o) => { if (o instanceof THREE.Mesh) addFog(o.material as THREE.Material); });
     for (const g of this.deposits) this.fogObj(g);
@@ -1244,7 +1260,8 @@ export class RegionView {
     for (let i = 0; i < pos.count; i++) {
       const x = verts.x[i], z = verts.z[i];
       if (!changed.some((p) => Math.abs(x - p.x) < p.r + PAD_FALL + 1 && Math.abs(z - p.z) < p.r + PAD_FALL + 1)) continue;
-      regionDir(x, z, v).multiplyScalar(R + regionHeight(x, z) - verts.drop[i]);
+      const raw = regionHeightRaw(x, z);
+      regionDir(x, z, v).multiplyScalar(R + (raw < 0 ? seabed(raw) : regionHeight(x, z)) - verts.drop[i]);
       pos.setXYZ(i, v.x, v.y, v.z);
       moved++;
     }

@@ -62,6 +62,12 @@ export const HOME_BODY: BodyTerrain = {
   floraA: '#563a78', floraB: '#2d6e68', snow: '#ddd3c4', snowLine: 34,
 };
 let body: BodyTerrain = HOME_BODY;
+/** Visual ground height under the sea (terrain patch, globe): sunk below the water, shallower than the sim's, capped. */
+export const seabed = (h: number) => (h >= 0 ? h : Math.max(h * 0.6, -7));
+/** The body being played has seas (water at sea level, see water.ts). */
+export const bodyHasSea = () => body.ocean;
+/** The body's sea colours (its record's deep and shallow). */
+export const bodySea = () => ({ deep: body.deep, shallow: body.shallow });
 /** The body being played. */
 export const currentBody = () => body;
 type ColorFn = (h: number, flora: number, out: THREE.Color) => THREE.Color;
@@ -485,11 +491,11 @@ export function globeArrays(look: 'flat' | 'smooth' = 'flat'): GlobeArrays {
   for (let i = 0; i < n; i++) {
     d.set(dirs[i * 3], dirs[i * 3 + 1], dirs[i * 3 + 2]).normalize();
     const sf = surfaceAt(d, color);
-    let r = R + Math.max(0, sf.h);
+    let r = R + seabed(sf.h);
     if (sf.inner >= 0) {
       // follow the detailed patch; sink only well inside it so coarse triangles that
       // straddle the border don't open a trench along the patch edge
-      r = R + Math.max(0, sf.h) - (sf.inner < Math.max(HALF * 0.5, HALF - 60) ? 14 : 1.5);
+      r = R + seabed(sf.h) - (sf.inner < Math.max(HALF * 0.5, HALF - 60) ? 14 : 1.5);
     }
     pos[i * 3] = d.x * r; pos[i * 3 + 1] = d.y * r; pos[i * 3 + 2] = d.z * r;
     col[i * 3] = color.r; col[i * 3 + 1] = color.g; col[i * 3 + 2] = color.b;

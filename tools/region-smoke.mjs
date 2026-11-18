@@ -77,6 +77,15 @@ const autoBefore = await page.evaluate(() => new Promise((res) => {
   r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
 }));
 check(autoBefore?.region === 'touchdown', 'Touchdown autosave written with its region');
+const tdWet = await page.evaluate(() => {
+  const w = __exo.region.water;
+  if (!w) return 0;
+  const d = w.geometry.getAttribute('aDepth'), xz = w.geometry.getAttribute('aXZ');
+  let n = 0;
+  for (let i = 0; i < d.count; i++) if (d.getX(i) < 0 && Math.abs(xz.getX(i)) < 115 && Math.abs(xz.getY(i)) < 115) n++;
+  return n;
+});
+check(tdWet === 0, `Touchdown (lifted dry) has no water inside the region (${tdWet} wet vertices)`);
 
 // the editor's Play test: draft in localStorage, ?preview=1
 await page.evaluate((def) => localStorage.setItem('exo.preview', JSON.stringify({ id: 'farside', def })), moved);
@@ -93,6 +102,21 @@ const autoAfter = await page.evaluate(() => new Promise((res) => {
   r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
 }));
 check(autoAfter?.region === 'touchdown' && autoAfter.seed === autoBefore.seed, 'play test leaves the real autosave alone');
+
+// a coastal region that keeps its sea gets water: the seabed sinks under it and picking hits the water
+await page.evaluate((def) => localStorage.setItem('exo.preview', JSON.stringify({ id: 'coast', def })), { ...coast, keepSea: true });
+await page.goto(`${url}?preview=1&intro=0&new=1`);
+await ready();
+const wt = await page.evaluate(async () => {
+  const w = __exo.region.water;
+  if (!w) return null;
+  const d = w.geometry.getAttribute('aDepth');
+  let wet = 0;
+  for (let i = 0; i < d.count; i++) if (d.getX(i) < 0) wet++;
+  return { tris: w.geometry.index.count / 3, wet, detail: __exo.region.waterDetail };
+});
+check(wt && wt.tris > 1000 && wt.wet > 500, `a coastal region keeping its sea has water (${JSON.stringify(wt)})`);
+check(wt?.detail === true, 'detailed water by default on desktop');
 
 // a Touchdown save refuses to load in another region
 const tdState = await page.evaluate(() => new Promise((res) => {

@@ -26,15 +26,15 @@ async function run(viewport, name, mobile = false) {
   await page.click('#title [data-id="options"]');
   await page.waitForSelector('#options .op-row');
   const state = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#options .op-row')].map((r) => [r.dataset.id, r.getAttribute('aria-checked') === 'true'])));
-  const live = () => page.evaluate(() => ({ glow: __exo.post.enabled, print: __exo.region.printing }));
+  const live = () => page.evaluate(() => ({ glow: __exo.post.enabled, print: __exo.region.printing, water: __exo.region.waterDetail }));
   const s0 = await state();
-  check(Object.keys(s0).join() === 'glow,shadows,print,lights', `${name}: four toggles (${Object.keys(s0).join()})`);
+  check(Object.keys(s0).join() === 'glow,shadows,print,water,lights', `${name}: five toggles (${Object.keys(s0).join()})`);
   if (shots) await page.screenshot({ path: `${shots}/${name}-options.png` });
   for (const id of Object.keys(s0)) await page.click(`#options [data-id="${id}"]`);
   const s1 = await state();
   check(Object.keys(s0).every((k) => s1[k] === !s0[k]), `${name}: each toggle flips (${JSON.stringify(s0)} → ${JSON.stringify(s1)})`);
   const l1 = await live();
-  check(l1.glow === s1.glow && l1.print === s1.print, `${name}: the game follows (glow ${l1.glow}, print ${l1.print})`);
+  check(l1.glow === s1.glow && l1.print === s1.print && l1.water === s1.water, `${name}: the game follows (glow ${l1.glow}, print ${l1.print}, water ${l1.water})`);
   await page.keyboard.press('Escape');
   check(!(await page.$('#options')), `${name}: Escape closes it`);
   await open();
