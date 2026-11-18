@@ -4,7 +4,7 @@
  * Editor only.
  */
 import * as THREE from 'three';
-import { buildBattery, buildCannon, buildCore, buildCreature, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPointDefense, buildRadar, buildBay, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
+import { buildBattery, buildCannon, buildCore, buildCreature, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPointDefense, buildRadar, buildBay, buildCivic, buildFarm, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
 import { STANDINS } from '../world/inhabitant-models';
 import { BUILTIN_UNITS, creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from '../skirmish/models';
@@ -53,6 +53,8 @@ export const BUILTINS: Builtin[] = [
   { id: 'wall', name: 'Wall segment', group: 'Buildings', where: 'src/world/region.ts buildWall()', usedBy: { coll: 'buildings', id: 'wall' }, swappable: true, note: 'Runs along local Z, one Clearance long.', build: buildWall },
   { id: 'gate', name: 'Gate', group: 'Buildings', where: 'src/world/region.ts buildGate()', usedBy: { coll: 'buildings', id: 'gate' }, swappable: true, note: 'Runs along local Z, one Clearance long.', build: buildGate },
   { id: 'geothermal', name: 'Geothermal Tap', group: 'Buildings', where: 'src/world/region.ts buildGeothermal()', usedBy: { coll: 'buildings', id: 'geothermal' }, swappable: true, build: buildGeothermal },
+  { id: 'civic', name: 'Civilian Center', group: 'Buildings', where: 'src/world/region.ts buildCivic()', usedBy: { coll: 'buildings', id: 'civic' }, swappable: true, note: 'Growth pods are parts named "gpod" (lit while a child grows); drawn instead of exo-civic when zoomed out.', build: buildCivic },
+  { id: 'hydroponics', name: 'Hydroponics', group: 'Buildings', where: 'src/world/region.ts buildFarm()', usedBy: { coll: 'buildings', id: 'hydroponics' }, swappable: true, build: buildFarm },
   { id: 'vent', name: 'Geothermal vent', group: 'Terrain', where: 'src/world/region.ts buildVent()', swappable: false, note: 'Placed with the map editor (Vents).', build: () => buildVent(1) },
   { id: 'deposit', name: 'Alloy deposit', group: 'Terrain', where: 'src/world/region.ts buildDeposit()', swappable: false, note: 'Placed with the map editor (Deposits).', build: () => buildDeposit(1) },
   { id: 'scaffold', name: 'Construction scaffold', group: 'Buildings', where: 'src/world/region.ts buildScaffold()', swappable: false, note: 'Shown while any building is under construction.', build: buildScaffold },
