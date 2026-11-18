@@ -16,6 +16,7 @@ import { renderPlaythrough } from './playthrough';
 import { renderScript, type ScriptEvent } from './script';
 import { renderGraph } from './graph';
 import { renderLedger } from './ledger';
+import { renderTodo } from './todo';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
 import { WorldPreview } from './world-preview';
@@ -263,6 +264,7 @@ function renderSide() {
     tool('problems', bad.size ? `Problems in ${bad.size} file${bad.size > 1 ? 's' : ''}` : 'No problems', bad.size ? 'fix' : 'ok', bad.size ? 'bad' : ''),
     tool('text', 'Text', 'spelling'),
     tool('changes', 'Since last release', 'what changed'),
+    tool('todo', 'To do', 'comments, status, voice'),
   );
   for (const [g, names] of groups) {
     const body = section(g);
@@ -470,7 +472,12 @@ function listControl(d: Record<string, unknown>, key: string, f: ListField, onCh
         const helpEl = h('span', { cls: 'help', textContent: help() });
         const ctl = cur?.coll === 'story' && key === 'effects' && k === 'after'
           ? whenSelect(item, () => { onChange(); })
-          : control(item, k, sub, () => { if (deps.has(k)) render(); helpEl.textContent = help(); onChange(); });
+          : control(item, k, sub, () => {
+            if (deps.has(k)) render();
+            helpEl.textContent = help();
+            if (key === 'comments' && k === 'who' && typeof item.who === 'string') { try { localStorage.setItem('exo.editor.who', item.who); } catch { /* private mode */ } }
+            onChange();
+          });
         row.append(h('span', { cls: 'lbl', textContent: sub.label ?? k }), ctl, cur?.coll === 'story' && k === 'after' ? '' : helpEl, h('span', { cls: 'issue' }));
         card.append(row);
       }
@@ -478,7 +485,13 @@ function listControl(d: Record<string, unknown>, key: string, f: ListField, onCh
     });
     const full = f.max !== undefined && list.length >= f.max;
     const add = h('button', { textContent: `+ Add ${itemName(f, key).toLowerCase()}`, type: 'button', disabled: full });
-    add.onclick = (e) => { e.preventDefault(); commit([...list, blank(f.of)]); };
+    add.onclick = (e) => {
+      e.preventDefault();
+      const item = blank(f.of);
+      // comments are signed with the name used last in this browser
+      if (key === 'comments') { try { const who = localStorage.getItem('exo.editor.who'); if (who) item.who = who; } catch { /* private mode */ } }
+      commit([...list, item]);
+    };
     box.append(add);
   };
   render();
@@ -1165,7 +1178,8 @@ function showLibrary(force = false) {
 // ---------- whole-content pages: story flow, balance table, review ----------
 function drawFlow() {
   const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
-  renderFlow($('main'), $('aside'), { missions: data<MissionDef>('missions'), story: data<StoryDef>('story'), open: (l) => open(l.coll, l.id) });
+  const known = new Set(recordsOf('regions').flatMap((r) => ((r.rec.data as RegionDef | null)?.encounters ?? []).map((e) => e.doneFlag).filter((f): f is string => !!f)));
+  renderFlow($('main'), $('aside'), { missions: data<MissionDef>('missions'), story: data<StoryDef>('story'), known, open: (l) => open(l.coll, l.id) });
 }
 function drawBalance() {
   const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
@@ -1196,6 +1210,11 @@ function drawGraph() {
     if (at) { const key = `${at.coll === 'missions' ? 'mission' : at.coll === 'cinematics' ? 'cinematic' : at.coll}:${at.id}`; problems[key] = (problems[key] ?? 0) + 1; }
   }
   renderGraph($('main'), $('aside'), { missions: data<MissionDef>('missions'), story: data<StoryDef>('story'), cinematics: data<CinematicDef>('cinematics'), problems, open: (c, id) => open(c, id) });
+}
+function drawTodo() {
+  const records = (['missions', 'story', 'cinematics', 'characters', 'inhabitants', 'lore', 'units', 'buildings'] as CollectionName[]).flatMap((c) =>
+    recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => ({ coll: c, id: r.id, title: titleOf(c, r.id, r.rec.data), data: r.rec.data as Record<string, unknown> })));
+  renderTodo($('main'), $('aside'), { records, open: (c, id) => open(c as CollectionName, id) });
 }
 function drawLedger() {
   const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
@@ -1357,6 +1376,8 @@ function drawBoard() {
         coll: name, id: r.id, title: titleOf(name, r.id, d), chapter: typeof d.chapter === 'string' ? d.chapter : undefined,
         tags: tagsOf(d.tags), summary, characters: [...who], problems: bad.filter((i) => i.path === r.path).length,
         order: name === 'missions' ? depth(r.id) : undefined, secret: d.secret === true,
+        status: typeof d.status === 'string' ? d.status : undefined,
+        comments: Array.isArray(d.comments) ? (d.comments as { done?: boolean }[]).filter((c) => !c?.done).length : 0,
       });
     }
   }
@@ -1423,7 +1444,7 @@ function drawPlanet() {
 }
 const PAGES = {
   flow: drawFlow, balance: drawBalance, review: () => void drawReview(), problems: drawProblems, compare: drawCompare, text: drawText,
-  changes: () => void drawChanges(), planet: drawPlanet, board: drawBoard, playthrough: drawPlaythrough, script: drawScript, graph: drawGraph, ledger: drawLedger,
+  changes: () => void drawChanges(), planet: drawPlanet, board: drawBoard, playthrough: drawPlaythrough, script: drawScript, graph: drawGraph, ledger: drawLedger, todo: drawTodo,
 } as const;
 type PageName = keyof typeof PAGES;
 const isPage = (v: unknown): v is PageName => typeof v === 'string' && v in PAGES;

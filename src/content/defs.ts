@@ -271,7 +271,27 @@ export type AssetDef = Infer<typeof assetShape>;
  * chapter a story record belongs to, free tags, and writer's notes. The story
  * board (Story → Story board) and the sidebar group and filter by them.
  */
+/** Where a story record is in production (editor only: the story board and Checks → To do show it). */
+export const STATUSES = ['idea', 'draft', 'wired', 'tested', 'final'] as const;
+export type Status = (typeof STATUSES)[number];
+export const STATUS_HELP: Record<Status, string> = {
+  idea: 'An idea: a placeholder, a beat to write.',
+  draft: 'Written, not yet hooked into the game (or not working).',
+  wired: 'Triggers, effects and links in place: it plays.',
+  tested: 'Played through and checked in the game.',
+  final: 'Done: text locked (ready for voice, translation).',
+};
+/** A note left on a record for the other writers (editor only). */
+export const commentShape = {
+  who: str({ label: 'Who', optional: true }),
+  text: str({ label: 'Comment', multiline: true }),
+  done: bool({ label: 'Resolved', optional: true }),
+} satisfies Shape;
+export type CommentDef = Infer<typeof commentShape>;
+
 export const organizeFields = {
+  status: choice(STATUSES, { label: 'Status', optional: true, helps: STATUS_HELP, help: 'For the editor: where it is in production. The story board colours cards by it; Checks → To do lists what isn\'t final.' }),
+  comments: list(commentShape, { label: 'Comments', max: 40, optional: true, help: 'For the editor: notes to the other writers. Tick Resolved when dealt with; open ones show on the story board and under Checks → To do.' }),
   chapter: ref('chapters', { label: 'Chapter', optional: true, help: 'For the editor: groups it on the story board and in the sidebar (Story → Chapters). The game ignores it.' }),
   tags: str({ label: 'Tags', optional: true, help: 'For the editor: comma-separated words to filter by on the story board (e.g. "act 1, vell, tutorial").' }),
   notes: str({ label: 'Writer\'s notes', multiline: true, optional: true, help: 'For the editor: anything for the writers. Players never see it.' }),
@@ -718,6 +738,30 @@ export const campShape = {
 } satisfies Shape;
 export type CampDef = Infer<typeof campShape>;
 
+/**
+ * A map encounter: hostiles placed on the map, guarding a spot, walking a
+ * patrol, or attacking the colony, there from the start or once a flag is set
+ * (sim/core.ts stepEncounters). Beating them can set a flag.
+ */
+export const encounterShape = {
+  id: str({ label: 'Id', help: 'Lowercase, no spaces: names it in the log and the editor.' }),
+  unit: ref('units', { label: 'Unit', help: 'A fauna unit or a relic sentinel (they are hostile).' }),
+  count: int({ label: 'Count', min: 1, max: 40, default: 3 }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  mode: choice(['guard', 'patrol', 'attack'], { label: 'Behaviour', helps: {
+    guard: 'Stays within the radius of this spot and only fights what comes near.',
+    patrol: 'Walks between this spot and the patrol end, fighting what comes near.',
+    attack: 'Goes for the colony as soon as it appears, like a pack.',
+  } }),
+  r: num({ label: 'Radius', min: 4, max: 120, step: 0.5, unit: 'u', optional: true, default: 14, help: 'How far guards and patrols stray to fight.', when: on('mode', ['guard', 'patrol'], false) }),
+  x2: num({ label: 'Patrol end X', min: -XZ, max: XZ, step: 0.5, unit: 'u', optional: true, when: on('mode', ['patrol']) }),
+  z2: num({ label: 'Patrol end Z', min: -XZ, max: XZ, step: 0.5, unit: 'u', optional: true, when: on('mode', ['patrol']) }),
+  flag: str({ label: 'Appears when flag', optional: true, help: 'Empty = there from the start. Otherwise it appears once a story event or mission sets the flag.' }),
+  doneFlag: str({ label: 'Flag when beaten', optional: true, help: 'Set when the last of them dies: story events and objectives can wait for it.' }),
+} satisfies Shape;
+export type EncounterDef = Infer<typeof encounterShape>;
+
 /** A ground paint (map editor: Paint ground). */
 export const paintShape = {
   name: str({ label: 'Name' }),
@@ -754,6 +798,7 @@ export const regionShape = {
   relics: list(relicShape, { label: 'Relics', max: 40, optional: true, help: 'Precursor relic grids (STORY.md E2 Handshake). A grid wakes when anything of ours comes within a relic\'s aggro radius: it scans us and half its sentinels stand down. Sets flags relic-woke and relic-opened.' }),
   seams: list(seamShape, { label: 'Isotope seams', max: 20, optional: true, help: 'Glowing outcrops of exotic isotopes. A Deep-Core Mine (role deepmine) sits on one.' }),
   wrecks: list(wreckShape, { label: 'Wrecks', max: 20, optional: true, help: 'Hulls from an earlier run, in our own build style. The first sight of one sets the story flag wreck-found; Field Engineers salvage alloys from them.' }),
+  encounters: list(encounterShape, { label: 'Encounters', max: 30, optional: true, help: 'Hostiles placed on the map: guards, patrols or attackers, there from the start or once a flag is set (map editor: Add encounter, N).' }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 /**

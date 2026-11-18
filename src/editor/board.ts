@@ -24,6 +24,10 @@ export interface BoardItem {
   /** Campaign position (missions), for sorting. */
   order?: number;
   secret?: boolean;
+  /** Production status (organizeFields `status`). */
+  status?: string;
+  /** Comments not yet resolved. */
+  comments?: number;
 }
 export interface BoardChapter { id: string; title: string; order: number; act?: string; color: string; summary?: string }
 export interface BoardHost {
@@ -56,7 +60,9 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (No
 };
 
 const PREFS = 'exo.board';
-const prefs = { hide: [] as string[], tag: '', who: '', q: '' };
+const prefs = { hide: [] as string[], tag: '', who: '', q: '', status: '' };
+/** Status colours (the card's left edge shows its kind; the status shows as a small badge). */
+export const STATUS_COLOR: Record<string, string> = { idea: '#7f93a8', draft: '#ffb547', wired: '#3fd6ff', tested: '#5be3a0', final: '#c49bff' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS) ?? '{}')); } catch { /* private mode */ }
 const keep = () => { try { localStorage.setItem(PREFS, JSON.stringify(prefs)); } catch { /* private mode */ } };
 
@@ -97,6 +103,10 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
   whoSel.append(new Option('Anyone', ''), ...people.map(([id, n]) => new Option(n, id)));
   whoSel.value = host.names[prefs.who] ? prefs.who : '';
   whoSel.onchange = () => { prefs.who = whoSel.value; keep(); draw(); };
+  const stSel = h('select', 'board-tag');
+  stSel.append(new Option('Any status', ''), new Option('No status', '-'), ...Object.keys(STATUS_COLOR).map((s) => new Option(s, s)), new Option('Not final', '!final'), new Option('Open comments', 'comments'));
+  stSel.value = prefs.status;
+  stSel.onchange = () => { prefs.status = stSel.value; keep(); draw(); };
   const search = h('input', 'board-q');
   search.placeholder = 'Filter cards…';
   search.value = prefs.q;
@@ -106,6 +116,7 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
   const visible = (x: BoardItem) => {
     if (prefs.hide.includes(x.coll)) return false;
     if (prefs.tag && !x.tags.includes(prefs.tag)) return false;
+    if (prefs.status === '-' ? !!x.status : prefs.status === '!final' ? x.status === 'final' : prefs.status === 'comments' ? !x.comments : prefs.status && x.status !== prefs.status) return false;
     if (prefs.who && !(x.characters.includes(prefs.who) || (x.coll === 'characters' && x.id === prefs.who))) return false;
     const q = prefs.q.trim().toLowerCase();
     return !q || `${x.title} ${x.id} ${x.summary} ${x.tags.join(' ')}`.toLowerCase().includes(q);
@@ -119,7 +130,8 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
     c.dataset.key = `${x.coll}/${x.id}`;
     c.title = `${k.one}: ${x.title} (${x.id}). Click to open; drag to another chapter.`;
     c.append(...[
-      h('div', 'bc-top', h('span', 'bc-kind', k.one), x.secret ? h('span', 'bc-secret', 'secret') : null, x.problems ? h('span', 'bc-bad', `${x.problems} problem${x.problems > 1 ? 's' : ''}`) : null),
+      h('div', 'bc-top', h('span', 'bc-kind', k.one), x.status ? (() => { const b = h('span', 'bc-status', x.status); b.style.setProperty('--s', STATUS_COLOR[x.status] ?? '#7f93a8'); return b; })() : null,
+        x.comments ? h('span', 'bc-comments', `💬 ${x.comments}`) : null, x.secret ? h('span', 'bc-secret', 'secret') : null, x.problems ? h('span', 'bc-bad', `${x.problems} problem${x.problems > 1 ? 's' : ''}`) : null),
       h('div', 'bc-title', x.title),
       x.summary ? h('div', 'bc-sum', x.summary) : null,
       x.tags.length ? h('div', 'bc-tags', ...x.tags.map((t) => { const s = h('span', '', t); s.onclick = (e) => { e.stopPropagation(); prefs.tag = t; tagSel.value = t; keep(); draw(); }; return s; })) : null,
@@ -189,7 +201,7 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
 
   main.replaceChildren(
     h('div', 'head', h('div', '', h('h1', '', 'Story board'), h('div', 'path', 'Every story record by chapter. Drag a card to move it; click to open it.')), h('div', 'actions', addCh, undo, save)),
-    h('div', 'board-filters', kinds, tagSel, whoSel, search, count),
+    h('div', 'board-filters', kinds, tagSel, whoSel, stSel, search, count),
     cols,
   );
   main.classList.add('board-mode');
@@ -203,8 +215,19 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
     stats.append(row);
   }
   const none = items.filter((x) => !x.chapter || !known.has(x.chapter)).length;
+  const byStatus = h('div', 'board-stats');
+  for (const [s, c] of [...Object.entries(STATUS_COLOR), ['-', '#333']] as [string, string][]) {
+    const n = items.filter((x) => (s === '-' ? !x.status : x.status === s)).length;
+    if (!n) continue;
+    const row = h('div', 'bs-row');
+    row.style.setProperty('--c', c);
+    row.append(h('span', 'bs-dot'), h('span', '', s === '-' ? 'no status' : s), h('small', 'dim', String(n)));
+    row.onclick = () => { prefs.status = s; stSel.value = s; keep(); draw(); };
+    byStatus.append(row);
+  }
   aside.replaceChildren(
     h('div', 'group', 'Chapters'), stats,
+    h('div', 'group', 'Status'), byStatus,
     h('div', 'help-block', `${none} record${none === 1 ? '' : 's'} in no chapter yet. Chapters, tags and writer's notes are for the editor; the game ignores them.`),
     h('div', 'group', 'Organising'),
     h('div', 'help-block', 'Each mission, event, cinematic, character, inhabitant group and story bible entry has Chapter, Tags and Writer\'s notes fields at the bottom of its form. Tags are comma-separated; click one on a card to filter by it. Anyone shows the records a character speaks in. The sidebar lists story records under their chapters too. Story flow shows how missions and events trigger each other.'),

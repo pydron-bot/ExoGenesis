@@ -156,7 +156,9 @@ export function renderCompare(main: HTMLElement, aside: HTMLElement, o: {
 export interface TextEntry { coll: CollectionName; id: string; title: string; field: string; label: string; text: string; multiline: boolean }
 
 /** String fields that are ids, flags or editor notes rather than words a player reads. */
-const NOT_TEXT = new Set(['id', 'flag', 'unless', 'site', 'file', 'source', 'credit', 'notes', 'summary']);
+const NOT_TEXT = new Set(['id', 'flag', 'unless', 'site', 'file', 'source', 'credit', 'notes', 'summary', 'tags', 'counter', 'timer', 'who', 'doneFlag']);
+/** Lists that are editor-only (writers' comments). */
+const NOT_TEXT_LISTS = new Set(['comments']);
 
 /** Every string a player reads, in content order. Regions' and assets' text is editor-only. */
 export function collectText(all: Rec[]): TextEntry[] {
@@ -168,7 +170,7 @@ export function collectText(all: Rec[]): TextEntry[] {
       const v = rec[k];
       if (f.kind === 'str' && typeof v === 'string' && v.trim() && !NOT_TEXT.has(k)) {
         out.push({ coll: r.coll, id: r.id, title: r.title, field: `${prefix}${k}`, label: `${labelPrefix}${f.label ?? k}`, text: v, multiline: !!f.multiline });
-      } else if (f.kind === 'list' && Array.isArray(v)) {
+      } else if (f.kind === 'list' && Array.isArray(v) && !NOT_TEXT_LISTS.has(k)) {
         v.forEach((item, n) => walk(r, f.of, item, `${prefix}${k}[${n}].`, `${labelPrefix}${(f.label ?? k).replace(/ies$/, 'y').replace(/s$/, '')} ${n + 1} · `));
       }
     }

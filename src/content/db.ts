@@ -253,11 +253,21 @@ function crossIssues(db: ContentDb): FileIssue[] {
       const v = r[g];
       if (Array.isArray(v) && v.length !== n) out.push({ path: P, field: g, msg: `has ${v.length} rows; a ${size} u region needs ${n} (resize it in the map editor)` });
     }
-    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites', 'wrecks', 'seams', 'relics'] as const) {
+    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites', 'wrecks', 'seams', 'relics', 'encounters'] as const) {
       (r[k] as { x?: number; z?: number }[] | undefined)?.forEach((m, i) => {
         if (m && (Math.abs(m.x ?? 0) > half || Math.abs(m.z ?? 0) > half)) out.push({ path: P, field: `${k}[${i}]`, msg: `outside the region (it's ${size} u across)` });
       });
     }
+    // encounters: hostile units, unique ids
+    const encIds = new Set<string>();
+    (r.encounters ?? []).forEach((e, i) => {
+      if (!e) return;
+      const u = db.units[e.unit];
+      if (u?.faction === 'accord') out.push({ path: P, field: `encounters[${i}].unit`, msg: 'an encounter is hostile: pick a fauna or relic unit' });
+      if (u?.nest) out.push({ path: P, field: `encounters[${i}].unit`, msg: 'nests grow on predator spawns, not as encounters' });
+      if (encIds.has(e.id)) out.push({ path: P, field: `encounters[${i}].id`, msg: `another encounter is "${e.id}"` });
+      encIds.add(e.id);
+    });
   }
   for (const [id, a] of Object.entries(db.assets)) {
     if (!a || typeof a.file !== 'string' || !(a.kind in ASSET_EXT)) continue;

@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { HEIGHT_SCALE, PREVIEW_KEY, REGION_SIZE_MAX, REGION_SIZE_MIN, REGION_SIZE_STEP, REGION_STEP, regionCells, campShape, depositShape, siteShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
+import { HEIGHT_SCALE, PREVIEW_KEY, REGION_SIZE_MAX, REGION_SIZE_MIN, REGION_SIZE_STEP, REGION_STEP, regionCells, campShape, depositShape, encounterShape, siteShape, type EncounterDef, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
 import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
@@ -44,7 +44,7 @@ const WATER_PATH = 0.3, WATER_BUILD = 0.6;
 // the region's size is set per region: these follow it
 const placeEdge = () => HALF - 10, packLimit = () => HALF - 6;
 
-type Tool = 'select' | 'area' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'roughen' | 'flora+' | 'flora-' | 'ground' | 'unground' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp' | 'site';
+type Tool = 'select' | 'area' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'roughen' | 'flora+' | 'flora-' | 'ground' | 'unground' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp' | 'site' | 'encounter';
 const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn, vent, camp or story site to select it; drag to move it' },
   { id: 'area', label: 'Select area', key: 'A', tip: 'Drag a rectangle to copy (Ctrl+C), then paste it anywhere, in this region or another (Ctrl+V at the cursor)' },
@@ -63,9 +63,10 @@ const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'vent', label: 'Add vent', key: 'V', tip: 'Click the ground to place a geothermal vent (a Geothermal Tap can be built on it)' },
   { id: 'camp', label: 'Add camp', key: 'C', tip: 'Click the ground to place an inhabitant camp (who lives there: Story → Inhabitants)' },
   { id: 'site', label: 'Add site', key: 'S', tip: 'Click the ground to place a story site: a story event can fire when a drone or unit reaches it (a ruin, a crash site…)' },
+  { id: 'encounter', label: 'Add encounter', key: 'N', tip: 'Click the ground to place hostiles: guards, a patrol or attackers, there from the start or once a story flag is set' },
 ];
 
-type MKind = 'herds' | 'deposits' | 'spawns' | 'vents' | 'camps' | 'sites';
+type MKind = 'herds' | 'deposits' | 'spawns' | 'vents' | 'camps' | 'sites' | 'encounters';
 type Marker = Record<string, number>;
 const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: Tool; make(x: number, z: number): Marker; summary(m: Marker): string; color: string; sel: string }> = {
   herds: { label: 'Grazer herds', one: 'Herd', shape: herdShape, tool: 'herd', make: (x, z) => ({ x, z, grazers: 20, roam: 40 }), summary: (m) => `${m.grazers} grazers`, color: '#c99a4a', sel: '#ffe08a' },
@@ -74,6 +75,8 @@ const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: T
   vents: { label: 'Geothermal vents', one: 'Vent', shape: ventShape, tool: 'vent', make: (x, z) => ({ x, z }), summary: () => 'a Geothermal Tap fits here', color: '#ff7a2a', sel: '#ffc08a' },
   // a camp's `group` is an id (text); markers are otherwise all numbers
   sites: { label: 'Story sites', one: 'Site', shape: siteShape, tool: 'site', make: (x, z) => ({ id: `site${Math.round(Math.abs(x) + Math.abs(z))}`, x, z, r: 10 }) as unknown as Marker, summary: (m) => `${m.id}${m.label ? ` · ${m.label}` : ''}`, color: '#3fd6ff', sel: '#b8f1ff' },
+  encounters: { label: 'Encounters', one: 'Encounter', shape: encounterShape, tool: 'encounter', make: (x, z) => ({ id: `enc${Math.round(Math.abs(x) + Math.abs(z))}`, unit: 'brute', count: 3, x, z, mode: 'guard', r: 14, x2: Math.round(x + 30), z2: z }) as unknown as Marker,
+    summary: (m) => { const e = m as unknown as EncounterDef; return `${e.count}× ${e.unit} · ${e.mode}${e.flag ? ` · on ${e.flag}` : ''}`; }, color: '#ff4d5e', sel: '#ffb0b8' },
   camps: { label: 'Inhabitant camps', one: 'Camp', shape: campShape, tool: 'camp', make: (x, z) => ({ x, z, group: 'vell' }) as unknown as Marker, summary: (m) => String(m.group), color: '#b98cff', sel: '#e2ccff' },
 };
 const MKINDS = Object.keys(MARKERS) as MKind[];
@@ -597,6 +600,24 @@ export class MapEditor {
           const fire = new THREE.Mesh(new THREE.OctahedronGeometry(1.2), new THREE.MeshBasicMaterial({ color: '#ffb547' }));
           fire.position.set(m.x, y + 1.2, -m.z);
           g.add(fire, this.terrainRing(m.x, m.z, land, sel ? '#e2ccff' : '#b98cff', sel ? 0.9 : 0.55));
+        } else if (k === 'encounters') {
+          // a cluster of red spikes, its guard ring, and the patrol line
+          const e = m as unknown as EncounterDef;
+          for (let n = 0; n < Math.min(6, e.count); n++) {
+            const a = (n / Math.max(1, Math.min(6, e.count))) * Math.PI * 2, r = e.count > 1 ? 2.2 : 0;
+            const spike = new THREE.Mesh(new THREE.TetrahedronGeometry(1.5), mat);
+            spike.position.set(m.x + Math.cos(a) * r, this.heightAt(m.x + Math.cos(a) * r, m.z + Math.sin(a) * r) + 1.6, -(m.z + Math.sin(a) * r));
+            g.add(spike);
+          }
+          if (e.mode !== 'attack') g.add(this.terrainRing(m.x, m.z, e.r ?? 14, sel ? '#ffb0b8' : '#ff4d5e', sel ? 0.9 : 0.5));
+          if (e.mode === 'patrol' && e.x2 !== undefined && e.z2 !== undefined) {
+            const pts: THREE.Vector3[] = [];
+            for (let t = 0; t <= 1.0001; t += 0.05) { const x = m.x + (e.x2 - m.x) * t, z = m.z + (e.z2 - m.z) * t; pts.push(new THREE.Vector3(x, this.heightAt(x, z) + 1, -z)); }
+            g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: sel ? '#ffb0b8' : '#ff4d5e', dashSize: 2, gapSize: 1.5 })).computeLineDistances());
+            const end = new THREE.Mesh(new THREE.OctahedronGeometry(1.1), mat);
+            end.position.set(e.x2, this.heightAt(e.x2, e.z2) + 1.5, -e.z2);
+            g.add(end);
+          }
         } else if (k === 'vents') {
           const crack = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 7), mat);
           crack.position.set(m.x, y + 0.4, -m.z);
@@ -795,7 +816,7 @@ export class MapEditor {
           if (this.lists[k].length >= max) break;
           const copy = { ...m, x: round1(clampR(px + m.x)), z: round1(clampR(pz + m.z)) } as Marker;
           // story sites are found by id: keep them unique
-          if (k === 'sites') { const id = String(copy.id); let v = id, n = 2; while (this.lists.sites.some((o) => String(o.id) === v)) v = `${id}-${n++}`; (copy as unknown as Record<string, unknown>).id = v; }
+          if (k === 'sites' || k === 'encounters') { const id = String(copy.id); let v = id, n = 2; while (this.lists[k].some((o) => String(o.id) === v)) v = `${id}-${n++}`; (copy as unknown as Record<string, unknown>).id = v; }
           this.lists[k].push(copy);
         }
       }
@@ -864,7 +885,7 @@ export class MapEditor {
   }
 
   private updateCursor() {
-    const brush = !['select', 'area', 'herd', 'deposit', 'spawn', 'vent', 'camp', 'site'].includes(prefs.tool);
+    const brush = !['select', 'area', 'herd', 'deposit', 'spawn', 'vent', 'camp', 'site', 'encounter'].includes(prefs.tool);
     this.cursor.visible = !!this.hover && brush;
     if (!this.hover || !brush) return;
     const p = this.cursor.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -1311,6 +1332,7 @@ export class MapEditor {
         if (k === 'herds') note = `${this.lists[k].reduce((s, m) => s + m.grazers, 0)} grazers in ${this.lists[k].length} herds. Add with ${key}.`;
         else if (k === 'deposits') note = `${this.lists[k].reduce((s, m) => s + m.alloys, 0).toLocaleString()} alloys in ${this.lists[k].length} deposits. Add with ${key}.`;
         else if (k === 'sites') note = `Story events with a "site" trigger fire when a drone or unit gets inside the ring. Add with ${key}.`;
+        else if (k === 'encounters') note = `Red rings: how far guards stray to fight; dashed lines: patrols. Set "Appears when flag" to hold them back until the story calls them. Add with ${key}.`;
         else if (k === 'camps') note = `The ring is their land: the colony's buildings there wear their regard down. Add with ${key}.`;
         else if (k === 'vents') note = `${this.lists[k].length} vents. Add with ${key}.`;
         else note = `Packs pick one of these at random. Add with ${key}.`;

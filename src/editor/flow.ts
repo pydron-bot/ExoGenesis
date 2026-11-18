@@ -61,7 +61,8 @@ export function effectShort(e: Partial<EffectDef>): string {
 
 const flagsSet = (effects: EffectDef[] | undefined) => (effects ?? []).filter((e) => e.kind === 'flag' && e.flag).map((e) => e.flag!);
 
-export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<string, StoryDef>): Flow {
+/** `known`: flags something other than the story sets (a map encounter's "beaten" flag). */
+export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<string, StoryDef>, known: Set<string> = new Set()): Flow {
   const problems: FlowProblem[] = [];
   // ---- campaign order: depth-first from missions that follow nothing
   const kids = new Map<string, string[]>();
@@ -116,7 +117,7 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
     for (const f of m.fails ?? []) wants(f, f.kind, at);
   }
   // flags the game itself sets (research-<id>, wreck-found, relic-woke…) are never "missing"
-  const builtin = (f: string) => f.startsWith('research-') || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed'].includes(f);
+  const builtin = (f: string) => f.startsWith('research-') || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed'].includes(f) || known.has(f);
   for (const [f, u] of flags) {
     if (!u.setBy.length && !builtin(f)) for (const w of u.waits) problems.push({ at: w, msg: `waits for flag "${f}", which nothing sets` });
   }
@@ -140,6 +141,8 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
 export interface FlowHost {
   missions: Record<string, MissionDef>;
   story: Record<string, StoryDef>;
+  /** Flags the maps set (encounters' "beaten" flags). */
+  known?: Set<string>;
   open(link: FlowLink): void;
 }
 
@@ -192,7 +195,7 @@ export function condText(kind: Condition, c: ConditionDef): string {
 
 export function renderFlow(main: HTMLElement, aside: HTMLElement, host: FlowHost) {
   const { missions, story } = host;
-  const flow = analyzeFlow(missions, story);
+  const flow = analyzeFlow(missions, story, host.known);
   const link = (l: FlowLink, label?: string) => {
     const a = h('a', `fl-link ${l.coll}`, label ?? (l.coll === 'missions' ? missions[l.id]?.title : story[l.id]?.title) ?? l.id);
     a.href = `#${l.coll}/${l.id}.json`;

@@ -222,6 +222,39 @@ const ev = (id, effects, extra = {}) => { C.story[id] = { title: id, text: id, t
   check(!!g.st().hint, 'a hint on a read-only part of the HUD stays until an unhint');
 }
 
+// ---------- map encounters ----------
+{
+  const T = C.regions.touchdown;
+  const was = T.encounters;
+  T.encounters = [
+    { id: 'ridge-guards', unit: 'brute', count: 2, x: 70, z: -60, mode: 'guard', r: 12, doneFlag: 'ridge-clear' },
+    { id: 'patrol', unit: 'swarmer', count: 3, x: -60, z: 60, mode: 'patrol', r: 10, x2: -20, z2: 60 },
+    { id: 'late', unit: 'swarmer', count: 4, x: 80, z: 80, mode: 'attack', flag: 'call-them' },
+  ];
+  const g = game();
+  steps(g.sim, 12);
+  const enc = (id) => g.sim.s.hostiles.filter((h) => h.enc === id);
+  check(enc('ridge-guards').length === 2 && enc('patrol').length === 3 && !enc('late').length, 'encounters there from the start appear; a flagged one waits');
+  const p0 = enc('patrol').map((h) => h.x);
+  steps(g.sim, 150);
+  check(enc('patrol').some((h, i) => Math.abs(h.x - p0[i]) > 8), 'the patrol walks its route');
+  check(enc('ridge-guards').every((h) => Math.hypot(h.x - 70, h.z + 60) < 14), 'guards hold their spot');
+  g.sim.command({ type: 'inspect', flag: 'call-them' });
+  steps(g.sim, 12);
+  check(enc('late').length === 4 && g.log.some((t) => t.includes('sighted')), 'the flagged encounter appears when its flag is set, and is announced');
+  for (const h of enc('ridge-guards')) h.hp = -1;
+  // let the sim notice them dead (units / turrets kill through killHostile; do the same here)
+  for (const h of [...enc('ridge-guards')]) g.sim['killHostile'](h);
+  check(g.st().flags.includes('ridge-clear'), 'beating an encounter sets its flag');
+  const saved = structuredClone(g.sim.s);
+  const g2 = game();
+  g2.sim.load(saved);
+  steps(g2.sim, 12);
+  check(g2.sim.s.hostiles.filter((h) => h.enc === 'ridge-guards').length === 0, 'a beaten encounter doesn\'t come back after a load');
+  T.encounters = was;
+  if (was === undefined) delete T.encounters;
+}
+
 // ---------- save round trip ----------
 {
   const g = game();

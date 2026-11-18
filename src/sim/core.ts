@@ -437,6 +437,7 @@ export class Sim {
       this.people.step();
       this.inhabitants.step();
       this.story.step();
+      this.stepEncounters();
       this.missions.step();
     }
     if (s.tick % 5 === 0) this.stepFog();
@@ -1095,6 +1096,11 @@ export class Sim {
       if (this.story.s && !this.story.has('nest-destroyed')) this.story.s.flags.push('nest-destroyed');
       this.emit(`Nest destroyed ${compass(h.x, h.z)} of the Core: no packs from there for ${Math.round(secs / 60)} min`, 'info', 'packCleared');
     }
+    // the last of a map encounter: its "beaten" flag
+    if (h.enc && !s.hostiles.some((x) => x.enc === h.enc)) {
+      const e = REGION.encounters?.find((x) => x.id === h.enc);
+      if (e?.doneFlag && !this.story.has(e.doneFlag)) this.story.s.flags.push(e.doneFlag);
+    }
     const p = s.packs.find((x) => x.id === h.pack);
     if (p && --p.alive <= 0) {
       s.packs.splice(s.packs.indexOf(p), 1);
@@ -1254,6 +1260,21 @@ export class Sim {
       if (p.announced) continue;
       const near = hs.some((h) => h.pack === p.id && s.buildings.some((b) => Math.hypot(b.x - h.x, b.z - h.z) < THREATS.sightRange));
       if (near) { p.announced = true; this.emit(`Contact! Predators at the ${p.from} perimeter`, 'bad', 'warning'); }
+    }
+  }
+
+  /** Map encounters (region `encounters`): each appears once, at the start or when its flag is set. */
+  private stepEncounters() {
+    const list = REGION.encounters;
+    if (!list?.length || this.s.tick % TICK_HZ) return;
+    const st = this.story.s, seen = (st.encounters ??= []);
+    for (const e of list) {
+      if (seen.includes(e.id) || (e.flag && !this.story.has(e.flag))) continue;
+      seen.push(e.id);
+      const route = e.mode === 'patrol' && e.x2 !== undefined && e.z2 !== undefined ? [e.x, e.z, e.x2, e.z2] : undefined;
+      this.spawnAt(e.unit, e.count, e.x, e.z, e.mode === 'attack' ? 0 : e.r ?? 14, route, e.id);
+      // ones that turn up mid-game are news; the ones there from the start are just the map
+      if (e.flag) this.emit(`${content.units[e.unit]?.name ?? e.unit}${e.count > 1 ? ` ×${e.count}` : ''} sighted ${compass(e.x, e.z)} of the Core`, 'warn', 'warning');
     }
   }
 
