@@ -14,6 +14,7 @@ import { renderPlanet } from './planet';
 import { balanceRunPanel } from './balance-run';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
+import { CinePreview } from './cine-preview';
 import { applyInterface } from '../ui-theme';
 import { analyzeFlow } from './flow';
 import { buildDb, REQUIRED, requiredIssues } from '../content/db';
@@ -24,7 +25,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -59,7 +60,9 @@ let mapEd: MapEditor | null = null;
 let assetPanel: AssetPanel | null = null;
 let viewHandle: { dispose(): void } | null = null;
 /** A cinematic's timeline, while one is open (Cinematics). */
-let timeline: { el: HTMLElement; update(): void } | null = null;
+let timeline: { el: HTMLElement; update(): void; stop(): void } | null = null;
+/** The cinematic preview under it. */
+let preview: CinePreview | null = null;
 /** What the main pane shows when no record is open. */
 let view: 'none' | 'library' | PageName | { builtin: string } = 'none';
 /** The Compare page's records. */
@@ -81,7 +84,10 @@ function teardown() {
   assetPanel = null;
   viewHandle?.dispose();
   viewHandle = null;
+  timeline?.stop();
   timeline = null;
+  preview?.dispose();
+  preview = null;
   $('main').classList.remove('map-mode');
 }
 
@@ -680,9 +686,22 @@ function renderForm() {
   let panel: HTMLElement | null = null;
   if (cur.coll === 'story') panel = storyPanel();
   if (cur.coll === 'missions') panel = missionPanel();
+  timeline?.stop();
   timeline = null;
+  preview?.dispose();
+  preview = null;
   if (cur.coll === 'cinematics') {
+    const at = cur;
+    const regionOf = () => { const d = at.draft as { scene?: string; region?: string }; const id = d.scene !== 'landing' && d.region ? d.region : 'touchdown'; return files.get(pathOf('regions', id))?.data as RegionDef | undefined; };
+    preview = new CinePreview({
+      draft: () => at.draft as unknown as CinematicDef,
+      id: () => at.id,
+      region: regionOf,
+      character: (id) => files.get(pathOf('characters', id))?.data as CharacterDef | undefined,
+      sample: sampleFirst,
+    });
     timeline = timelinePanel({
+      preview,
       draft: () => cur!.draft as unknown as CinematicDef,
       changed,
       rerender: () => renderForm(),
@@ -1352,7 +1371,36 @@ addEventListener('keydown', (e) => {
   }
   const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
   if (e.key === '/' && !typing && !isMap()) { e.preventDefault(); sideSearch().focus(); }
+  if (e.key === ' ' && !typing && cur?.coll === 'cinematics' && !(t?.tagName === 'BUTTON')) { e.preventDefault(); document.querySelector<HTMLButtonElement>('.tl-bar button.primary')?.click(); }
+  if ((e.key === '[' || e.key === ']') && !typing && !isMap() && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); togglePanel(e.key === '[' ? 'side' : 'aside'); }
 });
+
+// ---------- collapsible side panels ----------
+/** The left (sidebar) and right (details) panels fold to a thin strip: a click there, the edge button, or [ / ] brings them back. */
+const PANELS_KEY = 'exo.editor.panels';
+function togglePanel(which: 'side' | 'aside', closed = !document.body.classList.contains(`${which}-closed`)) {
+  document.body.classList.toggle(`${which}-closed`, closed);
+  const btn = document.getElementById(`${which}-toggle`);
+  if (btn) {
+    const left = which === 'side';
+    btn.textContent = left === closed ? '›' : '‹';
+    btn.title = `${closed ? 'Show' : 'Hide'} the ${left ? 'sidebar' : 'details panel'} (${left ? '[' : ']'}, except on maps where they size the brush)`;
+  }
+  try { localStorage.setItem(PANELS_KEY, JSON.stringify({ side: document.body.classList.contains('side-closed'), aside: document.body.classList.contains('aside-closed') })); } catch { /* private mode */ }
+}
+for (const which of ['side', 'aside'] as const) {
+  const btn = h('button', { id: `${which}-toggle`, cls: 'panel-toggle' });
+  btn.onclick = (e) => { e.stopPropagation(); togglePanel(which); };
+  document.body.append(btn);
+  // a closed panel is a thin strip: clicking anywhere on it opens it
+  $(which).addEventListener('click', () => { if (document.body.classList.contains(`${which}-closed`)) togglePanel(which, false); });
+}
+{
+  let saved: { side?: boolean; aside?: boolean } = {};
+  try { saved = JSON.parse(localStorage.getItem(PANELS_KEY) ?? '{}') ?? {}; } catch { /* ignore */ }
+  togglePanel('side', !!saved.side);
+  togglePanel('aside', !!saved.aside);
+}
 addEventListener('beforeunload', (e) => { if (dirty()) e.preventDefault(); });
 
 if (WEB) await webSetup();

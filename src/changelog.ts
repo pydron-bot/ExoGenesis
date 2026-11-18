@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.23.0',
+    date: '2026-11-18',
+    title: 'Editor preview',
+    notes: [
+      'Editor: a cinematic plays in a small preview right above its timeline (the camera, titles and lines over the real ground), so you can try it without opening the game',
+      'Editor: the sidebar and the details panel fold away to give the middle more room (the edge buttons, or [ and ])',
+    ],
+  },
+  {
     version: '0.22.0',
     date: '2026-11-17',
     title: 'Cinematics',

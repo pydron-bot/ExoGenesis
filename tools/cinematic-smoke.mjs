@@ -94,6 +94,34 @@ await g.waitForTimeout(800);
 const after = await g.evaluate(() => ({ dist: window.__exo.cam.targetDist, yaw: window.__exo.cam.yaw, tick: window.__exo.sim.cur.tick, q: window.__exo.sim.cur.story.cine }));
 check(Math.abs(after.dist - 75) < 0.5 && Math.abs(after.yaw - 0.4) < 1e-3, `skipping hands the camera back where it was (the surface view: ${after.dist.toFixed(1)} u, yaw ${after.yaw.toFixed(2)})`);
 check(after.tick > tick0 + 2 && !after.q, 'the game runs again and the sim\'s queue is empty');
+// the editor: the preview follows the playhead and plays in place; the side panels fold away
+{
+  const ed = await ctx.newPage();
+  ed.on('pageerror', (e) => errors.push(e.message));
+  await ed.goto(`${url}editor.html#cinematics/landing.json`);
+  await ed.waitForSelector('.cine-pv canvas', { timeout: 60000 });
+  const box = await ed.locator('svg.tl').boundingBox();
+  await ed.mouse.click(box.x + 74 + (20 / 28) * (box.width - 88), box.y + 8);
+  check((await ed.textContent('.cine-pv .pv-title')) === 'SHELL RECLAIM', `preview: shows the caption at the playhead (${await ed.textContent('.cine-pv .pv-title')})`);
+  await ed.mouse.click(box.x + 74 + (1 / 28) * (box.width - 88), box.y + 8);
+  check((await ed.textContent('.cine-pv .pv-sub')).startsWith('ALT '), 'preview: fills the landing\'s {alt}');
+  await ed.click('.tl-bar button:has-text("Preview")');
+  await ed.waitForTimeout(1500);
+  const at = Number((await ed.textContent('.tl-info')).split(' ')[0]);
+  await ed.click('.tl-bar button:has-text("Pause")');
+  check(at > 1.5 && at < 4, `preview: ▶ Preview plays it in the editor (${at} s)`);
+  await ed.keyboard.press('[');
+  await ed.keyboard.press(']');
+  check(await ed.evaluate(() => document.body.classList.contains('side-closed') && document.body.classList.contains('aside-closed') && document.querySelector('#side').getBoundingClientRect().width < 30), 'panels: [ and ] fold the sidebar and details panel to a strip');
+  await ed.reload();
+  await ed.waitForSelector('.cine-pv canvas', { timeout: 60000 });
+  check(await ed.evaluate(() => document.body.classList.contains('side-closed') && document.body.classList.contains('aside-closed')), 'panels: remembered after a reload');
+  await ed.click('#side', { position: { x: 8, y: 120 } });
+  await ed.click('#aside-toggle');
+  check(await ed.evaluate(() => !document.body.classList.contains('side-closed') && !document.body.classList.contains('aside-closed')), 'panels: clicking the strip or the edge button opens them');
+  await ed.close();
+}
+
 // the editor: + New gives a cinematic that is valid and plays
 const fresh = path.join(root, 'content/cinematics/zz-new.json');
 try {
@@ -108,10 +136,10 @@ try {
   const issues = D.buildDb({ 'cinematics/zz-new.json': rec, 'cinematics/landing.json': JSON.parse(await fs.readFile(path.join(root, 'content/cinematics/landing.json'), 'utf8')), 'buildings/core.json': JSON.parse(await fs.readFile(path.join(root, 'content/buildings/core.json'), 'utf8')) }).issues.filter((i) => i.path === 'cinematics/zz-new.json');
   check(!issues.length && rec.camera.length === 2, `editor: + New makes a cinematic that is ready to play${issues.length ? `: ${issues.map((i) => `${i.field} ${i.msg}`).join('; ')}` : ''}`);
   check(await ed.locator('svg.tl .tl-beat').count() === 0 && await ed.locator('svg.tl text', { hasText: 'Lines' }).count() === 1, 'editor: its timeline has lines and sounds rows, no landing beats');
-  const [pg] = await Promise.all([ctx.waitForEvent('page'), ed.click('.tl-bar button:has-text("Play it")')]);
+  const [pg] = await Promise.all([ctx.waitForEvent('page'), ed.click('.tl-bar button:has-text("Play in the game")')]);
   pg.on('pageerror', (e) => errors.push(e.message));
   await pg.waitForFunction(() => window.__exo?.cinematic?.id === 'zz-new', null, { timeout: 300000 });
-  check(true, 'editor: ▶ Play it plays it in the game');
+  check(true, 'editor: ▶ Play in the game plays it there');
 } finally {
   await fs.rm(fresh, { force: true });
 }

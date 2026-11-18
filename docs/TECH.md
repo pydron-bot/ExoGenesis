@@ -129,6 +129,15 @@ How content is stored and edited in general (one JSON record per file, schemas i
   audio; nothing replays the landing. The editor's timeline has rows for lines and sounds; ▶ Play opens a
   scratch colony on the cinematic's region (with the play test setup) and plays it (`?cinematic=<id>` for a
   saved one; automated tests skip cinematics they didn't ask for). Test: `tools/cinematic-smoke.mjs`.
+- **Cinematic preview** (v0.23.0): `src/editor/cine-preview.ts`, above the timeline. It runs the game's
+  `Cinematic` and `ZoomCamera` over the region's real terrain (a 2 u world-space patch from `regionToWorld`,
+  `terrainColor`) on a plain globe, with the Command Core, camps (amber spires), story sites (cyan rings) and,
+  for the landing, a stand-in probe on the same path (`src/world/probe-path.ts`, shared with `src/landing.ts`).
+  It shows the moment at the playhead; ▶ Preview (or Space) plays it in real time, moving the playhead. Not in
+  it: the colony (building keys look at the Core), flora, fog, time-of-day lighting, sound.
+- **Collapsible side panels** (v0.23.0): the sidebar and the details panel fold to an 18 px strip (edge
+  button, a click on the strip, or `[` / `]` except in the map editor, where those size the brush);
+  remembered per browser (`exo.editor.panels`). Test: `tools/cinematic-smoke.mjs`.
 - **Interface** (v0.20.0): `content/rules/interface.json` (Rules → Interface): accent, warning, danger,
   text and panel colours, panel and outline opacity, interface size (CSS `zoom` on the HUD's children)
   and the log's length and timing. `src/ui-theme.ts` sets them as CSS variables; `style.css` derives

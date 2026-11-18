@@ -19,6 +19,7 @@ import type { LandingStage } from './sim/types';
 import { lerp, smoothstep } from './world/noise';
 import { R, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, U } from './world/planet';
 import { buildCore, orient, type RegionView } from './world/region';
+import { A0, probePath } from './world/probe-path';
 
 // ---------- beats (seconds; content/cinematics/landing.json) ----------
 let T_BURN = 0, T_TD = 0, T_OPEN = 0, T_POWER = 0, T_DISSOLVE = 0, T_DISSOLVED = 0, T_HATCH = 0, T_DRONE = 0, T_DRONE_POST = 0;
@@ -29,9 +30,6 @@ function useTimeline(def: CinematicDef) {
 }
 
 
-const A0 = 2600; // entry altitude (units; ~26 km)
-const H0 = 1500; // downrange offset at entry
-const APPROACH = Math.PI; // comes in from the -z side, toward the drone bay
 const PETALS = 6;
 const RB = 10.3; // hinge apothem
 const RT = 1.2; // top apothem when closed
@@ -417,12 +415,7 @@ export class Landing implements SetPiece {
   }
 
   /** Probe path in region terms at time t. */
-  private path(t: number) {
-    const u = clamp01(t / T_TD);
-    const alt = A0 * Math.pow(1 - u, 3);
-    const h = H0 * Math.pow(1 - u, 4);
-    return { x: Math.sin(APPROACH) * h, z: Math.cos(APPROACH) * h, alt };
-  }
+  private path(t: number) { return probePath(T_TD, t); }
 
   private pathWorld(t: number, out = new THREE.Vector3()) {
     const p = this.path(t);

@@ -15,7 +15,8 @@
 html, body { margin: 0; height: 100%; }
 body {
   display: grid;
-  grid-template: 'top top top' 48px 'side main aside' 1fr / 260px minmax(420px, 1fr) 340px;
+  grid-template: 'top top top' 48px 'side main aside' 1fr / var(--side-w) minmax(420px, 1fr) var(--aside-w);
+  --side-w: 260px; --aside-w: 340px;
   background: var(--bg);
   color: var(--text);
   font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -466,3 +467,35 @@ svg.tl { display: block; width: 100%; user-select: none; touch-action: none; cur
 .ui-mock .ev.warn { border-left-color: var(--amber); color: var(--amber); }
 .ui-mock .ev.bad { border-left-color: var(--crimson); color: var(--crimson); }
 .ui-mock .m-bar { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: flex; gap: 4px; }
+
+/* collapsible side panels: a closed one is a thin strip (click it, the edge button, or [ / ] to open) */
+body.side-closed { --side-w: 18px; }
+body.aside-closed { --aside-w: 18px; }
+body.side-closed #side > *, body.side-closed #side-top, body.aside-closed #aside > * { display: none !important; }
+body.side-closed #side, body.aside-closed #aside { cursor: pointer; overflow: hidden; padding: 0; }
+body.side-closed #side:hover, body.aside-closed #aside:hover { background: var(--panel2); }
+button.panel-toggle {
+  position: fixed; top: calc(50% + 24px); transform: translateY(-50%); z-index: 5; width: 20px; height: 40px; padding: 0; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
+  background: var(--panel2); color: var(--dim); border: 1px solid var(--line);
+}
+button.panel-toggle:hover { color: var(--accent); }
+#side-toggle { left: calc(var(--side-w) - 10px); }
+#aside-toggle { right: calc(var(--aside-w) - 10px); }
+
+/* cinematic preview (above the timeline): the game's player over the region, at the playhead */
+.cine-pv { position: relative; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #000; max-width: 720px; }
+.cine-pv .pv-view { width: 100%; }
+.cine-pv .pv-view canvas { display: block; width: 100% !important; height: 100% !important; }
+.cine-pv .pv-bars .pv-bar { position: absolute; left: 0; right: 0; height: 11%; background: #000; pointer-events: none; }
+.cine-pv .pv-bars .pv-bar:first-child { top: 0; }
+.cine-pv .pv-bars .pv-bar:last-child { bottom: 0; }
+.cine-pv .pv-cap { position: absolute; left: 0; right: 0; bottom: 14%; text-align: center; pointer-events: none; }
+.cine-pv .pv-title { font-size: 13px; letter-spacing: 0.3em; color: #5ff3ff; text-shadow: 0 0 8px rgba(95,243,255,.6), 0 0 2px #000; }
+.cine-pv .pv-sub { margin-top: 3px; font-size: 10px; letter-spacing: 0.12em; color: #d7e6ea; text-shadow: 0 0 4px #000; }
+.cine-pv .pv-line { display: none; position: absolute; left: 6%; right: 6%; bottom: 26%; text-align: center; pointer-events: none; }
+.cine-pv .pv-line.on { display: block; }
+.cine-pv .pv-who { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #5ff3ff; text-shadow: 0 0 4px #000; }
+.cine-pv .pv-said { margin-top: 2px; font-size: 14px; color: #eef8fb; text-shadow: 0 0 6px #000, 0 0 2px #000; }
+.cine-pv .pv-fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+.cine-pv .pv-note { position: absolute; left: 10px; top: 8px; font-size: 12px; color: var(--amber); pointer-events: none; }

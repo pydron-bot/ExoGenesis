@@ -67,12 +67,13 @@ try {
   await ed.keyboard.press('Control+Shift+z');
   check((await draft()).height, 'Ctrl+Shift+Z brought it back');
 
-  // 3. add a herd
+  // 3. add a herd (counting from the map's own herds, which the editor may change)
+  const herds0 = (await draft()).herds;
   await ed.keyboard.press('h');
   const hs = await screen(-30, 60);
   await ed.mouse.click(hs.x, hs.y);
-  check((await draft()).herds === 8, 'Add herd + click placed an 8th herd');
-  check((await ed.textContent('.herd-form:not(:empty) .sub')) === 'Herd 8', 'new herd selected in the side panel');
+  check((await draft()).herds === herds0 + 1, `Add herd + click placed a new herd (${herds0} → ${(await draft()).herds})`);
+  check((await ed.textContent('.herd-form:not(:empty) .sub')) === `Herd ${herds0 + 1}`, 'new herd selected in the side panel');
   const d0 = await draft();
 
   // 3b. a deposit and a spawn point
@@ -95,7 +96,7 @@ try {
   await ed.keyboard.press('Control+s');
   await wait(1000);
   const reg = await readRegion();
-  check(Array.isArray(reg.height) && reg.height.length === 121 && Array.isArray(reg.flora) && reg.herds.length === 8, 'saved file has height + flora grids and 8 herds');
+  check(Array.isArray(reg.height) && reg.height.length === 121 && Array.isArray(reg.flora) && reg.herds.length === herds0 + 1, `saved file has height + flora grids and ${herds0 + 1} herds`);
   check(reg.deposits.length === d0.deposits + 1 && reg.spawns.length === d0.spawns + 1, 'saved file has the new deposit and spawn');
   check(reg.height.filter((r) => r !== '0*121').length < 40, `only touched rows differ (${reg.height.filter((r) => r !== '0*121').length} of 121)`);
   let valid = true;

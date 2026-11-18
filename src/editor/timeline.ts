@@ -24,6 +24,8 @@ export interface TimelineHost {
   /** Focus the form row for a field path ("camera[3].at", "burn"). */
   reveal(field: string): void;
   play(from: number): void;
+  /** A preview in the editor (src/editor/cine-preview.ts) that follows the playhead. */
+  preview?: { el: HTMLElement; show(t: number): void; refresh(): void };
 }
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -52,14 +54,34 @@ const PAD_L = 74, PAD_R = 14;
 
 let playhead = 0;
 
-export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): void } {
+export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): void; stop(): void } {
   const svg = svgEl('svg', { class: 'tl' });
   const info = h('div', 'tl-info');
-  const playAll = h('button', 'primary', '▶ Play it');
+  const playAll = h('button', '', '▶ Play in the game');
   const playHere = h('button', '', '▶ From the playhead');
   playAll.onclick = () => host.play(0);
   playHere.onclick = () => host.play(playhead);
-  const el = h('div', 'tl-wrap', svg, h('div', 'tl-bar', info, h('div', 'actions', playAll, playHere)));
+  // the preview plays here, in real time, moving the playhead
+  const pvPlay = h('button', 'primary', '▶ Preview');
+  pvPlay.title = 'Play it here (Space when not typing). No sound in the preview.';
+  let raf = 0, last = 0;
+  const stop = () => { cancelAnimationFrame(raf); raf = 0; pvPlay.textContent = '▶ Preview'; };
+  const tick = (now: number) => {
+    playhead = Math.min(span(), playhead + (now - last) / 1000);
+    last = now;
+    draw();
+    if (playhead >= (host.draft().length ?? span())) { stop(); return; }
+    raf = requestAnimationFrame(tick);
+  };
+  pvPlay.onclick = () => {
+    if (raf) { stop(); return; }
+    if (playhead >= (host.draft().length ?? span()) - 0.05) playhead = 0;
+    pvPlay.textContent = '❚❚ Pause';
+    last = performance.now();
+    raf = requestAnimationFrame(tick);
+  };
+  const actions = host.preview ? h('div', 'actions', pvPlay, playAll, playHere) : h('div', 'actions', playAll, playHere);
+  const el = h('div', 'tl-wrap', ...(host.preview ? [host.preview.el] : []), svg, h('div', 'tl-bar', info, actions));
   let W = 800;
   let drag: { kind: 'beat' | ListKey; key: string; i: number; dx: number; moved: boolean; from: number; riders: { list: ListKey; i: number }[] } | null = null;
   const isLanding = () => host.draft().scene === 'landing';
@@ -194,6 +216,7 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
     const cam = camAt(d, playhead);
     info.textContent = `${playhead.toFixed(1)} s · ${cap ? `“${cap.title}${cap.sub ? ` · ${cap.sub}` : ''}”` : 'no caption'}${cam ? ` · camera on ${cam.on}, ${cam.dist.toFixed(0)} u, pitch ${cam.pitch.toFixed(2)}, yaw ${cam.yaw.toFixed(2)}` : ''}`;
     playHere.textContent = `▶ From ${playhead.toFixed(1)} s`;
+    host.preview?.show(playhead);
   };
 
   const local = (e: PointerEvent) => { const r = svg.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H }; };
@@ -240,7 +263,7 @@ export function timelinePanel(host: TimelineHost): { el: HTMLElement; update(): 
   };
   new ResizeObserver(() => draw()).observe(el);
   draw();
-  return { el, update: () => { if (!drag) draw(); } };
+  return { el, stop, update: () => { host.preview?.refresh(); if (!drag) draw(); } };
 }
 
 /** A list on the draft (empty if it has none yet). */
