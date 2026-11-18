@@ -759,6 +759,7 @@ function showTitle() {
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
   ];
   title = new TitleScreen(cam, camera, {
+    system,
     choices,
     foot: `<button class="t-ver" title="What's new">v${VERSION}${hasUnseen() ? '<span class="badge">NEW</span>' : ''}</button> · M1 · <a href="https://deeek.org/">deeek.org</a>`,
     tap: () => audio.play('tap'),

@@ -154,6 +154,11 @@ export class SolarSystem {
   private homeLabel: HTMLDivElement;
   private homeMarker: THREE.Sprite;
   private stars: THREE.Points;
+  /**
+   * 0..1: the title screen's camera is away visiting another body. Lights the scene from
+   * the real star, keeps the stars bright and hides the map markers and orbit lines.
+   */
+  tour = 0;
 
   constructor(scene: THREE.Scene, labelLayer: HTMLElement) {
     this.labelLayer = labelLayer;
@@ -315,12 +320,19 @@ export class SolarSystem {
    * the xz-plane. Near the surface the sun and light follow it (so day/night
    * matches the sim's clock); in the system view the star sits at its orbit.
    */
+  /** Bodies worth a close look (the title screen's tour): planets and the bigger moons. */
+  tourStops(): { name: string; sub: string; radius: number; pos: THREE.Vector3 }[] {
+    return this.bodies.filter((b) => b.kind !== 'comet' && b.radius >= 600);
+  }
+
   update(t: number, camera: THREE.PerspectiveCamera, sys: number, surface: number, width: number, height: number, sunAngle?: number) {
+    const away = this.tour;
+    surface *= 1 - away;
     const ha = HOME_PHASE + (t / HOME_PERIOD) * Math.PI * 2;
     // home orbits the star; we keep home at the origin, so the star sits at -homeOrbit
     this.starPos.set(-Math.cos(ha) * HOME_ORBIT, 0, -Math.sin(ha) * HOME_ORBIT);
     if (sunAngle === undefined) this.sunPos.copy(this.starPos);
-    else this.sunPos.set(Math.cos(sunAngle) * HOME_ORBIT, 0, Math.sin(sunAngle) * HOME_ORBIT).lerp(this.starPos, smoothstep(0.05, 0.5, sys));
+    else this.sunPos.set(Math.cos(sunAngle) * HOME_ORBIT, 0, Math.sin(sunAngle) * HOME_ORBIT).lerp(this.starPos, Math.max(away, smoothstep(0.05, 0.5, sys)));
     this.star.position.copy(this.sunPos);
     this.light.position.copy(this.sunPos);
     this.belts[0].rotation.y = t * 0.0004;
@@ -345,6 +357,7 @@ export class SolarSystem {
       } else {
         k = smoothstep(0.1, 0.5, sys);
       }
+      k *= 1 - away;
       const m = b.marker!;
       m.visible = k > 0.01;
       m.position.copy(b.pos);
@@ -363,10 +376,10 @@ export class SolarSystem {
     }
 
     for (const r of this.rings) {
-      (r.material as THREE.LineBasicMaterial).opacity = r.userData.op * sys;
-      r.visible = sys > 0.01;
+      (r.material as THREE.LineBasicMaterial).opacity = r.userData.op * sys * (1 - away);
+      r.visible = sys * (1 - away) > 0.01;
     }
-    const hk = smoothstep(0.1, 0.5, sys);
+    const hk = smoothstep(0.1, 0.5, sys) * (1 - away);
     this.homeMarker.visible = hk > 0.01;
     this.homeMarker.scale.setScalar(Math.max(HOME_R * 2.6, camera.position.length() * 0.028));
     (this.homeMarker.material as THREE.SpriteMaterial).opacity = hk * 0.9;

@@ -3,6 +3,9 @@
  * drifts in a slow orbit (low over the limb, out to the full disc and back)
  * while the wordmark assembles, the tagline types out and the menu slides in.
  * On a landscape screen the planet is shifted right, clear of the menu column.
+ * After a while the camera tours the system: it pulls out, flies to a random
+ * planet or big moon, settles into a sunlit orbit there, and later moves on
+ * (sometimes back home).
  *
  * The world keeps rendering behind it; main.ts decides what each choice does
  * and hides the HUD while `body.title` is set.
@@ -10,7 +13,9 @@
 import { viewH } from './viewport';
 import * as THREE from 'three';
 import type { ZoomCamera } from './camera';
+import type { SolarSystem } from './world/system';
 import { R } from './world/planet';
+import { smoothstep } from './world/noise';
 
 export interface TitleChoice {
   id: string;
@@ -31,7 +36,19 @@ export interface TitleOptions {
   tap: () => void;
   /** Live line under the menu (e.g. sound state); re-read on every tap. */
   status?: () => string;
+  /** The solar system, for the tour of other bodies (no tour without it). */
+  system?: SolarSystem;
 }
+
+/** A place the title camera can orbit; `null` means home. */
+type Stop = { name: string; sub: string; radius: number; pos: THREE.Vector3 } | null;
+interface Trip { from: Stop; to: Stop; u: number; dur: number; d0: number; d1: number; peak: number; yaw0: number; yaw1: number }
+
+const HOME_DWELL = 25; // seconds over home before the first trip, and on each return
+const AWAY_DWELL = [15, 25] as const;
+const ORIGIN = new THREE.Vector3();
+const posOf = (s: Stop) => (s ? s.pos : ORIGIN);
+const radiusOf = (s: Stop) => (s ? s.radius : R);
 
 const TAGLINE = 'SEED-PROBE ACCORD · CARETAKER ONLINE';
 
@@ -43,6 +60,9 @@ export class TitleScreen {
   private typed = 0;
   private tagEl: HTMLElement;
   private armed: HTMLButtonElement | null = null;
+  private at: Stop = null;
+  private trip: Trip | null = null;
+  private dwell = HOME_DWELL;
   active = true;
 
   constructor(private cam: ZoomCamera, private camera: THREE.PerspectiveCamera, private opts: TitleOptions) {
@@ -172,9 +192,35 @@ export class TitleScreen {
     const w = innerWidth, h = viewH(), aspect = w / h;
     // a narrow screen sees less of the width: pull back so the disc still fits
     const back = aspect < 1 ? Math.pow(1 / aspect, 0.75) : 1;
-    cam.yaw += dt * 0.045;
-    cam.targetDist = R * (2.45 + 0.75 * Math.sin(t * 0.055)) * back;
+    const orbitDist = (stop: Stop, at: number) => radiusOf(stop) * (stop ? (stop.radius < 2000 ? 3.4 : 2.6) * (1 + 0.15 * Math.sin(at * 0.06)) : 2.45 + 0.75 * Math.sin(at * 0.055)) * back;
     cam.targetPitch = 0.38 + 0.22 * Math.sin(t * 0.037 + 1);
+    const sys = this.opts.system;
+    if (sys && !this.trip && (this.dwell -= dt) <= 0) this.depart(sys, orbitDist);
+    if (this.trip) {
+      const tr = this.trip;
+      tr.u = Math.min(1, tr.u + dt / tr.dur);
+      const u = tr.u;
+      const e = u * u * (3 - 2 * u);
+      // out, across while far out, then in: the pan happens near the top of the arc
+      const ef = smoothstep(0.22, 0.78, u);
+      cam.focusOverride.copy(posOf(tr.from)).lerp(posOf(tr.to), ef);
+      const l0 = Math.log(tr.d0), l1 = Math.log(tr.d1);
+      const ld = l0 + (l1 - l0) * e + (Math.log(tr.peak) - (l0 + l1) / 2) * Math.sin(Math.PI * u);
+      cam.dist = cam.targetDist = Math.exp(ld);
+      let dy = tr.yaw1 - tr.yaw0;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      cam.yaw = tr.yaw0 + dy * e;
+      sys!.tour = tr.to ? (tr.from ? 1 : ef) : 1 - ef;
+      if (u >= 1) {
+        this.at = tr.to;
+        this.trip = null;
+        this.dwell = tr.to ? AWAY_DWELL[0] + Math.random() * (AWAY_DWELL[1] - AWAY_DWELL[0]) : HOME_DWELL;
+      }
+    } else {
+      cam.yaw += dt * 0.045;
+      cam.focusOverride.copy(posOf(this.at));
+      cam.targetDist = orbitDist(this.at, t);
+    }
     // landscape: shift the planet right, clear of the menu column; portrait: lift it
     // into the gap between the wordmark and the menu
     if (aspect > 1.1) this.camera.setViewOffset(w, h, -Math.min(w * 0.2, w / 2 - 360), 0, w, h);
@@ -183,7 +229,34 @@ export class TitleScreen {
 
     const n = Math.min(TAGLINE.length, Math.floor(Math.max(0, t - 1.1) * 28));
     if (n !== this.typed) { this.typed = n; this.tagEl.textContent = TAGLINE.slice(0, n); }
-    if (t > 1.6) this.tele.textContent = `HOME · HIGH ORBIT · ALT ${Math.round(alt * 0.01).toLocaleString()} km · ${clock}`;
+    if (t > 1.6) {
+      const km = (n: number) => Math.round(n * 0.01).toLocaleString();
+      if (this.trip) this.tele.textContent = `IN TRANSIT · ${this.trip.to?.name ?? 'HOME'} · ${clock}`;
+      else if (this.at) this.tele.textContent = `${this.at.name} · HIGH ORBIT · ALT ${km(this.camera.position.distanceTo(this.at.pos) - this.at.radius)} km · ${clock}`;
+      else this.tele.textContent = `HOME · HIGH ORBIT · ALT ${km(alt)} km · ${clock}`;
+    }
+  }
+
+  /** Start a trip to somewhere else: another body, or home now and then. */
+  private depart(sys: SolarSystem, orbitDist: (s: Stop, at: number) => number) {
+    const stops = sys.tourStops().filter((b) => b.name !== this.at?.name);
+    const to: Stop = this.at && Math.random() < 0.3 ? null : stops[Math.floor(Math.random() * stops.length)];
+    const sep = posOf(this.at).distanceTo(posOf(to));
+    const dur = THREE.MathUtils.clamp(4 + Math.log10(Math.max(1, sep / 1000)) * 1.6, 5, 9);
+    const d0 = this.cam.dist, d1 = orbitDist(to, this.t + dur);
+    let yaw1 = this.cam.yaw + dur * 0.045;
+    if (to) {
+      // arrive with the sun off to one side of the camera: a lit disc with a terminator
+      const sun = sys.starPos.clone().sub(to.pos).normalize();
+      const dir = new THREE.Vector3();
+      let best = -Infinity;
+      for (let i = 0; i < 48; i++) {
+        const y = (i / 48) * Math.PI * 2;
+        const score = -Math.abs(this.cam.viewDir(y, 0.45, d1, dir).dot(sun) - 0.55) + Math.random() * 0.08;
+        if (score > best) { best = score; yaw1 = y; }
+      }
+    }
+    this.trip = { from: this.at, to, u: 0, dur, d0, d1, peak: Math.max(d0, d1, sep * 0.6), yaw0: this.cam.yaw, yaw1 };
   }
 
   /** Fade out and hand the camera back. Resolves when the screen is gone. */
@@ -191,6 +264,13 @@ export class TitleScreen {
     if (!this.active) return Promise.resolve();
     this.active = false;
     removeEventListener('resize', this.fitMark);
+    // back home if the tour had wandered off: the game picks up from orbit over home
+    if (this.at || this.trip) {
+      this.at = this.trip = null;
+      this.cam.dist = this.cam.targetDist = R * 2.45;
+      this.cam.focusOverride.set(0, 0, 0);
+    }
+    if (this.opts.system) this.opts.system.tour = 0;
     this.cam.freePitch = false;
     this.cam.overrideW = 0;
     if (this.camera.view) this.camera.clearViewOffset();

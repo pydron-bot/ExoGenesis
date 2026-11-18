@@ -484,6 +484,14 @@ First results 2026-11-15; later measurements added below them.
   colony exists; plays the landing), SKIRMISH, SOUND, EDITOR, deeek.org link. HUD, labels, province overlay
   and fog are hidden behind it; the remembered camera isn't overwritten by the title's orbit. Skipped by
   `?title=0` (resume or land as before), `?intro=0`, `?new=1`, `?view=…` and skirmish, so tools are unchanged.
+- **Title tour (2026-11-18, v0.24.0):** after 25 s over home the title camera flies to a random planet or
+  big moon (`SolarSystem.tourStops()`: no comets, radius ≥ 600), stays 15–25 s, moves on, and goes home
+  ~30% of the time (25 s there). A trip is a log-space distance arc (out, pan near the top, in) over 5–9 s;
+  the arrival yaw is picked with `ZoomCamera.viewDir` so the sun sits ~57° off the view axis (a lit disc
+  with a terminator). `SolarSystem.tour` (0..1) lights from the real star, keeps the stars bright and hides
+  markers/orbit lines while away. Leaving the title while away snaps back to orbit over home. The wordmark
+  also shrinks to fit its column (`fitMark`, v0.23.1): SF Mono on iPad clipped the last S. Test: set
+  `__exo.title.dwell = 0` to start a trip now.
 - **Planet detail + versions (2026-11-16, v0.9.0):** `src/world/surface.ts`. A 2048×1024 equirect surface
   map (colour + flora, height + baked slopes) from the same `surfaceAt` as the globe geometry, baked in
   `surface-worker.ts` after the first frame (~2 s on hive1, nothing waits on it) and faded in. The globe
