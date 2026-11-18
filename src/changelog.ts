@@ -15,6 +15,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.36.0',
+    date: '2026-11-18',
+    title: 'Wings',
+    notes: [
+      'New: the Airpad, a landing pad that builds flyers (and only flyers)',
+      'New: the Gunship, a twin-rotor flyer that crosses water, walls and buildings in a straight line and strafes packs from above, out of reach of bites. It can\'t shoot at other flyers',
+      'New predator: the Skimmerwing, a flying pack hunter that joins the later packs and flies straight over your walls',
+      'Only anti-air weapons can hit flyers: the Command Core\'s gun, Point Defense and the Arc Caster. Everything else ignores them, so mix your defences',
+      'New: the Flak Tower, anti-air guns whose bursts catch whole flocks of flyers. It never fires at anything on the ground',
+      'Spitters can now spit up at flyers',
+      'Flyers cruise high above the ground, bank into their turns and cast a shadow below them',
+    ],
+  },
+  {
     version: '0.35.0',
     date: '2026-11-18',
     title: 'Boats and the shore',
