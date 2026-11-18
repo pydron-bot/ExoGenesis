@@ -111,7 +111,7 @@ check(boxed > 5, `box-select with the mouse (${boxed})`);
 
 // 8. drag from a selected unit → order vector
 // a selected unit near the centre of the screen (away from the HUD bars)
-const one = await page.evaluate(() => {
+const pickOne = () => page.evaluate(() => {
   let best = null;
   for (const s of __exo.skirmish.ui.selected.keys()) {
     const p = __exo.skirmish.unitScreen(s);
@@ -119,11 +119,14 @@ const one = await page.evaluate(() => {
   }
   return best;
 });
+let one = await pickOne();
 if (one) {
   // the first move must arrive before the 420 ms hold fires; slow software frames can miss that, so retry
   let dragging = false;
   for (let attempt = 0; attempt < 4 && !dragging; attempt++) {
   if (attempt) { await clearSel(); for (const k of boxedSlots) await page.evaluate((s) => __exo.skirmish.ui.selected.set(s, __exo.skirmish.ui.gens(s)), k); }
+  // units move: find it again right before grabbing it (a stale position misses it)
+  one = (await pickOne()) ?? one;
   await page.mouse.move(one.x, one.y);
   await page.mouse.down();
   // aim toward the middle of the screen so the vector stays over the region

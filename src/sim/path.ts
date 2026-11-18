@@ -1,7 +1,8 @@
 /**
  * Pathfinding: A* over a 2 u grid of the region, then string-pulled into a few
  * waypoints. What blocks depends on how the mover gets about (`Move`): ground
- * movers can't enter water, hover movers cross it; building bodies block both
+ * movers can't enter water, water movers can't leave open water (deeper than
+ * `SHALLOW`), hover movers go anywhere; building bodies block all of them
  * (`setBodies`; a grid that never gets bodies is terrain-only, as fauna use).
  *
  * The blocked grid is rebuilt only when the set of buildings changes. Distances
@@ -13,9 +14,13 @@ import { regionHeightRaw } from '../world/planet';
 export const CELL = 2;
 /** Ground below this is water to the sim. */
 export const WET = 0.3;
+/** Water movers need ground below this (open water, not the beach). */
+export const SHALLOW = -0.6;
 
-/** How a unit gets about: ground (land only) or hover (land and water). */
-export type Move = 'ground' | 'hover';
+/** How a unit gets about: ground (land only), hover (land and water) or water (open water only). */
+export type Move = 'ground' | 'hover' | 'water';
+/** Whether a mover of type `m` can't be at ground height `h`. */
+export const offLimits = (m: Move, h: number) => (m === 'ground' ? h < WET : m === 'water' ? h >= SHALLOW : false);
 /** A unit record's movement type (ground when unset). */
 export const moveOf = (u: { move?: Move }): Move => u.move ?? 'ground';
 
@@ -26,6 +31,8 @@ export class PathGrid {
   private water: Uint8Array;
   private blocked: Uint8Array;
   private key = '';
+  /** Connected open areas (terrain only, built on first use; -1 blocked): see `reaches`. */
+  private comp: Int32Array | null = null;
   private g: Float64Array;
   private f: Float64Array;
   private from: Int32Array;
@@ -40,9 +47,9 @@ export class PathGrid {
     const nn = this.n * this.n;
     this.water = new Uint8Array(nn);
     this.blocked = new Uint8Array(nn);
-    if (move === 'ground') for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
+    if (move !== 'hover') for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
       const { x, z } = this.centre(i, j);
-      this.water[j * this.n + i] = height(x, z) < WET ? 1 : 0;
+      this.water[j * this.n + i] = offLimits(move, height(x, z)) ? 1 : 0;
     }
     this.blocked.set(this.water);
     this.g = new Float64Array(nn);
@@ -92,14 +99,73 @@ export class PathGrid {
     return true;
   }
 
-  /** Nearest open cell to a point (spiral search), or null. */
-  private nearestOpen(x: number, z: number) {
+  /**
+   * The centre of the nearest open cell to (x, z) within `reach` u, or null. With `from`, only
+   * cells a mover at `from` can get to (the same open area: the sea a boat is on, not a lagoon past a sandbar).
+   */
+  openNear(x: number, z: number, reach = 24, from?: { x: number; z: number }) {
+    let want = -1;
+    if (from) {
+      const a = this.nearestOpen(from.x, from.z, 4);
+      if (a >= 0) want = this.components()[a];
+    }
+    const c = this.nearestOpen(x, z, Math.ceil(reach / CELL), want);
+    return c < 0 ? null : this.centre(c % this.n, (c / this.n) | 0);
+  }
+
+  /**
+   * Whether a mover at (ax, az) can get within `slack` u of (bx, bz) over the terrain (buildings
+   * aside): its open area and one round the target touch. Samples rings round the target.
+   */
+  reaches(ax: number, az: number, bx: number, bz: number, slack: number) {
+    const comp = this.components();
+    const a = this.nearestOpen(ax, az, 4);
+    if (a < 0) return true; // stranded somewhere odd: don't second-guess it
+    const want = comp[a];
+    const at = (x: number, z: number) => { const { i, j } = this.cellOf(x, z); return comp[j * this.n + i] === want; };
+    if (at(bx, bz)) return true;
+    for (const k of [0.35, 0.7, 1]) {
+      const r = slack * k, m = Math.max(8, Math.ceil((r * 6.3) / CELL));
+      for (let q = 0; q < m; q++) {
+        const t = (q / m) * Math.PI * 2;
+        if (at(bx + Math.cos(t) * r, bz + Math.sin(t) * r)) return true;
+      }
+    }
+    return false;
+  }
+
+  private components() {
+    if (this.comp) return this.comp;
+    const n = this.n, comp = new Int32Array(n * n).fill(-1), stack: number[] = [];
+    let id = 0;
+    for (let c0 = 0; c0 < n * n; c0++) {
+      if (this.water[c0] || comp[c0] >= 0) continue;
+      comp[c0] = id; stack.push(c0);
+      while (stack.length) {
+        const c = stack.pop()!, ci = c % n, cj = (c / n) | 0;
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+          const i = ci + dx, j = cj + dz;
+          if (i < 0 || j < 0 || i >= n || j >= n) continue;
+          const nc = j * n + i;
+          if (this.water[nc] || comp[nc] >= 0) continue;
+          if (dx && dz && (this.water[cj * n + i] || this.water[j * n + ci])) continue;
+          comp[nc] = id; stack.push(nc);
+        }
+      }
+      id++;
+    }
+    return (this.comp = comp);
+  }
+
+  /** Nearest open cell to a point (spiral search), or -1; `area` ≥ 0: only cells in that open area. */
+  private nearestOpen(x: number, z: number, rings = 12, area = -1) {
     const c = this.cellOf(x, z), n = this.n;
-    for (let r = 0; r < 12; r++) {
+    const comp = area >= 0 ? this.components() : null;
+    for (let r = 0; r < rings; r++) {
       let best = -1, bd = Infinity;
       for (let j = c.j - r; j <= c.j + r; j++) for (let i = c.i - r; i <= c.i + r; i++) {
         if (i < 0 || j < 0 || i >= n || j >= n || (Math.abs(i - c.i) !== r && Math.abs(j - c.j) !== r)) continue;
-        if (this.blocked[j * n + i]) continue;
+        if (this.blocked[j * n + i] || (comp && comp[j * n + i] !== area)) continue;
         const p = this.centre(i, j), d = Math.hypot(p.x - x, p.z - z);
         if (d < bd) { bd = d; best = j * n + i; }
       }

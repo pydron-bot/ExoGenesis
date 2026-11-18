@@ -109,12 +109,16 @@ const ss = await screen(sb.x, sb.z, 1);
 await page.mouse.click(ss.x, ss.y);
 await wait(400);
 check(/SOLAR ARRAY/.test(await page.textContent('#card')), 'tapping a building shows its card');
+// wait for the switch to reach the sim and come back in a snapshot (a fixed wait raced slow software-rendered frames:
+// the card still showed it on and the second tap switched it off again)
+const isOn = (want) => until(([id, want]) => __exo.sim.cur.buildings.find((b) => b.id === id)?.on === want, [sb.id, want], 10000).then(() => true, () => false);
 await page.dispatchEvent('#card [data-act="power"]', 'pointerdown');
-await wait(600);
-check((await cur()).buildings.find((b) => b.id === sb.id).on === false, 'Switch off turns it off');
+check(await isOn(false), 'Switch off turns it off');
+// the button does what it says: wait for the card to catch up and offer "Switch on" (on a slow frame it can still
+// say "Switch off" for a moment, and pressing that switches it off again, as it should)
+await until(() => /Switch on/.test(document.querySelector('#card [data-act="power"]')?.textContent ?? ''), null, 10000).catch(() => {});
 await page.dispatchEvent('#card [data-act="power"]', 'pointerdown');
-await wait(600);
-check((await cur()).buildings.find((b) => b.id === sb.id).on === true, 'Switch on turns it back on');
+check(await isOn(true), 'Switch on turns it back on');
 
 // 5. turrets fight a pack (spawned on demand)
 await cmd({ type: 'debug', alloys: 400 });
@@ -131,12 +135,21 @@ for (const kind of ['turret', 'turret', 'solar']) {
 }
 await page.evaluate(() => __exo.sim.setSpeed(3));
 await until(() => __exo.sim.cur.buildings.filter((b) => b.kind === 'turret' && b.progress >= 1).length === 2, null, 180000);
+// watch the resource bar from now on: two turrets can kill a small pack before a check after the kills would see it
+await page.evaluate(() => {
+  window.__threatSeen = false; window.__threatLog = [];
+  const t = setInterval(() => {
+    const txt = document.querySelector('#r-threat')?.textContent ?? '';
+    if (window.__threatLog.at(-1) !== txt) window.__threatLog.push(txt);
+    if (/predators|next pack/.test(txt)) { window.__threatSeen = true; clearInterval(t); }
+  }, 100);
+});
 await cmd({ type: 'debug', wave: true });
 await until(() => __exo.sim.cur.hostiles > 0, null, 10000);
 check(true, 'a predator pack spawned');
 await until(() => __exo.sim.cur.stats.kills > 0, null, 180000);
 check(true, `turrets killed predators (${(await cur()).stats.kills})`);
-check(await page.evaluate(() => /predators|next pack/.test(document.querySelector('#r-threat').textContent)), 'threat shown in the resource bar');
+check(await page.evaluate(() => window.__threatSeen), `threat shown in the resource bar${process.env.DBG ? ` (${JSON.stringify(await page.evaluate(() => window.__threatLog))}, packs ${JSON.stringify((await cur()).stats)})` : ''}`);
 await page.evaluate(() => __exo.sim.setSpeed(1));
 
 // 6. save / reload / load

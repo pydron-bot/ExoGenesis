@@ -481,7 +481,60 @@ How content is stored and edited in general (one JSON record per file, schemas i
   - Test: `tools/hover-smoke.mjs` (coastal site keeping its sea: a Rover ordered across a bay goes round and never
     gets wet, a Skiff crosses mid-bay over the water, a Swarmer walks round the water toward the base, a Strider
     wades).
-
+- **Water units and water buildings (v0.35.0):** stage 2 of water, hover and air.
+  - **Moves on: water** (`src/sim/path.ts`): open water only, ground below `SHALLOW` (−0.6 u), so boats keep off
+    the beach. Between −0.6 and 0.3 u only hover craft go. `offLimits(move, h)` is the one rule `steer` and the
+    grids share.
+  - **Built on** (building `site`, `src/sim/rules.ts`): `land` (default: no sample under 0.6 u, the usual
+    steepness rule), `water` (every sample at least 1 u deep, `OFFSHORE_DEPTH`), `shore` (some sample over
+    0.6 u and some under −0.4 u, none over 6 u). The ghost gives the reason: "must be built out on the water",
+    "must touch the shore", "must reach the water". The build area works as before (water buildings extend it).
+  - **Factories** (`factoryMakes`): a shore factory builds water and hover units, a land one ground and hover. The
+    sim refuses the rest, and the factory card lists only what it builds. A boat is launched at the nearest open
+    water to the door (within 30 u) and moors 6 u further out. The automated playthrough only queues ground
+    units at the Bay.
+  - **Pads:** offshore buildings get none (a pad would raise an island under them). A shore building's pad levels a
+    quay that reaches out over the water: `padded(x, z, h)` (planet.ts) now applies pads to any base, and the
+    patch passes it the seabed.
+  - **Reach** (the island fix): fauna grids are terrain-only per movement type. `PathGrid.reaches` labels their
+    connected open areas (flood fill, built once) and checks whether the predator's area touches a ring round the
+    target at body + attack range + 1.5 u. `chooseTarget` skips what a predator can't reach (ground fauna and
+    islands or offshore buildings, sea creatures and anything inland). Hover, burrowing and rooted fauna aren't
+    limited. With nothing in reach, it makes for the nearest building anyway and waits as close as it can (a
+    Lurker off the coast), so it isn't idle.
+  - **Packs:** a water fauna joins a pack only if there's open water within 40 u of its spawn (`SEA_REACH`), and
+    starts at the nearest open water. Otherwise the slot goes to the next extra, or a swarmer. Touchdown, lifted
+    dry, never gets one.
+  - **Drawing:** boats sit 0.25 u down in the water, rocking 0.06 u (`src/skirmish/view.ts`).
+  - **Content:**
+    - **Shipyard:** factory, shore, 150 alloys, clearance 15, staff 1 engineer.
+    - **Tidal Generator:** new role `generator` (steady power, no conditions), water, +4 MW, 110 alloys.
+    - **Sea Turret:** turret, water, the Defense Turret's gun with range 30, no staff (colonists can't walk out).
+    - **Pier:** relay, shore, range 40, 60 alloys.
+    - **Gunboat:** accord, water, 420 hp, speed 6.5, range 24, 26 damage, splash 2.5, 100 alloys.
+    - **Lurker:** fauna, water, 160 hp, bite 18, every 6th pack slot from pack 3.
+    - Built-in looks: `src/world/sea-models.ts` (piles reach below the waterline), `buildSeaTurret` (region.ts),
+      `gunboatGeo` and `lurkerGeo` (skirmish/models.ts). There are no Blender assets yet.
+  - **Transport** (unit `carries`: how many ground units fit; the **Transport Barge**: water, unarmed, carries 4,
+    80 alloys):
+    - Board: command `board` (ground units, a transport). Input sends it when ground units are selected and a
+      transport is tapped. Riders get `ride` and drive to the nearest land to it. The transport comes in to the
+      water nearest them (in its own sea). Within hull + 7 u (`BOARD_REACH`, across the shallows) a rider goes
+      into its `cargo`: off the map, slot −1.
+    - Land: an `order` to a spot on dry land (or the card's Unload, the nearest shore) sets `drop`. The
+      transport sails to the water in its own sea nearest that spot (`openNear(…, from)`: same open area, never
+      a lagoon past a sandbar). Then everyone goes ashore within 16 u (`LAND_REACH`), on ground connected to the
+      drop point when there is some, and drives on to the spot.
+    - Sunk with cargo: all lost, counted in units lost. The army limit counts those aboard (`armySize`). Unarmed
+      units never chase. The card shows Carrying n / max and the Load tip.
+  - **Test:** `tools/sea-smoke.mjs`. It checks:
+    - each building fits only where it should;
+    - the Tidal Generator comes online;
+    - the Bay refuses a Gunboat and the Shipyard a Rover;
+    - the Gunboat launches and stays on the water, and stops at the water's edge when ordered inland;
+    - a Lurker stays in the sea;
+    - a Swarmer by the shore doesn't pick a Sea Turret 11 u out;
+    - three Rovers board a barge, cross the water and are put ashore.
 ## 3. M1 — one region
 
 First playtest build (2026-11-15).
@@ -762,7 +815,31 @@ First results 2026-11-15; later measurements added below them.
   ~400 u. `?surface=0` turns it off. Planet view costs ~2× the old globe in SwiftShader (130 vs 65 ms at
   390 px); the ground view is unchanged. Versions: `package.json` + `src/changelog.ts` (What's new on the
   title and ⋯), checked by `tools/version-check.mjs` in `npm run build`.
-
+- **Performance pass (2026-11-18, v0.35.0):**
+  - Measured, phone size in SwiftShader: the main thread is idle ~92% of each frame, waiting on the GPU. JS per
+    frame is under 1 ms (region and HUD updates); submitting the draws is ~5 ms. Turning one feature off at a time
+    (lights, shadows, fog of war, simple water, flora) moved the frame time by less than run-to-run noise
+    (±20%; lights off was the clearest saving). No visual cuts without a real phone to measure on.
+  - **Sim tick** (`node tools/sim-bench.mjs`): 7.9 → ~3.4 ms on hive1. With ticks at 10 Hz and three per 100 ms at
+    ×3, a phone ~4× slower was close to falling behind in big fights.
+    - `src/sim/spatial.ts` `Buckets`: uniform grid buckets, arrays reused.
+    - Predator separation and push-out of buildings and walls, and wall-crossing checks: only nearby hostiles
+      (6 u cells) and buildings. Buildings are bucketed by body plus `BODY_MARGIN`, rebuilt when the set changes.
+    - Grazers flee only nearby drones, units and predators (`FLEE_R` cells) and keep out of nearby buildings.
+    - Units' push-out uses the building buckets. Idle units answering attacks share one list per tick
+      (`raiders()`) instead of each scanning every hostile and looking its target up in the building list.
+    - Candidates are sorted by index, so pushes apply in the same order a full scan would.
+  - **Building pads, flat look:** placing a building re-levels the patch under it. It used to recompute normals for
+    all ~90k vertices and re-upload both attributes (a hitch). Now only the moved triangles get face normals, and
+    only that range is uploaded (`addUpdateRange`). The smooth look (indexed) still recomputes all.
+  - **Units and water:** separation could push a ground unit into the water (or a boat ashore). A push that would
+    put a unit off its movement type's ground is undone.
+  - **Flaky tests fixed:**
+    - `tools/smoke.mjs` "Switch on": the test pressed while the card still said "Switch off" after a slow
+      frame. It now waits for the card.
+    - "Threat shown in the resource bar": the turrets could kill the pack before the check. A watcher now
+      records the bar from the wave on.
+    - `tools/skirmish-smoke.mjs` order drag: it now finds the moving unit again before each attempt.
 ## 6. Roster additions
 
 From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a-smoke.mjs`.

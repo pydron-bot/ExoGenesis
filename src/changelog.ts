@@ -15,6 +15,22 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.35.0',
+    date: '2026-11-18',
+    title: 'Boats and the shore',
+    notes: [
+      'New: the Shipyard, built across the waterline. It launches Gunboats (armoured boats with a deck cannon) and Hover Skiffs',
+      'New: the Tidal Generator, steady power from a platform out on the water',
+      'New: the Sea Turret, a Defense Turret out on the water that nothing on foot can reach',
+      'New: the Pier, a deck out over the water that lets you build across a bay',
+      'New: the Transport Barge carries four ground units across the water. Select them and tap the barge to load, then order the barge to a spot on land and it puts them ashore',
+      'New predator: the Lurker, a sea creature that comes with packs whose spawn is near water and strikes at anything by the shore',
+      'Predators no longer get stuck on the beach trying to reach something on an island or out on the water; they go for what they can reach',
+      'Faster: the colony simulation does about half the work it did in big fights (smoother on phones, especially at ×3), and placing a building no longer causes a brief stutter',
+      'Units no longer get pushed into the water when they crowd together on a beach',
+    ],
+  },
+  {
     version: '0.34.0',
     date: '2026-11-18',
     title: 'Hover craft and waders',

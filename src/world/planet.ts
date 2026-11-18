@@ -349,8 +349,9 @@ export const PAD_FALL = 3;
 let groundPads: GroundPad[] = [];
 export function setGroundPads(p: GroundPad[]) { groundPads = p; }
 
-export const regionHeight = (x: number, z: number) => {
-  let h = Math.max(0, regionHeightRaw(x, z));
+export const regionHeight = (x: number, z: number) => padded(x, z, Math.max(0, regionHeightRaw(x, z)));
+/** `h` with the building pads levelled in (the terrain patch passes the seabed, so a quay can reach out over it). */
+export function padded(x: number, z: number, h: number) {
   for (const p of groundPads) {
     const dx = x - p.x, dz = z - p.z, reach = p.r + PAD_FALL;
     if (dx > reach || dx < -reach || dz > reach || dz < -reach) continue;
@@ -358,7 +359,7 @@ export const regionHeight = (x: number, z: number) => {
     if (d < reach) h = lerp(h, p.h, 1 - smoothstep(p.r, reach, d));
   }
   return h;
-};
+}
 
 /** World position of region coords, `lift` units above the ground. */
 export function regionToWorld(x: number, z: number, lift: number, out = new THREE.Vector3()) {

@@ -9,6 +9,7 @@ import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
+import { factoryMakes } from './sim/rules';
 import { FOG_N, REGION_HALF } from './sim/types';
 import { regionColor } from './world/planet';
 import type { RegionUi } from './world/region';
@@ -267,17 +268,22 @@ export class ColonyHud {
       const rows: [string, string][] = [];
       if (us.length === 1) {
         const d = this.d.units[us[0].unit];
+        if (d.carries) rows.push(['Carrying', `${us[0].cargo ?? 0} / ${d.carries} ground units`]);
         if (d.repairRate) rows.push(['Repairs', `${d.repairRate} hp/s · reach ${d.range} u · costs alloys`]);
+        else if (!d.damage) rows.push(['Weapon', 'unarmed']);
         else rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.minRange ? `${d.minRange}–` : ''}${d.range} u${d.splash ? ' · splash' : ''}${d.chain ? ` · arcs to ${d.chain} more` : ''}`]);
         if (d.sight && d.sight > 40) rows.push(['Sight', `${d.sight} u`]);
         rows.push(['Speed', `${d.speed} u/s`]);
       }
       rows.push(['Move', this.coarse() ? 'tap ground or drag from a unit' : 'click ground or drag from a unit']);
+      const transport = us.length === 1 && this.d.units[us[0].unit].carries;
+      if (transport) rows.push(['Load', `select ground units, then ${this.coarse() ? 'tap' : 'click'} it · order it onto land to unload there`]);
+      if (us.some((u) => u.boarding)) rows.push(['Boarding', `${us.filter((u) => u.boarding).length} on the way to a transport`]);
       rows.push(['Select', this.coarse() ? 'hold or double-tap: all of a type' : 'double-click: all of a type']);
       html = `<div class="t">${esc(title)}</div><div class="s ${fighting ? 'warn' : ''}">${st}</div>
         <div class="hp"><i style="width:${(hp * 100).toFixed(0)}%;background:${hp > 0.6 ? '#5bff9a' : hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row ${k === 'Move' || k === 'Select' ? 'tip' : ''}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
-        <div class="grp"><button data-act="stop" title="Stop and guard here (X)">Stop</button><button data-act="deselect">Done</button></div>`;
+        ${rows.map(([k, v]) => `<div class="row ${k === 'Move' || k === 'Select' || k === 'Load' ? 'tip' : ''}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+        <div class="grp"><button data-act="stop" title="Stop and guard here (X)">Stop</button>${us.some((u) => u.cargo) ? '<button data-act="unload" title="Land everyone aboard on the nearest shore">Unload</button>' : ''}<button data-act="deselect">Done</button></div>`;
     } else if (sel.kind === 'colonist') {
       const c = this.people.colonistCard(s, sel.id);
       if (!c) { this.d.ui.sel = null; card.classList.remove('on'); return; }
@@ -329,11 +335,12 @@ export class ColonyHud {
       let queue = '';
       if (d.role === 'factory' && b.progress >= 1) {
         const q = b.queue ?? [];
-        const total = s.units.length + s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
-        rows.push(['Army', `${s.units.length} / ${this.d.rules.maxUnits}${total > s.units.length ? ` (+${total - s.units.length} queued)` : ''}`]);
+        const aboard = s.units.reduce((m, u) => m + (u.cargo ?? 0), 0), army = s.units.length + aboard;
+        const total = army + s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
+        rows.push(['Army', `${army} / ${this.d.rules.maxUnits}${total > army ? ` (+${total - army} queued)` : ''}`]);
         queue = q.length ? `<div class="q">${q.map((k, i) => `<i class="${i ? '' : 'now'}">${esc(this.d.units[k]?.name ?? k)}</i>`).join('')}</div>` : '';
         for (const [k, u] of Object.entries(this.d.units).sort((a, b) => (a[1].cost ?? 0) - (b[1].cost ?? 0))) {
-          if (u.faction !== 'accord' || u.cost === undefined) continue;
+          if (u.faction !== 'accord' || u.cost === undefined || !factoryMakes(d, u)) continue; // a Shipyard builds boats, a Bay vehicles
           if (u.research && this.d.research[u.research] && !s.research?.done.includes(u.research)) continue; // not yet: the Tech Lab lists it
           if (s.story?.locked?.includes(k)) continue; // the story hasn't opened it up yet
           btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || (s.isotopes ?? 0) < (u.isotopes ?? 0) || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆${u.isotopes ? ` ${u.isotopes}◇` : ''}</small></button>`);
@@ -384,6 +391,7 @@ export class ColonyHud {
     }
     if (sel.kind === 'units') {
       if (act === 'stop') this.d.command({ type: 'stop', ids: sel.ids });
+      if (act === 'unload') this.d.command({ type: 'unload', ids: sel.ids });
       if (act === 'deselect') this.d.ui.sel = null;
       this.cardKey = '';
       return;

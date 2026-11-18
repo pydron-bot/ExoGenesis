@@ -31,7 +31,8 @@ export const unitShape = {
   repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', optional: true, help: 'Accord units: repairs damaged units and buildings within Attack range instead of fighting (costs alloys, like a drone\'s repairs).' }),
   nest: bool({ label: 'Nest', optional: true, help: 'Fauna: a nest. One grows on every predator spawn (unless the spawn says no); packs only come from spawns whose nest stands. It never moves or attacks, and regrows after the threat rules\' regrow time.' }),
   guards: int({ label: 'Nest guards', min: 0, max: 30, optional: true, help: 'Nests: swarmers it releases when hurt (at most every 12 s).' }),
-  move: choice(['ground', 'hover'], { label: 'Moves on', optional: true, help: 'ground (empty): land only, finds its way round water. hover: skims over land and water alike.' }),
+  move: choice(['ground', 'hover', 'water'], { label: 'Moves on', optional: true, help: 'ground (empty): land only, finds its way round water. hover: skims over land and water alike. water: boats and sea creatures, open water only (built at a shore factory, a Shipyard; in packs they start from the nearest water to the spawn).' }),
+  carries: int({ label: 'Carries', min: 0, max: 20, optional: true, help: 'Accord transports: how many ground units it can carry. Select ground units and tap it to load them; order it to a spot on land to land them there.' }),
   burrows: bool({ label: 'Burrows', optional: true, help: 'Fauna: travels underground to its target, through walls and unseen (radar still shows it), then surfaces to attack.' }),
   packEvery: int({ label: 'Joins packs: every', min: 0, max: 100, optional: true, help: 'Fauna: every Nth attacker in a pack is one of these (0 or empty = only if the threat rules name it).' }),
   packFrom: int({ label: 'Joins packs: from pack', min: 0, max: 200, optional: true, help: 'Fauna: first pack (0 = the first) it can join.' }),
@@ -47,7 +48,7 @@ export const unitShape = {
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay', 'lab', 'deepmine', 'reactor'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay', 'lab', 'deepmine', 'reactor', 'generator'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -55,9 +56,10 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core. lab: runs research (Tech Lab). deepmine: mines exotic isotopes from an isotope seam within Range. reactor: steady power while it burns isotopes (Fuel use).',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core. lab: runs research (Tech Lab). deepmine: mines exotic isotopes from an isotope seam within Range. reactor: steady power while it burns isotopes (Fuel use). generator: steady power (its Power), day and night, no conditions (a Tidal Generator).',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
+  site: choice(['land', 'water', 'shore'], { label: 'Built on', optional: true, help: 'land (empty): dry ground. water: offshore, all of it over water at least 1 u deep. shore: straddling the waterline, part on land and part over water. A factory on the shore (a Shipyard) builds boats (units that move on water) and hover craft; one on land builds ground units and hover craft.' }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
   isotopes: int({ label: 'Isotope cost', min: 0, max: 100000, optional: true, help: 'Exotic isotopes, on top of the alloy cost.' }),
   research: ref('research', { label: 'Needs research', optional: true, help: 'Not in the build menu until this research is done (Tech Lab).' }),

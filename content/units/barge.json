@@ -1,0 +1,18 @@
+{
+  "name": "Transport Barge",
+  "faction": "accord",
+  "description": "A flat-decked landing craft. Unarmed, but carries four ground units across the water: select them and tap the barge to load, then order the barge to a spot on land and it puts them ashore there. Anyone aboard is lost if it sinks. Built at a Shipyard.",
+  "hp": 500,
+  "speed": 6,
+  "range": 0,
+  "damage": 0,
+  "cooldown": 1,
+  "radius": 1.6,
+  "aggro": 0,
+  "move": "water",
+  "carries": 4,
+  "sight": 24,
+  "modelScale": 1,
+  "cost": 80,
+  "buildSeconds": 16
+}

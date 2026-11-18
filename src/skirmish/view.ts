@@ -188,11 +188,13 @@ export class ArmyView {
         h = a[o + 2] + dh * alpha;
       }
       const scale = DEFS[t].scale;
-      // hover craft ride on the water (and bob a little), others stand on the ground
+      // hover craft ride on the water (and bob a little), boats sit in it (rocking gently), others stand on the ground
       let lift = 0;
-      if (DEFS[t].hover) {
+      const mv = DEFS[t].move;
+      if (mv) {
         const g = sampleRaw(x, z);
-        lift = Math.max(0, WATER_LIFT - Math.max(0, g)) + 0.15 + 0.08 * Math.sin(this.clock * 2.3 + s * 1.7);
+        const sea = Math.max(0, WATER_LIFT - Math.max(0, g));
+        lift = mv === 'hover' ? sea + 0.15 + 0.08 * Math.sin(this.clock * 2.3 + s * 1.7) : sea - 0.25 + 0.06 * Math.sin(this.clock * 1.4 + s * 2.1);
       }
       placeMatrix(x, z, h, lift, scale, this.m);
       const i = counts[t]++;

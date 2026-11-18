@@ -680,6 +680,12 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   buildings: () => sim.cur?.buildings ?? [],
   units: () => sim.cur?.units ?? [],
   order: (ids, x, z) => sim.command({ type: 'order', ids, x, z }),
+  riders: (ids, t) => {
+    const us = sim.cur?.units ?? [], tu = us.find((u) => u.id === t);
+    if (!tu || !content.units[tu.unit]?.carries) return [];
+    return ids.filter((id) => { const d = content.units[us.find((u) => u.id === id)?.unit ?? '']; return !!d && !d.carries && (d.move ?? 'ground') === 'ground'; });
+  },
+  board: (ids, t) => sim.command({ type: 'board', ids, transport: t }),
   setBuild,
   select: () => hud.selected(),
   view: (v) => cam.setView(v),

@@ -175,6 +175,12 @@ export interface Unit {
   /** Stuck detection: closest it has got to the goal, and ticks since it last improved. */
   best?: number;
   stall?: number;
+  /** Heading for this transport's id to board it. */
+  ride?: number;
+  /** A transport: the units aboard (off the map: no slot, not in the unit list). */
+  cargo?: Unit[];
+  /** A transport ordered to land its cargo: where (on land) they're going, and the water nearest it (wx, wz). */
+  drop?: { x: number; z: number; wx: number; wz: number };
 }
 
 /** One of the inhabitants at a camp (walker, or the elder who keeps to the centre). */
@@ -372,6 +378,9 @@ export type Command =
   | { type: 'unqueue'; id: number }
   /** Combat units: move (spread out around the point), or stop and guard where they stand. */
   | { type: 'order'; ids: number[]; x: number; z: number }
+  /** Ground units go aboard a transport (it comes in to meet them); `unload` lands a transport's cargo at the nearest shore. */
+  | { type: 'board'; ids: number[]; transport: number }
+  | { type: 'unload'; ids: number[] }
   | { type: 'stop'; ids: number[] }
   | { type: 'landing'; stage: LandingStage }
   /** A story card answered: the choice's index (0 for Continue). */
@@ -416,6 +425,10 @@ export interface DroneSnap {
 export interface UnitSnap {
   id: number; unit: string; slot: number; x: number; z: number; hp: number;
   order: Unit['order']['kind']; tx: number; tz: number; engaged: boolean;
+  /** A transport: how many are aboard. */
+  cargo?: number;
+  /** On its way to board a transport. */
+  boarding?: boolean;
 }
 
 export interface CampSnap {
