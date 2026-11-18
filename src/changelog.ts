@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.24.1',
+    date: '2026-11-18',
+    title: 'Smoother worlds',
+    notes: ['The other planets and moons are smooth-shaded and rounder up close, so the title tour looks its best'],
+  },
+  {
     version: '0.24.0',
     date: '2026-11-18',
     title: 'Grand tour',

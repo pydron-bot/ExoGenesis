@@ -4,6 +4,7 @@
  * it. Distances are compressed for play, not to physical scale.
  */
 import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm3, smoothstep } from './noise';
 import { R as HOME_R, U, buildAtmosphere } from './planet';
 
@@ -57,7 +58,13 @@ function markerSprite(color: string): THREE.Sprite {
 }
 
 function rockyPlanet(radius: number, sd: number, palette: string[], detail = 14, bump = 0.035): THREE.Mesh {
-  const geo = new THREE.IcosahedronGeometry(1, detail);
+  // big enough for the title tour's close-ups: a finer mesh so the silhouette stays round
+  if (radius >= 600) detail = Math.max(detail, 18);
+  // shared vertices, so the normals average across faces (smooth shading)
+  const ico = new THREE.IcosahedronGeometry(1, detail);
+  ico.deleteAttribute('normal');
+  ico.deleteAttribute('uv');
+  const geo = mergeVertices(ico, 1e-6);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const col = new Float32Array(pos.count * 3);
   const d = new THREE.Vector3();
@@ -75,7 +82,7 @@ function rockyPlanet(radius: number, sd: number, palette: string[], detail = 14,
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
+  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
 }
 
 function giant(radius: number, palette: string[], sd: number, ring?: { inner: number; outer: number; color: string; opacity: number; tilt: number }): THREE.Group {
