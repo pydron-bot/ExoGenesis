@@ -108,6 +108,11 @@ export interface Hostile {
   under?: boolean;
   best?: number;
   stall?: number;
+  /** Waypoints round water toward `goal` (ground fauna); re-planned at `repath`, last planned at `planned`. */
+  path?: number[];
+  goal?: [number, number];
+  repath?: number;
+  planned?: number;
   /** A nest (unit `nest`): never moves; `spawn` is its predator spawn index. */
   nest?: number;
   /** Hit points at the last tick (nests release guards when hurt). */

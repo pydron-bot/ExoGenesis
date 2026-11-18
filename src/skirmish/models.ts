@@ -106,6 +106,35 @@ export function scoutGeo() {
 }
 export function scoutGlow() { return merge([box(1.4, 0.06, 0.1, 0, 0.75, -0.6), box(0.3, 0.1, 0.3, 0, 1.42, -0.2)]); }
 
+/** Hover skiff: a broad flat hull on an air skirt, a twin gun on top and fans at the back (it floats; no wheels). */
+export function skiffGeo() {
+  const hull = new THREE.CylinderGeometry(1.0, 1.15, 0.45, 8).scale(1, 1, 1.5).translate(0, 0.75, 0);
+  const skirt = new THREE.CylinderGeometry(1.2, 1.25, 0.25, 8).scale(1, 1, 1.5).translate(0, 0.42, 0);
+  const prow = new THREE.ConeGeometry(0.75, 1.1, 4).rotateX(Math.PI / 2).rotateZ(Math.PI / 4).scale(1, 0.45, 1).translate(0, 0.8, 1.95);
+  const fanL = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 8).rotateX(Math.PI / 2).translate(-0.55, 1.15, -1.55);
+  const fanR = fanL.clone().translate(1.1, 0, 0);
+  return merge([
+    hull, skirt, prow, fanL, fanR, box(0.8, 0.4, 0.9, 0, 1.18, 0.1),
+    new THREE.CylinderGeometry(0.08, 0.08, 1.2, 5).rotateX(Math.PI / 2).translate(-0.18, 1.3, 0.95),
+    new THREE.CylinderGeometry(0.08, 0.08, 1.2, 5).rotateX(Math.PI / 2).translate(0.18, 1.3, 0.95),
+  ]);
+}
+export function skiffGlow() { return merge([box(1.9, 0.06, 0.08, 0, 0.58, 0.9), box(0.82, 0.08, 0.08, 0, 1.25, 0.56), box(1.6, 0.06, 0.06, 0, 1.15, -1.75)]); }
+
+/** Strider: a wader on four long jointed legs, a small body slung high, a long probing snout. */
+export function striderGeo() {
+  const parts: THREE.BufferGeometry[] = [];
+  const body = ico(0.6); body.scale(0.8, 0.55, 1.3).translate(0, 2.3, 0);
+  const snout = cone(0.22, 1.3, 5).rotateX(Math.PI / 2 + 0.35).translate(0, 2.05, 1.25);
+  parts.push(body, snout);
+  for (const z of [-0.55, 0.55]) for (const x of [-1, 1]) {
+    // upper leg out and up to a knee, lower leg down to the ground
+    parts.push(new THREE.CylinderGeometry(0.07, 0.09, 1.3, 4).rotateZ(x * 0.9).translate(x * 0.75, 2.6, z));
+    parts.push(new THREE.CylinderGeometry(0.06, 0.03, 2.9, 4).rotateZ(-x * 0.18).translate(x * 1.55, 1.6, z));
+  }
+  return merge(parts);
+}
+
 /** Spitter: a hunched creature with a swollen venom sac and a raised neck. */
 export function spitterGeo() {
   const parts: THREE.BufferGeometry[] = [];
@@ -171,6 +200,8 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   arc: { geo: arcGeo, glow: arcGlow, material: () => accordMaterial(0.45) },
   engineer: { geo: engineerGeo, glow: engineerGlow, material: () => accordMaterial(0.35) },
   scout: { geo: scoutGeo, glow: scoutGlow, material: () => accordMaterial(0.6) },
+  skiff: { geo: skiffGeo, glow: skiffGlow, material: () => accordMaterial(0.5) },
+  strider: { geo: striderGeo, material: () => faunaMaterial('#4f7f86', '#0f3a40') },
   swarmer: { geo: () => creatureGeo(false), material: () => faunaMaterial('#c0563a', '#5a1408') },
   brute: { geo: () => creatureGeo(true), material: () => faunaMaterial('#8a3550', '#3a0a1c') },
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },

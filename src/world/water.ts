@@ -210,6 +210,13 @@ export function buildWater(detailed: boolean): THREE.Mesh | null {
       nrm.push(d.x, d.y, d.z);
       depth.push(h); foam.push(wetFoam); xz.push(x, z);
     }
+    // foam only where the bed shelves (per vertex, so it blends): wide flats a hand deep stay clear, not a white sheet
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+      const at = (a: number, b: number) => hs[Math.min(nz, Math.max(0, b)) * (nx + 1) + Math.min(nx, Math.max(0, a))];
+      const slope = Math.hypot(at(i + 1, j) - at(i - 1, j), at(i, j + 1) - at(i, j - 1)) / (2 * step);
+      const k = Math.min(1, Math.max(0, (slope - 0.025) / 0.08));
+      foam[base + j * (nx + 1) + i] *= k * k * (3 - 2 * k);
+    }
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
       const a = j * (nx + 1) + i, b = a + 1, cc = a + nx + 1, dd = cc + 1;
       if (Math.min(hs[a], hs[b], hs[cc], hs[dd]) > 0.8) continue; // dry: no water here

@@ -31,6 +31,7 @@ export const unitShape = {
   repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', optional: true, help: 'Accord units: repairs damaged units and buildings within Attack range instead of fighting (costs alloys, like a drone\'s repairs).' }),
   nest: bool({ label: 'Nest', optional: true, help: 'Fauna: a nest. One grows on every predator spawn (unless the spawn says no); packs only come from spawns whose nest stands. It never moves or attacks, and regrows after the threat rules\' regrow time.' }),
   guards: int({ label: 'Nest guards', min: 0, max: 30, optional: true, help: 'Nests: swarmers it releases when hurt (at most every 12 s).' }),
+  move: choice(['ground', 'hover'], { label: 'Moves on', optional: true, help: 'ground (empty): land only, finds its way round water. hover: skims over land and water alike.' }),
   burrows: bool({ label: 'Burrows', optional: true, help: 'Fauna: travels underground to its target, through walls and unseen (radar still shows it), then surfaces to attack.' }),
   packEvery: int({ label: 'Joins packs: every', min: 0, max: 100, optional: true, help: 'Fauna: every Nth attacker in a pack is one of these (0 or empty = only if the threat rules name it).' }),
   packFrom: int({ label: 'Joins packs: from pack', min: 0, max: 200, optional: true, help: 'Fauna: first pack (0 = the first) it can join.' }),

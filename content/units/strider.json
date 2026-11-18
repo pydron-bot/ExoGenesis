@@ -1,0 +1,17 @@
+{
+  "name": "Strider",
+  "faction": "fauna",
+  "description": "A long-legged wader. Walks straight through water that turns the rest of the pack aside, so it reaches the base first, from the side you weren't watching.",
+  "hp": 90,
+  "speed": 6,
+  "range": 2,
+  "damage": 11,
+  "cooldown": 0.8,
+  "weapon": "bite",
+  "radius": 1,
+  "aggro": 18,
+  "move": "hover",
+  "modelScale": 1,
+  "packEvery": 9,
+  "packFrom": 8
+}

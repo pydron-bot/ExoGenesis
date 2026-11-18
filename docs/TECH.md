@@ -456,6 +456,31 @@ How content is stored and edited in general (one JSON record per file, schemas i
     a coastal region keeping its sea gets it, detailed by default), `tools/options-smoke.mjs` (the toggle).
   - Test site: Touchdown moved to `siteLat: -16, siteLon: -12` with `keepSea: true` (as in `tools/region-smoke.mjs`),
     played through the editor preview.
+- **Movement types: ground and hover (v0.34.0):** a unit's **Moves on** field (`move`: ground when empty, or hover).
+  Stage 1 of water, hover and air (plan: 2 = water units and shore/offshore buildings, 3 = air units and anti-air).
+  - Pathing (`src/sim/path.ts`): `PathGrid(limit, move, height?)`. Ground grids block water (raw < `WET` 0.3);
+    hover grids block only building bodies. The sim keeps one grid for colonists (every building blocks), one per
+    movement type for combat units (gates don't block), and one terrain-only grid for fauna, built on first use.
+    `steer` takes the move too: hover movers don't sidestep water.
+  - Predators used to steer straight at their target and slide along shores, so a bay between them and the base
+    could stall them. Ground fauna now follow a path round water (`chase`): re-planned every 40 to 50 ticks, or
+    when the target has moved more than 3 u (at most every 10 ticks). Walls still don't count for them: they walk
+    up to walls and chew through them as before. Hover fauna go straight. Hostiles carry `path`, `goal`,
+    `repath`, `planned`. A target unreachable by land (a building on an island) still strands ground fauna on the
+    shore. Stage 2 should retarget.
+  - Drawing (`src/skirmish/view.ts`): hover units ride on the water (`WATER_LIFT` over sea level) plus 0.15 u,
+    bobbing 0.08 u.
+  - The editor's "way packs walk in" overlay plans the same path on the live terrain (a fresh grid per call).
+  - Content: the **Scout Skimmer** hovers. New **Hover Skiff** (accord, 75 alloys, 190 hp, speed 9, range 16, 7
+    damage every 0.35 s): built-in look `skiffGeo` (hull on an air skirt, twin gun, rear fans). New **Strider**
+    (fauna, hover: wades through water; 90 hp, speed 6, bite 11): joins every 9th pack slot from pack 8, built-in
+    look `striderGeo` (four long legs).
+  - Skirmish is unchanged: its flow fields still treat water as blocked for every unit.
+  - Water foam (`water.ts`) is now scaled per vertex by how steeply the bed shelves (slope 0.025 to 0.105 u/u),
+    so wide shallow flats stay clear instead of turning white. A per-pixel version showed the triangles.
+  - Test: `tools/hover-smoke.mjs` (coastal site keeping its sea: a Rover ordered across a bay goes round and never
+    gets wet, a Skiff crosses mid-bay over the water, a Swarmer walks round the water toward the base, a Strider
+    wades).
 
 ## 3. M1 — one region
 

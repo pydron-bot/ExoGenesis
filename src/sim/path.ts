@@ -1,6 +1,8 @@
 /**
- * Ground pathfinding for combat units: A* over a 2 u grid of the region, with
- * water and building bodies blocked, then string-pulled into a few waypoints.
+ * Pathfinding: A* over a 2 u grid of the region, then string-pulled into a few
+ * waypoints. What blocks depends on how the mover gets about (`Move`): ground
+ * movers can't enter water, hover movers cross it; building bodies block both
+ * (`setBodies`; a grid that never gets bodies is terrain-only, as fauna use).
  *
  * The blocked grid is rebuilt only when the set of buildings changes. Distances
  * are Float64: Float32 rounding re-expands equal-cost nodes and blows up the heap
@@ -9,6 +11,13 @@
 import { regionHeightRaw } from '../world/planet';
 
 export const CELL = 2;
+/** Ground below this is water to the sim. */
+export const WET = 0.3;
+
+/** How a unit gets about: ground (land only) or hover (land and water). */
+export type Move = 'ground' | 'hover';
+/** A unit record's movement type (ground when unset). */
+export const moveOf = (u: { move?: Move }): Move => u.move ?? 'ground';
 
 interface Body { x: number; z: number; r: number }
 
@@ -25,15 +34,17 @@ export class PathGrid {
   private stamp = 0;
   private heap: Int32Array;
 
-  constructor(private limit: number) {
+  /** `height`: raw ground height at region coords (the editor passes its live terrain). */
+  constructor(private limit: number, readonly move: Move = 'ground', height: (x: number, z: number) => number = regionHeightRaw) {
     this.n = Math.floor((limit * 2) / CELL);
     const nn = this.n * this.n;
     this.water = new Uint8Array(nn);
     this.blocked = new Uint8Array(nn);
-    for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
+    if (move === 'ground') for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) {
       const { x, z } = this.centre(i, j);
-      this.water[j * this.n + i] = regionHeightRaw(x, z) < 0.3 ? 1 : 0;
+      this.water[j * this.n + i] = height(x, z) < WET ? 1 : 0;
     }
+    this.blocked.set(this.water);
     this.g = new Float64Array(nn);
     this.f = new Float64Array(nn);
     this.from = new Int32Array(nn);

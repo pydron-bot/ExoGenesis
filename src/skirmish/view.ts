@@ -10,7 +10,8 @@
  * 350 units at phone size, the models alone doubled the frame's triangles.
  */
 import * as THREE from 'three';
-import { placeMatrix, regionPoint } from '../world/heightGrid';
+import { placeMatrix, regionPoint, sampleRaw } from '../world/heightGrid';
+import { WATER_LIFT } from '../world/water';
 import { flattenForInstancing, loadModel } from '../assets/models';
 import { builtinUnitLook } from './models';
 import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, type SkSnapshot } from './types';
@@ -94,6 +95,7 @@ export class ArmyView {
   private tracers: Pool;
   private flashes: Pool;
   private lastTick = -1;
+  private clock = 0;
   private m = new THREE.Matrix4();
   private v1 = new THREE.Vector3();
   private v2 = new THREE.Vector3();
@@ -165,6 +167,7 @@ export class ArmyView {
    */
   update(prev: SkSnapshot, cur: SkSnapshot, alpha: number, selected: Map<number, number>, dt: number, camDist = 0) {
     const a = prev.units, b = cur.units;
+    this.clock += dt;
     const counts = this.counts.fill(0);
     let rings = 0, bars = 0;
     this.near = camDist < (this.near ? LOD_FAR : LOD_NEAR);
@@ -185,7 +188,13 @@ export class ArmyView {
         h = a[o + 2] + dh * alpha;
       }
       const scale = DEFS[t].scale;
-      placeMatrix(x, z, h, 0, scale, this.m);
+      // hover craft ride on the water (and bob a little), others stand on the ground
+      let lift = 0;
+      if (DEFS[t].hover) {
+        const g = sampleRaw(x, z);
+        lift = Math.max(0, WATER_LIFT - Math.max(0, g)) + 0.15 + 0.08 * Math.sin(this.clock * 2.3 + s * 1.7);
+      }
+      placeMatrix(x, z, h, lift, scale, this.m);
       const i = counts[t]++;
       const model = near ? this.models[t] : null;
       const body = model ?? this.bodies[t];
