@@ -1301,8 +1301,8 @@ function drawPlanet() {
   viewHandle?.dispose();
   viewHandle = renderPlanet($('main'), $('aside'), {
     regions: recordsOf('regions').filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => {
-      const d = r.rec.data as { name?: string; siteLat?: number; siteLon?: number; body?: string; size?: number };
-      return { id: r.id, name: d.name || r.id, lat: d.siteLat ?? 0, lon: d.siteLon ?? 0, body: d.body || 'home', size: d.size ?? 240 };
+      const d = r.rec.data as { name?: string; siteLat?: number; siteLon?: number; body?: string; size?: number; keepSea?: boolean };
+      return { id: r.id, name: d.name || r.id, lat: d.siteLat ?? 0, lon: d.siteLon ?? 0, body: d.body || 'home', size: d.size ?? 240, keepSea: !!d.keepSea };
     }),
     bodies: recordsOf('bodies').filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => {
       const d = r.rec.data as { name?: string; kind?: string };

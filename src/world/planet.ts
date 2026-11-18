@@ -140,14 +140,17 @@ const DRY_FLOOR = 0.6;
 const dry = (h: number) => (body.ocean ? h : Math.max(DRY_FLOOR, h));
 /**
  * The region being played sits on dry land: ground within ~15° of its centre is
- * lifted (`ang` in radians). Only bodies with seas need it.
+ * lifted (`ang` in radians). Only bodies with seas need it, and a region that
+ * keeps its sea (region field `keepSea`) skips it: see `setRegionTerrain`.
  */
 export const siteLift = (ang: number, w: BodyTerrain = body) => (w.ocean ? (1 - smoothstep(0.04, 0.26, ang)) * 40 : 0);
 export const bodyFlora = (b: THREE.Vector3, w: BodyTerrain = body) => fbm3(b.x * 14 + 11, b.y * 14, b.z * 14, 3, 33) + w.plants;
 
+/** False while the region being played keeps the body's seas (no lift round it). */
+let lifted = true;
 export function globeHeight(d: THREE.Vector3): number {
-  // keep the landing site (and the tutorial regions around it) on dry land
-  return dry(bodyHeight(bodyDir(d)) + siteLift(Math.acos(Math.min(1, d.dot(U)))));
+  // keep the landing site (and the tutorial regions around it) on dry land, unless the region keeps its sea
+  return dry(bodyHeight(bodyDir(d)) + (lifted ? siteLift(Math.acos(Math.min(1, d.dot(U)))) : 0));
 }
 
 export function floraAt(d: THREE.Vector3): number {
@@ -210,10 +213,12 @@ export interface RegionTerrain {
   world?: BodyTerrain;
   paints?: string[];
   detail?: RegionDetail;
+  /** Leave the body's seas where they are: no dry-land lift round the region. */
+  keepSea?: boolean;
 }
 interface RegionLike {
   name?: string; height?: string[]; flora?: string[]; ground?: string[]; siteLat?: number; siteLon?: number; size?: number; body?: string;
-  paints?: { color?: string }[]; detail?: number; detailSize?: number; detailSeed?: number;
+  paints?: { color?: string }[]; detail?: number; detailSize?: number; detailSeed?: number; keepSea?: boolean;
 }
 /**
  * The terrain part of a region record, with its body looked up in `bodies`
@@ -232,6 +237,7 @@ export function regionTerrain(r: RegionLike, bodies?: Record<string, unknown>): 
       freq: r.detailSize ? 0.45 / r.detailSize : DEFAULT_DETAIL.freq,
       seed: r.detailSeed ?? DEFAULT_DETAIL.seed,
     },
+    keepSea: r.keepSea || undefined,
   };
 }
 /** A region's side length, 240 u unless it says. */
@@ -245,6 +251,7 @@ export function setRegionTerrain(t: RegionTerrain) {
   setBody(t.world ?? HOME_BODY);
   setRegionSize(t.size ?? DEFAULT_REGION_SIZE);
   detail = t.detail ?? DEFAULT_DETAIL;
+  lifted = !t.keepSea;
   setRegionSite(t.siteLat, t.siteLon);
   if (t.name) siteName = t.name.toUpperCase();
   const n = NC;

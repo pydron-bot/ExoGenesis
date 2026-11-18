@@ -8,13 +8,13 @@
  * The map is an equirectangular projection in the region frame (so 0, 0 is in
  * the middle), coloured with the game's own terrain functions for that body. In
  * game the ground under the region being played is lifted onto dry land on a
- * body with seas (planet.ts `siteLift`); the map shows that lift round every region.
+ * body with seas (planet.ts `siteLift`) unless it keeps its sea; the map shows that lift round every region that has it.
  */
 import * as THREE from 'three';
 import { DEFAULT_REGION_SIZE } from '../sim/types';
 import { bodyFlora, bodyHeight, bodyTerrain, siteDir, siteLift, terrainColorFor, type BodyTerrain } from '../world/planet';
 
-export interface PlanetRegion { id: string; name: string; lat: number; lon: number; body: string; size: number }
+export interface PlanetRegion { id: string; name: string; lat: number; lon: number; body: string; size: number; keepSea?: boolean }
 export interface PlanetBody { id: string; name: string; kind: string; def: Record<string, unknown> }
 export interface PlanetHost {
   regions: PlanetRegion[];
@@ -134,7 +134,7 @@ export function renderPlanet(main: HTMLElement, aside: HTMLElement, host: Planet
   const paint = () => {
     if (!base) return;
     const data = ictx.createImageData(W, H), c = new THREE.Color();
-    const dirs = regs.map((r) => siteDir(r.lat, r.lon));
+    const dirs = regs.filter((r) => !r.keepSea).map((r) => siteDir(r.lat, r.lon));
     for (let i = 0; i < W * H; i++) {
       let lift = 0;
       for (const d of dirs) {

@@ -45,6 +45,16 @@ const full = Math.round(content.threats.startSize);
 check(first && first.size <= Math.ceil(full * 0.5 * content.threats.nightBoost), `region pack scale applies (first pack ${first?.size}, rules say ${full})`);
 check(sim.s.waves.next - sim.s.tick <= (40 + content.threats.waveJitter) * 10, 'region pack interval applies');
 
+// on a body with seas the ground round a region is lifted dry, unless it keeps its sea
+const wet = () => { let w = 0; for (let x = -110; x <= 110; x += 10) for (let z = -110; z <= 110; z += 10) if (planet.regionHeightRaw(x, z) < 0.3) w++; return w; };
+const coast = { ...td, height: undefined, flora: undefined, ground: undefined, siteLat: -16, siteLon: -12 };
+planet.setRegionTerrain(planet.regionTerrain(coast, content.bodies));
+const dryN = wet();
+planet.setRegionTerrain(planet.regionTerrain({ ...coast, keepSea: true }, content.bodies));
+const wetN = wet();
+check(dryN === 0 && wetN > 50, `a coastal region is lifted dry (${dryN} wet samples) unless it keeps its sea (${wetN})`);
+check(planet.regionHeightRaw(0, 0) >= 1.5, 'the Core\'s pad stays dry in a region that keeps its sea');
+
 planet.setRegionTerrain(td);
 const back = probe();
 check(back.every((h, i) => Math.abs(h - h0[i]) < 1e-6), 'back at Touchdown the ground is as before');

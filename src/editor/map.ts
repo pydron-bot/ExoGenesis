@@ -109,7 +109,7 @@ let proc: Float32Array | null = null, fade: Float32Array, pad: Float32Array, flo
 let procSite = '';
 function precompute(d: Record<string, unknown>, bodies?: Record<string, unknown>) {
   const t = regionTerrain({ ...(d as object), height: undefined, flora: undefined, ground: undefined }, bodies);
-  const key = JSON.stringify([t.world, t.size, t.siteLat, t.siteLon, t.detail]);
+  const key = JSON.stringify([t.world, t.size, t.siteLat, t.siteLon, t.detail, t.keepSea]);
   if (proc && procSite === key) return;
   procSite = key;
   setRegionTerrain(t);
@@ -1172,7 +1172,7 @@ export class MapEditor {
       a.append(row);
     }
     sec('Place on the body');
-    fields(['siteLat', 'siteLon'], () => { this.resite(); this.host.changed(); });
+    fields(['siteLat', 'siteLon', 'keepSea'], () => { this.resite(); this.host.changed(); });
     a.append(el('div', 'help', 'Or drag it on Maps → Planet map.'));
 
     sec('Generate');

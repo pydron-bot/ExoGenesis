@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.30.0',
+    date: '2026-11-18',
+    title: 'Coasts',
+    notes: [
+      'Regions can now sit on the coast with real sea in them, instead of always being raised onto dry land',
+      'Editor: a region\'s new Keep the sea option (map editor, Place on the body) leaves the world\'s seas and coastline as they are round the region; the Core\'s landing pad stays dry, and sculpting below sea level makes more water',
+    ],
+  },
+  {
     version: '0.29.0',
     date: '2026-11-18',
     title: 'Other worlds',

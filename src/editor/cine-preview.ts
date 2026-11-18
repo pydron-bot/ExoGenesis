@@ -162,7 +162,7 @@ export class CinePreview {
   /** The draft changed: rebuild the player (and the terrain if the region did). */
   refresh() {
     const d = this.src.draft(), reg = this.region();
-    const key = `${reg.id}:${reg.def?.body ?? ''}:${reg.def?.size ?? 240}:${JSON.stringify(reg.def?.ground?.length ?? 0)}:${(reg.def?.height ?? []).length}:${reg.def?.siteLat ?? 0}:${reg.def?.siteLon ?? 0}:${JSON.stringify(reg.def?.camps ?? [])}:${JSON.stringify(reg.def?.sites ?? [])}`;
+    const key = `${reg.id}:${reg.def?.body ?? ''}:${reg.def?.size ?? 240}:${JSON.stringify(reg.def?.ground?.length ?? 0)}:${(reg.def?.height ?? []).length}:${reg.def?.siteLat ?? 0}:${reg.def?.siteLon ?? 0}:${reg.def?.keepSea ? 1 : 0}:${JSON.stringify(reg.def?.camps ?? [])}:${JSON.stringify(reg.def?.sites ?? [])}`;
     if (key !== this.regionKey) { this.regionKey = key; this.buildRegion(reg.def); }
     this.path = null;
     if (!d?.camera?.length || !(d.length > 0)) { this.cine = null; this.piece = null; this.ui.note.textContent = 'Add a camera key to preview (fly the view, then ＋ Key from view).'; this.render(); return; }

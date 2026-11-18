@@ -165,6 +165,13 @@ How content is stored and edited in general (one JSON record per file, schemas i
   (`regionCells`; schema grids with `cols: 0` take their size from the record and the content check compares).
   The map editor's **World and size** resizes a region: sculpt, flora and ground paint are cropped or padded round
   the centre and markers outside move in to the new edge.
+- **Coastal regions** (v0.30.0): on a body with seas the ground within ~15° of the region being played is lifted
+  40 u onto dry land (`siteLift` in `src/world/planet.ts`). A region's `keepSea` turns that off (`setRegionTerrain`
+  sets `lifted`, which `globeHeight` reads), so the body's own seas and coast show in the region; the Core's pad
+  (`padHeight`, at least 1.5 u) stays dry. Below 0.3 u the sim treats ground as water (no building, units path round
+  it), flora skips ground below 2.5 u. Map editor: Place on the body → Keep the sea; the Planet map leaves out the
+  lift round such regions. Test: `tools/region-smoke.mjs` (a coastal site is dry with the lift, about a third water
+  without).
 - **Ground paint and generators** (v0.27.0): a region's `ground` grid (paint × 100 + amount) tints the generated
   ground colour with one of its `paints` (up to 8; the standard eight when it lists none) wherever the game colours
   the ground (`applyGroundPaint` / `regionColor` in `world/planet.ts`: the landing patch, the globe under the

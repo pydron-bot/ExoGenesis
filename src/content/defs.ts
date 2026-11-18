@@ -637,6 +637,7 @@ export const regionShape = {
   floraDensity: num({ label: 'Flora density', min: 0, max: 3, step: 0.05, default: 1, help: 'Multiplies the number of plants everywhere.' }),
   siteLat: num({ label: 'Site: degrees north', min: -80, max: 80, step: 1, unit: '°', optional: true, help: 'Where on the planet the region sits, from Touchdown. Moving it changes the generated ground under your sculpting (0, 0 = Touchdown\'s spot).' }),
   siteLon: num({ label: 'Site: degrees east', min: -180, max: 180, step: 1, unit: '°', optional: true, help: 'Degrees east of Touchdown.' }),
+  keepSea: bool({ label: 'Keep the sea', optional: true, help: 'On a world with seas the ground round a region is normally raised onto dry land. Tick this to leave the sea and coast as they are (the Core\'s pad stays dry). Sculpt below 0 for more water: units and buildings can\'t go in it.' }),
   packScale: num({ label: 'Pack size ×', min: 0, max: 5, step: 0.05, optional: true, help: 'Multiplies every predator pack here (and the largest pack). Empty = 1, as the threat rules say.' }),
   graceSeconds: num({ label: 'Grace period', min: 0, max: 7200, unit: 's', optional: true, help: 'No attacks before this. Empty = the threat rules\' grace period.' }),
   waveInterval: num({ label: 'Time between packs', min: 10, max: 3600, unit: 's', optional: true, help: 'Empty = the threat rules\' interval.' }),
