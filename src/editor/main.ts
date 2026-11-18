@@ -774,7 +774,7 @@ function renderForm() {
     (form.querySelector('.row[data-key=file] input') as HTMLInputElement).readOnly = true;
     (form.querySelector('.row[data-key=kind] select') as HTMLSelectElement).disabled = true;
     if ((cur.draft as unknown as AssetDef).kind !== 'model') {
-      for (const k of ['scale', 'yaw', 'lift']) form.querySelector(`.row[data-key=${k}]`)?.remove();
+      for (const k of ['scale', 'yaw', 'lift', 'far']) form.querySelector(`.row[data-key=${k}]`)?.remove();
     }
   }
   main.replaceChildren(

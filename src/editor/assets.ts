@@ -404,7 +404,7 @@ export class AssetPanel {
       for (const b of BUILTINS) { const o = el('option', '', `Compare with: ${b.name}`); o.value = b.id; sel.append(o); }
       // default comparison: the built-in this model replaces
       const firstUse = used[0];
-      this.refId = firstUse ? (BUILTINS.find((b) => b.usedBy?.coll === firstUse.coll && b.usedBy.id === firstUse.id)?.id ?? '') : '';
+      this.refId = (firstUse ? BUILTINS.find((b) => b.usedBy?.coll === firstUse.coll && b.usedBy.id === firstUse.id)?.id : undefined) ?? a.far ?? '';
       sel.value = this.refId;
       sel.onchange = () => { this.refId = sel.value; this.showRef(); };
       tools.append(sel,

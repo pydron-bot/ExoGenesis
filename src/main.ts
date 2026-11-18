@@ -845,7 +845,7 @@ function frame(now: number) {
     fogView.update(sim.cur.fog, dt);
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
-    natives?.update(sim.prev, sim.cur, alpha, gameT);
+    natives?.update(sim.prev, sim.cur, alpha, gameT, cam.dist);
     if ((fireStory || startMission || fireCine || preview?.setup) && sim.cur.deployed && !storyFired) {
       storyFired = true;
       sim.command({ type: 'debug', setup: preview?.setup, story: fireStory ?? undefined, mission: startMission ?? undefined, cinematic: fireCine ?? undefined });
