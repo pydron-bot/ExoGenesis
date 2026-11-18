@@ -1,0 +1,18 @@
+{
+  "name": "Lancer",
+  "faction": "accord",
+  "description": "Rail lance on a heavy chassis. Slow to charge, but each slug hits hard and far: the answer to Brutes and anything big. Wasted on swarms.",
+  "hp": 220,
+  "speed": 4.6,
+  "range": 30,
+  "damage": 100,
+  "cooldown": 2.8,
+  "weapon": "rail",
+  "radius": 1.1,
+  "aggro": 30,
+  "sight": 40,
+  "model": "exo-lancer",
+  "modelScale": 1,
+  "cost": 140,
+  "buildSeconds": 26
+}

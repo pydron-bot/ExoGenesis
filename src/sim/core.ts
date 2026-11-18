@@ -114,6 +114,7 @@ function weaponFx(w: Weapon, building: boolean): number {
     case 'shell': return FX.SHELL;
     case 'arc': return FX.ARC;
     case 'pd': return FX.PD_SHOT;
+    case 'rail': return FX.RAIL;
     case 'spit': return FX.SPIT;
     default: return FX.BITE;
   }
@@ -270,7 +271,7 @@ export class Sim {
       if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
-        const rank = d.fireRange ? 0 : d.role === 'civic' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' ? 2 : 3;
+        const rank = d.fireRange ? 0 : d.role === 'civic' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' ? 2 : 3;
         const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
         loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw(), rank, battery: d.role !== 'depot' });
       } else b.powered = true;

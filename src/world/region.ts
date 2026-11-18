@@ -1062,12 +1062,12 @@ export class RegionView {
       g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = mat; });
       const d = this.rules.defs[ui.build];
       if (d?.fireRange) this.rangeRing.set(ui.ghost.x, ui.ghost.z, d.fireRange);
-      if (d?.role === 'depot' && d.range) this.reachRing.set(ui.ghost.x, ui.ghost.z, d.range);
+      if ((d?.role === 'depot' || d?.role === 'relay') && d.range) this.reachRing.set(ui.ghost.x, ui.ghost.z, d.range);
     } else if (selB) {
       const d = this.rules.defs[selB.kind];
       if (d?.fireRange) this.rangeRing.set(selB.x, selB.z, d.fireRange);
       if (d?.role === 'depot' && d.range) this.reachRing.set(selB.x, selB.z, d.range);
-      if (d?.role === 'core' && d.range) this.reachRing.set(selB.x, selB.z, d.range);
+      if ((d?.role === 'core' || d?.role === 'relay') && d.range) this.reachRing.set(selB.x, selB.z, d.range);
     }
     this.syncAreaRings(ui.build ? cur.buildings : []);
 
@@ -1161,6 +1161,7 @@ export class RegionView {
       const d = this.rules.defs[b.kind];
       if (!d) continue;
       if (d.role === 'core') want.push([b.x, b.z, d.range ?? this.rules.buildRadius]);
+      else if (d.role === 'relay' && b.progress >= 1) want.push([b.x, b.z, Math.max(d.range ?? 0, this.rules.buildRadius + d.clearance / 2)]);
       else if (b.progress >= 1) want.push([b.x, b.z, this.rules.buildRadius + d.clearance / 2]);
     }
     while (this.areaRings.length < want.length) {

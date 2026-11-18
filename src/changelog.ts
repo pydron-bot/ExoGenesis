@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.25.0',
+    date: '2026-11-18',
+    title: 'New arrivals',
+    notes: [
+      'Lancer (Vehicle Bay): a slow rail-lance tank that hits one target very hard from far away. The answer to Brutes; wasted on swarms',
+      'Sensor Mast: a cheap tripod of cameras that clears the fog around it. Put them along mining lines and at gaps in your walls',
+      'Habitat Block: housing for six more colonists, no growth pods, so the colony can grow past the Civilian Center',
+      'Relay Tower: you can build anywhere within its range, so a far deposit or vent no longer needs a chain of buildings',
+    ],
+  },
+  {
     version: '0.24.1',
     date: '2026-11-18',
     title: 'Smoother worlds',

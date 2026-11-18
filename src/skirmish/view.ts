@@ -65,7 +65,7 @@ const C = {
   roverShot: new THREE.Color('#7ff8ff'), tankShot: new THREE.Color('#ffc46b'), bite: new THREE.Color('#ff6a4d'),
   dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
   shell: new THREE.Color('#ff9a3d'), arc: new THREE.Color('#b9a6ff'), spit: new THREE.Color('#a6ff4d'),
-  emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'),
+  emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'), rail: new THREE.Color('#e8fbff'),
   glow: new THREE.Color('#5ff3ff'), glowSel: new THREE.Color('#ffd27a'), white: new THREE.Color('#e9eef2'), hurt: new THREE.Color('#ff5a4a'),
 };
 
@@ -274,6 +274,11 @@ export class ArmyView {
           break;
         }
         case FX.PD_SHOT: this.tracer(x1, z1, 2.0, x2, z2, 0.1, 0.07, C.pd); break;
+        case FX.RAIL:
+          // the whole line at once, thin and white-hot, then a hard flash on the target
+          this.tracer(x1, z1, 1.7, x2, z2, 0.12, 0.3, C.rail);
+          this.flash(x2, z2, 1.6, 0.3, C.rail);
+          break;
         case FX.SPIT:
           this.tracer(x1, z1, 1.9, x2, z2, 0.3, 0.3, C.spit);
           this.flash(x2, z2, 1.1, 0.35, C.spit);

@@ -9,6 +9,7 @@
 - [3. M1 — one region](#3-m1--one-region)
 - [4. M2 — people](#4-m2--people)
 - [5. Proof of concept and performance](#5-proof-of-concept-and-performance)
+- [6. Roster additions](#6-roster-additions)
 
 ## 1. Content and the editor
 
@@ -219,6 +220,9 @@ How content is stored and edited in general (one JSON record per file, schemas i
 - **Skirmish day / night (v0.13.0):** a ☀ Day / ☾ Night button (key N) holds the skirmish at noon or midnight;
   switching runs the sun forward through a ~2.5 s dusk or dawn. Remembered; `?time=day|night` overrides. At night
   the colony lights carry the battle (headlights, gunfire, explosions).
+
+- **Blender set v5 (2026-11-18): roster batch A** (`docs/ROSTER.md`): Lancer (1,372 tris), Sensor Mast (752; head is
+  `dish`), Habitat Block (1,204), Relay Tower (944; beacon bands are `charge`). Same script and conventions.
 
 ## 3. M1 — one region
 
@@ -500,3 +504,17 @@ First results 2026-11-15; later measurements added below them.
   ~400 u. `?surface=0` turns it off. Planet view costs ~2× the old globe in SwiftShader (130 vs 65 ms at
   390 px); the ground view is unchanged. Versions: `package.json` + `src/changelog.ts` (What's new on the
   title and ⋯), checked by `tools/version-check.mjs` in `npm run build`.
+
+## 6. Roster additions
+
+From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a-smoke.mjs`.
+
+- **Lancer (v0.25.0):** a unit record only, plus a new weapon look `rail` (`FX.RAIL` = 13: a thin white
+  full-length tracer and an impact flash; its own synthesised sound, `rail` in the sound rules). 100 damage
+  every 2.8 s at 30 u: three hits kill a Brute.
+- **Sensor Mast (v0.25.0):** new building role `sensor`, which does nothing but see (its Sight, 55 u). Power
+  rank with the radar.
+- **Habitat Block (v0.25.0):** a `civic` building with `pods: 0`, housing 6. The card says "housing only".
+- **Relay Tower (v0.25.0):** new role `relay`: once finished, new buildings may go anywhere within its Range
+  (55 u), like the Core's; `placeProblem` and the placement area rings both know it. Region links come later.
+

@@ -310,6 +310,7 @@ export class ColonyLights {
         this.flash(x2, z2, 5, C.tank, 1.4, 0.2);
         break;
       case 2: this.flash(x2, z2, 3, C.bite, 0.8, 0.12); break; // bite
+      case 13: this.flash(x1, z1, 5, C.rail, 1.6, 0.1); this.flash(x2, z2, 6, C.rail, 1.8, 0.2); break; // rail
       case 3: this.flash(x1, z1, 8, C.dieSmall, 2.2, 0.4, true); break; // small death
       case 4: this.flash(x1, z1, 16, C.dieBig, 3.0, 0.7, true); break; // big death
       case 5: this.flash(x1, z1, 7, C.coreHit, 1.6, 0.25); break; // core hit
@@ -415,7 +416,7 @@ const FXC = {
   rover: new THREE.Color('#7ff8ff'), tank: new THREE.Color('#ffc46b'), bite: new THREE.Color('#ff6a4d'),
   dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
   shell: new THREE.Color('#ff9a3d'), arc: new THREE.Color('#b9a6ff'), spit: new THREE.Color('#a6ff4d'),
-  emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'),
+  emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'), rail: new THREE.Color('#e8fbff'),
 };
 
 /** The live instance (null with `?lights=0`). Renderers that make light (ArmyView) check this. */
