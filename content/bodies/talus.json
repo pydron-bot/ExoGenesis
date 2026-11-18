@@ -1,0 +1,26 @@
+{
+  "name": "TALUS",
+  "sub": "asteroid",
+  "kind": "asteroid",
+  "radius": 420,
+  "orbit": 134000,
+  "ecc": 0.08,
+  "incl": 2.5,
+  "period": 7800,
+  "phase": 40,
+  "relief": 40,
+  "feature": 3.6,
+  "seed": 77,
+  "ground": [
+    {
+      "color": "#4f463e"
+    },
+    {
+      "color": "#7a6d60"
+    },
+    {
+      "color": "#9a8b7a"
+    }
+  ],
+  "description": "The largest rock in the main belt."
+}

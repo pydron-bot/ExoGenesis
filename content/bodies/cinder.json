@@ -1,0 +1,28 @@
+{
+  "name": "CINDER",
+  "sub": "molten",
+  "kind": "planet",
+  "radius": 900,
+  "orbit": 22000,
+  "period": 700,
+  "phase": 17.19,
+  "relief": 45,
+  "feature": 2.2,
+  "seed": 41,
+  "ground": [
+    {
+      "color": "#2a1410"
+    },
+    {
+      "color": "#6b2412"
+    },
+    {
+      "color": "#d2551c"
+    },
+    {
+      "color": "#ffb347"
+    }
+  ],
+  "sky": "#2a1410",
+  "incl": -1.15
+}

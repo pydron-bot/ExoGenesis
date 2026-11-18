@@ -1,0 +1,37 @@
+{
+  "name": "VERDANCE",
+  "sub": "temperate · signal: none",
+  "kind": "planet",
+  "radius": 2600,
+  "orbit": 52000,
+  "period": 2300,
+  "phase": 68.75,
+  "relief": 90,
+  "feature": 2.2,
+  "seed": 3,
+  "ocean": true,
+  "plants": 0.15,
+  "deep": "#1f4e79",
+  "shallow": "#2a6a8a",
+  "shore": "#c9c3a0",
+  "ground": [
+    {
+      "color": "#2f7d5b"
+    },
+    {
+      "color": "#6c8f4a"
+    },
+    {
+      "color": "#c9c3a0"
+    }
+  ],
+  "floraA": "#2f6e3a",
+  "floraB": "#4a8a4f",
+  "snowLine": 70,
+  "snow": "#eef2f0",
+  "atmosphere": "#7fc4ff",
+  "haze": 1.1,
+  "sky": "#9cc4e0",
+  "clouds": true,
+  "incl": -0.48
+}

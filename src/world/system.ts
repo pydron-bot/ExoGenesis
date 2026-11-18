@@ -5,11 +5,11 @@
  */
 import * as THREE from 'three';
 import { fbm3, smoothstep } from './noise';
-import { R as HOME_R, U, buildAtmosphere } from './planet';
-
-type Parent = 'star' | 'home' | Body;
+import type { BodyDef } from '../content/defs';
+import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
 
 interface Body {
+  id: string;
   name: string;
   sub: string;
   obj: THREE.Object3D;
@@ -19,18 +19,19 @@ interface Body {
   incl: number;
   period: number; // real seconds per orbit
   phase: number;
-  parent: Parent;
+  /** The body it orbits (null = the star). */
+  parent: Body | null;
   kind: 'planet' | 'moon' | 'comet';
   label?: HTMLDivElement;
   marker?: THREE.Sprite;
   tail?: THREE.Mesh;
+  /** Position relative to the star. */
+  abs: THREE.Vector3;
+  /** Position in the scene (relative to the body being played, at the origin). */
   pos: THREE.Vector3;
+  k?: number;
 }
 
-const HOME_ORBIT = 75000;
-const HOME_PERIOD = 3600;
-// start with the star above the landing site's horizon
-const HOME_PHASE = Math.atan2(-U.z, -U.x);
 const STAR_R = 5200;
 
 let seed = 7;
@@ -56,29 +57,28 @@ function markerSprite(color: string): THREE.Sprite {
   return s;
 }
 
-function rockyPlanet(radius: number, sd: number, palette: string[], detail = 14, bump = 0.035): THREE.Mesh {
+/** A rocky body from its terrain: the same height and colours as landing on it. */
+function rockyBody(w: BodyTerrain, detail: number): THREE.Mesh {
   const geo = new THREE.IcosahedronGeometry(1, detail);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const col = new Float32Array(pos.count * 3);
   const d = new THREE.Vector3();
-  const cols = palette.map((p) => new THREE.Color(p));
   const c = new THREE.Color();
+  const color = terrainColorFor(w);
   for (let i = 0; i < pos.count; i++) {
     d.fromBufferAttribute(pos, i).normalize();
-    const n = fbm3(d.x * 2.2 + sd, d.y * 2.2, d.z * 2.2, 4, sd);
-    const t = smoothstep(-0.35, 0.35, n) * (cols.length - 1);
-    const k = Math.min(cols.length - 2, Math.floor(t));
-    c.copy(cols[k]).lerp(cols[k + 1], t - k);
+    const h = bodyHeight(d, w);
+    color(h, bodyFlora(d, w), c);
     col.set([c.r, c.g, c.b], i * 3);
-    const h = 1 + Math.max(0, n) * bump;
-    pos.setXYZ(i, d.x * radius * h, d.y * radius * h, d.z * radius * h);
+    const r = w.radius + Math.max(w.ocean ? 0 : 0.6, h);
+    pos.setXYZ(i, d.x * r, d.y * r, d.z * r);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.computeVertexNormals();
   return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
 }
 
-function giant(radius: number, palette: string[], sd: number, ring?: { inner: number; outer: number; color: string; opacity: number; tilt: number }): THREE.Group {
+function giant(radius: number, palette: string[], sd: number, ring?: RingLook): THREE.Group {
   const g = new THREE.Group();
   const geo = new THREE.SphereGeometry(radius, 64, 40);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
@@ -96,15 +96,18 @@ function giant(radius: number, palette: string[], sd: number, ring?: { inner: nu
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })));
-  if (ring) {
-    const r = new THREE.Mesh(
-      new THREE.RingGeometry(radius * ring.inner, radius * ring.outer, 128, 1),
-      new THREE.MeshBasicMaterial({ color: ring.color, transparent: true, opacity: ring.opacity, side: THREE.DoubleSide, depthWrite: false }),
-    );
-    r.rotation.x = -Math.PI / 2 + ring.tilt;
-    g.add(r);
-  }
+  if (ring) g.add(ringMesh(radius, ring));
   return g;
+}
+
+interface RingLook { inner: number; outer: number; color: string; opacity: number; tilt: number }
+function ringMesh(radius: number, ring: RingLook) {
+  const r = new THREE.Mesh(
+    new THREE.RingGeometry(radius * ring.inner, radius * ring.outer, 128, 1),
+    new THREE.MeshBasicMaterial({ color: ring.color, transparent: true, opacity: ring.opacity, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  r.rotation.x = -Math.PI / 2 + ring.tilt;
+  return r;
 }
 
 function glowTexture(): THREE.Texture {
@@ -124,6 +127,7 @@ function glowTexture(): THREE.Texture {
 }
 
 function belt(count: number, r0: number, r1: number, thick: number, size: [number, number], color: string): THREE.InstancedMesh {
+  seed = Math.round(r0) % 2147483646 + 1;
   const mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 1 }), count);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3(), p = new THREE.Vector3();
   for (let i = 0; i < count; i++) {
@@ -137,6 +141,22 @@ function belt(count: number, r0: number, r1: number, thick: number, size: [numbe
   return mesh;
 }
 
+/** A body as seen from elsewhere in the system (and in the editor's Worlds preview). */
+export function buildBodyObject(id: string, d: BodyDef): THREE.Object3D {
+  const ring = d.ring ? { inner: d.ringInner ?? 1.4, outer: d.ringOuter ?? 2.2, color: d.ringColor ?? '#d6c39c', opacity: d.ringOpacity ?? 0.4, tilt: THREE.MathUtils.degToRad(d.ringTilt ?? 24) } : undefined;
+  if (d.kind === 'giant') return giant(d.radius, (d.bands ?? []).map((b) => b.color).filter(Boolean).length ? d.bands!.map((b) => b.color) : ['#c99a6b', '#e6cfa6'], d.seed ?? 9, ring);
+  const w = bodyTerrain(id, d as unknown as Record<string, unknown>);
+  const g = new THREE.Group();
+  g.add(rockyBody(w, detailFor(d.radius)));
+  if (d.atmosphere) g.add(buildAtmosphere(d.radius * 1.05, d.atmosphere, d.haze ?? 1));
+  if (ring) g.add(ringMesh(d.radius, ring));
+  return g;
+}
+
+
+/** How finely a far body is drawn: big bodies get more triangles. */
+const detailFor = (r: number) => (r >= 2000 ? 16 : r >= 1000 ? 12 : r >= 500 ? 10 : r >= 200 ? 6 : 4);
+
 export class SolarSystem {
   readonly starPos = new THREE.Vector3();
   /** Where the sun (and light) is drawn: follows the day near the surface. */
@@ -148,16 +168,23 @@ export class SolarSystem {
   /** Ambient and sky fill (colony lights dim them at night). */
   ambient: THREE.AmbientLight;
   fill: THREE.HemisphereLight;
-  private rings: THREE.Line[] = [];
+  private rings: { line: THREE.Line; body: Body | null; op: number }[] = [];
   private belts: THREE.InstancedMesh[] = [];
   private labelLayer: HTMLElement;
   private homeLabel: HTMLDivElement;
   private homeMarker: THREE.Sprite;
   private stars: THREE.Points;
+  /** The body being played: at the origin, drawn by the globe (not here). */
+  private here: Body;
 
-  constructor(scene: THREE.Scene, labelLayer: HTMLElement) {
+  /**
+   * `defs`: content.bodies; `hereId`: the body the region being played is on.
+   * Every other body is drawn here; the one being played is the scene's globe.
+   */
+  constructor(scene: THREE.Scene, labelLayer: HTMLElement, defs: Record<string, BodyDef> = {}, hereId = 'home') {
     this.labelLayer = labelLayer;
     scene.add(this.group);
+    seed = 7;
 
     // star
     this.star = new THREE.Group();
@@ -180,78 +207,55 @@ export class SolarSystem {
     fill.position.copy(U);
     this.group.add(fill);
 
-    const add = (b: Omit<Body, 'pos' | 'ecc' | 'incl' | 'kind'> & Partial<Pick<Body, 'ecc' | 'incl' | 'kind'>>) => {
-      const kind = b.kind ?? (b.parent === 'star' ? 'planet' : 'moon');
-      const body: Body = { ecc: 0, incl: (rnd() - 0.5) * 0.04, ...b, kind, pos: new THREE.Vector3() };
-      this.group.add(body.obj);
-      body.label = this.makeLabel(b.name, b.sub, kind);
-      body.marker = markerSprite(kind === 'planet' ? '#5ff3ff' : kind === 'comet' ? '#c8f0ff' : '#9fb7c4');
-      this.group.add(body.marker);
-      this.bodies.push(body);
-      return body;
+    // the bodies, parents before their moons
+    if (!defs[hereId]) defs = { ...defs, [hereId]: { name: currentBody().name.toUpperCase(), kind: 'planet', radius: R, orbit: 75000, period: 3600 } as BodyDef };
+    const made = new Map<string, Body>();
+    const make = (id: string, depth = 0): Body | null => {
+      if (made.has(id)) return made.get(id)!;
+      const d = defs[id];
+      if (!d || depth > 12) return null;
+      const parent = d.parent && defs[d.parent] && d.parent !== id ? make(d.parent, depth + 1) : null;
+      const kind: Body['kind'] = d.kind === 'comet' ? 'comet' : parent ? 'moon' : 'planet';
+      const here = id === hereId;
+      const b: Body = {
+        id, name: d.name, sub: d.sub ?? '', obj: here ? new THREE.Group() : buildBodyObject(id, d),
+        radius: d.radius, orbit: d.orbit, ecc: d.ecc ?? 0, incl: THREE.MathUtils.degToRad(d.incl ?? 0), period: d.period,
+        phase: THREE.MathUtils.degToRad(d.phase ?? 0), parent, kind, abs: new THREE.Vector3(), pos: new THREE.Vector3(),
+      };
+      made.set(id, b);
+      this.bodies.push(b);
+      if (here) return b;
+      this.group.add(b.obj);
+      b.label = this.makeLabel(b.name, b.sub, kind);
+      b.marker = markerSprite(kind === 'planet' ? '#5ff3ff' : kind === 'comet' ? '#c8f0ff' : '#9fb7c4');
+      this.group.add(b.marker);
+      if (d.kind === 'comet') {
+        const tail = new THREE.Mesh(
+          new THREE.ConeGeometry(1, 1, 16, 1, true).translate(0, -0.5, 0).rotateX(-Math.PI / 2),
+          new THREE.MeshBasicMaterial({ color: '#bfefff', transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }),
+        );
+        b.tail = tail;
+        this.group.add(tail);
+      }
+      return b;
     };
-    const moon = (parent: Body | 'home', name: string, r: number, orbit: number, period: number, palette: string[]) =>
-      add({ name, sub: '', obj: rockyPlanet(r, Math.floor(rnd() * 90), palette, r > 500 ? 10 : 6, 0.06), radius: r, orbit, period, phase: rnd() * 6.28, parent });
+    for (const id of Object.keys(defs).sort()) make(id);
+    this.here = made.get(hereId)!;
 
-    const grey = ['#4b4b52', '#77746f', '#a29d94'];
-    const rust = ['#5b3a2c', '#8f5e40', '#c9a27c'];
-    const ice = ['#8ea5b5', '#c9d8e2', '#eef4f8'];
-    const sulfur = ['#6e5a22', '#c9a43a', '#efe08a', '#8a3d1e'];
-
-    // 1–2: hot inner rocks
-    add({ name: 'CINDER', sub: 'molten', obj: rockyPlanet(900, 41, ['#2a1410', '#6b2412', '#d2551c', '#ffb347'], 10, 0.05), radius: 900, orbit: 22000, period: 700, phase: 0.3, parent: 'star' });
-    add({ name: 'ASH', sub: 'airless', obj: rockyPlanet(1300, 42, ['#3a3633', '#6d655d', '#9a8f84'], 12), radius: 1300, orbit: 36000, period: 1300, phase: 3.9, parent: 'star' });
-    // 3: temperate — Kindred's world (unknown to the player yet)
-    const inner = rockyPlanet(2600, 3, ['#1f4e79', '#2f7d5b', '#6c8f4a', '#c9c3a0'], 16);
-    inner.add(buildAtmosphere(2600 * 1.06, '#7fc4ff', 1.1));
-    add({ name: 'VERDANCE', sub: 'temperate · signal: none', obj: inner, radius: 2600, orbit: 52000, period: 2300, phase: 1.2, parent: 'star' });
-    // 4: home moon (home itself is the origin)
-    moon('home', 'SELA', 600, 14000, 500, grey);
-    // 5: cold desert + two captured rocks
-    const desert = add({ name: 'DUNMORE', sub: 'cold desert', obj: rockyPlanet(1700, 51, ['#7a4a33', '#b07a52', '#d9b48c', '#efe2cf'], 12), radius: 1700, orbit: 100000, period: 5400, phase: 5.2, parent: 'star' });
-    moon(desert, 'DUNMORE a', 150, 5000, 90, rust);
-    moon(desert, 'DUNMORE b', 110, 7600, 160, grey);
-    // main belt
+    // belts: decoration, their own random sequence
     const main = belt(3200, 122000, 148000, 2500, [60, 520], '#8a7f73');
     this.star.add(main);
     this.belts.push(main);
-    // 6: banded gas giant + four moons
-    const g1 = add({ name: 'THALASSA', sub: 'gas giant · 4 moons', obj: giant(11000, ['#c99a6b', '#e6cfa6', '#a5674a', '#d9b58a', '#7f5a49'], 9), radius: 11000, orbit: 190000, period: 14000, phase: 2.6, parent: 'star' });
-    moon(g1, 'IO-T', 900, 26000, 160, sulfur);
-    moon(g1, 'KORA', 700, 34000, 240, ice);
-    moon(g1, 'MAREN', 1100, 44000, 380, grey);
-    moon(g1, 'PIP', 400, 56000, 520, rust);
-    // 7: ringed gas giant + two moons
-    const g2 = add({ name: 'HALCYON', sub: 'ringed giant · 2 moons', obj: giant(9000, ['#d8c9a0', '#efe3c4', '#b8a27a', '#cdbb91'], 19, { inner: 1.35, outer: 2.3, color: '#d6c39c', opacity: 0.4, tilt: 0.42 }), radius: 9000, orbit: 260000, period: 20000, phase: 4.6, parent: 'star' });
-    moon(g2, 'VESS', 800, 30000, 260, ice);
-    moon(g2, 'ORRIN', 500, 40000, 360, grey);
-    // 8: ice giant + one moon
-    const ig = add({ name: 'NEREID', sub: 'ice giant · 1 moon', obj: giant(6000, ['#5fa8b8', '#78c2cf', '#4d93a6', '#8fd1da'], 29, { inner: 1.5, outer: 1.8, color: '#9fd8e0', opacity: 0.18, tilt: 1.1 }), radius: 6000, orbit: 330000, period: 26000, phase: 0.9, parent: 'star' });
-    moon(ig, 'TETH', 700, 20000, 200, ice);
-    // 9: frozen outer world — Engram's
-    const outer = rockyPlanet(2400, 21, ['#9fb6c8', '#d5e2ea', '#f4f8fb', '#7e93a6'], 16);
-    outer.add(buildAtmosphere(2400 * 1.05, '#bfe4ff', 0.6));
-    add({ name: 'RIME', sub: 'frozen · hostile to biology', obj: outer, radius: 2400, orbit: 390000, period: 32000, phase: 4.1, parent: 'star' });
-    // outer icy belt
     const kuiper = belt(1600, 430000, 490000, 9000, [120, 900], '#a9b9c4');
     this.star.add(kuiper);
     this.belts.push(kuiper);
-    // two comets on eccentric orbits
-    for (const [name, a, e, period, phase, incl] of [['COMET K-7', 260000, 0.86, 9000, 1.7, 0.25], ['COMET VARRO', 340000, 0.9, 13000, 4.2, -0.35]] as const) {
-      const c = add({ name, sub: '', obj: rockyPlanet(160, Math.floor(rnd() * 90), ice, 3, 0.2), radius: 160, orbit: a, ecc: e, incl, period, phase, parent: 'star', kind: 'comet' });
-      const tail = new THREE.Mesh(
-        new THREE.ConeGeometry(1, 1, 16, 1, true).translate(0, -0.5, 0).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({ color: '#bfefff', transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }),
-      );
-      c.tail = tail;
-      this.group.add(tail);
-    }
 
-    this.homeLabel = this.makeLabel('HOME', 'landing site', 'planet');
+    const hd = defs[hereId];
+    this.homeLabel = this.makeLabel(hd.name, 'landing site', 'planet');
     this.homeMarker = markerSprite('#ffb547');
     this.group.add(this.homeMarker);
 
-    // orbit paths, drawn around the star (home included)
+    // orbit paths round the star (the body being played's included); moons' round their planet when it's this one
     const ringMat = (op: number) => new THREE.LineBasicMaterial({ color: '#5ff3ff', transparent: true, opacity: op, depthWrite: false, fog: false });
     const path = (a: number, e: number, incl: number, op = 0.35) => {
       const pts: THREE.Vector3[] = [];
@@ -260,27 +264,23 @@ export class SolarSystem {
         const r = (a * (1 - e * e)) / (1 + e * Math.cos(th));
         pts.push(new THREE.Vector3(Math.cos(th) * r, Math.sin(th) * r * Math.sin(incl), Math.sin(th) * r * Math.cos(incl)));
       }
-      const l = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), ringMat(op));
-      l.userData.op = op;
-      return l;
+      return new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), ringMat(op));
     };
-    const homeRing = path(HOME_ORBIT, 0, 0);
-    this.star.add(homeRing);
-    this.rings.push(homeRing);
     for (const b of this.bodies) {
-      if (b.parent !== 'star') continue;
-      const l = path(b.orbit, b.ecc, b.incl, b.kind === 'comet' ? 0.15 : 0.35);
-      this.star.add(l);
-      this.rings.push(l);
+      if (b.parent) continue;
+      const op = b.kind === 'comet' ? 0.15 : 0.35;
+      const line = path(b.orbit, b.ecc, b.incl, op);
+      this.star.add(line);
+      this.rings.push({ line, body: null, op });
     }
 
     // background stars, re-centred on the camera every frame
-    const N = 6000;
-    const sp = new Float32Array(N * 3);
-    const sc2 = new Float32Array(N * 3);
+    const NS = 6000;
+    const sp = new Float32Array(NS * 3);
+    const sc2 = new Float32Array(NS * 3);
     const tint = new THREE.Color();
     const p = new THREE.Vector3();
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < NS; i++) {
       p.set(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1).normalize().multiplyScalar(6e6);
       sp.set([p.x, p.y, p.z], i * 3);
       tint.setHSL(0.55 + rnd() * 0.15, 0.4, 0.55 + rnd() * 0.4);
@@ -309,6 +309,9 @@ export class SolarSystem {
     return out.set(center.x + Math.cos(th) * r, center.y + Math.sin(th) * r * Math.sin(b.incl), center.z + Math.sin(th) * r * Math.cos(b.incl));
   }
 
+  /** Distance from the star to the body being played, now. */
+  get starDist() { return this.starPos.length(); }
+
   /**
    * `t` in seconds; `sys` 0..1 = how far into the system view the camera is.
    * `sunAngle` (optional): where the planet's day puts the sun, as an angle in
@@ -316,31 +319,36 @@ export class SolarSystem {
    * matches the sim's clock); in the system view the star sits at its orbit.
    */
   update(t: number, camera: THREE.PerspectiveCamera, sys: number, surface: number, width: number, height: number, sunAngle?: number) {
-    const ha = HOME_PHASE + (t / HOME_PERIOD) * Math.PI * 2;
-    // home orbits the star; we keep home at the origin, so the star sits at -homeOrbit
-    this.starPos.set(-Math.cos(ha) * HOME_ORBIT, 0, -Math.sin(ha) * HOME_ORBIT);
+    // positions round the star (parents first: `bodies` is in that order), then shift so this body is the origin
+    const zero = new THREE.Vector3();
+    for (const b of this.bodies) this.orbitPos(b, t, b.parent ? b.parent.abs : zero, b.abs);
+    const off = this.here.abs;
+    this.starPos.copy(off).negate();
+    const sunDist = Math.max(1000, this.starPos.length());
     if (sunAngle === undefined) this.sunPos.copy(this.starPos);
-    else this.sunPos.set(Math.cos(sunAngle) * HOME_ORBIT, 0, Math.sin(sunAngle) * HOME_ORBIT).lerp(this.starPos, smoothstep(0.05, 0.5, sys));
+    else this.sunPos.set(Math.cos(sunAngle) * sunDist, 0, Math.sin(sunAngle) * sunDist).lerp(this.starPos, smoothstep(0.05, 0.5, sys));
     this.star.position.copy(this.sunPos);
     this.light.position.copy(this.sunPos);
     this.belts[0].rotation.y = t * 0.0004;
     this.belts[1].rotation.y = t * 0.00008;
     // belts are sub-pixel specks until the system view; skip ~5k rocks' worth of triangles below it
     for (const b of this.belts) b.visible = sys > 0.02;
+    // the star (and with it belts and orbit paths) is drawn at the sun's place; keep paths centred on the real star
+    const shift = new THREE.Vector3().subVectors(this.starPos, this.sunPos);
 
-    const origin = new THREE.Vector3();
     const v = new THREE.Vector3();
+    const hereR = this.here.radius;
     for (const b of this.bodies) {
-      const c = b.parent === 'star' ? this.starPos : b.parent === 'home' ? origin : b.parent.pos;
-      this.orbitPos(b, t, c, b.pos);
+      b.pos.subVectors(b.abs, off);
+      if (b === this.here) continue;
       b.obj.position.copy(b.pos);
       b.obj.rotation.y = t * 0.02;
       const camD = camera.position.distanceTo(b.pos);
       // screen-constant ring so small bodies stay findable from far away
       let k: number;
-      if (b.kind === 'moon') {
-        const pd = b.parent === 'home' ? camera.position.length() : camera.position.distanceTo((b.parent as Body).pos);
-        const pr = b.parent === 'home' ? HOME_R : (b.parent as Body).radius;
+      if (b.kind === 'moon' && b.parent) {
+        const pd = camera.position.distanceTo(b.parent.pos);
+        const pr = b.parent === this.here ? hereR : b.parent.radius;
         k = smoothstep(pr * 25, pr * 10, pd) * smoothstep(b.radius * 6, b.radius * 30, camD) * (1 - surface);
       } else {
         k = smoothstep(0.1, 0.5, sys);
@@ -350,7 +358,7 @@ export class SolarSystem {
       m.position.copy(b.pos);
       m.scale.setScalar(Math.max(b.radius * 2.6, camD * (b.kind === 'planet' ? 0.028 : 0.018)));
       (m.material as THREE.SpriteMaterial).opacity = k * 0.8;
-      (b as Body & { k: number }).k = k;
+      b.k = k;
       if (b.tail) {
         const dSun = b.pos.distanceTo(this.starPos);
         const len = 60000 * smoothstep(200000, 30000, dSun) + 2000;
@@ -363,12 +371,14 @@ export class SolarSystem {
     }
 
     for (const r of this.rings) {
-      (r.material as THREE.LineBasicMaterial).opacity = r.userData.op * sys;
-      r.visible = sys > 0.01;
+      (r.line.material as THREE.LineBasicMaterial).opacity = r.op * sys;
+      r.line.visible = sys > 0.01;
+      r.line.position.copy(shift);
     }
+    for (const b of this.belts) b.position.copy(shift);
     const hk = smoothstep(0.1, 0.5, sys);
     this.homeMarker.visible = hk > 0.01;
-    this.homeMarker.scale.setScalar(Math.max(HOME_R * 2.6, camera.position.length() * 0.028));
+    this.homeMarker.scale.setScalar(Math.max(hereR * 2.6, camera.position.length() * 0.028));
     (this.homeMarker.material as THREE.SpriteMaterial).opacity = hk * 0.9;
     this.stars.position.copy(camera.position);
     (this.stars.material as THREE.PointsMaterial).opacity = 1 - surface * 0.92;
@@ -380,7 +390,7 @@ export class SolarSystem {
       el.style.opacity = String(k);
       el.style.transform = `translate(${((v.x + 1) / 2) * width}px, ${((1 - v.y) / 2) * height}px) translate(-50%, -140%)`;
     };
-    for (const b of this.bodies) place(b.label!, b.pos, (b as Body & { k: number }).k);
-    place(this.homeLabel, origin, hk);
+    for (const b of this.bodies) if (b !== this.here) place(b.label!, b.pos, b.k ?? 0);
+    place(this.homeLabel, zero, hk);
   }
 }

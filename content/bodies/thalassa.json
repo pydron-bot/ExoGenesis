@@ -1,0 +1,28 @@
+{
+  "name": "THALASSA",
+  "sub": "gas giant · 4 moons",
+  "kind": "giant",
+  "radius": 11000,
+  "orbit": 190000,
+  "period": 14000,
+  "phase": 148.97,
+  "seed": 9,
+  "bands": [
+    {
+      "color": "#c99a6b"
+    },
+    {
+      "color": "#e6cfa6"
+    },
+    {
+      "color": "#a5674a"
+    },
+    {
+      "color": "#d9b58a"
+    },
+    {
+      "color": "#7f5a49"
+    }
+  ],
+  "incl": -0.17
+}

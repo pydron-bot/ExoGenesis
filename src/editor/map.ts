@@ -9,13 +9,15 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { HEIGHT_SCALE, PREVIEW_KEY, REGION_CELLS as NC, REGION_STEP, campShape, depositShape, siteShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
+import { HEIGHT_SCALE, PREVIEW_KEY, REGION_SIZE_MAX, REGION_SIZE_MIN, REGION_SIZE_STEP, REGION_STEP, regionCells, campShape, depositShape, siteShape, herdShape, regionShape, spawnShape, ventShape } from '../content/defs';
 import { decodeGrid, encodeGrid, isEmptyGrid } from '../content/grid';
 import type { Field, Shape } from '../content/schema';
 import { REGION_HALF as HALF } from '../sim/types';
 import {
-  FLORA_PAINT_SHIFT, PAD_OUTER, SCULPT_FADE, floraAt, padBlend, padHeight, regionDir, regionProcBase, sculptFade, setRegionSite, terrainColor,
+  DEFAULT_PAINTS, FLORA_PAINT_SHIFT, PAD_OUTER, R, SCULPT_FADE, currentBody, decodePaint, encodePaint, floraAt, padBlend, padHeight, regionDir, regionProcBase,
+  regionSize, regionTerrain, sculptFade, setRegionTerrain, terrainColor,
 } from '../world/planet';
+import { GENERATORS, autoPaint, generate, type GenOpts } from './terrain-gen';
 
 export interface MapHost {
   /** Region id (the file name). */
@@ -28,15 +30,21 @@ export interface MapHost {
   inhabitants?: Record<string, { land?: number }>;
   /** Numbers the overlays draw from (content: the Core's range, the colony's build radius, a predator's speed). */
   rules?: { coreRange: number; buildRadius: number; packSpeed: number };
+  /** content.bodies (the region's body sets the generated ground). */
+  bodies?: Record<string, unknown>;
+  /** Rebuild the whole map editor (the region's size or body changed). */
+  reopen?(): void;
 }
 
 /** What Copy keeps: grid cells relative to the selection's corner, markers relative to its centre. */
-interface Clip { w: number; h: number; off: number[]; shape: number[]; paint: number[]; markers: Partial<Record<MKind, Marker[]>> }
+interface Clip { w: number; h: number; off: number[]; shape: number[]; paint: number[]; ground?: number[]; markers: Partial<Record<MKind, Marker[]>> }
 const CLIP_KEY = 'exo.map.clip';
 /** Ground packs can't cross (the sim's `blocked`), and ground too low or steep to build on (sim/rules.ts placeProblem). */
-const WATER_PATH = 0.3, WATER_BUILD = 0.6, PLACE_EDGE = HALF - 10, PACK_LIMIT = HALF - 6;
+const WATER_PATH = 0.3, WATER_BUILD = 0.6;
+// the region's size is set per region: these follow it
+const placeEdge = () => HALF - 10, packLimit = () => HALF - 6;
 
-type Tool = 'select' | 'area' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'flora+' | 'flora-' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp' | 'site';
+type Tool = 'select' | 'area' | 'raise' | 'lower' | 'smooth' | 'flatten' | 'roughen' | 'flora+' | 'flora-' | 'ground' | 'unground' | 'herd' | 'deposit' | 'spawn' | 'vent' | 'camp' | 'site';
 const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'select', label: 'Select', key: 'Q', tip: 'Click a herd, deposit, spawn, vent, camp or story site to select it; drag to move it' },
   { id: 'area', label: 'Select area', key: 'A', tip: 'Drag a rectangle to copy (Ctrl+C), then paste it anywhere, in this region or another (Ctrl+V at the cursor)' },
@@ -44,8 +52,11 @@ const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
   { id: 'lower', label: 'Lower', key: '2', tip: 'Lower ground (Shift: raise)' },
   { id: 'smooth', label: 'Smooth', key: '3', tip: 'Even out bumps' },
   { id: 'flatten', label: 'Flatten', key: '4', tip: 'Level to the height where the stroke started' },
+  { id: 'roughen', label: 'Roughen', key: '7', tip: 'Add bumpy noise (Shift: smooth)' },
   { id: 'flora+', label: 'Flora +', key: '5', tip: 'More plants, lusher ground (Shift: clear)' },
   { id: 'flora-', label: 'Flora −', key: '6', tip: 'Fewer plants, barer ground (Shift: add)' },
+  { id: 'ground', label: 'Paint ground', key: 'G', tip: 'Paint the ground colour picked under Ground paint (Shift: erase)' },
+  { id: 'unground', label: 'Erase paint', key: 'E', tip: 'Remove painted ground colour, back to the generated colour' },
   { id: 'herd', label: 'Add herd', key: 'H', tip: 'Click the ground to place a grazer herd' },
   { id: 'deposit', label: 'Add deposit', key: 'D', tip: 'Click the ground to place an alloy deposit (mined by depots)' },
   { id: 'spawn', label: 'Add spawn', key: 'P', tip: 'Click the ground to place a predator spawn point (packs enter here)' },
@@ -68,16 +79,23 @@ const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: T
 const MKINDS = Object.keys(MARKERS) as MKind[];
 
 const MAX_OFF = 60; // units, matches the schema's ±600 tenths
-const N2 = NC * NC;
-const CENTER = ((NC - 1) / 2) * NC + (NC - 1) / 2;
+/** Grid nodes per side, all nodes, and the centre node: set for the open region's size (setSize). */
+let NC = regionCells(HALF), N2 = NC * NC, CENTER = ((NC - 1) / 2) * NC + (NC - 1) / 2;
+function setSize() {
+  NC = regionCells(HALF); N2 = NC * NC; CENTER = ((NC - 1) / 2) * NC + (NC - 1) / 2;
+}
 const nodeX = (i: number) => -HALF + (i % NC) * REGION_STEP;
 const nodeZ = (i: number) => -HALF + Math.floor(i / NC) * REGION_STEP;
 
 // one renderer for the editor's lifetime (WebGL contexts are scarce); camera survives reopening
 let renderer: THREE.WebGLRenderer | null = null;
-const camState = { pos: new THREE.Vector3(0, 190, -170), target: new THREE.Vector3(0, 0, 0) };
+const camState = { pos: new THREE.Vector3(0, 190, -170), target: new THREE.Vector3(0, 0, 0), half: 120 };
 const prefs = {
   tool: 'raise' as Tool, radius: 12, strength: 0.5, showPaint: true,
+  /** Paint ground: which paint (1-based). */
+  groundPaint: 1,
+  /** Generate: the last settings used. */
+  gen: { kind: 'hills', height: 12, size: 40, seed: 1, mode: 'add', edge: 12 } as GenOpts,
   /** Overlays: where you can build at the start, distance rings from the Core, the way packs walk in. */
   build: false, rings: false, paths: false,
   /** Paste the copied sculpt as it was (relative) or the copied ground's shape (absolute heights, feathered edges). */
@@ -86,13 +104,16 @@ const prefs = {
 try { Object.assign(prefs, JSON.parse(localStorage.getItem('exo.map.prefs') ?? '{}')); } catch { /* private mode */ }
 const savePrefs = () => { try { localStorage.setItem('exo.map.prefs', JSON.stringify(prefs)); } catch { /* private mode */ } };
 
-// the generated terrain depends only on the region's site; recomputed when that moves
+// the generated terrain depends on the region's body, size, site and local relief; recomputed when they change
 let proc: Float32Array | null = null, fade: Float32Array, pad: Float32Array, floraBase: Float32Array;
 let procSite = '';
-function precompute(lat = 0, lon = 0) {
-  if (proc && procSite === `${lat},${lon}`) return;
-  procSite = `${lat},${lon}`;
-  setRegionSite(lat, lon);
+function precompute(d: Record<string, unknown>, bodies?: Record<string, unknown>) {
+  const t = regionTerrain({ ...(d as object), height: undefined, flora: undefined, ground: undefined }, bodies);
+  const key = JSON.stringify([t.world, t.size, t.siteLat, t.siteLon, t.detail]);
+  if (proc && procSite === key) return;
+  procSite = key;
+  setRegionTerrain(t);
+  setSize();
   proc = new Float32Array(N2); fade = new Float32Array(N2); pad = new Float32Array(N2); floraBase = new Float32Array(N2);
   for (let i = 0; i < N2; i++) {
     const x = nodeX(i), z = nodeZ(i);
@@ -103,7 +124,7 @@ function precompute(lat = 0, lon = 0) {
   }
 }
 
-interface Snap { off: Float32Array; paint: Float32Array; markers: string }
+interface Snap { off: Float32Array; paint: Float32Array; ground: Uint16Array; markers: string }
 
 export class MapEditor {
   private scene = new THREE.Scene();
@@ -121,6 +142,9 @@ export class MapEditor {
   private areaLine: THREE.LineLoop | null = null;
   private off: Float32Array;
   private paint: Float32Array;
+  /** Ground paint per node: paint number × 100 + amount (planet.ts decodePaint). */
+  private ground: Uint16Array;
+  private paintCols: THREE.Color[] = [];
   private lists = {} as Record<MKind, Marker[]>;
   private markerGroup = new THREE.Group();
   private cursor: THREE.LineLoop;
@@ -140,9 +164,11 @@ export class MapEditor {
 
   constructor(main: HTMLElement, private aside: HTMLElement, private host: MapHost) {
     const d = host.draft;
-    precompute(d.siteLat as number | undefined, d.siteLon as number | undefined);
+    precompute(d, host.bodies);
     this.off = Float32Array.from(decodeGrid(d.height as string[] | undefined, NC, NC), (v) => v * HEIGHT_SCALE);
     this.paint = Float32Array.from(decodeGrid(d.flora as string[] | undefined, NC, NC), (v) => v / 100);
+    this.ground = Uint16Array.from(decodeGrid(d.ground as string[] | undefined, NC, NC));
+    this.loadPaints();
     for (const k of MKINDS) this.lists[k] = Array.isArray(d[k]) ? (d[k] as Marker[]) : ((d[k] = []) as Marker[]);
 
     renderer ??= new THREE.WebGLRenderer({ antialias: true });
@@ -165,6 +191,8 @@ export class MapEditor {
     this.controls.minDistance = 15;
     this.controls.maxDistance = 900;
     this.controls.update();
+    // a region of another size: frame it whole
+    if (camState.half !== HALF) { camState.half = HALF; this.frameAll(); }
 
     this.scene.background = new THREE.Color('#0a1018');
     this.scene.add(new THREE.HemisphereLight('#cfe6ff', '#3a2a20', 1.1));
@@ -186,11 +214,11 @@ export class MapEditor {
     this.scene.add(this.terrain);
     this.rebuild(0, N2);
 
-    // sea level
+    // sea level (bodies with seas)
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2), new THREE.MeshBasicMaterial({ color: '#2a7a9a', transparent: true, opacity: 0.18, depthWrite: false }));
     sea.rotation.x = -Math.PI / 2;
     sea.position.y = 0.05;
-    this.scene.add(sea);
+    if (currentBody().ocean) this.scene.add(sea);
 
     // fixed references: landing pad, sculpt fade border, region edge
     this.scene.add(this.flatRing(PAD_OUTER, '#ffb547', 0.9), this.squareLine(HALF - SCULPT_FADE, '#5d7a96', true), this.squareLine(HALF, '#3fd6ff', false));
@@ -252,6 +280,8 @@ export class MapEditor {
       pos.setXYZ(i, nodeX(i), this.hgt[i], -nodeZ(i));
       const p = this.paint[i];
       terrainColor(raw, floraBase[i] + p * FLORA_PAINT_SHIFT, c);
+      const gp = this.ground[i];
+      if (gp) { const { id, amt } = decodePaint(gp); const pc = this.paintCols[id - 1]; if (pc) c.lerp(pc, amt); }
       if (prefs.showPaint && p !== 0) c.lerp(tint.set(p > 0 ? '#3cff9a' : '#ff4fa3'), Math.min(0.6, Math.abs(p) * 0.6));
       col.setXYZ(i, c.r, c.g, c.b);
     };
@@ -277,7 +307,7 @@ export class MapEditor {
       const x = nodeX(i), z = nodeZ(i);
       let lo = Infinity, hi = -Infinity;
       for (const [dx, dz] of offs) { const h = this.rawAt(x + dx, z + dz); lo = Math.min(lo, h); hi = Math.max(hi, h); }
-      if (!(lo < WATER_BUILD || hi - lo > Math.max(4, r * 1.1) || Math.abs(x) > PLACE_EDGE || Math.abs(z) > PLACE_EDGE)) return;
+      if (!(lo < WATER_BUILD || hi - lo > Math.max(4, r * 1.1) || Math.abs(x) > placeEdge() || Math.abs(z) > placeEdge())) return;
       c.fromBufferAttribute(col, i).lerp(red, lo < WATER_BUILD ? 0.25 : 0.55);
       col.setXYZ(i, c.r, c.g, c.b);
     };
@@ -311,7 +341,7 @@ export class MapEditor {
     const r = prefs.radius, k = prefs.strength;
     const nodes = this.nodesNear(h.x, h.z, r);
     let tool = s.tool;
-    if (this.shift) tool = ({ raise: 'lower', lower: 'raise', 'flora+': 'flora-', 'flora-': 'flora+' } as Partial<Record<Tool, Tool>>)[tool] ?? tool;
+    if (this.shift) tool = ({ raise: 'lower', lower: 'raise', 'flora+': 'flora-', 'flora-': 'flora+', ground: 'unground', roughen: 'smooth' } as Partial<Record<Tool, Tool>>)[tool] ?? tool;
     const touched: number[] = [];
     const ch0 = this.coreH();
     for (const i of nodes) {
@@ -335,8 +365,23 @@ export class MapEditor {
           this.off[i] += (sum / n - pre) * Math.min(1, 8 * k * w * dt);
           break;
         }
+        case 'roughen': {
+          // fixed noise per node, so going over the same spot builds the same bumps up
+          const n = Math.sin(nodeX(i) * 12.9898 + nodeZ(i) * 78.233) * 43758.5453;
+          this.off[i] += ((n - Math.floor(n)) * 2 - 1) * 14 * k * w * dt;
+          break;
+        }
         case 'flora+': this.paint[i] = Math.min(1, this.paint[i] + 1.5 * k * w * dt); break;
         case 'flora-': this.paint[i] = Math.max(-1, this.paint[i] - 1.5 * k * w * dt); break;
+        case 'ground': case 'unground': {
+          let { id, amt } = decodePaint(this.ground[i]);
+          const want = tool === 'ground' ? prefs.groundPaint : 0, rate = 2 * k * w * dt;
+          // another paint here fades out first, then the new one comes in
+          if (id && id !== want) { amt -= rate; if (amt <= 0) { id = want; amt = 0; } }
+          else if (want) { id = want; amt = Math.min(1, amt + rate); }
+          this.ground[i] = encodePaint(id, amt);
+          break;
+        }
       }
       this.off[i] = Math.max(-MAX_OFF, Math.min(MAX_OFF, this.off[i]));
       touched.push(i);
@@ -349,7 +394,7 @@ export class MapEditor {
   /** The site moved: regenerate the ground under the sculpting. */
   private resite() {
     const d = this.host.draft;
-    precompute(d.siteLat as number | undefined, d.siteLon as number | undefined);
+    precompute(d, this.host.bodies);
     this.rebuild(0, N2);
     this.geo.computeBoundingSphere();
     this.geo.computeBoundingBox();
@@ -374,6 +419,7 @@ export class MapEditor {
     const fRows = encodeGrid(this.paint.map((v) => v * 100), NC, NC);
     if (isEmptyGrid(this.off.map((v) => v / HEIGHT_SCALE))) delete d.height; else d.height = hRows;
     if (isEmptyGrid(this.paint.map((v) => v * 100))) delete d.flora; else d.flora = fRows;
+    if (isEmptyGrid(this.ground)) delete d.ground; else d.ground = encodeGrid(this.ground, NC, NC);
     this.geo.computeBoundingSphere();
     this.geo.computeBoundingBox();
     this.updateCore();
@@ -388,9 +434,102 @@ export class MapEditor {
     if (core) core.position.y = this.hgt[CENTER] + 3;
   }
 
+  // ---------- ground paint, generators, size ----------
+  /** The region's paints (its own list, or the standard eight). */
+  private paintList(): { name: string; color: string }[] {
+    const own = this.host.draft.paints as { name: string; color: string }[] | undefined;
+    return own?.length ? own : DEFAULT_PAINTS;
+  }
+  private loadPaints() { this.paintCols = this.paintList().map((p) => new THREE.Color(p.color)); }
+  private paintName(id: number) { return this.paintList()[id - 1]?.name ?? `paint ${id}`; }
+
+  /** The selected area as node bounds, or the whole region. */
+  private workArea(): [number, number, number, number] {
+    return this.area ? (this.areaNodes(this.area) as [number, number, number, number]) : [0, 0, NC - 1, NC - 1];
+  }
+
+  /** Generate: write a procedural shape into the sculpting over the area. Undoable. */
+  runGenerate(o: GenOpts = prefs.gen) {
+    const [i0, j0, i1, j1] = this.workArea();
+    if (i1 - i0 < 2 || j1 - j0 < 2) return;
+    this.pushUndo();
+    // the sculpt fade scales sculpting down at the edge: the shape is written as sculpting, so it fades there too
+    generate(o, this.off, NC, i0, j0, i1, j1, nodeX, nodeZ, MAX_OFF);
+    this.rebuild(0, N2);
+    this.commitLayers();
+  }
+
+  /** Smooth the sculpted ground over the area, `passes` times. Undoable. */
+  smoothArea(passes = 3) {
+    const [i0, j0, i1, j1] = this.workArea();
+    this.pushUndo();
+    for (let p = 0; p < passes; p++) {
+      const src = Float32Array.from({ length: N2 }, (_, i) => proc![i] + this.off[i] * fade[i]);
+      for (let j = Math.max(1, j0); j <= Math.min(NC - 2, j1); j++) for (let i = Math.max(1, i0); i <= Math.min(NC - 2, i1); i++) {
+        const k = j * NC + i;
+        const avg = (src[k] * 4 + src[k - 1] + src[k + 1] + src[k - NC] + src[k + NC]) / 8;
+        if (fade[k] > 0.05) this.off[k] = Math.max(-MAX_OFF, Math.min(MAX_OFF, this.off[k] + (avg - src[k]) / fade[k]));
+      }
+    }
+    this.rebuild(0, N2);
+    this.commitLayers();
+  }
+
+  /** Paint the ground by shape (rock on slopes, sand low, ice high) over the area. Undoable. */
+  autoPaintArea(opts: { low: number; high: number; steep: number; strength: number }) {
+    const [i0, j0, i1, j1] = this.workArea();
+    this.pushUndo();
+    const names = this.paintList().map((p) => p.name.toLowerCase());
+    const find = (re: RegExp, d: number) => { const i = names.findIndex((n) => re.test(n)); return i >= 0 ? i + 1 : d; };
+    autoPaint(this.raw, NC, REGION_STEP, this.ground, { rock: find(/rock|stone/, 1), sand: find(/sand|dust/, 2), ice: find(/ice|snow|frost/, 6) }, opts, i0, j0, i1, j1);
+    this.rebuild(0, N2);
+    this.commitLayers();
+  }
+
+  /** Fill the area with the picked paint at `amt`, or clear it (amt 0). Undoable. */
+  fillPaint(amt: number) {
+    const [i0, j0, i1, j1] = this.workArea();
+    this.pushUndo();
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) this.ground[j * NC + i] = encodePaint(prefs.groundPaint, amt);
+    this.rebuild(0, N2);
+    this.commitLayers();
+  }
+
+  /**
+   * Change the region's size (side length, u): the sculpting and painting are
+   * cropped or padded round the centre; markers outside are pulled in to the
+   * new edge. Rebuilds the map editor.
+   */
+  resizeTo(size: number) {
+    const d = this.host.draft;
+    const newHalf = size / 2, nn = regionCells(newHalf), shift = (nn - NC) / 2;
+    const move = (src: ArrayLike<number>, scale = 1) => {
+      const out = new Float32Array(nn * nn);
+      for (let j = 0; j < nn; j++) for (let i = 0; i < nn; i++) {
+        const si = i - shift, sj = j - shift;
+        if (si >= 0 && sj >= 0 && si < NC && sj < NC) out[j * nn + i] = src[sj * NC + si] * scale;
+      }
+      return out;
+    };
+    const h = move(this.off, 1 / HEIGHT_SCALE), f = move(this.paint, 100), g = move(this.ground);
+    if (isEmptyGrid(h)) delete d.height; else d.height = encodeGrid(h, nn, nn);
+    if (isEmptyGrid(f)) delete d.flora; else d.flora = encodeGrid(f, nn, nn);
+    if (isEmptyGrid(g)) delete d.ground; else d.ground = encodeGrid(g, nn, nn);
+    let moved = 0;
+    for (const k of MKINDS) for (const m of this.lists[k]) {
+      const lim = newHalf - 2;
+      if (Math.abs(m.x) > lim || Math.abs(m.z) > lim) { m.x = round1(Math.max(-lim, Math.min(lim, m.x))); m.z = round1(Math.max(-lim, Math.min(lim, m.z))); moved++; }
+    }
+    if (size === 240) delete d.size; else d.size = size;
+    this.area = null;
+    this.host.changed();
+    this.host.reopen?.();
+    return moved;
+  }
+
   // ---------- undo ----------
   private snap(): Snap {
-    return { off: this.off.slice(), paint: this.paint.slice(), markers: JSON.stringify(this.lists) };
+    return { off: this.off.slice(), paint: this.paint.slice(), ground: this.ground.slice(), markers: JSON.stringify(this.lists) };
   }
   private pushUndo() {
     this.undo.push(this.snap());
@@ -400,6 +539,7 @@ export class MapEditor {
   private restore(s: Snap) {
     this.off.set(s.off);
     this.paint.set(s.paint);
+    this.ground.set(s.ground);
     const m = JSON.parse(s.markers) as Record<MKind, Marker[]>;
     for (const k of MKINDS) this.lists[k].splice(0, this.lists[k].length, ...(m[k] ?? []));
     if (this.selected && this.selected.i >= this.lists[this.selected.k].length) this.selected = null;
@@ -544,7 +684,7 @@ export class MapEditor {
   /** Where packs come in: the spawns, or the sim's fallback corner. */
   private packStarts() {
     const sp = this.lists.spawns;
-    return sp.length ? sp : [{ x: PACK_LIMIT - 10, z: PACK_LIMIT - 10 }];
+    return sp.length ? sp : [{ x: packLimit() - 10, z: packLimit() - 10 }];
   }
 
   /**
@@ -554,7 +694,7 @@ export class MapEditor {
    */
   packPath(x: number, z: number): { pts: [number, number][]; secs: number; stuck: boolean } {
     const speed = this.host.rules?.packSpeed ?? 6, DT = 0.1, step = speed * DT;
-    const blocked = (px: number, pz: number) => Math.abs(px) > PACK_LIMIT || Math.abs(pz) > PACK_LIMIT || this.rawAt(px, pz) < WATER_PATH;
+    const blocked = (px: number, pz: number) => Math.abs(px) > packLimit() || Math.abs(pz) > packLimit() || this.rawAt(px, pz) < WATER_PATH;
     let heading = Math.atan2(-x, -z);
     const pts: [number, number][] = [[x, z]];
     let best = Infinity, stall = 0;
@@ -606,12 +746,13 @@ export class MapEditor {
     const [i0, j0, i1, j1] = this.areaNodes(a);
     const w = i1 - i0 + 1, h = j1 - j0 + 1;
     if (w < 2 || h < 2) return null;
-    const clip: Clip = { w, h, off: [], shape: [], paint: [], markers: {} };
+    const clip: Clip = { w, h, off: [], shape: [], paint: [], ground: [], markers: {} };
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const n = j * NC + i;
       clip.off.push(round1(this.off[n]));
       clip.shape.push(round1(proc![n] + this.off[n] * fade[n]));
       clip.paint.push(Math.round(this.paint[n] * 100) / 100);
+      clip.ground!.push(this.ground[n]);
     }
     const cx = nodeX(i0) + ((w - 1) * REGION_STEP) / 2, cz = nodeZ(j0 * NC) + ((h - 1) * REGION_STEP) / 2;
     const inside = (m: Marker) => m.x >= nodeX(i0) - 1 && m.x <= nodeX(i1) + 1 && m.z >= nodeZ(j0 * NC) - 1 && m.z <= nodeZ(j1 * NC) + 1;
@@ -644,6 +785,7 @@ export class MapEditor {
         this.off[n] = Math.max(-MAX_OFF, Math.min(MAX_OFF, this.off[n] + (want - this.off[n]) * t));
       } else this.off[n] = clip.off[k];
       this.paint[n] = clip.paint[k];
+      if (clip.ground) this.ground[n] = clip.ground[k] ?? 0;
     }
     if (prefs.pasteMarkers) {
       const px = nodeX(Math.max(0, Math.min(NC - 1, ci))) + ((clip.w - 1) * REGION_STEP) / 2, pz = nodeZ(Math.max(0, Math.min(NC - 1, cj)) * NC) + ((clip.h - 1) * REGION_STEP) / 2;
@@ -732,8 +874,9 @@ export class MapEditor {
       p.setXYZ(k, x, this.heightAt(x, z) + 0.7, -z);
     }
     p.needsUpdate = true;
-    const minus = this.shift !== (prefs.tool === 'lower' || prefs.tool === 'flora-');
-    (this.cursor.material as THREE.LineBasicMaterial).color.set(prefs.tool.startsWith('flora') ? (minus ? '#ff4fa3' : '#3cff9a') : minus ? '#ffb547' : '#ffffff');
+    const minus = this.shift !== (prefs.tool === 'lower' || prefs.tool === 'flora-' || prefs.tool === 'unground');
+    const gc = prefs.tool === 'ground' && !minus ? `#${this.paintCols[prefs.groundPaint - 1]?.getHexString() ?? 'ffffff'}` : null;
+    (this.cursor.material as THREE.LineBasicMaterial).color.set(gc ?? (prefs.tool.startsWith('flora') ? (minus ? '#ff4fa3' : '#3cff9a') : minus ? '#ffb547' : '#ffffff'));
   }
 
   // ---------- input ----------
@@ -863,8 +1006,9 @@ export class MapEditor {
   }
 
   private frameAll() {
+    const k = HALF / 120;
     this.controls.target.set(0, 0, 0);
-    this.camera.position.set(0, 190, -170);
+    this.camera.position.set(0, 190 * k, -170 * k);
   }
 
   private updateReadout() {
@@ -875,6 +1019,7 @@ export class MapEditor {
     this.readout.textContent =
       `x ${h.x.toFixed(1)}  z ${h.z.toFixed(1)}  ·  ${Math.hypot(h.x, h.z).toFixed(0)} u from the Core  ·  height ${this.heightAt(h.x, h.z).toFixed(1)} u` +
       `  ·  sculpt ${sculpt >= 0 ? '+' : ''}${sculpt.toFixed(1)}  ·  flora ${Math.round(this.paint[i] * 100)}%` +
+      (this.ground[i] ? `  ·  ${this.paintName(decodePaint(this.ground[i]).id)} ${Math.round(decodePaint(this.ground[i]).amt * 100)}%` : '') +
       (pad[i] < 1 ? '  ·  landing pad' : '') + (fade[i] < 1 ? '  ·  edge fade' : '');
   }
 
@@ -996,8 +1141,132 @@ export class MapEditor {
       }
     };
     fields(['name', 'description', 'floraSeed', 'floraDensity']);
-    sec('Place on the planet');
+
+    sec('World and size');
+    const bodyName = currentBody().name;
+    a.append(el('div', 'help', `On ${bodyName} (radius ${Math.round(R).toLocaleString()} u). This region is ${regionSize(d as { size?: number })} u across.`));
+    fields(['body'], () => { this.host.changed(); this.host.reopen?.(); });
+    {
+      const row = el('label', 'mini-row');
+      const sel = document.createElement('select');
+      sel.id = 'region-size';
+      for (let v = REGION_SIZE_MIN; v <= REGION_SIZE_MAX; v += REGION_SIZE_STEP) {
+        const o = document.createElement('option');
+        o.value = String(v);
+        o.textContent = `${v} u${v === 240 ? ' (standard)' : ''}${R < (v / 2) * 3 ? ' — too big for this body' : ''}`;
+        o.disabled = R < (v / 2) * 3;
+        sel.append(o);
+      }
+      sel.value = String(regionSize(d as { size?: number }));
+      const go = el('button', '', 'Resize') as HTMLButtonElement;
+      go.title = 'Crops or pads the sculpting and painting round the centre (the Core stays in the middle); markers outside move in to the edge. Undo by resizing back (cropped painting is lost), or Revert.';
+      go.onclick = () => {
+        const v = Number(sel.value), cur = regionSize(d as { size?: number });
+        if (v === cur) return;
+        if (v < cur && !confirm(`Shrink to ${v} u? Sculpting and paint outside the middle ${v} u are cut off.`)) return;
+        const moved = this.resizeTo(v);
+        if (moved) alert(`${moved} marker${moved > 1 ? 's were' : ' was'} outside the new edge and moved in to it.`);
+      };
+      row.append(el('span', 'lbl', 'Size'), sel, go);
+      row.append(el('span', 'help', 'Bigger regions give more room to build and explore; packs walk further. A body needs a radius at least 1.5× the size.'));
+      a.append(row);
+    }
+    sec('Place on the body');
     fields(['siteLat', 'siteLon'], () => { this.resite(); this.host.changed(); });
+    a.append(el('div', 'help', 'Or drag it on Maps → Planet map.'));
+
+    sec('Generate');
+    a.append(el('div', 'help', 'Procedural shapes written into the sculpting, over the selected area (Select area, A) or the whole region. Undo with Ctrl+Z.'));
+    {
+      const g = prefs.gen;
+      const kind = document.createElement('select');
+      kind.id = 'gen-kind';
+      for (const k of GENERATORS) { const o = document.createElement('option'); o.value = k.id; o.textContent = k.label; o.title = k.tip; kind.append(o); }
+      kind.value = g.kind;
+      const tip = el('div', 'help', GENERATORS.find((k) => k.id === g.kind)?.tip ?? '');
+      kind.onchange = () => { g.kind = kind.value as GenOpts['kind']; tip.textContent = GENERATORS.find((k) => k.id === g.kind)?.tip ?? ''; savePrefs(); };
+      const kr = el('label', 'mini-row'); kr.append(el('span', 'lbl', 'Shape'), kind); a.append(kr, tip);
+      const num = (key: 'height' | 'size' | 'seed' | 'edge', label: string, min: number, max: number, step: number) => {
+        const row = el('label', 'mini-row');
+        const inp = document.createElement('input');
+        Object.assign(inp, { type: 'number', min: String(min), max: String(max), step: String(step), value: String(g[key]) });
+        inp.dataset.gen = key;
+        inp.oninput = () => { if (inp.value !== '') { g[key] = Number(inp.value); savePrefs(); } };
+        row.append(el('span', 'lbl', label), inp);
+        a.append(row);
+      };
+      num('height', 'Height (u)', -60, 60, 1);
+      num('size', 'Feature size (u)', 4, 240, 1);
+      num('seed', 'Seed', 1, 99999, 1);
+      num('edge', 'Blend at edge (u)', 0, 60, 1);
+      const mode = document.createElement('select');
+      for (const [v, t] of [['add', 'Add to the sculpting'], ['replace', 'Replace the sculpting']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; mode.append(o); }
+      mode.value = g.mode;
+      mode.onchange = () => { g.mode = mode.value as GenOpts['mode']; savePrefs(); };
+      const mr = el('label', 'mini-row'); mr.append(el('span', 'lbl', 'Mode'), mode); a.append(mr);
+      const btn = (label: string, fn: () => void, cls = '') => { const b = el('button', cls, label) as HTMLButtonElement; b.onclick = fn; return b; };
+      const reseed = btn('New seed', () => { g.seed = 1 + Math.floor(Math.random() * 99998); const i = a.querySelector<HTMLInputElement>('input[data-gen=seed]'); if (i) i.value = String(g.seed); savePrefs(); });
+      const gen = btn('Generate', () => this.runGenerate(), 'primary');
+      gen.id = 'gen-run';
+      a.append(el('div', 'actions-col', gen, reseed, btn('Smooth area (3 passes)', () => this.smoothArea(3))));
+      a.append(el('div', 'help', 'The region\'s own generated bumps (under all of this) are set by Local relief, below.'));
+      fields(['detail', 'detailSize', 'detailSeed'], () => { this.resite(); this.host.changed(); });
+    }
+
+    sec('Ground paint');
+    a.append(el('div', 'help', 'Pick a paint, then Paint ground (G) on the map (Shift or E erases). Paint tints the ground\'s generated colour; full strength replaces it.'));
+    {
+      const sw = el('div', 'paint-swatches');
+      sw.id = 'paint-swatches';
+      const draw = () => {
+        sw.replaceChildren();
+        this.paintList().forEach((p, n) => {
+          const b = el('button', prefs.groundPaint === n + 1 ? 'swatch on' : 'swatch', '') as HTMLButtonElement;
+          b.title = `${p.name} (${n + 1})`;
+          b.style.setProperty('--sw', p.color);
+          b.append(el('i', ''), el('span', '', p.name));
+          b.onclick = () => { prefs.groundPaint = n + 1; savePrefs(); draw(); this.setTool('ground'); };
+          sw.append(b);
+        });
+      };
+      draw();
+      a.append(sw);
+      const btn = (label: string, fn: () => void) => { const b = el('button', '', label) as HTMLButtonElement; b.onclick = fn; return b; };
+      a.append(el('div', 'actions-col',
+        btn('Fill area with this paint', () => this.fillPaint(1)),
+        btn('Clear paint in area', () => this.fillPaint(0)),
+        btn('Auto-paint by shape', () => this.autoPaintArea({ low: 4, high: Math.max(12, (currentBody().snowLine || 40) - 6), steep: 1.1, strength: 0.85 })),
+      ));
+      a.append(el('div', 'help', 'Auto-paint: rock on steep slopes, sand on low ground, ice on high ground (the paints named so), over the selected area or the whole region.'));
+      const custom = el('details', 'paint-edit');
+      custom.append(el('summary', '', 'Edit this region\'s paints'));
+      const own = () => {
+        if (!Array.isArray(d.paints) || !(d.paints as unknown[]).length) d.paints = DEFAULT_PAINTS.map((p) => ({ ...p }));
+        return d.paints as { name: string; color: string }[];
+      };
+      const rows = el('div', '');
+      const drawRows = () => {
+        rows.replaceChildren();
+        this.paintList().forEach((p, n) => {
+          const r = el('div', 'paint-row');
+          const nm = document.createElement('input'); nm.value = p.name;
+          const cl = document.createElement('input'); cl.type = 'color'; cl.value = p.color;
+          nm.oninput = () => { own()[n].name = nm.value; this.host.changed(); draw(); };
+          cl.oninput = () => { own()[n].color = cl.value; this.loadPaints(); this.rebuild(0, N2); this.host.changed(); draw(); };
+          r.append(el('span', '', String(n + 1)), cl, nm);
+          rows.append(r);
+        });
+        const add = el('button', '', '+ Add a paint') as HTMLButtonElement;
+        add.disabled = this.paintList().length >= 8;
+        add.onclick = () => { own().push({ name: 'New paint', color: '#808080' }); this.loadPaints(); this.host.changed(); draw(); drawRows(); };
+        const reset = el('button', '', 'Back to the standard eight') as HTMLButtonElement;
+        reset.onclick = () => { delete d.paints; this.loadPaints(); this.rebuild(0, N2); this.host.changed(); draw(); drawRows(); };
+        rows.append(el('div', 'actions-col', add, reset));
+      };
+      drawRows();
+      custom.append(rows);
+      a.append(custom);
+    }
     sec('Difficulty');
     a.append(el('div', 'help', 'Overrides for this region only; empty fields use Rules → Threat rules and Colony rules.'));
     fields(['packScale', 'graceSeconds', 'waveInterval', 'startAlloys']);
@@ -1015,6 +1284,7 @@ export class MapEditor {
     a.append(el('div', 'actions-col',
       clr('Clear all sculpting', () => { if (confirm('Reset the terrain to the generated shape? (Undo with Ctrl+Z)')) { this.pushUndo(); this.off.fill(0); this.rebuild(0, N2); this.commitLayers(); } }),
       clr('Clear all flora paint', () => { if (confirm('Remove all flora paint? (Undo with Ctrl+Z)')) { this.pushUndo(); this.paint.fill(0); this.rebuild(0, N2); this.commitLayers(); } }),
+      clr('Clear all ground paint', () => { if (confirm('Remove all ground paint? (Undo with Ctrl+Z)')) { this.pushUndo(); this.ground.fill(0); this.rebuild(0, N2); this.commitLayers(); } }),
     ));
 
     sec('Controls');

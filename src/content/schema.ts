@@ -65,7 +65,11 @@ export interface ColorField extends Base<string> {
   default?: string;
 }
 
-/** A 2D grid of whole numbers, stored as one run-length-encoded string per row (see grid.ts). */
+/**
+ * A 2D grid of whole numbers, stored as one run-length-encoded string per row
+ * (see grid.ts). `cols` and `rows` 0: square, its size set by the record (a
+ * region's grids follow its `size`; content checks compare them).
+ */
 export interface GridField extends Base<string[]> {
   kind: 'grid';
   cols: number;
@@ -113,7 +117,9 @@ export interface Issue {
 }
 
 function gridIssue(f: GridField, v: unknown): string | null {
-  if (!Array.isArray(v) || v.length !== f.rows) return `must be ${f.rows} rows`;
+  if (!Array.isArray(v)) return 'must be a list of rows';
+  const rows = f.rows || v.length, cols = f.cols || v.length;
+  if (v.length !== rows || !rows) return `must be ${rows || 'some'} rows`;
   for (let r = 0; r < v.length; r++) {
     const row = v[r];
     if (typeof row !== 'string') return `row ${r} must be text`;
@@ -125,7 +131,7 @@ function gridIssue(f: GridField, v: unknown): string | null {
       if (val < f.min || val > f.max) return `row ${r}: ${val} outside ${f.min}..${f.max}`;
       n += m[2] ? Number(m[2]) : 1;
     }
-    if (n !== f.cols) return `row ${r} has ${n} values, needs ${f.cols}`;
+    if (n !== cols) return `row ${r} has ${n} values, needs ${cols}`;
   }
   return null;
 }

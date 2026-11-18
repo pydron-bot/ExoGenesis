@@ -1,0 +1,31 @@
+{
+  "name": "NEREID",
+  "sub": "ice giant · 1 moon",
+  "kind": "giant",
+  "radius": 6000,
+  "orbit": 330000,
+  "period": 26000,
+  "phase": 51.57,
+  "seed": 29,
+  "bands": [
+    {
+      "color": "#5fa8b8"
+    },
+    {
+      "color": "#78c2cf"
+    },
+    {
+      "color": "#4d93a6"
+    },
+    {
+      "color": "#8fd1da"
+    }
+  ],
+  "ring": true,
+  "ringInner": 1.5,
+  "ringOuter": 1.8,
+  "ringColor": "#9fd8e0",
+  "ringOpacity": 0.18,
+  "ringTilt": 63.03,
+  "incl": 0.31
+}

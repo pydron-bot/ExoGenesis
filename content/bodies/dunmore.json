@@ -1,0 +1,30 @@
+{
+  "name": "DUNMORE",
+  "sub": "cold desert",
+  "kind": "planet",
+  "radius": 1700,
+  "orbit": 100000,
+  "period": 5400,
+  "phase": 297.94,
+  "relief": 60,
+  "feature": 2.2,
+  "seed": 51,
+  "ground": [
+    {
+      "color": "#7a4a33"
+    },
+    {
+      "color": "#b07a52"
+    },
+    {
+      "color": "#d9b48c"
+    },
+    {
+      "color": "#efe2cf"
+    }
+  ],
+  "atmosphere": "#e0b890",
+  "haze": 0.35,
+  "sky": "#c9a07a",
+  "incl": -0.39
+}

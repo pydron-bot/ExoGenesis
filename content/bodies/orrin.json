@@ -1,0 +1,24 @@
+{
+  "name": "ORRIN",
+  "kind": "moon",
+  "parent": "halcyon",
+  "radius": 500,
+  "orbit": 40000,
+  "period": 360,
+  "phase": 198,
+  "relief": 30,
+  "feature": 3.2,
+  "seed": 49,
+  "ground": [
+    {
+      "color": "#4b4b52"
+    },
+    {
+      "color": "#77746f"
+    },
+    {
+      "color": "#a29d94"
+    }
+  ],
+  "incl": -0.12
+}

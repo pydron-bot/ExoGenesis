@@ -431,59 +431,133 @@ export const missionShape = {
 } satisfies Shape;
 export type MissionDef = Infer<typeof missionShape>;
 
+/**
+ * Bodies (content/bodies/<id>.json): the star's planets, their moons,
+ * asteroids and comets. Every one is drawn in the solar system; any but a gas
+ * giant can hold regions (a region's `body`), and the one being played becomes
+ * the world: its radius, terrain, colours and sky (src/world/planet.ts), with
+ * the rest of the system placed round it (src/world/system.ts).
+ */
+export const BODY_KINDS = ['planet', 'moon', 'asteroid', 'comet', 'giant'] as const;
+/** Fields for bodies with a surface (not gas giants). */
+const LANDABLE = ['planet', 'moon', 'asteroid', 'comet'] as const;
+const surface = () => ({ when: on('kind', LANDABLE, false) });
+const giantOnly = { when: on('kind', ['giant'], false) };
+export const bodyColorShape = { color: color({ label: 'Colour' }) } satisfies Shape;
+export const bodyShape = {
+  name: str({ label: 'Name', help: 'As the label in the system view shows it (capitals read best).' }),
+  sub: str({ label: 'Subtitle', optional: true, help: 'Under the name in the system view (e.g. "cold desert").' }),
+  kind: choice(BODY_KINDS, { label: 'Kind', helps: {
+    planet: 'A rocky planet circling the star.',
+    moon: 'Circles a planet (set Orbits).',
+    asteroid: 'A small lumpy rock.',
+    comet: 'An icy rock on a long, eccentric orbit; grows a tail near the star.',
+    giant: 'A gas giant: banded, maybe ringed. Nothing can land on it.',
+  } }),
+  parent: ref('bodies', { label: 'Orbits', optional: true, help: 'The body it circles. Empty = the star.' }),
+  radius: num({ label: 'Radius', min: 40, max: 20000, step: 10, unit: 'u', help: 'Home is 3,000 u. A region needs a body several times its own half-width.' }),
+  orbit: num({ label: 'Orbit size', min: 500, max: 600000, step: 100, unit: 'u', help: 'Distance from what it orbits (the semi-major axis). Home is 75,000 u from the star.' }),
+  ecc: num({ label: 'Eccentricity', min: 0, max: 0.95, step: 0.01, optional: true, help: '0 = a circle; comets are 0.8–0.9.' }),
+  incl: num({ label: 'Tilt of orbit', min: -60, max: 60, step: 0.1, unit: '°', optional: true }),
+  period: num({ label: 'Orbit time', min: 10, max: 100000, step: 10, unit: 's', help: 'Real seconds for one orbit. Home takes 3,600 s.' }),
+  phase: num({ label: 'Start angle', min: 0, max: 360, step: 1, unit: '°', optional: true, help: 'Where on its orbit it starts.' }),
+  relief: num({ label: 'Relief', min: 0, max: 400, step: 1, unit: 'u', optional: true, default: 90, help: 'Height of its hills and basins. Home: 90.', ...surface() }),
+  feature: num({ label: 'Feature size', min: 0.3, max: 12, step: 0.1, optional: true, default: 2.1, help: 'Higher = smaller, busier landforms. Home: 2.1.', ...surface() }),
+  seed: int({ label: 'Seed', min: 1, max: 999999, optional: true, default: 7, help: 'A different seed, a different landscape (or cloud bands).' }),
+  ocean: bool({ label: 'Seas', optional: true, help: 'Water below height 0. Without seas the lowest ground is dry basin floor.', ...surface() }),
+  plants: num({ label: 'Plant life', min: -1, max: 1, step: 0.05, optional: true, default: -1, help: '−1 = barren; 0 = as lush as Home; more = lusher. Moves the flora field.', ...surface() }),
+  ground: list(bodyColorShape, { label: 'Ground colours', max: 6, optional: true, help: 'Low ground to high ground (2–6). Empty = Home\'s browns.', ...surface() }),
+  deep: color({ label: 'Deep water', optional: true, default: '#0f2a3a', when: on('ocean', ['true'], false) }),
+  shallow: color({ label: 'Shallow water', optional: true, default: '#1f5a6a', when: on('ocean', ['true'], false) }),
+  shore: color({ label: 'Shore', optional: true, default: '#b59b74', when: on('ocean', ['true'], false) }),
+  floraA: color({ label: 'Plants', optional: true, default: '#563a78', help: 'Ground tint where plants grow.', ...surface() }),
+  floraB: color({ label: 'Plants (second)', optional: true, default: '#2d6e68', ...surface() }),
+  snow: color({ label: 'Snow / frost', optional: true, default: '#ddd3c4', ...surface() }),
+  snowLine: num({ label: 'Snow line', min: 0, max: 400, step: 1, unit: 'u', optional: true, help: 'Snow from this height up. Empty or 0 = none. Home: 34.', ...surface() }),
+  atmosphere: color({ label: 'Atmosphere', optional: true, help: 'The glow round it from space. Empty = airless.' }),
+  haze: num({ label: 'Atmosphere strength', min: 0, max: 3, step: 0.05, optional: true, default: 1 }),
+  sky: color({ label: 'Daytime sky', optional: true, help: 'Seen from the ground. Empty = black (airless) or Home\'s if it has an atmosphere.', ...surface() }),
+  clouds: bool({ label: 'Clouds', optional: true, help: 'Cloud cover seen from orbit.', ...surface() }),
+  bands: list(bodyColorShape, { label: 'Bands', max: 8, optional: true, help: 'The gas giant\'s cloud bands, pole to pole.', ...giantOnly }),
+  ring: bool({ label: 'Ring', optional: true }),
+  ringInner: num({ label: 'Ring inner edge', min: 1.05, max: 4, step: 0.05, optional: true, default: 1.4, help: 'Times the radius.', when: on('ring', ['true'], false) }),
+  ringOuter: num({ label: 'Ring outer edge', min: 1.1, max: 6, step: 0.05, optional: true, default: 2.2, help: 'Times the radius.', when: on('ring', ['true'], false) }),
+  ringColor: color({ label: 'Ring colour', optional: true, default: '#d6c39c', when: on('ring', ['true'], false) }),
+  ringOpacity: num({ label: 'Ring opacity', min: 0.02, max: 1, step: 0.02, optional: true, default: 0.4, when: on('ring', ['true'], false) }),
+  ringTilt: num({ label: 'Ring tilt', min: -90, max: 90, step: 1, unit: '°', optional: true, default: 24, when: on('ring', ['true'], false) }),
+  description: str({ label: 'Notes', multiline: true, optional: true, help: 'For the editor.' }),
+} satisfies Shape;
+export type BodyDef = Infer<typeof bodyShape>;
+
 /** Region paint grids: one sample every REGION_STEP units across the whole region. */
 export const REGION_STEP = 2;
-export const REGION_CELLS = (REGION_HALF * 2) / REGION_STEP + 1; // 121
+export const REGION_CELLS = (REGION_HALF * 2) / REGION_STEP + 1; // 121 (a 240 u region)
+/** Grid nodes per side for a region of half-width `half`. */
+export const regionCells = (half: number) => Math.round((half * 2) / REGION_STEP) + 1;
+/** Region sizes (side length, u): every one keeps the paint grids, fog and nav cells whole. */
+export const REGION_SIZE_MIN = 120, REGION_SIZE_MAX = 480, REGION_SIZE_STEP = 40;
+/** Marker coordinates may go this far out (the largest region's half-width). */
+const XZ = REGION_SIZE_MAX / 2;
 /** Height grid values are tenths of a world unit. */
 export const HEIGHT_SCALE = 0.1;
 
 export const herdShape = {
-  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
-  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
   grazers: int({ label: 'Grazers', min: 0, max: 400 }),
   roam: num({ label: 'Roam radius', min: 0, max: 240, unit: 'u', help: 'How far the herd may wander from here. 0 = stays put.' }),
 } satisfies Shape;
 export type HerdDef = Infer<typeof herdShape>;
 
 export const depositShape = {
-  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
-  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
   alloys: int({ label: 'Alloys', min: 1, max: 1000000 }),
 } satisfies Shape;
 export type DepositDef = Infer<typeof depositShape>;
 
 export const ventShape = {
-  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
-  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
 } satisfies Shape;
 export type VentDef = Infer<typeof ventShape>;
 
 export const spawnShape = {
-  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
-  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
 } satisfies Shape;
 export type SpawnDef = Infer<typeof spawnShape>;
 
 export const siteShape = {
   id: str({ label: 'Id', help: 'Story events name the site by this (a "Reach a site" trigger). Lowercase, no spaces.' }),
   label: str({ label: 'Label', optional: true, help: 'For the editor only.' }),
-  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
-  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
   r: num({ label: 'Radius', min: 2, max: 120, step: 0.5, unit: 'u', default: 10, help: 'A drone or combat unit this close has reached it.' }),
 } satisfies Shape;
 export type SiteDef = Infer<typeof siteShape>;
 
 export const campShape = {
-  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
-  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
   group: ref('inhabitants', { label: 'Who lives here', help: 'An inhabitant group (Story → Inhabitants).' }),
   yaw: num({ label: 'Facing', min: -180, max: 180, step: 5, unit: '°', optional: true, help: 'Turns the whole camp.' }),
 } satisfies Shape;
 export type CampDef = Infer<typeof campShape>;
 
+/** A ground paint (map editor: Paint ground). */
+export const paintShape = {
+  name: str({ label: 'Name' }),
+  color: color({ label: 'Colour' }),
+} satisfies Shape;
 export const regionShape = {
   name: str({ label: 'Name' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
+  body: ref('bodies', { label: 'Body', optional: true, help: 'The planet, moon, asteroid or comet it\'s on (Worlds). Empty = Home.' }),
+  size: int({ label: 'Size', min: REGION_SIZE_MIN, max: REGION_SIZE_MAX, step: REGION_SIZE_STEP, unit: 'u', optional: true, help: 'Side length of the playable square. Empty = 240 u. Change it in the map editor (Region size), which crops or pads the painting round the centre.' }),
+  detail: num({ label: 'Local relief', min: 0, max: 60, step: 0.5, unit: 'u', optional: true, help: 'Height of the region\'s own bumps on top of the body\'s terrain. Empty = 10 u.' }),
+  detailSize: num({ label: 'Local feature size', min: 2, max: 60, step: 0.5, unit: 'u', optional: true, help: 'Roughly how far apart those bumps are. Empty = 10 u.' }),
+  detailSeed: int({ label: 'Local relief seed', min: 1, max: 999999, optional: true, help: 'A different seed, a different pattern of bumps. Empty = 21.' }),
   floraSeed: int({ label: 'Flora seed', min: 1, max: 999999, help: 'Picks the plant species. ?flora=<seed> in the URL overrides it.' }),
   floraDensity: num({ label: 'Flora density', min: 0, max: 3, step: 0.05, default: 1, help: 'Multiplies the number of plants everywhere.' }),
   siteLat: num({ label: 'Site: degrees north', min: -80, max: 80, step: 1, unit: '°', optional: true, help: 'Where on the planet the region sits, from Touchdown. Moving it changes the generated ground under your sculpting (0, 0 = Touchdown\'s spot).' }),
@@ -492,8 +566,11 @@ export const regionShape = {
   graceSeconds: num({ label: 'Grace period', min: 0, max: 7200, unit: 's', optional: true, help: 'No attacks before this. Empty = the threat rules\' grace period.' }),
   waveInterval: num({ label: 'Time between packs', min: 10, max: 3600, unit: 's', optional: true, help: 'Empty = the threat rules\' interval.' }),
   startAlloys: int({ label: 'Starting alloys', min: 0, max: 100000, optional: true, help: 'Empty = the colony rules\' starting alloys.' }),
-  height: grid(REGION_CELLS, REGION_CELLS, -600, 600, { label: 'Height sculpt', optional: true, help: 'Added to the generated terrain, in tenths of a unit.' }),
-  flora: grid(REGION_CELLS, REGION_CELLS, -100, 100, { label: 'Flora paint', optional: true, help: '−100 clears plants, +100 doubles them and makes the ground lush.' }),
+  // grids are square, one node every REGION_STEP u across the region's size (0 = sized by the record: see db.ts)
+  height: grid(0, 0, -600, 600, { label: 'Height sculpt', optional: true, help: 'Added to the generated terrain, in tenths of a unit.' }),
+  flora: grid(0, 0, -100, 100, { label: 'Flora paint', optional: true, help: '−100 clears plants, +100 doubles them and makes the ground lush.' }),
+  ground: grid(0, 0, 0, 899, { label: 'Ground paint', optional: true, help: 'Painted ground colour: paint number × 100 + amount (0–99). Use the map editor\'s Paint ground.' }),
+  paints: list(paintShape, { label: 'Ground paints', max: 8, optional: true, help: 'The colours Paint ground uses. Empty = the standard eight (rock, sand, soil, moss, ash, ice, rust, bloom).' }),
   herds: list(herdShape, { label: 'Grazer herds', max: 60 }),
   deposits: list(depositShape, { label: 'Alloy deposits', max: 60 }),
   spawns: list(spawnShape, { label: 'Predator spawns', max: 20 }),
@@ -624,6 +701,7 @@ export const COLLECTIONS = {
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
+  bodies: { path: 'bodies', kind: 'many', shape: bodyShape, label: 'Worlds', title: 'name', group: 'Maps' },
   missions: { path: 'missions', kind: 'many', shape: missionShape, label: 'Missions', title: 'title', group: 'Story' },
   story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },
   inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },

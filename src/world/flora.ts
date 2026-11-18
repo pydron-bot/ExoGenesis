@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm3, smoothstep } from './noise';
-import { E, HALF, N, floraPaintAt, regionDir, regionFlora, regionHeightRaw, regionToWorld } from './planet';
+import { E, HALF, N, currentBody, floraPaintAt, regionDir, regionFlora, regionHeightRaw, regionToWorld } from './planet';
 
 type Rng = () => number;
 
@@ -490,8 +490,11 @@ export class Flora {
           total += v;
           return v;
         });
-        const paint = Math.min(2, Math.max(0, 1 + floraPaintAt(x, z)));
-        const p = Math.min(0.95, total * base * density * near * paint);
+        const fp = floraPaintAt(x, z);
+        const paint = Math.min(2, Math.max(0, 1 + fp));
+        // a barren body (plant life −1) grows nothing, except where flora is painted on
+        const life = Math.min(1, smoothstep(-0.9, -0.3, currentBody().plants) + Math.max(0, fp));
+        const p = Math.min(0.95, total * base * density * near * paint * life);
         if (r() > p) continue;
         let k = r() * total, si = 0;
         for (; si < w.length - 1; si++) { k -= w[si]; if (k <= 0) break; }

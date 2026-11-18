@@ -1,0 +1,27 @@
+{
+  "name": "IO-T",
+  "kind": "moon",
+  "parent": "thalassa",
+  "radius": 900,
+  "orbit": 26000,
+  "period": 160,
+  "phase": 44,
+  "relief": 54,
+  "feature": 2.6,
+  "seed": 48,
+  "ground": [
+    {
+      "color": "#6e5a22"
+    },
+    {
+      "color": "#c9a43a"
+    },
+    {
+      "color": "#efe08a"
+    },
+    {
+      "color": "#8a3d1e"
+    }
+  ],
+  "incl": 0.19
+}

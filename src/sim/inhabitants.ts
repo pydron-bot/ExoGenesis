@@ -21,7 +21,8 @@ import { REGION_HALF, TICK_HZ, type Camp, type CampSnap, type ContactChoice, typ
 
 const SOL = content.colony.solSeconds;
 const DT = 1 / TICK_HZ;
-const LIMIT = REGION_HALF - 6;
+/** How far from the centre things may go (read per use: the region's size is set per region). */
+const limit = () => REGION_HALF - 6;
 /** Regard below this: uneasy (warned once); the warning re-arms above UNEASY + 10. */
 const UNEASY = 25;
 /** How close to a camp's centre counts as seeing it (first contact). */
@@ -151,8 +152,8 @@ export class Inhabitants {
     c.regard = 0;
     this.sim.emit(text, level, 'lost');
     // everyone heads for the nearest edge of the region
-    const ex = Math.abs(c.x) > Math.abs(c.z) ? Math.sign(c.x || 1) * (LIMIT + 4) : c.x;
-    const ez = Math.abs(c.x) > Math.abs(c.z) ? c.z : Math.sign(c.z || 1) * (LIMIT + 4);
+    const ex = Math.abs(c.x) > Math.abs(c.z) ? Math.sign(c.x || 1) * (limit() + 4) : c.x;
+    const ez = Math.abs(c.x) > Math.abs(c.z) ? c.z : Math.sign(c.z || 1) * (limit() + 4);
     for (const p of c.natives) { p.tx = ex + (p.x - c.x) * 0.5; p.tz = ez + (p.z - c.z) * 0.5; p.wait = 0; p.elder = false; }
   }
 
@@ -185,7 +186,7 @@ export class Inhabitants {
     }
     for (let tries = 0; tries < 8; tries++) {
       const a = this.sim.rnd() * Math.PI * 2, r = (0.25 + 0.75 * Math.sqrt(this.sim.rnd())) * g.roam;
-      const x = clamp(c.x + Math.cos(a) * r, -LIMIT, LIMIT), z = clamp(c.z + Math.sin(a) * r, -LIMIT, LIMIT);
+      const x = clamp(c.x + Math.cos(a) * r, -limit(), limit()), z = clamp(c.z + Math.sin(a) * r, -limit(), limit());
       // they keep out of the colony's way
       if (this.sim.s.buildings.some((b) => Math.hypot(b.x - x, b.z - z) < 10)) continue;
       p.tx = x; p.tz = z;
@@ -201,7 +202,7 @@ export class Inhabitants {
       const p = c.natives[i];
       if (c.gone) {
         this.toward(p, p.tx, p.tz, sp * 1.6);
-        if (Math.abs(p.x) > LIMIT + 2 || Math.abs(p.z) > LIMIT + 2 || Math.hypot(p.tx - p.x, p.tz - p.z) < 1) c.natives.splice(i, 1);
+        if (Math.abs(p.x) > limit() + 2 || Math.abs(p.z) > limit() + 2 || Math.hypot(p.tx - p.x, p.tz - p.z) < 1) c.natives.splice(i, 1);
         continue;
       }
       if (g.ritual && !p.elder) {

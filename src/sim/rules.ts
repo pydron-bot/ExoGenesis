@@ -20,7 +20,8 @@ export interface PlaceWorld {
 export const isBarrier = (role: string | undefined) => role === 'wall' || role === 'gate';
 
 export const DEPOSIT_RADIUS = 6;
-export const EDGE = REGION_HALF - 10;
+/** How close to the region's edge buildings may stand (a function: the region's size is set per region). */
+export const EDGE = () => REGION_HALF - 10;
 
 /** Why `kind` can't go at (x, z), or null if it can. */
 export function placeProblem(
@@ -28,7 +29,7 @@ export function placeProblem(
 ): string | null {
   const d = defs[kind];
   if (!d) return 'unknown building';
-  if (Math.abs(x) > EDGE || Math.abs(z) > EDGE) return 'too close to the region edge';
+  if (Math.abs(x) > EDGE() || Math.abs(z) > EDGE()) return 'too close to the region edge';
   const r = d.clearance / 2;
   let lo = Infinity, hi = -Infinity;
   for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r * 0.7, r * 0.7], [-r * 0.7, -r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, r * 0.7]]) {

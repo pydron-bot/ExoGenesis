@@ -9,7 +9,7 @@
 import { content } from '../content';
 import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
-import { regionHeightRaw, setRegionTerrain } from '../world/planet';
+import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
 import { PathGrid } from './path';
 import { Inhabitants, campSites } from './inhabitants';
@@ -38,7 +38,7 @@ export function useRegion(id: string, draft?: RegionDef) {
   REGION_ID = draft || content.regions[id] ? id : 'touchdown';
   REGION = draft ?? content.regions[REGION_ID];
   VENTS = REGION.vents ?? [];
-  setRegionTerrain(REGION);
+  setRegionTerrain(regionTerrain(REGION, content.bodies));
   return REGION_ID;
 }
 useRegion('touchdown');
@@ -52,7 +52,8 @@ const WALK = 2.2;
 const RUN = 7.5;
 const FLEE_R = 14;
 const CORE_KEEP_OUT = 24;
-const LIMIT = REGION_HALF - 6;
+/** How far from the centre things may go (read per use: the region's size is set per region). */
+const limit = () => REGION_HALF - 6;
 const PANIC_R = 115;
 const DRONE_REACH = 5;
 /** Shooters with nothing in range draw this fraction of their power. */
@@ -127,7 +128,7 @@ const PACK_EXTRAS = Object.entries(content.units)
 export class Sim {
   s!: SimState;
   private fx: number[] = [];
-  private grid = new PathGrid(LIMIT);
+  private grid = new PathGrid(limit());
   /** Fog of war: in sight now / ever seen (mirrored into s.explored for saves). */
   private vis = new Uint8Array(FOG_N * FOG_N);
   private exp = new Uint8Array(FOG_N * FOG_N);
@@ -172,8 +173,8 @@ export class Sim {
     REGION.herds.forEach((hd, herd) => {
       s.herds.push({ x: hd.x, z: hd.z });
       for (let i = 0; i < hd.grazers; i++) {
-        const x = clamp(hd.x + (this.rnd() - 0.5) * 30, -LIMIT, LIMIT);
-        const z = clamp(hd.z + (this.rnd() - 0.5) * 30, -LIMIT, LIMIT);
+        const x = clamp(hd.x + (this.rnd() - 0.5) * 30, -limit(), limit());
+        const z = clamp(hd.z + (this.rnd() - 0.5) * 30, -limit(), limit());
         s.fauna.push({ x, z, heading: this.rnd() * Math.PI * 2, tx: x, tz: z, herd });
       }
     });
@@ -770,7 +771,7 @@ export class Sim {
         const dx = a.x - b.x, dz = a.z - b.z, dd = Math.hypot(dx, dz), min = bodyR(b) + ra;
         if (dd > 1e-3 && dd < min) { a.x = b.x + (dx / dd) * min; a.z = b.z + (dz / dd) * min; }
       }
-      a.x = clamp(a.x, -LIMIT, LIMIT); a.z = clamp(a.z, -LIMIT, LIMIT);
+      a.x = clamp(a.x, -limit(), limit()); a.z = clamp(a.z, -limit(), limit());
     }
   }
 
@@ -850,7 +851,7 @@ export class Sim {
   }
 
   private blocked(x: number, z: number) {
-    if (Math.abs(x) > LIMIT || Math.abs(z) > LIMIT) return true;
+    if (Math.abs(x) > limit() || Math.abs(z) > limit()) return true;
     return regionHeightRaw(x, z) < 0.3;
   }
 
@@ -964,7 +965,7 @@ export class Sim {
         const dx = a.x - cx, dz = a.z - cz, d = Math.hypot(dx, dz);
         if (d > 1e-3 && d < min) { a.x = cx + (dx / d) * min; a.z = cz + (dz / d) * min; }
       }
-      a.x = clamp(a.x, -LIMIT, LIMIT); a.z = clamp(a.z, -LIMIT, LIMIT);
+      a.x = clamp(a.x, -limit(), limit()); a.z = clamp(a.z, -limit(), limit());
       // never end up on the other side of a wall this tick
       const [px, pz] = was[i];
       for (const b of s.buildings) {
@@ -1084,7 +1085,7 @@ export class Sim {
     if (s.tick < w.next) return;
     const night = this.power.daylight < 0.3;
     const size = Math.round(Math.min(THREATS.maxSize, THREATS.startSize + THREATS.growth * w.n) * packScale() * (night ? THREATS.nightBoost : 1));
-    const spawns = REGION.spawns?.length ? REGION.spawns : [{ x: LIMIT - 10, z: LIMIT - 10 }];
+    const spawns = REGION.spawns?.length ? REGION.spawns : [{ x: limit() - 10, z: limit() - 10 }];
     const sp = spawns[Math.floor(this.rnd() * spawns.length)];
     const pack = { id: s.nextId++, size, alive: 0, announced: false, from: compass(sp.x, sp.z) };
     for (let i = 0; i < size; i++) {
@@ -1096,7 +1097,7 @@ export class Sim {
       if (slot < 0) break;
       const a = this.rnd() * Math.PI * 2, r = Math.sqrt(this.rnd()) * 7;
       s.hostiles.push({
-        id: s.nextId++, unit, slot, x: clamp(sp.x + Math.cos(a) * r, -LIMIT, LIMIT), z: clamp(sp.z + Math.sin(a) * r, -LIMIT, LIMIT),
+        id: s.nextId++, unit, slot, x: clamp(sp.x + Math.cos(a) * r, -limit(), limit()), z: clamp(sp.z + Math.sin(a) * r, -limit(), limit()),
         heading: Math.atan2(-sp.x, -sp.z), hp: content.units[unit].hp, target: -1, cd: this.rnd(), pack: pack.id,
         under: content.units[unit].burrows || undefined,
       });
@@ -1127,7 +1128,7 @@ export class Sim {
     for (let tries = 0; tries < 20; tries++) {
       const a = this.rnd() * Math.PI * 2, r = Math.sqrt(this.rnd()) * home.roam;
       const x = home.x + Math.cos(a) * r, z = home.z + Math.sin(a) * r;
-      if (Math.abs(x) < LIMIT - 15 && Math.abs(z) < LIMIT - 15 && Math.hypot(x, z) > 50) return { x, z };
+      if (Math.abs(x) < limit() - 15 && Math.abs(z) < limit() - 15 && Math.hypot(x, z) > 50) return { x, z };
     }
     return { x: home.x, z: home.z };
   }
@@ -1156,8 +1157,8 @@ export class Sim {
       }
       if (!fled && (Math.hypot(f.tx - f.x, f.tz - f.z) < 1.5 || this.rnd() < 0.003)) {
         const c = s.herds[f.herd];
-        f.tx = clamp(c.x + (this.rnd() - 0.5) * 44, -LIMIT, LIMIT);
-        f.tz = clamp(c.z + (this.rnd() - 0.5) * 44, -LIMIT, LIMIT);
+        f.tx = clamp(c.x + (this.rnd() - 0.5) * 44, -limit(), limit());
+        f.tz = clamp(c.z + (this.rnd() - 0.5) * 44, -limit(), limit());
         tx = f.tx; tz = f.tz;
       }
       // keep grazers out of the base
@@ -1167,8 +1168,8 @@ export class Sim {
         if (d < r && d > 1e-3) { tx = b.x + (dx / d) * (r + 8); tz = b.z + (dz / d) * (r + 8); }
       }
       if (Math.hypot(tx - f.x, tz - f.z) > 0.4) this.approach(f, tx, tz, sp, sp > WALK ? 9 : 2.5);
-      f.x = clamp(f.x, -LIMIT, LIMIT);
-      f.z = clamp(f.z, -LIMIT, LIMIT);
+      f.x = clamp(f.x, -limit(), limit());
+      f.z = clamp(f.z, -limit(), limit());
     }
   }
 
@@ -1181,7 +1182,7 @@ export class Sim {
       case 'move': {
         const d = s.drones.find((x) => x.id === c.drone) ?? s.drones[0];
         if (!d) return;
-        d.task = { kind: 'move', x: clamp(c.x, -LIMIT, LIMIT), z: clamp(c.z, -LIMIT, LIMIT) };
+        d.task = { kind: 'move', x: clamp(c.x, -limit(), limit()), z: clamp(c.z, -limit(), limit()) };
         d.manual = true;
         return;
       }
@@ -1290,7 +1291,7 @@ export class Sim {
           for (let i = 0; i < (sp.n ?? 1); i++) {
             const slot = this.freeSlot();
             if (slot < 0) break;
-            const x = clamp(sp.x + (i % 4) * 3, -LIMIT, LIMIT), z = clamp(sp.z - Math.floor(i / 4) * 3, -LIMIT, LIMIT);
+            const x = clamp(sp.x + (i % 4) * 3, -limit(), limit()), z = clamp(sp.z - Math.floor(i / 4) * 3, -limit(), limit());
             this.units.push({ id: s.nextId++, unit: sp.unit, slot, x, z, heading: 0, hp: ud.hp, cd: 0, order: { kind: 'idle' }, gx: x, gz: z, target: -1 });
           }
         }
@@ -1324,11 +1325,11 @@ export class Sim {
       case 'order': {
         const sel = this.units.filter((u) => c.ids.includes(u.id));
         // spread out around the point (sunflower), nearest units take the inner spots
-        const x = clamp(c.x, -LIMIT, LIMIT), z = clamp(c.z, -LIMIT, LIMIT);
+        const x = clamp(c.x, -limit(), limit()), z = clamp(c.z, -limit(), limit());
         sel.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
         sel.forEach((u, i) => {
           const r = SPREAD * Math.sqrt(i) * (i ? 1 : 0), a = i * 2.39996;
-          const ox = clamp(x + Math.cos(a) * r, -LIMIT, LIMIT), oz = clamp(z + Math.sin(a) * r, -LIMIT, LIMIT);
+          const ox = clamp(x + Math.cos(a) * r, -limit(), limit()), oz = clamp(z + Math.sin(a) * r, -limit(), limit());
           u.order = { kind: 'move', x: ox, z: oz };
           u.target = -1;
         });

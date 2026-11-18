@@ -7,11 +7,23 @@ import type { PeopleCommand, PeopleSnap, PeopleState } from './people-types';
 
 export const TICK_HZ = 10;
 export const TICK_MS = 1000 / TICK_HZ;
-/** Half-width of the landing region, in world units (~1 unit = 10 m). */
-export const REGION_HALF = 120;
+/**
+ * Half-width of the region being played, in world units (~1 unit = 10 m). Each
+ * region picks its own size (content `size`, 240 u when it has none);
+ * `setRegionHalf` (called by world/planet.ts `setRegionTerrain`) sets it, in
+ * every thread, before anything sizes a grid from it. A live binding: read it
+ * where it's used, don't copy it into a module-level constant.
+ */
+export let REGION_HALF = 120;
+/** The size a region has when it doesn't say (and the skirmish's). */
+export const DEFAULT_REGION_SIZE = 240;
 /** Fog of war grid: FOG_N² cells of FOG_CELL units, row-major by z then x. */
 export const FOG_CELL = 4;
-export const FOG_N = Math.ceil((REGION_HALF * 2) / FOG_CELL);
+export let FOG_N = Math.ceil((REGION_HALF * 2) / FOG_CELL);
+export function setRegionHalf(half: number) {
+  REGION_HALF = half;
+  FOG_N = Math.ceil((half * 2) / FOG_CELL);
+}
 /** Hostile render slots (shared buffer layout with the skirmish renderer). */
 export const MAX_HOSTILES = 400;
 

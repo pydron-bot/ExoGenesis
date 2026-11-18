@@ -10,7 +10,7 @@ import { makeGroundTextures } from './terrainTex';
 import { Flora } from './flora';
 import { addFog } from './fog';
 import {
-  E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, worldToRegion,
+  E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, applyGroundPaint, worldToRegion,
   type GroundPad,
 } from './planet';
 
@@ -49,6 +49,7 @@ function buildPatch(look: Look): THREE.Mesh {
       pos.push(v.x, v.y, v.z);
       vx.push(x); vz.push(z); vdrop.push(skirt ? 10 : 0);
       terrainColor(raw, regionFlora(x, z), c);
+      applyGroundPaint(x, z, c);
       col.push(c.r, c.g, c.b);
       uv.push(x / 22, z / 22); // one texture tile per 22 units (~220 m)
     }

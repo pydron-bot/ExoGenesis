@@ -16,10 +16,14 @@ import { E, HALF, N, R, U } from './planet';
 const DARK = 0.1;
 const SEEN = 0.42;
 
-const tex = new THREE.DataTexture(new Uint8Array(FOG_N * FOG_N).fill(255), FOG_N, FOG_N, THREE.RedFormat, THREE.UnsignedByteType);
-tex.magFilter = THREE.LinearFilter;
-tex.minFilter = THREE.LinearFilter;
-tex.needsUpdate = true;
+const makeTex = (n: number) => {
+  const t = new THREE.DataTexture(new Uint8Array(n * n).fill(255), n, n, THREE.RedFormat, THREE.UnsignedByteType);
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+};
+let tex = makeTex(FOG_N);
 
 export const fogUniforms = {
   uFogTex: { value: tex },
@@ -33,8 +37,16 @@ export const fogUniforms = {
   uFogHalf: { value: HALF },
 };
 
+/** Match the texture and uniforms to the region being played (its body's radius, its size). */
+function syncFog() {
+  if (tex.image.width !== FOG_N) { tex.dispose(); tex = makeTex(FOG_N); fogUniforms.uFogTex.value = tex; }
+  fogUniforms.uFogR.value = R;
+  fogUniforms.uFogHalf.value = HALF;
+}
+
 /** Darken `mat` by the fog wherever it's drawn. Safe to call once per material. */
 export function addFog(mat: THREE.Material) {
+  syncFog();
   if (mat.userData.fog) return;
   mat.userData.fog = true;
   const prev = mat.onBeforeCompile;
@@ -76,13 +88,18 @@ export function addFog(mat: THREE.Material) {
 /** Eases the fog texture toward the sim's grid (cells brighten fast, darken slowly). */
 export class FogView {
   /** Eased brightness per cell; starts fully lit, matching the texture's initial data. */
-  private cur = new Float32Array(FOG_N * FOG_N).fill(1);
-  private data = tex.image.data as Uint8Array;
+  private cur: Float32Array;
+  private data: Uint8Array;
   private first = true;
   /** Target fog amount; `uFogOn` eases toward it. */
   amount = 0;
 
-  constructor(readonly enabled: boolean) {}
+  /** Make it after the region is loaded (world/planet.ts setRegionTerrain): the grid follows the region's size. */
+  constructor(readonly enabled: boolean) {
+    syncFog();
+    this.cur = new Float32Array(FOG_N * FOG_N).fill(1);
+    this.data = tex.image.data as Uint8Array;
+  }
 
   update(grid: Uint8Array | undefined, dt: number) {
     const u = fogUniforms.uFogOn;

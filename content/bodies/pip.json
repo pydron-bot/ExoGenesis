@@ -1,0 +1,24 @@
+{
+  "name": "PIP",
+  "kind": "moon",
+  "parent": "thalassa",
+  "radius": 400,
+  "orbit": 56000,
+  "period": 520,
+  "phase": 335,
+  "relief": 24,
+  "feature": 3.2,
+  "seed": 4,
+  "ground": [
+    {
+      "color": "#5b3a2c"
+    },
+    {
+      "color": "#8f5e40"
+    },
+    {
+      "color": "#c9a27c"
+    }
+  ],
+  "incl": 0.67
+}

@@ -1,0 +1,24 @@
+{
+  "name": "DUNMORE a",
+  "kind": "moon",
+  "parent": "dunmore",
+  "radius": 150,
+  "orbit": 5000,
+  "period": 90,
+  "phase": 272,
+  "relief": 9,
+  "feature": 3.2,
+  "seed": 68,
+  "ground": [
+    {
+      "color": "#5b3a2c"
+    },
+    {
+      "color": "#8f5e40"
+    },
+    {
+      "color": "#c9a27c"
+    }
+  ],
+  "incl": 0.1
+}

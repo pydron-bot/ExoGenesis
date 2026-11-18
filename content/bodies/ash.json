@@ -1,0 +1,24 @@
+{
+  "name": "ASH",
+  "sub": "airless",
+  "kind": "planet",
+  "radius": 1300,
+  "orbit": 36000,
+  "period": 1300,
+  "phase": 223.45,
+  "relief": 45,
+  "feature": 2.2,
+  "seed": 42,
+  "ground": [
+    {
+      "color": "#3a3633"
+    },
+    {
+      "color": "#6d655d"
+    },
+    {
+      "color": "#9a8f84"
+    }
+  ],
+  "incl": 0.96
+}

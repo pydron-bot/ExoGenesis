@@ -1,0 +1,25 @@
+{
+  "name": "KORA",
+  "kind": "moon",
+  "parent": "thalassa",
+  "radius": 700,
+  "orbit": 34000,
+  "period": 240,
+  "phase": 73,
+  "relief": 42,
+  "feature": 2.6,
+  "seed": 11,
+  "ground": [
+    {
+      "color": "#8ea5b5"
+    },
+    {
+      "color": "#c9d8e2"
+    },
+    {
+      "color": "#eef4f8"
+    }
+  ],
+  "snowLine": 0,
+  "incl": 0.59
+}

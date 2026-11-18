@@ -1,0 +1,31 @@
+{
+  "name": "HALCYON",
+  "sub": "ringed giant · 2 moons",
+  "kind": "giant",
+  "radius": 9000,
+  "orbit": 260000,
+  "period": 20000,
+  "phase": 263.56,
+  "seed": 19,
+  "bands": [
+    {
+      "color": "#d8c9a0"
+    },
+    {
+      "color": "#efe3c4"
+    },
+    {
+      "color": "#b8a27a"
+    },
+    {
+      "color": "#cdbb91"
+    }
+  ],
+  "ring": true,
+  "ringInner": 1.35,
+  "ringOuter": 2.3,
+  "ringColor": "#d6c39c",
+  "ringOpacity": 0.4,
+  "ringTilt": 24.06,
+  "incl": 0.95
+}

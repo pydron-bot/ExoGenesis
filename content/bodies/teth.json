@@ -1,0 +1,24 @@
+{
+  "name": "TETH",
+  "kind": "moon",
+  "parent": "nereid",
+  "radius": 700,
+  "orbit": 20000,
+  "period": 200,
+  "phase": 343,
+  "relief": 42,
+  "feature": 2.6,
+  "seed": 19,
+  "ground": [
+    {
+      "color": "#8ea5b5"
+    },
+    {
+      "color": "#c9d8e2"
+    },
+    {
+      "color": "#eef4f8"
+    }
+  ],
+  "incl": 0.93
+}

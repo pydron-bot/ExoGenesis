@@ -191,6 +191,7 @@ export interface ArmyLights {
 
 export class ColonyLights {
   private scene = new THREE.Scene();
+  // the region's size and body are set by now (main.ts loads the region first)
   private cam = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, -10, 10);
   private blobs: THREE.InstancedMesh;
   private aCol: THREE.InstancedBufferAttribute;
@@ -216,6 +217,8 @@ export class ColonyLights {
   drawn = 0;
 
   constructor(scene: THREE.Scene) {
+    lightUniforms.uLmR.value = R;
+    lightUniforms.uLmHalf.value = HALF;
     lightUniforms.uLmH.value = heightTexture();
     lightUniforms.uLmOn.value = 1;
     const geo = new THREE.PlaneGeometry(2, 2);

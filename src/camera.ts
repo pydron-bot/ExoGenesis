@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { smoothstep, lerp } from './world/noise';
-import { E, HALF, R, U, regionHeight, regionToWorld, worldToRegion } from './world/planet';
+import { E, HALF, HOME_RADIUS, R, U, regionHeight, regionToWorld, worldToRegion } from './world/planet';
 
 export const MIN_DIST = 14;
 export const MAX_DIST = 1.6e6;
@@ -19,6 +19,10 @@ export const VIEWS = {
   system: { dist: 1.05e6, pitch: 0.75 },
 } as const;
 export type ViewName = keyof typeof VIEWS;
+/** The planet view and the surface→planet blend were tuned on Home; smaller bodies scale them down. */
+export const bodyScale = () => Math.max(0.08, R / HOME_RADIUS);
+/** A view's distance on the body being played. */
+export const viewDist = (v: ViewName) => (v === 'planet' ? VIEWS.planet.dist * bodyScale() : VIEWS[v].dist);
 
 const Y = new THREE.Vector3(0, 1, 0);
 
@@ -52,7 +56,7 @@ export class ZoomCamera {
   }
 
   setView(v: ViewName, instant = false) {
-    this.targetDist = VIEWS[v].dist;
+    this.targetDist = viewDist(v);
     this.targetPitch = VIEWS[v].pitch;
     if (instant) { this.dist = this.targetDist; this.pitch = this.targetPitch; }
   }
@@ -81,7 +85,8 @@ export class ZoomCamera {
     this.pitch = lerp(this.pitch, this.targetPitch, k);
 
     const d = this.dist;
-    this.a = smoothstep(150, 5000, d);
+    const bk = bodyScale();
+    this.a = smoothstep(150 * Math.min(1, bk * 2), 5000 * bk, d);
     this.b = smoothstep(25000, 320000, d);
 
     // focus point

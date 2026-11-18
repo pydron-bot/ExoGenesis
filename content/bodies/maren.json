@@ -1,0 +1,24 @@
+{
+  "name": "MAREN",
+  "kind": "moon",
+  "parent": "thalassa",
+  "radius": 1100,
+  "orbit": 44000,
+  "period": 380,
+  "phase": 67,
+  "relief": 66,
+  "feature": 2.6,
+  "seed": 72,
+  "ground": [
+    {
+      "color": "#4b4b52"
+    },
+    {
+      "color": "#77746f"
+    },
+    {
+      "color": "#a29d94"
+    }
+  ],
+  "incl": -0.6
+}

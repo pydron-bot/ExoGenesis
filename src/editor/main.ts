@@ -14,6 +14,7 @@ import { renderPlanet } from './planet';
 import { balanceRunPanel } from './balance-run';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
+import { WorldPreview } from './world-preview';
 import { CinePreview } from './cine-preview';
 import { applyInterface } from '../ui-theme';
 import { analyzeFlow } from './flow';
@@ -25,7 +26,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -63,6 +64,7 @@ let viewHandle: { dispose(): void } | null = null;
 let timeline: { el: HTMLElement; update(): void; stop(): void } | null = null;
 /** The cinematic preview under it. */
 let preview: CinePreview | null = null;
+let worldPv: WorldPreview | null = null;
 /** What the main pane shows when no record is open. */
 let view: 'none' | 'library' | PageName | { builtin: string } = 'none';
 /** The Compare page's records. */
@@ -88,6 +90,8 @@ function teardown() {
   timeline = null;
   preview?.dispose();
   preview = null;
+  worldPv?.dispose();
+  worldPv = null;
   $('main').classList.remove('map-mode');
 }
 
@@ -259,7 +263,7 @@ function renderSide() {
       bal.onclick = () => showPage('balance');
       body.append(bal);
     }
-    if (g === 'Maps') body.append(tool('planet', 'Planet', 'all regions'));
+    if (g === 'Maps') body.append(tool('planet', 'Planet map', 'regions on each world'));
     if (g === 'Story') {
       const fl = h('button', { cls: view === 'flow' && !cur ? 'item on' : 'item' }, h('span', { textContent: 'Story flow' }), h('small', { textContent: 'overview' }));
       fl.onclick = () => showPage('flow');
@@ -666,7 +670,12 @@ function renderForm() {
     const inhabitants = Object.fromEntries([...(idIndex().inhabitants ?? [])].map((id) => [id, files.get(pathOf('inhabitants', id))?.data as { land?: number }]));
     const rd = <T,>(c: CollectionName, id: string) => files.get(pathOf(c, id))?.data as T | undefined;
     const rules = { coreRange: rd<BuildingDef>('buildings', 'core')?.range ?? 45, buildRadius: rd<{ buildRadius: number }>('colony', 'colony')?.buildRadius ?? 30, packSpeed: rd<UnitDef>('units', 'swarmer')?.speed ?? 6 };
-    mapEd = new MapEditor(host, $('aside'), { id: at.id, draft: at.draft, changed, control, inhabitants, rules });
+    const bodies = Object.fromEntries(recordsOf('bodies').map((r) => [r.id, r.rec.data]));
+    mapEd?.dispose();
+    mapEd = new MapEditor(host, $('aside'), {
+      id: at.id, draft: at.draft, changed, control, inhabitants, rules, bodies,
+      reopen: () => { if (cur === at) renderForm(); },
+    });
     changed();
     return;
   }
@@ -742,6 +751,21 @@ function renderForm() {
       <div class="m-bar"><button>⚒ Build</button><button class="on">▶</button><button>Surface</button><button>Planet</button></div>` });
     panel = h('div', { cls: 'story-panel' }, mock, h('div', { cls: 'actions' }, play), h('div', { cls: 'note', textContent: 'A sketch of the HUD with these settings; the game shows the real thing. Interface size and the log settings show in the game only.' }));
   }
+  worldPv?.dispose();
+  worldPv = null;
+  if (cur.coll === 'bodies') {
+    const at = cur;
+    worldPv = new WorldPreview({
+      id: () => at.id,
+      draft: () => at.draft as unknown as BodyDef,
+      all: () => Object.fromEntries(recordsOf('bodies').map((r) => [r.id, r.rec.data as BodyDef])),
+      regions: () => recordsOf('regions').filter((r) => ((r.rec.data as RegionDef | undefined)?.body || 'home') === at.id)
+        .map((r) => ({ id: r.id, name: (r.rec.data as RegionDef).name || r.id, size: (r.rec.data as RegionDef).size ?? 240 })),
+      openRegion: (id) => open('regions', id),
+      openMap: () => { try { localStorage.setItem('exo.planet.body', at.id); } catch { /* private mode */ } showPage('planet'); },
+    });
+    panel = worldPv.el;
+  }
   if (cur.coll === 'characters') panel = h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'char-card' }), h('div', { cls: 'char-lines', id: 'char-lines' }));
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
@@ -795,6 +819,7 @@ function changed() {
   if (cur.coll === 'story') renderStoryPreview();
   if (cur.coll === 'characters') renderCharacter();
   timeline?.update();
+  worldPv?.refresh();
   if (cur.coll === 'interface') { const m = document.getElementById('ui-mock'); if (m) applyInterface(cur.draft as unknown as InterfaceDef, m); }
   if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {
@@ -962,7 +987,7 @@ async function doDelete() {
   }
 }
 
-async function newRecord(name: CollectionName, from?: Record<string, unknown>) {
+async function newRecord(name: CollectionName, from?: Record<string, unknown>, init?: Record<string, unknown>) {
   if (!confirmDiscard()) return;
   const c = coll(name);
   const id = prompt(`Id for the new ${c.label.toLowerCase().replace(/s$/, '')} (lowercase letters, digits, - or _; becomes the file name):`)?.trim();
@@ -979,6 +1004,7 @@ async function newRecord(name: CollectionName, from?: Record<string, unknown>) {
     ],
   });
   if (c.title) data[c.title] = from ? `${String(from[c.title] ?? id)} copy` : id.replace(/[-_]/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+  if (init) for (const [k, v] of Object.entries(init)) if (v === undefined) delete data[k]; else data[k] = v;
   const text = serialize(name, data);
   try {
     const r = await api<{ hash: string }>('PUT', '/__content/file', { path: pathOf(name, id), text, baseHash: null });
@@ -1199,8 +1225,18 @@ function drawPlanet() {
   viewHandle?.dispose();
   viewHandle = renderPlanet($('main'), $('aside'), {
     regions: recordsOf('regions').filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => {
-      const d = r.rec.data as { name?: string; siteLat?: number; siteLon?: number };
-      return { id: r.id, name: d.name || r.id, lat: d.siteLat ?? 0, lon: d.siteLon ?? 0 };
+      const d = r.rec.data as { name?: string; siteLat?: number; siteLon?: number; body?: string; size?: number };
+      return { id: r.id, name: d.name || r.id, lat: d.siteLat ?? 0, lon: d.siteLon ?? 0, body: d.body || 'home', size: d.size ?? 240 };
+    }),
+    bodies: recordsOf('bodies').filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => {
+      const d = r.rec.data as { name?: string; kind?: string };
+      return { id: r.id, name: d.name || r.id, kind: d.kind ?? 'planet', def: r.rec.data as Record<string, unknown> };
+    }).sort((a, b) => (a.id === 'home' ? -1 : b.id === 'home' ? 1 : a.name.localeCompare(b.name))),
+    body: (() => { try { return localStorage.getItem('exo.planet.body') ?? 'home'; } catch { return 'home'; } })(),
+    pick: (b) => { try { localStorage.setItem('exo.planet.body', b); } catch { /* private mode */ } },
+    create: (at) => void newRecord('regions', undefined, {
+      body: at.body === 'home' ? undefined : at.body, siteLat: at.lat || undefined, siteLon: at.lon || undefined,
+      floraSeed: 1 + Math.floor(Math.random() * 9999), floraDensity: 1, herds: [], deposits: [], spawns: [],
     }),
     open: (id) => open('regions', id),
     async save(moves) {

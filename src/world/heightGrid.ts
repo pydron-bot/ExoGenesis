@@ -8,13 +8,15 @@ import * as THREE from 'three';
 import { E, HALF, N, R, U, regionHeightRaw } from './planet';
 
 const STEP = 1;
-export const GRID_N = (HALF * 2) / STEP + 1;
+/** Nodes per side, for the region loaded when the grid was first built (rawGrid). */
+export let GRID_N = (HALF * 2) / STEP + 1;
 
 let raw: Float32Array | null = null;
 
-/** Raw heights (may be below sea level), row-major [z][x]. */
+/** Raw heights (may be below sea level), row-major [z][x]. Built once, for the region loaded then. */
 export function rawGrid(): Float32Array {
   if (!raw) {
+    GRID_N = (HALF * 2) / STEP + 1;
     raw = new Float32Array(GRID_N * GRID_N);
     for (let j = 0; j < GRID_N; j++) {
       for (let i = 0; i < GRID_N; i++) raw[j * GRID_N + i] = regionHeightRaw(-HALF + i * STEP, -HALF + j * STEP);

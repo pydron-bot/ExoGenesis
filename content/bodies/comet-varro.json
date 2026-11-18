@@ -1,0 +1,24 @@
+{
+  "name": "COMET VARRO",
+  "kind": "comet",
+  "radius": 160,
+  "orbit": 340000,
+  "ecc": 0.9,
+  "incl": -20.05,
+  "period": 13000,
+  "phase": 240.64,
+  "relief": 32,
+  "feature": 3.5,
+  "seed": 7,
+  "ground": [
+    {
+      "color": "#8ea5b5"
+    },
+    {
+      "color": "#c9d8e2"
+    },
+    {
+      "color": "#eef4f8"
+    }
+  ]
+}

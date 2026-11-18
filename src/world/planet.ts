@@ -1,17 +1,27 @@
 /**
- * The home planet and the mapping between region coordinates (x, z on a flat
- * sim grid) and the curved world. The home planet sits at the world origin —
- * the floating origin for everything that needs precision — and the rest of
- * the system is placed relative to it.
+ * The body being played (a planet, moon, asteroid or comet: content/bodies) and
+ * the mapping between region coordinates (x, z on a flat sim grid) and the
+ * curved world. That body sits at the world origin — the floating origin for
+ * everything that needs precision — and the rest of the system is placed
+ * relative to it.
+ *
+ * Which body, its radius and terrain, and the region's size are set by
+ * `setRegionTerrain` before anything samples the terrain (every thread calls it
+ * with the same `RegionTerrain`). `R` and `HALF` are live bindings: read them
+ * where they're used rather than copying them into module-level constants.
  */
 import * as THREE from 'three';
-import { REGION_HALF } from '../sim/types';
-import { HEIGHT_SCALE, REGION_CELLS, REGION_STEP } from '../content/defs';
+import { DEFAULT_REGION_SIZE, REGION_HALF, setRegionHalf } from '../sim/types';
+import { HEIGHT_SCALE, REGION_STEP, regionCells } from '../content/defs';
 import { decodeGrid } from '../content/grid';
 import { fbm3, lerp, smoothstep } from './noise';
 
-export const R = 3000;
-export const HALF = REGION_HALF;
+/** The body's radius (Home: 3,000 u). */
+export let R = 3000;
+/** Half-width of the region being played. */
+export let HALF = REGION_HALF;
+/** Home's radius: distances tuned on Home (camera views, the globe's look) scale by R / HOME_RADIUS. */
+export const HOME_RADIUS = 3000;
 
 /** Region frame: U = up at the landing site, E/N = tangent axes (sim x/z). */
 export const U = new THREE.Vector3(0.55, 0.5, 0.67).normalize();
@@ -19,6 +29,72 @@ export const E = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), U)
 export const N = new THREE.Vector3().crossVectors(U, E).normalize();
 
 const _d = new THREE.Vector3();
+
+// ---------- the body ----------
+/**
+ * What the terrain needs from a body record (content/bodies/<id>.json, resolved
+ * by `regionTerrain`). Home's numbers are the defaults, so a region with no body
+ * plays exactly as before.
+ */
+export interface BodyTerrain {
+  id: string;
+  name: string;
+  radius: number;
+  /** Height of the generated relief (Home 90 u). */
+  relief: number;
+  /** Feature size: noise frequency over the body (Home 2.1; higher = smaller, busier features). */
+  feature: number;
+  seed: number;
+  /** Seas below height 0 (Home). Without, the lowest ground is dry, flat basin floor. */
+  ocean: boolean;
+  /** Plant life: added to the flora field (−1 = barren, 0 = Home). */
+  plants: number;
+  /** Ground colours, low to high. */
+  ground: string[];
+  deep: string; shallow: string; shore: string;
+  floraA: string; floraB: string;
+  /** Snow / frost colour, and the height it starts at (0 = none). */
+  snow: string; snowLine: number;
+}
+export const HOME_BODY: BodyTerrain = {
+  id: 'home', name: 'Home', radius: 3000, relief: 90, feature: 2.1, seed: 7, ocean: true, plants: 0,
+  ground: ['#7c4a33', '#a8744d'], deep: '#0f2a3a', shallow: '#1f5a6a', shore: '#b59b74',
+  floraA: '#563a78', floraB: '#2d6e68', snow: '#ddd3c4', snowLine: 34,
+};
+let body: BodyTerrain = HOME_BODY;
+/** The body being played. */
+export const currentBody = () => body;
+type ColorFn = (h: number, flora: number, out: THREE.Color) => THREE.Color;
+let colorFn: ColorFn;
+function setBody(b: BodyTerrain) {
+  body = b;
+  R = b.radius;
+  colorFn = terrainColorFor(b);
+}
+
+/**
+ * Body terrain from a body record (content/bodies), filling in Home's values
+ * for anything it leaves out. Plain data, so it can go to the workers.
+ */
+export function bodyTerrain(id: string, b: Partial<Record<string, unknown>> | undefined): BodyTerrain {
+  if (!b) return { ...HOME_BODY, id };
+  const pick = <T,>(k: keyof BodyTerrain, d: T): T => (b[k] !== undefined && b[k] !== null ? (b[k] as T) : d);
+  const ground = Array.isArray(b.ground) ? (b.ground as { color?: string }[]).map((g) => g?.color).filter((c): c is string => typeof c === 'string') : [];
+  return {
+    id,
+    name: pick('name', id),
+    radius: pick('radius', HOME_BODY.radius),
+    relief: pick('relief', HOME_BODY.relief),
+    feature: pick('feature', HOME_BODY.feature),
+    seed: pick('seed', HOME_BODY.seed),
+    ocean: pick('ocean', false),
+    plants: pick('plants', -1),
+    ground: ground.length ? ground : HOME_BODY.ground,
+    deep: pick('deep', HOME_BODY.deep), shallow: pick('shallow', HOME_BODY.shallow), shore: pick('shore', HOME_BODY.shore),
+    floraA: pick('floraA', HOME_BODY.floraA), floraB: pick('floraB', HOME_BODY.floraB),
+    snow: pick('snow', HOME_BODY.snow), snowLine: pick('snowLine', 0),
+  };
+}
 
 export function regionDir(x: number, z: number, out = new THREE.Vector3()) {
   return out.copy(U).multiplyScalar(R).addScaledVector(E, x).addScaledVector(N, z).normalize();
@@ -49,47 +125,142 @@ let siteName = 'TOUCHDOWN';
 /** The loaded region's name (the globe labels its province with it). */
 export const regionName = () => siteName;
 
-/** The planet's generated height at body direction `b`, before the lift under the region being played. */
-export const bodyHeight = (b: THREE.Vector3) => fbm3(b.x * 2.1 + 3.1, b.y * 2.1, b.z * 2.1 - 1.7, 6, 7) * 90;
-/** The region being played sits on dry land: ground within ~15° of its centre is lifted (`ang` in radians). */
-export const siteLift = (ang: number) => (1 - smoothstep(0.04, 0.26, ang)) * 40;
-export const bodyFlora = (b: THREE.Vector3) => fbm3(b.x * 14 + 11, b.y * 14, b.z * 14, 3, 33);
+/**
+ * The body's generated height at body direction `b`, before the lift under the
+ * region being played. A body without seas sits its relief above height 0 (the
+ * lowest basins are clamped flat by `dry`), so nothing reads as water.
+ */
+export const bodyHeight = (b: THREE.Vector3, w: BodyTerrain = body) => {
+  const f = w.feature;
+  const n = fbm3(b.x * f + 3.1, b.y * f, b.z * f - 1.7, 6, w.seed) * w.relief;
+  return w.ocean ? n : n + w.relief * 0.6;
+};
+/** Ground on a body without seas never dips to sea level (the sim treats below 0.3 as water). */
+const DRY_FLOOR = 0.6;
+const dry = (h: number) => (body.ocean ? h : Math.max(DRY_FLOOR, h));
+/**
+ * The region being played sits on dry land: ground within ~15° of its centre is
+ * lifted (`ang` in radians). Only bodies with seas need it.
+ */
+export const siteLift = (ang: number, w: BodyTerrain = body) => (w.ocean ? (1 - smoothstep(0.04, 0.26, ang)) * 40 : 0);
+export const bodyFlora = (b: THREE.Vector3, w: BodyTerrain = body) => fbm3(b.x * 14 + 11, b.y * 14, b.z * 14, 3, 33) + w.plants;
 
 export function globeHeight(d: THREE.Vector3): number {
   // keep the landing site (and the tutorial regions around it) on dry land
-  return bodyHeight(bodyDir(d)) + siteLift(Math.acos(Math.min(1, d.dot(U))));
+  return dry(bodyHeight(bodyDir(d)) + siteLift(Math.acos(Math.min(1, d.dot(U)))));
 }
 
 export function floraAt(d: THREE.Vector3): number {
   return bodyFlora(bodyDir(d));
 }
 
+/**
+ * The region's own generated detail on top of the body's terrain (content
+ * region fields `detail`, `detailSize`, `detailSeed`; Home's Touchdown values
+ * are the defaults). Plain data, so it can go to the workers.
+ */
+export interface RegionDetail { amp: number; freq: number; seed: number }
+const DEFAULT_DETAIL: RegionDetail = { amp: 10, freq: 0.045, seed: 21 };
+let detail: RegionDetail = DEFAULT_DETAIL;
+
 /** Generated terrain before any hand sculpting. */
 export function regionProcBase(x: number, z: number): number {
   const h = globeHeight(regionDir(x, z, _d));
   const edge = Math.min(HALF - Math.abs(x), HALF - Math.abs(z));
-  return h + fbm3(x * 0.045, 1.3, z * 0.045, 3, 21) * 10 * smoothstep(0, 26, edge);
+  return h + fbm3(x * detail.freq, 1.3, z * detail.freq, 3, detail.seed) * detail.amp * smoothstep(0, 26, edge);
 }
 
 // ---------- hand-authored layers (content/regions/<id>.json) ----------
 /** Sculpted height offset (units) and flora paint (-1..1), REGION_CELLS² samples, row-major [z][x]. */
 let hOff: Float32Array | null = null;
 let fPaint: Float32Array | null = null;
+/** Ground paint per grid node: which paint (0 = none) and how much (0..1). */
+let gId: Uint8Array | null = null;
+let gAmt: Float32Array | null = null;
+let paints: THREE.Color[] = [];
 let coreH: number | null = null;
+/** Grid nodes per side of the region being played (121 for 240 u). */
+let NC = regionCells(HALF);
 
-/** What the terrain needs from a region record (workers get just this). */
-export interface RegionTerrain { name?: string; height?: string[]; flora?: string[]; siteLat?: number; siteLon?: number }
-export const regionTerrain = (r: RegionTerrain): RegionTerrain => ({ name: r.name, height: r.height, flora: r.flora, siteLat: r.siteLat, siteLon: r.siteLon });
+/** The ground paints a region has when it lists none (map editor: Paint ground). */
+export const DEFAULT_PAINTS: { name: string; color: string }[] = [
+  { name: 'Bare rock', color: '#6b625a' },
+  { name: 'Pale sand', color: '#c8a77a' },
+  { name: 'Dark soil', color: '#4a3528' },
+  { name: 'Moss', color: '#3d6b4f' },
+  { name: 'Ash', color: '#3a3836' },
+  { name: 'Ice', color: '#dfe8ee' },
+  { name: 'Rust', color: '#8f4a2c' },
+  { name: 'Violet bloom', color: '#6a3f8a' },
+];
+/** Ground paint grid values: paint number × 100 + amount (0..99 → 0..1); 0 = none. */
+export const GROUND_PAINT_MAX = DEFAULT_PAINTS.length * 100 + 99;
+export const decodePaint = (v: number) => ({ id: Math.floor(v / 100), amt: v >= 100 ? (v % 100) / 99 : 0 });
+export const encodePaint = (id: number, amt: number) => (id > 0 && amt > 0.004 ? id * 100 + Math.round(Math.min(1, amt) * 99) : 0);
 
-/** Load a region: its place on the planet and its painted layers. Call before anything samples the terrain. */
+/**
+ * What the terrain needs from a region record and its body (workers get just
+ * this). Build it with `regionTerrain(def, bodies)`.
+ */
+export interface RegionTerrain {
+  name?: string; height?: string[]; flora?: string[]; ground?: string[]; siteLat?: number; siteLon?: number;
+  /** Side length (u); 240 when absent. */
+  size?: number;
+  /** The body it's on, resolved (Home when absent). */
+  world?: BodyTerrain;
+  paints?: string[];
+  detail?: RegionDetail;
+}
+interface RegionLike {
+  name?: string; height?: string[]; flora?: string[]; ground?: string[]; siteLat?: number; siteLon?: number; size?: number; body?: string;
+  paints?: { color?: string }[]; detail?: number; detailSize?: number; detailSeed?: number;
+}
+/**
+ * The terrain part of a region record, with its body looked up in `bodies`
+ * (content.bodies). Without `bodies`, or with no body set, it's on Home.
+ */
+export function regionTerrain(r: RegionLike, bodies?: Record<string, unknown>): RegionTerrain {
+  const id = r.body || 'home';
+  const b = bodies?.[id] as Record<string, unknown> | undefined;
+  return {
+    name: r.name, height: r.height, flora: r.flora, ground: r.ground, siteLat: r.siteLat, siteLon: r.siteLon,
+    size: r.size,
+    world: b ? bodyTerrain(id, b) : id === 'home' ? HOME_BODY : undefined,
+    paints: r.paints?.map((p) => p?.color ?? '#808080'),
+    detail: {
+      amp: r.detail ?? DEFAULT_DETAIL.amp,
+      freq: r.detailSize ? 0.45 / r.detailSize : DEFAULT_DETAIL.freq,
+      seed: r.detailSeed ?? DEFAULT_DETAIL.seed,
+    },
+  };
+}
+/** A region's side length, 240 u unless it says. */
+export const regionSize = (r: { size?: number }) => r.size ?? DEFAULT_REGION_SIZE;
+
+/**
+ * Load a region: its body, size, place on the body, generated detail and painted
+ * layers. Call before anything samples the terrain (or sizes a grid from it).
+ */
 export function setRegionTerrain(t: RegionTerrain) {
-  const n = REGION_CELLS;
+  setBody(t.world ?? HOME_BODY);
+  setRegionSize(t.size ?? DEFAULT_REGION_SIZE);
+  detail = t.detail ?? DEFAULT_DETAIL;
   setRegionSite(t.siteLat, t.siteLon);
   if (t.name) siteName = t.name.toUpperCase();
+  const n = NC;
   setRegionLayers(
     t.height ? Float32Array.from(decodeGrid(t.height, n, n), (v) => v * HEIGHT_SCALE) : null,
     t.flora ? Float32Array.from(decodeGrid(t.flora, n, n), (v) => v / 100) : null,
   );
+  setGroundPaint(t.ground ? decodeGrid(t.ground, n, n) : null, t.paints);
+}
+
+/** The region's side length (u). Sets the sim's REGION_HALF too. */
+export function setRegionSize(size: number) {
+  HALF = size / 2;
+  setRegionHalf(HALF);
+  NC = regionCells(HALF);
+  coreH = null;
 }
 
 /** Editor: share live arrays with the terrain functions. */
@@ -99,9 +270,23 @@ export function setRegionLayers(height: Float32Array | null, flora: Float32Array
   coreH = null;
 }
 
+/** Ground paint: grid values (see `decodePaint`) and the region's paint colours (DEFAULT_PAINTS when none). */
+export function setGroundPaint(grid: ArrayLike<number> | null, colors?: string[]) {
+  paints = (colors?.length ? colors : DEFAULT_PAINTS.map((p) => p.color)).map((c) => new THREE.Color(c));
+  if (!grid) { gId = null; gAmt = null; return; }
+  gId = new Uint8Array(grid.length);
+  gAmt = new Float32Array(grid.length);
+  let any = false;
+  for (let i = 0; i < grid.length; i++) {
+    const p = decodePaint(grid[i]);
+    if (p.id > 0 && p.id <= paints.length && p.amt > 0) { gId[i] = p.id; gAmt[i] = p.amt; any = true; }
+  }
+  if (!any) { gId = null; gAmt = null; }
+}
+
 /** Bilinear sample of a region grid at region coords. */
 export function sampleLayer(g: Float32Array, x: number, z: number): number {
-  const n = REGION_CELLS;
+  const n = NC;
   const fx = Math.min(n - 1.0001, Math.max(0, (x + HALF) / REGION_STEP));
   const fz = Math.min(n - 1.0001, Math.max(0, (z + HALF) / REGION_STEP));
   const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
@@ -122,12 +307,17 @@ function regionBase(x: number, z: number): number {
   return regionProcBase(x, z) + (hOff ? sampleLayer(hOff, x, z) * sculptFade(x, z) : 0);
 }
 
-/** Raw (may be below sea level) height for region coords; flattened pad around the core. */
-export function regionHeightRaw(x: number, z: number): number {
+function regionHeightRawWet(x: number, z: number): number {
   coreH ??= padHeight(regionBase(0, 0));
   return lerp(coreH, regionBase(x, z), padBlend(x, z));
 }
+/** Raw (may be below sea level) height for region coords; flattened pad around the core. */
+export function regionHeightRaw(x: number, z: number): number {
+  return regionHeightDry(x, z);
+}
 
+/** Raw height including the dry floor of bodies without seas (what everything samples). */
+const regionHeightDry = (x: number, z: number) => dry(regionHeightRawWet(x, z));
 /** Painted flora, -1 (cleared) .. 1 (doubled). */
 export const floraPaintAt = (x: number, z: number) => (fPaint ? sampleLayer(fPaint, x, z) : 0);
 /** How far painting shifts the flora field (lushness / ground tint). */
@@ -169,25 +359,66 @@ export function worldToRegion(p: THREE.Vector3): { x: number; z: number } {
   return { x: (R * _d.dot(E)) / cu, z: (R * _d.dot(N)) / cu };
 }
 
-const C = {
-  deep: new THREE.Color('#0f2a3a'),
-  shallow: new THREE.Color('#1f5a6a'),
-  shore: new THREE.Color('#b59b74'),
-  low: new THREE.Color('#7c4a33'),
-  mid: new THREE.Color('#a8744d'),
-  floraA: new THREE.Color('#563a78'),
-  floraB: new THREE.Color('#2d6e68'),
-  high: new THREE.Color('#ddd3c4'),
-};
-const _c = new THREE.Color();
-
-export function terrainColor(h: number, flora: number, out: THREE.Color) {
-  if (h <= 0) return out.copy(C.deep).lerp(C.shallow, smoothstep(-30, 0, h));
-  if (h < 2.5) return out.copy(C.shore);
-  out.copy(C.low).lerp(C.mid, smoothstep(3, 30, h));
-  const f = smoothstep(0.02, 0.2, flora) * (1 - smoothstep(26, 36, h));
+/**
+ * Ground colour for a height and flora value on a body: seas and shore (bodies
+ * with seas), the body's ground colours from low to high, plants, then snow
+ * above its snow line. Home's is the game's original palette.
+ */
+export function terrainColorFor(w: BodyTerrain): ColorFn {
+  const C = {
+    deep: new THREE.Color(w.deep), shallow: new THREE.Color(w.shallow), shore: new THREE.Color(w.shore),
+    floraA: new THREE.Color(w.floraA), floraB: new THREE.Color(w.floraB), high: new THREE.Color(w.snow),
+  };
+  const g = (w.ground.length ? w.ground : HOME_BODY.ground).map((c) => new THREE.Color(c));
+  if (g.length === 1) g.push(g[0].clone());
+  const _c = new THREE.Color();
+  return (h, flora, out) => {
+  if (w.ocean) {
+    if (h <= 0) return out.copy(C.deep).lerp(C.shallow, smoothstep(-30, 0, h));
+    if (h < 2.5) return out.copy(C.shore);
+  }
+  // Home: 3..30 u; a dry body spans its relief
+  const lo = w.ocean ? 3 : w.relief * 0.25, hi = w.ocean ? 30 : w.relief * 0.95;
+  const t = smoothstep(lo, hi, h) * (g.length - 1);
+  const k = Math.min(g.length - 2, Math.floor(t));
+  out.copy(g[k]).lerp(g[k + 1], t - k);
+  const snow = w.snowLine > 0 ? w.snowLine : Infinity;
+  const f = smoothstep(0.02, 0.2, flora) * (1 - smoothstep(snow - 8, snow + 2, h));
   if (f > 0) out.lerp(_c.copy(C.floraA).lerp(C.floraB, smoothstep(-0.2, 0.3, fbm3(flora * 7, 2, 3, 1, 5))), f * 0.85);
-  return out.lerp(C.high, smoothstep(34, 46, h));
+  return w.snowLine > 0 ? out.lerp(C.high, smoothstep(snow, snow + 12, h)) : out;
+  };
+}
+setBody(HOME_BODY);
+/** Ground colour on the body being played (see `terrainColorFor`). */
+export const terrainColor: ColorFn = (h, flora, out) => colorFn(h, flora, out);
+
+const _p = new THREE.Color();
+/** Blend the region's ground paint at (x, z) into `out` (bilinear over the paint grid's nodes). */
+export function applyGroundPaint(x: number, z: number, out: THREE.Color) {
+  if (!gId || !gAmt) return out;
+  const n = NC;
+  const fx = Math.min(n - 1.0001, Math.max(0, (x + HALF) / REGION_STEP));
+  const fz = Math.min(n - 1.0001, Math.max(0, (z + HALF) / REGION_STEP));
+  const i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
+  let wsum = 0, r = 0, gg = 0, b = 0;
+  const node = (k: number, w: number) => {
+    const id = gId![k];
+    if (!id || w <= 0) return;
+    const a = gAmt![k] * w, c = paints[id - 1];
+    if (!c) return;
+    wsum += a; r += c.r * a; gg += c.g * a; b += c.b * a;
+  };
+  node(j * n + i, (1 - tx) * (1 - tz)); node(j * n + i + 1, tx * (1 - tz));
+  node((j + 1) * n + i, (1 - tx) * tz); node((j + 1) * n + i + 1, tx * tz);
+  if (wsum <= 0) return out;
+  _p.setRGB(r / wsum, gg / wsum, b / wsum);
+  return out.lerp(_p, Math.min(1, wsum));
+}
+
+/** The ground's colour at region coords, as the game draws it: generated, then painted. */
+export function regionColor(x: number, z: number, out: THREE.Color) {
+  terrainColor(regionHeightRaw(x, z), regionFlora(x, z), out);
+  return applyGroundPaint(x, z, out);
 }
 
 /**
@@ -205,6 +436,7 @@ export function surfaceAt(d: THREE.Vector3, color: THREE.Color): { h: number; fl
     if (inner < HALF + 2) {
       const h = regionHeightRaw(x, z), flora = regionFlora(x, z);
       terrainColor(h, flora, color);
+      applyGroundPaint(x, z, color);
       return { h, flora, inner };
     }
   }
@@ -250,7 +482,7 @@ export function globeArrays(look: 'flat' | 'smooth' = 'flat'): GlobeArrays {
     if (sf.inner >= 0) {
       // follow the detailed patch; sink only well inside it so coarse triangles that
       // straddle the border don't open a trench along the patch edge
-      r = R + Math.max(0, sf.h) - (sf.inner < HALF - 60 ? 14 : 1.5);
+      r = R + Math.max(0, sf.h) - (sf.inner < Math.max(HALF * 0.5, HALF - 60) ? 14 : 1.5);
     }
     pos[i * 3] = d.x * r; pos[i * 3 + 1] = d.y * r; pos[i * 3 + 2] = d.z * r;
     col[i * 3] = color.r; col[i * 3 + 1] = color.g; col[i * 3 + 2] = color.b;

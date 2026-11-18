@@ -1,0 +1,24 @@
+{
+  "name": "VESS",
+  "kind": "moon",
+  "parent": "halcyon",
+  "radius": 800,
+  "orbit": 30000,
+  "period": 260,
+  "phase": 78,
+  "relief": 48,
+  "feature": 2.6,
+  "seed": 36,
+  "ground": [
+    {
+      "color": "#8ea5b5"
+    },
+    {
+      "color": "#c9d8e2"
+    },
+    {
+      "color": "#eef4f8"
+    }
+  ],
+  "incl": 0.7
+}

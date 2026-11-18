@@ -10,7 +10,7 @@ import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
 import { FOG_N, REGION_HALF } from './sim/types';
-import { regionFlora, regionHeightRaw, terrainColor } from './world/planet';
+import { regionColor } from './world/planet';
 import type { RegionUi } from './world/region';
 import * as THREE from 'three';
 
@@ -354,7 +354,7 @@ export class ColonyHud {
     const g = cv.getContext('2d')!, img = g.createImageData(n, n), c = new THREE.Color();
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
       const x = ((i + 0.5) / n * 2 - 1) * REGION_HALF, z = -((j + 0.5) / n * 2 - 1) * REGION_HALF;
-      terrainColor(regionHeightRaw(x, z), regionFlora(x, z), c);
+      regionColor(x, z, c);
       const o = (j * n + i) * 4;
       img.data[o] = c.r * 200; img.data[o + 1] = c.g * 200; img.data[o + 2] = c.b * 200; img.data[o + 3] = 255;
     }

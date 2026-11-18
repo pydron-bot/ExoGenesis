@@ -1,0 +1,24 @@
+{
+  "name": "COMET K-7",
+  "kind": "comet",
+  "radius": 160,
+  "orbit": 260000,
+  "ecc": 0.86,
+  "incl": 14.32,
+  "period": 9000,
+  "phase": 97.4,
+  "relief": 32,
+  "feature": 3.5,
+  "seed": 39,
+  "ground": [
+    {
+      "color": "#8ea5b5"
+    },
+    {
+      "color": "#c9d8e2"
+    },
+    {
+      "color": "#eef4f8"
+    }
+  ]
+}

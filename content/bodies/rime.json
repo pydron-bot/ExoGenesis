@@ -1,0 +1,30 @@
+{
+  "name": "RIME",
+  "sub": "frozen · hostile to biology",
+  "kind": "planet",
+  "radius": 2400,
+  "orbit": 390000,
+  "period": 32000,
+  "phase": 234.91,
+  "relief": 84,
+  "feature": 2.2,
+  "seed": 21,
+  "ground": [
+    {
+      "color": "#7e93a6"
+    },
+    {
+      "color": "#9fb6c8"
+    },
+    {
+      "color": "#d5e2ea"
+    },
+    {
+      "color": "#f4f8fb"
+    }
+  ],
+  "atmosphere": "#bfe4ff",
+  "haze": 0.6,
+  "sky": "#8ea9bd",
+  "incl": -0.46
+}

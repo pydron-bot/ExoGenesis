@@ -138,6 +138,42 @@ How content is stored and edited in general (one JSON record per file, schemas i
 - **Collapsible side panels** (v0.23.0): the sidebar and the details panel fold to an 18 px strip (edge
   button, a click on the strip, or `[` / `]` except in the map editor, where those size the brush);
   remembered per browser (`exo.editor.panels`). Test: `tools/cinematic-smoke.mjs`.
+- **Worlds** (v0.24.0): the solar system is content: `content/bodies/<id>.json` (Maps → Worlds; `bodyShape` in
+  `src/content/defs.ts`): kind (planet, moon, asteroid, comet, giant), what it orbits, radius, orbit (size,
+  eccentricity, tilt, period, start angle), and for bodies with a surface the terrain (relief, feature size, seed,
+  seas, plant life, ground colours low to high, water, plant and snow colours, snow line), atmosphere (colour,
+  strength), daytime sky and clouds; giants have bands and a ring. The 20 old hard-coded bodies were moved over
+  with the same orbits and phases (the old seeded random sequence replayed), plus Home (`home.json`, required) and
+  an asteroid, Talus. **Any body but a giant can hold regions** (a region's `body`, empty = Home), and playing one
+  makes that body the world: `world/planet.ts` takes the body's radius and terrain (`setRegionTerrain` gets a
+  `RegionTerrain` with the body resolved by `regionTerrain(def, content.bodies)`; every thread calls it), `R` and
+  `HALF` became live `let` bindings, `world/system.ts` builds every body from content and puts the one being played
+  at the origin (positions are worked out round the star, then shifted), and `main.ts` takes the body's atmosphere,
+  sky and clouds. A body without seas lifts its relief above 0 and clamps the lowest ground to a dry floor (0.6 u),
+  so nothing reads as water to the sim; a barren body (plant life −1) grows no flora except where flora is painted
+  on. The camera's planet view and its surface→planet blend scale with the radius (`bodyScale` in `src/camera.ts`).
+  Home renders as before (checked against the previous build: the surface within run-to-run noise; only the
+  background star scatter and the belts' rock layout changed, since they now draw their own random sequences).
+  Content checks: orbits can't loop, moons need a parent, nothing lands on a giant, a body's radius must be at least
+  1.5× the size of the regions on it. The Worlds form shows the body turning (the system view's own mesh) and a
+  top-down orbit map with its moons in an inset (`src/editor/world-preview.ts`).
+- **Region size** (v0.24.0): a region's `size` (120–480 u in steps of 40; empty = 240) sets the playable square.
+  `REGION_HALF` and `FOG_N` in `src/sim/types.ts` are live bindings set by `setRegionHalf` (from `setRegionTerrain`);
+  the sim's edge limits are functions (`limit()`, `EDGE()`), and the fog texture, light map uniforms and height grid
+  size themselves when created, after the region is loaded. Region grids are square at the region's size
+  (`regionCells`; schema grids with `cols: 0` take their size from the record and the content check compares).
+  The map editor's **World and size** resizes a region: sculpt, flora and ground paint are cropped or padded round
+  the centre and markers outside move in to the new edge.
+- **Ground paint and generators** (v0.24.0): a region's `ground` grid (paint × 100 + amount) tints the generated
+  ground colour with one of its `paints` (up to 8; the standard eight when it lists none) wherever the game colours
+  the ground (`applyGroundPaint` / `regionColor` in `world/planet.ts`: the landing patch, the globe under the
+  region, the minimap). Map editor: **Paint ground** (G; Shift or E erases), fill or clear the selected area,
+  **Auto-paint by shape** (rock on slopes, sand low, ice high), and the region's own paint list. **Generate**
+  (`src/editor/terrain-gen.ts`) writes a procedural shape into the sculpting over the selected area or the whole
+  region: rolling hills, ridges, craters, mesas, dunes, a basin, a plateau or a canyon, with height, feature size,
+  seed, add or replace, and a feathered edge; **Smooth area** and a **Roughen** brush (7). The region's own
+  generated bumps are fields too (`detail`, `detailSize`, `detailSeed`; Touchdown's values are the defaults).
+  **Maps → Planet map** picks the body, draws each region at its size, and ＋ New region starts one where you click.
 - **Interface** (v0.20.0): `content/rules/interface.json` (Rules → Interface): accent, warning, danger,
   text and panel colours, panel and outline opacity, interface size (CSS `zoom` on the HUD's children)
   and the log's length and timing. `src/ui-theme.ts` sets them as CSS variables; `style.css` derives

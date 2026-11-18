@@ -152,6 +152,10 @@ const askedRegion = params.get('region');
 const regionId = preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : 'touchdown';
 const regionDef: RegionDef = preview?.def ?? content.regions[regionId];
 const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
+/** The region's terrain with its body (a planet, moon, asteroid or comet) looked up: every worker gets this. */
+const terrain = regionTerrain(regionDef, content.bodies);
+const bodyId = regionDef.body && content.bodies[regionDef.body] ? regionDef.body : 'home';
+const bodyDef = content.bodies[bodyId];
 // Start both workers first so their work overlaps everything below: the sim
 // (boots its module graph and a new game) and the globe/province generator.
 /** Sim events that arrive before the HUD exists wait here. */
@@ -176,10 +180,10 @@ const gen = new Promise<{ globe: GlobeArrays; prov: ProvinceData; ms: Record<str
   const w = new Worker(new URL('./world/gen-worker.ts', import.meta.url), { type: 'module' });
   w.onmessage = (e) => { res(e.data); w.terminate(); };
   w.onerror = (e) => rej(new Error(e.message || 'generation worker failed'));
-  w.postMessage({ look, region: regionTerrain(regionDef) });
+  w.postMessage({ look, region: terrain });
 });
 await loadStep('Shaping the landing site…');
-setRegionTerrain(regionDef);
+setRegionTerrain(terrain);
 
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
@@ -224,7 +228,7 @@ if (lights) {
 }
 
 await loadStep('Charting the solar system…');
-const system = new SolarSystem(scene, $('labels'));
+const system = new SolarSystem(scene, $('labels'), content.bodies, bodyId);
 await loadStep(skirmishMode ? 'Raising the battlefield…' : 'Growing alien flora…');
 const floraParam = params.get('flora');
 const region = new RegionView(
@@ -248,7 +252,8 @@ scene.add(globe);
 // detail from orbit: baked surface maps (after startup, see startSurfaceBake), relief, oceans, night glow, clouds
 const surfaceOn = params.get('surface') !== '0';
 const clouds = buildClouds();
-if (surfaceOn) { addSurfaceDetail(globe.material as THREE.MeshStandardMaterial); scene.add(clouds); }
+const cloudy = bodyDef?.clouds ?? bodyId === 'home';
+if (surfaceOn) { addSurfaceDetail(globe.material as THREE.MeshStandardMaterial); if (cloudy) scene.add(clouds); }
 function startSurfaceBake() {
   if (!surfaceOn) return;
   const w = new Worker(new URL('./world/surface-worker.ts', import.meta.url), { type: 'module' });
@@ -257,13 +262,16 @@ function startSurfaceBake() {
     (window as unknown as { __surfaceMs: number }).__surfaceMs = e.data.ms;
     w.terminate();
   };
-  w.postMessage({ region: regionTerrain(regionDef) });
+  w.postMessage({ region: terrain });
 }
 await loadStep('Mapping regions…');
 const provinces = new Provinces(scene, globe, $('labels'), generated.prov);
 (window as unknown as { __genMs: Record<string, number> }).__genMs = generated.ms;
 // atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
-const atmosphere = buildAtmosphere(R * 1.03, '#8fd6ff', 1.25);
+// (the body's own colour and strength: an airless body has none)
+const airGlow = bodyDef ? bodyDef.atmosphere : '#8fd6ff', airStrength = bodyDef?.atmosphere ? bodyDef.haze ?? 1 : 1.25;
+const atmosphere = buildAtmosphere(R * 1.03, airGlow ?? '#000000', airStrength);
+atmosphere.visible = !!airGlow;
 scene.add(atmosphere);
 // fog of war (colony only; ?fog=0 turns it off)
 const fogView = new FogView(!skirmishMode && params.get('fog') !== '0');
@@ -768,8 +776,9 @@ function showTitle() {
 }
 
 // ---------- frame loop ----------
-const skyDay = new THREE.Color('#8fb0ad');
-const skyNight = new THREE.Color('#0b1622');
+// the body's sky: Home's by default; airless bodies have a black one, day and night
+const skyDay = new THREE.Color(bodyDef?.sky ?? (airGlow ? '#8fb0ad' : '#05070b'));
+const skyNight = new THREE.Color(airGlow ? '#0b1622' : '#020306');
 const space = new THREE.Color('#020306');
 const bg = new THREE.Color();
 const t0 = performance.now();
@@ -789,10 +798,10 @@ function frame(now: number) {
   const sunSecs = skirmish ? ((skirmish.hour - START_HOUR) / 24) * sol : simSecs;
   system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, viewH(), sunSecs === undefined ? undefined : sunAngle(sunSecs, sol, U.x, U.z));
   cam.update(dt, system.starPos);
-  (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = 1.25 * smoothstep(300, 1400, cam.altitude());
-  atmosphere.visible = cam.altitude() > 300;
+  (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = airStrength * smoothstep(300, 1400, cam.altitude());
+  atmosphere.visible = !!airGlow && cam.altitude() > 300;
   provinces.update(camera, cam.dist, innerWidth, viewH());
-  if (surfaceOn) { updateSurface(dt, system.sunPos, cam.altitude(), t); updateClouds(clouds, cam.altitude()); }
+  if (surfaceOn) { updateSurface(dt, system.sunPos, cam.altitude(), t); if (cloudy) updateClouds(clouds, cam.altitude()); }
   if (title) provinces.hide(); // a clean planet behind the title, no map overlay
 
   // sky: day/night at the landing site, fading to space as we climb

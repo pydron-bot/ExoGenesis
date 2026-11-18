@@ -1,0 +1,35 @@
+{
+  "name": "HOME",
+  "sub": "landing site",
+  "kind": "planet",
+  "radius": 3000,
+  "orbit": 75000,
+  "period": 3600,
+  "phase": 230.62,
+  "incl": 0,
+  "relief": 90,
+  "feature": 2.1,
+  "seed": 7,
+  "ocean": true,
+  "plants": 0,
+  "ground": [
+    {
+      "color": "#7c4a33"
+    },
+    {
+      "color": "#a8744d"
+    }
+  ],
+  "deep": "#0f2a3a",
+  "shallow": "#1f5a6a",
+  "shore": "#b59b74",
+  "floraA": "#563a78",
+  "floraB": "#2d6e68",
+  "snow": "#ddd3c4",
+  "snowLine": 34,
+  "atmosphere": "#8fd6ff",
+  "haze": 1.25,
+  "sky": "#8fb0ad",
+  "clouds": true,
+  "description": "The seed-probe's world: Touchdown and the Act 1 regions are here."
+}

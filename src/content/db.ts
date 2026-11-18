@@ -2,13 +2,14 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, REGION_SIZE_STEP, locate, regionCells, type AssetDef, type BodyDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
   units: Record<string, UnitDef>;
   buildings: Record<string, BuildingDef>;
   regions: Record<string, RegionDef>;
+  bodies: Record<string, BodyDef>;
   assets: Record<string, AssetDef>;
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
@@ -55,6 +56,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     units: recs.units,
     buildings: recs.buildings,
     regions: recs.regions,
+    bodies: recs.bodies,
     assets: recs.assets,
     inhabitants: recs.inhabitants,
     story: recs.story,
@@ -77,6 +79,7 @@ export const REQUIRED: Partial<Record<CollectionName, string[]>> = {
   units: ['rover', 'tank', 'swarmer', 'brute'],
   buildings: ['core', 'solar'],
   regions: ['touchdown'],
+  bodies: ['home'],
   cinematics: ['landing'],
 };
 
@@ -191,6 +194,39 @@ function crossIssues(db: ContentDb): FileIssue[] {
   for (const [id, ch] of Object.entries(db.characters ?? {})) {
     const a = ch?.portrait ? db.assets[ch.portrait] : undefined;
     if (a && a.kind !== 'image') out.push({ path: `characters/${id}.json`, field: 'portrait', msg: `"${ch.portrait}" isn't an image` });
+  }
+  // worlds: orbits make a tree under the star; Home is a rocky planet
+  for (const [id, b] of Object.entries(db.bodies ?? {})) {
+    if (!b || typeof b !== 'object') continue;
+    const P = `bodies/${id}.json`;
+    const seen = new Set([id]);
+    for (let p = b.parent; p; p = db.bodies[p]?.parent) {
+      if (seen.has(p)) { out.push({ path: P, field: 'parent', msg: 'orbits round in a circle (it ends up orbiting itself)' }); break; }
+      seen.add(p);
+    }
+    if (b.kind === 'moon' && !b.parent) out.push({ path: P, field: 'parent', msg: 'a moon needs something to orbit' });
+    if (id === 'home' && b.kind === 'giant') out.push({ path: P, field: 'kind', msg: 'Home must have a surface' });
+    if (b.ring && (b.ringOuter ?? 2.2) <= (b.ringInner ?? 1.4)) out.push({ path: P, field: 'ringOuter', msg: 'must be bigger than the inner edge' });
+  }
+  // regions: on a body with a surface, big enough to hold them; grids match the size; markers inside
+  for (const [id, r] of Object.entries(db.regions ?? {})) {
+    if (!r || typeof r !== 'object') continue;
+    const P = `regions/${id}.json`;
+    const size = r.size ?? 240, half = size / 2;
+    if (size % REGION_SIZE_STEP) out.push({ path: P, field: 'size', msg: `must be a multiple of ${REGION_SIZE_STEP} u` });
+    const b = r.body ? db.bodies?.[r.body] : db.bodies?.home;
+    if (b?.kind === 'giant') out.push({ path: P, field: 'body', msg: `${b.name} is a gas giant: nothing can land on it` });
+    if (b && typeof b.radius === 'number' && b.radius < half * 3) out.push({ path: P, field: 'size', msg: `too big for ${b.name} (radius ${b.radius} u): at most ${Math.floor((b.radius / 3) * 2 / REGION_SIZE_STEP) * REGION_SIZE_STEP} u there` });
+    const n = regionCells(half);
+    for (const g of ['height', 'flora', 'ground'] as const) {
+      const v = r[g];
+      if (Array.isArray(v) && v.length !== n) out.push({ path: P, field: g, msg: `has ${v.length} rows; a ${size} u region needs ${n} (resize it in the map editor)` });
+    }
+    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites'] as const) {
+      (r[k] as { x?: number; z?: number }[] | undefined)?.forEach((m, i) => {
+        if (m && (Math.abs(m.x ?? 0) > half || Math.abs(m.z ?? 0) > half)) out.push({ path: P, field: `${k}[${i}]`, msg: `outside the region (it's ${size} u across)` });
+      });
+    }
   }
   for (const [id, a] of Object.entries(db.assets)) {
     if (!a || typeof a.file !== 'string' || !(a.kind in ASSET_EXT)) continue;
