@@ -82,6 +82,56 @@ now, so the reveal later has something to point at.
 | **Bloom grove** | Alien flora you can harvest for biomass, or leave alone for planet health | Stewardship choice | Small |
 | **Tar flats / sinkholes** | Slow ground and burrower holes; shape where you fight | Terrain variety | Small |
 
+## Air layer: release 3 plan (agreed 2026-11-18, not built yet)
+
+Water, hover and air units ship in stages. Stage 1 (v0.34: ground/hover movement, predators path round
+water) and stage 2 (v0.35: water units, shore/offshore buildings, Transport Barge) are built: see TECH.md
+"Movement types", "Water units and water buildings" and "Performance pass". Stage 3 is air. The player has
+decided:
+- **Both sides fly:** air units for the colony, and flying fauna. The Skimmerwing above is the first
+  flying pack.
+- **Anti-air only:** flyers can be hit only by weapons marked as able to hit air (e.g. Point Defense, the
+  Arc, a new AA unit or building). Everything else ignores them, so the defence mix matters.
+
+Building on what's there:
+- **Movement:** add `air` to the unit `move` choice (`src/content/defs.ts`) and `Move` (`src/sim/path.ts`).
+  `offLimits('air', h)` is always false, and air movers never path: steer straight like hover, with no
+  `PathGrid` (`moveOf` in `chase`/`goTo`, `unitGrid`, `steer`/`blocked` in `src/sim/core.ts`). Walls and
+  buildings don't block them. Skip them in the push-out from building bodies, and in the "never cross a
+  wall" check in `stepHostiles`. Flyers separate only from other flyers.
+- **Targeting:** new optional `antiAir` bool on units and buildings ("can hit flyers"). Shooters
+  (`stepTurrets`, unit targeting in `stepUnits`, `strike`/splash) skip air targets unless `antiAir`.
+  Air predators: should they hit ground targets? Probably yes (they dive). Ground predators can't hit
+  flyers (bites), unless `antiAir`. `canReach` already returns true for non-ground movers: make sure
+  `air` takes that path.
+- **Which factory builds flyers:** extend `factoryMakes` (`src/sim/rules.ts`). Options: any factory makes
+  air, or a new site/role (an airfield or pad). Decide when building. The Shipyard rule today: shore
+  factories make water and hover, land factories make ground and hover.
+- **Packs:** flying fauna join via `packEvery`/`packFrom` like the others. They can spawn anywhere (no
+  water check like `SEA_REACH`).
+- **Drawing:** fly at a height (`src/skirmish/view.ts`, the `lift` by `DEFS[t].move`; add `'air'` to
+  `SkUnitDef.move` in `src/skirmish/types.ts`), e.g. 8 to 12 u with a slow bob, banking into turns. Put a
+  ground shadow under each flyer: the light-map blob, `colonyLights.addArmy` in `src/world/lights.ts`
+  already draws unit shadows. Raise its height so the shadow detaches. Health bars and the selection
+  ring sit at the flyer.
+- **Picking:** `unitScreen` / `unitAt` in `src/input.ts` use the army's world position (wx, wy, wz), so
+  the lift should pick correctly. Check it.
+- **Content to add:**
+  - **Skimmerwing:** flying fauna pack (ROSTER above).
+  - **A colony flyer:** e.g. a gunship or scout drone.
+  - **An AA option:** mark Point Defense and the Arc `antiAir`, and maybe a dedicated Flak Tower.
+  - Built-in looks go in `src/skirmish/models.ts` (`BUILTIN_UNITS`), with entries in
+    `src/assets/builtin.ts`.
+- **Tests:** a new `tools/air-smoke.mjs`, after `tools/sea-smoke.mjs` and `tools/hover-smoke.mjs`. Check:
+  - flyers cross water and walls in a straight line;
+  - a non-AA turret ignores a flyer and an AA one shoots it;
+  - a Skimmerwing pack reaches the base over a wall.
+
+  Run the usual suite (units, gameplay, smoke, skirmish, region, sea, hover) and `node tools/sim-bench.mjs`
+  before and after.
+- **Release:** v0.36.0, with a "What's new" entry (player-facing) and a TECH.md section. Merge to `main` only
+  when the user asks.
+
 ## Suggested order
 
 1. **Batch A, cheap and fills real gaps (now):** Lancer, Sensor Mast, Habitat Block, Nest,
