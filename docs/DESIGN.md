@@ -280,6 +280,42 @@ same number. Shown openly, or hidden until the reveal.
 A compact tech tree for Act 1 (~25–35 nodes), extended in Act 2. Gated partly by buildings
 (C&C-style prerequisites), colonist specialists and precursor discoveries.
 
+### 5.10 Ideas to reach a wider audience *(proposals, 2026-11-17)*
+Ideas outside the story that would set Exo Genesis apart from other RTS games and help it spread.
+None is decided. Suggested order: **A** and **C** first, because they reuse the seeded sim and the
+colonist data that already exist. **B** is the most distinctive but needs a server, so it fits
+around Act 2.
+
+- **A. Daily Planet.** One seeded planet a day, the same for every player (deposits, fauna,
+  ruins), from the procedural skirmish generator. One attempt each, scored on survival,
+  lineages kept and the Biosphere Report. Results share as a short spoiler-free card, the
+  way Wordle results did. The seeded, reproducible sim means a replay can confirm a score,
+  which keeps the leaderboard honest. The game is just a link, and this turns that into a
+  daily habit.
+- **B. Your fallen colony becomes another player's ruins.** When a colony falls or reaches an
+  ending, upload a cut-down version of it. Another player later finds it as a precursor ruin,
+  with those colonists' names on its memorial wall and that turret layout waking up as relic
+  defenses. This makes the twist ("this has happened before") literally true. It's like the
+  messages and traces from other players in Dark Souls and Death Stranding. **Needs a small
+  backend** (the site is static), and uploads need moderation (colonist names are
+  player-visible text).
+- **C. The Chronicle.** At milestones and at the end of a run, generate an illustrated colony
+  history from data the game already tracks: the family tree across generations, how the
+  blocs shifted, defections, deaths and the memorial, and lineages that ended. It exports
+  as an image or a link to share. RimWorld and Dwarf Fortress grew through stories players
+  told about their games.
+- **D. "Be the colonists" mode.** A second player, or a stream's chat, plays the humans. They
+  vote on bloc decisions, strike, and decide whether to defect, while the host plays the AI.
+  It turns the Trust mechanic into a social game and gives streamers something their chat
+  can take part in. Start with a local second player on a phone through a QR code;
+  Twitch-chat voting can come later. Also needs networking.
+- **E. Player-made scenarios shared by link.** A player-facing cut of the web editor (§6.4)
+  over the data-driven `content/*.json`, with scenarios shared as URLs. Custom maps kept
+  StarCraft and Warcraft III alive for years.
+
+Caveat: these help people find the game and spread it. Whether they stay still depends on
+the first 20 minutes (the M1 exit test).
+
 ## 6. Technical architecture
 
 ### 6.1 Simulation owns the game state
