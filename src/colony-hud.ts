@@ -428,6 +428,8 @@ export class ColonyHud {
     const fill = g.fillStyle;
     g.fillStyle = '#9b86ff';
     for (const v of s.seams ?? []) if (v.isotopes > 0) { g.beginPath(); g.arc(px(v.x), pz(v.z), 2.5, 0, 7); g.fill(); }
+    g.fillStyle = '#c9b8ff';
+    for (const c of s.caches ?? []) if (c.found && !c.opened) g.fillRect(px(c.x) - 2, pz(c.z) - 2, 4, 4);
     g.fillStyle = '#9aa3ab';
     for (const w of s.wrecks ?? []) if (w.found && w.alloys > 0) g.fillRect(px(w.x) - 2.5, pz(w.z) - 1.5, 5, 3);
     g.fillStyle = fill;

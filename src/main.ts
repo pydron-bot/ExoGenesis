@@ -445,7 +445,8 @@ for (const [kind, d] of Object.entries(content.buildings)) {
     (e) => console.warn(`${kind} model failed to load; keeping the built-in`, e),
   );
 }
-// wrecks (region map objects) use the exo-wreck asset when there is one
+// wrecks and relic caches (region map objects) use the exo-wreck / exo-cache assets when there are ones
+if (!builtinModels && content.assets['exo-cache']) loadModel(content.assets['exo-cache']).then((m) => region.setCacheModel(m), (e) => console.warn('cache model failed to load', e));
 if (!builtinModels && content.assets['exo-wreck']) loadModel(content.assets['exo-wreck']).then((m) => region.setWreckModel(m), (e) => console.warn('wreck model failed to load', e));
 
 const canPlace = (kind: string, x: number, z: number) => {

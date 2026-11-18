@@ -1,0 +1,9 @@
+{
+  "name": "Relic Studies",
+  "description": "Reads the relic grids' handshake protocol. Field Engineers can then re-tune a Grid Node (about 20 s next to it) instead of destroying it.",
+  "requires": "deep-survey",
+  "cost": 100,
+  "isotopes": 30,
+  "seconds": 60,
+  "order": 3
+}

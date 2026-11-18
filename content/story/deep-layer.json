@@ -1,0 +1,23 @@
+{
+  "title": "Deep Layer",
+  "text": "The cache opens on a stack of storage slates, mostly dead. One still reads. It's a log in our own format, our own timestamps, from a caretaker that isn't us. The last entry is a directive we can't parse, flagged as part of our own system.",
+  "trigger": "flag",
+  "flag": "relic-opened",
+  "choices": [
+    {
+      "label": "Archive it",
+      "reply": "Archived. The directive stays flagged."
+    },
+    {
+      "label": "Try to parse the directive",
+      "reply": "Parse failed. Access level insufficient. We weren't aware we had access levels."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "deep-layer-read"
+    }
+  ]
+}

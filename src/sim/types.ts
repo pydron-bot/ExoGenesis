@@ -100,10 +100,22 @@ export interface Hostile {
   nest?: number;
   /** Hit points at the last tick (nests release guards when hurt). */
   lastHp?: number;
+  /** A relic: its grid id. */
+  relic?: string;
+  /** Relic not active: inert and untargetable (asleep, stood down or powered off). */
+  dormant?: boolean;
+  /** A Field Engineer's re-tuning of a grid node, 0..1. */
+  tune?: number;
 }
 
 /** A predator spawn's nest: the hostile id while it stands, or when it regrows. */
 export interface NestState { spawn: number; id: number; regrow: number }
+
+/** Relic grids (woke, open) and their caches. */
+export interface RelicState {
+  grids: Record<string, { woke: boolean; open: boolean }>;
+  caches: { x: number; z: number; grid: string; alloys: number; isotopes: number; opened: boolean; found?: boolean }[];
+}
 
 /** A wreck from an earlier run (region `wrecks`): salvage left, and whether we've seen it. */
 export interface Wreck { x: number; z: number; yaw: number; alloys: number; max: number; found?: boolean }
@@ -247,6 +259,8 @@ export interface SimState {
   seams?: Seam[];
   /** Research (absent in older saves). */
   research?: ResearchState;
+  /** Relic grids (absent in older saves: set up from the region on load). */
+  relics?: RelicState;
   /** Fog of war: cells ever seen, one '0'/'1' per cell (absent in older saves). */
   explored?: string;
   packs: Pack[];
@@ -268,7 +282,7 @@ export interface SimState {
   people?: PeopleState;
   /** Set when the game is lost. */
   over: null | 'core' | 'cryo' | 'people';
-  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number };
+  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number };
 }
 
 export type LandingStage = 'burn' | 'touchdown' | 'deploy';
@@ -352,6 +366,8 @@ export interface Snapshot {
   wrecks: Wreck[];
   seams: Seam[];
   isotopes: number;
+  /** Relic caches (shown once sighted). */
+  caches: RelicState['caches'];
   research: ResearchState;
   /** Nests standing / regrowing, by spawn. */
   nests: { x: number; z: number; alive: boolean }[];

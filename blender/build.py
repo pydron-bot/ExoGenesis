@@ -1404,6 +1404,85 @@ def fusion(M):
     export("fusion", [join(parts, "body"), join(band, "charge")])
 
 
+
+# ---------------------------------------------------------------- set v8: relic grid (2026-11-18)
+
+def relic_mats():
+    return {
+        "stone": mat("stone", "#c9c0ae", 0.05, 0.75),
+        "stone2": mat("stone2", "#9a9282", 0.05, 0.85),
+        "inlay": mat("inlay", "#2c2836", 0.4, 0.4),
+        "glow": glow_mat("rglow", "#a58cff", 2.6),
+    }
+
+
+def courses(R, n, r0, r1, z0, h, verts=6, twist=0.0):
+    """Stacked stone courses, alternating offset like our own foundation interlock."""
+    out = []
+    for k in range(n):
+        f = k / max(1, n - 1)
+        r = r0 + (r1 - r0) * f
+        out.append(cyl(r, h * 0.92, (0, 0, z0 + k * h + h / 2), R["stone"] if k % 2 else R["stone2"], verts=verts,
+                       rot=(0, 0, (k % 2) * math.pi / verts + twist * k), bevel=0.05))
+    return out
+
+
+def sentinel(M):
+    """Relic Sentinel: a layered stone obelisk on a hex plinth, a dark inlay groove spiralling up,
+    a violet eye-slit near the top and a floating capstone. ~8 u tall."""
+    R = relic_mats()
+    parts = [cyl(1.9, 0.6, (0, 0, 0.3), R["stone2"], verts=6, bevel=0.08)]
+    parts += courses(R, 7, 1.15, 0.6, 0.6, 0.85, verts=4, twist=0.12)
+    for k in range(6):
+        a = k * 0.9
+        parts.append(box((0.12, 0.08, 0.7), (math.cos(a) * (1.1 - k * 0.08), math.sin(a) * (1.1 - k * 0.08), 1.0 + k * 0.85), R["inlay"], bevel=0, rot=(0, 0, a + math.pi / 2)))
+    parts.append(box((0.9, 0.12, 0.25), (0, -0.62, 5.9), R["glow"], bevel=0))
+    parts.append(box((0.12, 0.9, 0.25), (0.62, 0, 5.9), R["glow"], bevel=0))
+    parts.append(cyl(0.7, 0.5, (0, 0, 7.4), R["stone"], verts=4, r2=0.2, bevel=0.04))      # floating capstone
+    parts.append(sphere(0.22, (0, 0, 6.95), R["glow"], seg=8, rings=5))
+    for k in range(3):
+        a = k / 3 * math.tau + 0.3
+        parts.append(box((0.6, 0.5, 0.35), (math.cos(a) * 2.3, math.sin(a) * 2.3, 0.15), R["stone2"], bevel=0.05, rot=(0.1, 0.05, a)))
+    export("sentinel", [join(parts, "body")])
+
+
+def gridnode(M):
+    """Grid Node: a ring of standing stones round a slowly glowing crystal on a stepped dais,
+    conduits running out in three directions. ~6 u across."""
+    R = relic_mats()
+    parts = [cyl(2.5, 0.4, (0, 0, 0.2), R["stone2"], verts=8, bevel=0.06), cyl(1.8, 0.4, (0, 0, 0.6), R["stone"], verts=8, bevel=0.06)]
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=0, radius=1.0, location=(0, 0, 2.5))
+    c = bpy.context.active_object
+    c.scale = (0.9, 0.9, 1.7)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    parts.append(_finish(c, R["glow"], 0))
+    for k in range(6):
+        a = k / 6 * math.tau
+        parts.append(box((0.5, 0.35, 2.2 + (k % 2) * 0.6), (math.cos(a) * 2.2, math.sin(a) * 2.2, 1.1 + (k % 2) * 0.3), R["stone"], bevel=0.05, rot=(0, 0.08, a)))
+        parts.append(box((0.1, 0.1, 0.8), (math.cos(a) * 2.02, math.sin(a) * 2.02, 1.6), R["glow"], bevel=0, rot=(0, 0, a)))
+    for k in range(3):
+        a = k / 3 * math.tau + 0.5
+        parts.append(box((3.0, 0.3, 0.12), (math.cos(a) * 3.6, math.sin(a) * 3.6, 0.06), R["inlay"], bevel=0, rot=(0, 0, a)))
+        parts.append(box((2.6, 0.08, 0.14), (math.cos(a) * 3.6, math.sin(a) * 3.6, 0.08), R["glow"], bevel=0, rot=(0, 0, a)))
+    export("gridnode", [join(parts, "body")])
+
+
+def cache(M):
+    """Relic Cache: a squat sealed vault of interlocked stone blocks with a violet seal band
+    (`seal`, goes dark when the grid falls). ~5 u."""
+    R = relic_mats()
+    parts, seal = [], []
+    parts.append(box((5.0, 4.4, 0.5), (0, 0, 0.25), R["stone2"], bevel=0.08))
+    for k in range(3):
+        sx = 4.2 - k * 0.6
+        parts.append(box((sx, sx * 0.85, 0.75), (0, 0, 0.85 + k * 0.78), R["stone"] if k % 2 == 0 else R["stone2"], bevel=0.08, rot=(0, 0, (k % 2) * 0.08)))
+    parts.append(box((2.2, 1.8, 0.4), (0, 0, 3.2), R["stone"], bevel=0.08))
+    parts.append(box((1.0, 0.1, 1.4), (0, -1.8, 1.4), R["inlay"], bevel=0))            # door slab
+    seal.append(box((4.3, 3.7, 0.12), (0, 0, 1.25), R["glow"], bevel=0))
+    seal.append(box((0.9, 0.12, 0.12), (0, -1.86, 2.0), R["glow"], bevel=0))
+    export("cache", [join(parts, "body"), join(seal, "seal")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
@@ -1413,7 +1492,8 @@ MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, 
           "cantor": cantor, "tender": tender, "pylon": pylon,
           "lancer": lancer, "sensor": sensor, "habitat": habitat, "relay": relay,
           "nest": nest, "wreck": wreck,
-          "lab": lab, "deepmine": deepmine, "fusion": fusion}
+          "lab": lab, "deepmine": deepmine, "fusion": fusion,
+          "sentinel": sentinel, "gridnode": gridnode, "cache": cache}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":

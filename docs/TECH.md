@@ -548,4 +548,16 @@ From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a
 - **Too Good (E6, v0.27.0):** story card 20 s after a Tech Lab is built (`story/too-good.json`).
 - Blender set v7: Tech Lab (1,164 tris), Deep-Core Mine (1,268), Fusion Cell (1,788; glow parts `charge`).
   Test: `tools/research-smoke.mjs` (lab → survey → relay → mine → isotopes → fusion).
+- **Relic grids (v0.28.0, STORY.md E2):** region list `relics` (grid id, part sentinel / node / cache, x, z,
+  cache alloys / isotopes). Sentinels and nodes are hostiles of a new faction `relic` (unit field `relic` names
+  the part: `units/sentinel.json`, `units/gridnode.json`) with `relic` = grid and `dormant` (inert, untargetable)
+  until the grid wakes: anything of ours (unit, drone, building) within a relic's aggro radius. Waking logs the
+  97.3% firmware match, sets `relic-woke` (card *Handshake*), and every other sentinel (by id) stays dormant;
+  the rest shoot (arc look, 26 u) and the nodes become targetable. A grid with no nodes left powers off (all
+  members dormant), its caches open and pay out, flag `relic-opened` (card *Deep Layer*), `stats.relicsDown`.
+  With research Relic Studies a Field Engineer with nothing to mend re-tunes a node in reach over 20 s (no kill).
+  Any speed-0 hostile is immovable in separation (nests and relics). Caches render from `exo-cache` once
+  sighted; their `seal` part goes dark when opened; minimap marks unopened found caches. Touchdown's grid
+  `ridge` is at about (15, 95): 2 nodes, 4 sentinels, 1 cache (400 alloys, 60 isotopes).
+  Blender set v8: sentinel (712 tris), grid node (612), cache (256). Test: `tools/relic-smoke.mjs`.
 

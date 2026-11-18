@@ -15,7 +15,8 @@ export type Weapon = (typeof WEAPONS)[number];
 
 export const unitShape = {
   name: str({ label: 'Name' }),
-  faction: choice(['accord', 'fauna'], { label: 'Faction', help: 'Accord units are the player\'s; fauna attack them.' }),
+  faction: choice(['accord', 'fauna', 'relic'], { label: 'Faction', help: 'Accord units are the player\'s; fauna attack them; relics are precursor defenses on a relic grid (region map).' }),
+  relic: choice(['sentinel', 'node'], { label: 'Relic part', optional: true, help: 'Relics: a sentinel shoots once its grid wakes; a node powers its grid (destroy or re-tune every node to shut the grid down and open its cache).' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
   hp: int({ label: 'Hit points', min: 1, max: 100000 }),
   speed: num({ label: 'Speed', min: 0, max: 60, step: 0.1, unit: 'u/s', help: '1 world unit ≈ 10 m.' }),
@@ -496,6 +497,16 @@ export const seamShape = {
 } satisfies Shape;
 export type SeamDef = Infer<typeof seamShape>;
 
+export const relicShape = {
+  grid: str({ label: 'Grid', help: 'Relics with the same grid id wake together and fall with their nodes. Lowercase, no spaces.' }),
+  kind: choice(['sentinel', 'node', 'cache'], { label: 'Part', help: 'sentinel: a guard tower (the unit with Relic part = sentinel). node: powers the grid. cache: opens when every node of its grid is down, paying out what it holds.' }),
+  x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
+  alloys: int({ label: 'Cache: alloys', min: 0, max: 100000, optional: true }),
+  isotopes: int({ label: 'Cache: isotopes', min: 0, max: 100000, optional: true }),
+} satisfies Shape;
+export type RelicDef = Infer<typeof relicShape>;
+
 export const wreckShape = {
   x: num({ label: 'X', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
   z: num({ label: 'Z', min: -REGION_HALF, max: REGION_HALF, step: 0.5, unit: 'u' }),
@@ -541,6 +552,7 @@ export const regionShape = {
   vents: list(ventShape, { label: 'Geothermal vents', max: 20, optional: true }),
   camps: list(campShape, { label: 'Inhabitant camps', max: 8, optional: true }),
   sites: list(siteShape, { label: 'Story sites', max: 40, optional: true }),
+  relics: list(relicShape, { label: 'Relics', max: 40, optional: true, help: 'Precursor relic grids (STORY.md E2 Handshake). A grid wakes when anything of ours comes within a relic\'s aggro radius: it scans us and half its sentinels stand down. Sets flags relic-woke and relic-opened.' }),
   seams: list(seamShape, { label: 'Isotope seams', max: 20, optional: true, help: 'Glowing outcrops of exotic isotopes. A Deep-Core Mine (role deepmine) sits on one.' }),
   wrecks: list(wreckShape, { label: 'Wrecks', max: 20, optional: true, help: 'Hulls from an earlier run, in our own build style. The first sight of one sets the story flag wreck-found; Field Engineers salvage alloys from them.' }),
 } satisfies Shape;

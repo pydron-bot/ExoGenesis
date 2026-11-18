@@ -828,6 +828,8 @@ export class RegionView {
   private deposits: THREE.Group[] = [];
   private wrecks: THREE.Group[] = [];
   private seams: THREE.Group[] = [];
+  private caches: THREE.Group[] = [];
+  private cacheModel: THREE.Object3D | null = null;
   private wreckModel: THREE.Object3D | null = null;
   private vents: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
@@ -1119,6 +1121,7 @@ export class RegionView {
     this.syncDeposits(cur);
     this.syncWrecks(cur);
     this.syncSeams(cur);
+    this.syncCaches(cur);
     this.animateVents(cur.buildings);
 
     // grazers
@@ -1409,6 +1412,39 @@ export class RegionView {
       g.visible = f > 0;
       const k = 0.4 + 0.6 * Math.sqrt(f);
       g.scale.set(k, k, k);
+    });
+  }
+
+  /** The relic caches' model (an asset; a part named `seal` glows while it's shut). */
+  setCacheModel(obj: THREE.Object3D | null) {
+    this.cacheModel = obj;
+    for (const g of this.caches) this.details.remove(g);
+    this.caches = [];
+  }
+
+  /** Relic caches: shown once sighted; the seal goes dark when the grid falls. */
+  private syncCaches(cur: Snapshot) {
+    (cur.caches ?? []).forEach((c, i) => {
+      let g = this.caches[i];
+      if (!g) {
+        g = new THREE.Group();
+        if (this.cacheModel) g.add(this.cacheModel.clone(true));
+        else {
+          const box = new THREE.Mesh(new THREE.BoxGeometry(4, 2.4, 4), metal('#b9b2a2'));
+          box.position.y = 1.2;
+          const seal = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.3, 4.1), glow('#a58cff', 2));
+          seal.position.y = 1.6;
+          seal.name = 'seal';
+          g.add(box, seal);
+        }
+        if (this.fog) this.fogObj(g);
+        orient(g, c.x, c.z, i * 1.1, 0);
+        this.flora?.clear(c.x, c.z, 5);
+        this.details.add(g);
+        this.caches[i] = g;
+      }
+      g.visible = !!c.found;
+      g.traverse((o) => { if (o.name.startsWith('seal')) o.visible = !c.opened; });
     });
   }
 

@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.28.0',
+    date: '2026-11-18',
+    title: 'The relic grid',
+    notes: [
+      'North of the landing site, a ring of carved stones is a precursor defense grid. It sleeps until something of ours comes close, then scans us, and only half of it stands down',
+      'Grid Nodes power the grid: destroy every node and it shuts off and opens its cache (alloys and isotopes). Lancers outrange the sentinels',
+      'New research, Relic Studies: a Field Engineer parked next to a Grid Node re-tunes it instead, no fight needed',
+      'Two new story beats: Handshake and Deep Layer',
+    ],
+  },
+  {
     version: '0.27.0',
     date: '2026-11-18',
     title: 'Research and isotopes',
