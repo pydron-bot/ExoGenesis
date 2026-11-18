@@ -64,6 +64,9 @@ node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 node tools/editor-checks-smoke.mjs  # undo, content checks, Problems, Rename, Compare, Text, Since last release
 node tools/editor-more-smoke.mjs    # map overlays + copy/paste, Planet, balance runs, play test setup, characters, timeline, interface
 node tools/cinematic-smoke.mjs      # cinematics: triggers and effects (headless), the landing, a world cinematic (pause, lines, skip)
+node tools/gameplay-smoke.mjs       # story gameplay (headless): spawns, locks, countdowns, counters, groups, fail/win, encounters, inspector
+node tools/story-tools-smoke.mjs    # script import, branch graph, endings ledger, To do, playthrough page
+node tools/playthrough.mjs          # headless campaign playthroughs: the story's timeline per choice policy, and coverage
 node tools/map-smoke.mjs     # map editor → game end-to-end (restores the region afterwards)
 node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores content/ + public/media/)
 node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)
@@ -100,9 +103,14 @@ Planet map places them on each body. Story → Story board lays missions, events
 and the story bible out by chapter.
 Assets → Library lists every model (files and the built-in procedural ones); drop .glb, image or
 audio files onto the editor to add them, then pick a model in a unit's or building's Model field.
-Story → Characters, missions and story events write the campaign; Cinematics holds the opening landing and
+Story → Characters, missions and story events write the campaign (story effects can spawn units, lock the build
+menu, run countdowns and counters, point tutorial hints at the HUD, place waypoints and win or lose the game);
+Script import turns a screenplay into events, Branch graph and Endings ledger show how it all links up, and
+Playthrough has the bot play the campaign and report what never fired. Play tests open with a story inspector
+(and take story edits live in dev); Cinematics holds the opening landing and
 any cinematics you add (camera, captions, lines, sounds, a trigger or a story event to play them); Rules → Interface is the HUD's look. **Checks** (top of the sidebar) lists every
-content problem, every player-facing string (Text) and what changed since the last release.
+content problem, every player-facing string (Text), what changed since the last release, and To do (open comments,
+status, missing pieces and the voice script).
 Edit them at **http://hive1:5176/editor.html** (dev server only): saves write straight into
 `content/`, open game tabs reload with the new values, and the Commit button commits
 `content/` to the local repo. Schemas are in `src/content/defs.ts`; see DESIGN.md §6.4 and, per feature, [docs/TECH.md](docs/TECH.md) §1.

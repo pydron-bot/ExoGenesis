@@ -233,6 +233,97 @@ How content is stored and edited in general (one JSON record per file, schemas i
   heading bar that stays at the top while its group scrolls past and collapses the group on a click. Collapsed
   groups are remembered per browser (`exo.editor.collapsed`); a collapsed group holding the open record shows a
   dot. Test: `tools/editor-tools-smoke.mjs`.
+- **Story gameplay** (v0.31.0): story events and missions can now drive the game, not just talk about it.
+  **Effects** (`STORY_EFFECTS`, run by `Story.effect` in `src/sim/story.ts`) add: `isotopes`; `counter` / `setCounter`
+  (named numbers in `StoryState.counters`, start at 0); `countdown` / `stopCountdown` (a named timer with HUD text,
+  `StoryState.countdowns`, ends into `expired`); `spawn` (Count of a Unit at a story site: Accord units join the colony,
+  anything else is a pack, or with Guard the site a guard that only fights what comes near; `Sim.spawnAt`); `research`
+  (done, free; sets `research-<id>`); `lock` / `unlock` (a building or unit out of the build menus: `StoryState.locked`;
+  `build`, `buildLine` and `produce` refuse it and the HUD hides it); `reveal` (fog cleared round a site, `Sim.reveal`);
+  `waypoint` / `clearWaypoint` (a marker over a site and on the minimap, `StoryState.marks`); `camera` (the player's
+  view to a site or building; `look.n` counts requests so a resumed game doesn't jump); `hint` / `unhint` (see
+  Tutorials below); `win` / `fail` (`Sim.end`: `over` = `'won'` or `'story'` with `overText` on the end screen).
+  **Conditions** (`CONDITIONS`, `src/sim/conditions.ts`) add `placed`, `births`, `deaths`, `kills`, `lost` (buildings),
+  `alloys`, `researched`, `explored` (a site came out of the fog, `Sim.explored`), `counter` (≥ Count), `counterBelow`
+  (≤ Count), `timer` (a countdown ran out), `opened` (HUD, see Tutorials), `failed` (a mission), and groups: `all` /
+  `any` hold up to 8 conditions in `of`, each with `not` (one level; `conditionsIn` in `defs.ts` opens a group up for
+  the tools). `count` may be negative (counters). **Missions** gain `fails` (conditions checked while under way, before
+  objectives; any one fails it: logged, no rewards, `onFail` fires, missions after it don't start; `failEnds` loses the
+  game with the fail's text; `MissionState.failed`). The new state is all in `StoryState` / `MissionState`, so it saves;
+  the play test setup's clock jump moves countdowns too. Content checks: `built` / `placed` need a building, `opened`
+  a panel, groups at least one condition, site conditions and site effects a site on a map, `spawn` a unit and a site
+  (not a nest), `lock` / `unlock` a building or unit, `camera` a site or building, a build-menu hint its building,
+  `failEnds` some fail conditions. The editor's summaries (`condText`, `effectShort` in `src/editor/flow.ts`) read
+  every kind; Story flow lists counters and countdowns beside flags (set by / waited on by; a counter nothing changes
+  or a countdown nothing starts is a problem) and no longer reports flags the game sets itself (`research-*`,
+  `wreck-found`, `relic-woke`, `relic-opened`, `nest-destroyed`, encounters' "beaten" flags). Test:
+  `tools/gameplay-smoke.mjs` (headless).
+- **Tutorials** (v0.31.0): the `hint` effect points at part of the HUD (`HINT_TARGETS`: the Build button, one
+  building in the build menu, GOALS, the minimap, any resource readout, pause, fast forward) with a bubble of text
+  (`src/story-hud.ts`: an amber outline that pulses on the element, the bubble below or above it). A hint on
+  something the player can use clears itself when they use it (`HINT_DONE` in `story.ts`; a build-menu hint when they
+  place that building); others stay until `unhint` or the next hint. The renderer reports what the player opens
+  (`{ type: 'ui', what }`: `build`, `people`, `mood`, `army`, `goals`, `minimap`, `speed`, `select`, `select:<kind>`,
+  `research` for a Tech Lab) once per game, for `opened` conditions; `placed` waits for the player to place a kind
+  (finished or not). With `lock` / `unlock` a tutorial can offer only what its lesson needs. Waypoints draw as amber
+  diamonds over the site (pinned to the screen edge when off screen) and rings on the minimap; countdowns show under
+  GOALS (red under 30 s).
+- **Story inspector** (v0.31.0): `src/inspector.ts`, in play tests (`?preview=1`) and with `?inspect=1`; ` (backquote)
+  or 🔍 Story shows it (remembered, `exo.inspector`). Lists the missions under way with their objectives (tick one:
+  `inspect.objective`), Finish (rewards run) and Fail; missions not started (Start = `debug.mission`); events waiting
+  in the inbox, waiting out a delay, not fired yet (filter, Fire) and fired; flags (set, clear), counters (edit),
+  countdowns (Run out), locks (unlock), the hint and waypoints; and +1 min / +10 min / +1 sol (`Sim.skip`: the clock
+  moves, nothing in between is played), Pack now, +500 alloys. The sim takes these as `{ type: 'inspect' }` commands.
+  **Live story edits** (dev): `src/content/index.ts` hands a content hot update to `onContentHot` (kept on
+  `globalThis`, since every update runs a fresh copy of the module); with the inspector on, `main.ts` compares each
+  collection, and if only story ones changed (`LIVE_COLLECTIONS`: story, missions, characters, cinematics, chapters,
+  lore) swaps them in place in the page and in the worker (`{ type: 'content', patch }`) instead of reloading, so a
+  play test keeps going with the new text, triggers and effects. Anything else still reloads.
+- **Playthroughs** (v0.31.0): `src/sim/playthrough.ts` plays the campaign headless: the balance bot
+  (`runBalance`, which now takes a `hook` called every tick with the sim and its build plan) plays a strategy, and
+  every second the hook answers the cards in the inbox by a policy (first, last or random choice, or fixed answers
+  per event), marks cinematics played, chases the objectives under way (`chase`: puts what `built` / `placed` ask for
+  at the front of the plan, fabricates drones, produces a unit, builds farms and a Civilian Center for people goals,
+  starts research along its `requires` chain, sends a unit or drone to sites and camps, "opens" HUD panels) and
+  records beats: missions started, objectives met, missions done or failed, events fired, choices, flags, counters,
+  countdowns, cinematics, the end. `coverage(runs)` lists events no run fired, choices nobody took, missions never
+  started or never finished, and when each mission was done. Editor: **Story → Playthrough** (`src/editor/playthrough.ts`,
+  in a worker on the saved content like the balance runs: bot, minutes, seed, region, no predators, policies) shows
+  each run's missions as bars on a time axis with events and choices as ticks, the timeline (filter by kind), the run
+  before for comparison, and coverage in the side panel. Command line: `node tools/playthrough.mjs`.
+- **Writing tools** (v0.31.0): **Story → Script import** (`src/editor/script.ts`; `parseScript` / `parseCineLines`
+  are pure): scenes written as a screenplay (`# Title {id}`, `when: <condition> <values>` or `after previous`,
+  `delay:`, `pause`, `radio`, `chapter:`, `unless:`, `tags:`, `NAME: line` with characters found by id, name or
+  first name, narration carrying on the line before, `> choice`, `= reply`, `+ effect args` indented under a choice
+  or not) become story events: the first starts as `never`, each later one follows the one before; `+ event next`
+  looks ahead. The page shows what it will create with the content checks run on the drafts, then writes the files.
+  Lines for a cinematic (`[time] NAME: text`, times optional: each follows the last by reading time) are added to a
+  chosen cinematic. The script is kept per browser (`exo.editor.script`). **Story → Branch graph**
+  (`src/editor/graph.ts`, `buildGraph` pure): missions, events and cinematics as boxes, flags, counters and countdowns
+  as tags, edges for every link (a mission follows one, an event waits on a mission or an answered event, an effect
+  fires an event or sets a flag a trigger waits for, choices labelled), in columns by longest path; drag boxes (kept,
+  `exo.editor.graph`), pan, zoom, click to see what leads in and out, double-click to open; Tidy up forgets moves.
+  **Story → Endings ledger** (`src/editor/ledger.ts`, `buildLedger` pure): every choice and reward that moves stance,
+  wellbeing, regard or a counter, or sets a flag, in a table; the range each can reach if every event fires (a card's
+  choices are either-or; `setCounter` values count); and every threshold a trigger or objective waits for
+  (counter ≥ / ≤, acceptance), flagged when the story can't reach it.
+- **Map encounters** (v0.31.0): a region's `encounters` (`encounterShape`): Count of a hostile unit at a spot that
+  guard it (stay within the radius, fight what comes near), patrol to a second point and back, or attack the colony
+  like a pack; there from the start or once a flag is set ("Appears when flag", announced in the log); `doneFlag` is
+  set when the last of them dies. `Sim.stepEncounters` (once a second; `StoryState.encounters` remembers which have
+  appeared, so they don't come back after a load); guards are hostiles with `guard` (`chooseTarget` only looks near
+  the post; `stepGuard` walks back or along the route). Map editor: **Add encounter (N)**: red spikes, the guard ring,
+  the dashed patrol line and its end. Content checks: hostile units only, no nests, unique ids, inside the region.
+  Test: `tools/gameplay-smoke.mjs`.
+- **Production tracking** (v0.31.0): story records (missions, events, cinematics, characters, inhabitants, bible) gain
+  editor-only `status` (idea, draft, wired, tested, final) and `comments` (who, text, resolved; signed with the name
+  last used in this browser, `exo.editor.who`). The story board shows a status badge and open comments on each card,
+  filters by status ("not final", "open comments"), and counts by status in the side panel. **Checks → To do**
+  (`src/editor/todo.ts`, `collectTodo` pure): open comments; records not final, by status; missing pieces (characters
+  without a portrait, cards with no speaker, cinematics with no sound, cinematic lines nobody says, units and
+  buildings on their built-in stand-in model, story records in no chapter); and the voice script: every spoken line by
+  who says it, with word counts, to copy or download as text. Comments and the new id fields stay out of Checks → Text.
+  Test: `tools/story-tools-smoke.mjs`.
 
 ## 2. Models, rendering and lights
 
