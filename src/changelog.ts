@@ -15,6 +15,12 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.23.1',
+    date: '2026-11-18',
+    title: 'Title fix',
+    notes: ['The EXO GENESIS title no longer cuts off its last letter on iPad: it shrinks to fit the screen'],
+  },
+  {
     version: '0.23.0',
     date: '2026-11-18',
     title: 'Editor preview',

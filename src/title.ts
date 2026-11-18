@@ -102,6 +102,11 @@ export class TitleScreen {
     document.body.appendChild(root);
     document.body.classList.add('title');
     this.refresh();
+    // shrink the wordmark to fit its column: the font is the device's monospace, so its
+    // width varies (SF Mono on iPad clipped the last S at the 64px cap)
+    this.fitMark();
+    void document.fonts?.ready.then(() => this.fitMark());
+    addEventListener('resize', this.fitMark);
     // focus for keyboards once the menu is in (not on touch: it draws a ring)
     if (!matchMedia('(pointer: coarse)').matches) setTimeout(() => (menu.querySelector('.t-item') as HTMLElement | null)?.focus({ preventScroll: true }), 1600);
     // the camera's starting point for the drift
@@ -112,6 +117,24 @@ export class TitleScreen {
     cam.pitch = cam.targetPitch = 0.42;
     cam.yaw = 2.2;
   }
+
+  /** Size the wordmark so all of it shows inside the column (it hides overflow for the glint). */
+  private fitMark = () => {
+    const mark = this.root.querySelector<HTMLElement>('.t-mark');
+    if (!mark || !this.active) return;
+    mark.style.fontSize = '';
+    // measure a settled copy: the letters fly in with extra letter-spacing
+    const probe = mark.cloneNode(true) as HTMLElement;
+    probe.style.cssText = 'position:absolute;visibility:hidden;overflow:visible;width:max-content;max-width:none';
+    probe.querySelectorAll('span').forEach((s) => { s.style.animation = 'none'; s.style.opacity = '1'; });
+    mark.parentElement!.appendChild(probe);
+    const natural = probe.scrollWidth, avail = mark.clientWidth;
+    probe.remove();
+    if (natural > avail && avail > 0) {
+      const fs = parseFloat(getComputedStyle(mark).fontSize);
+      mark.style.fontSize = `${Math.floor(fs * avail / natural * 0.98)}px`;
+    }
+  };
 
   private disarm() {
     if (!this.armed) return;
@@ -167,6 +190,7 @@ export class TitleScreen {
   hide(): Promise<void> {
     if (!this.active) return Promise.resolve();
     this.active = false;
+    removeEventListener('resize', this.fitMark);
     this.cam.freePitch = false;
     this.cam.overrideW = 0;
     if (this.camera.view) this.camera.clearViewOffset();
