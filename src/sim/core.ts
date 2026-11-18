@@ -1111,6 +1111,21 @@ export class Sim {
   private chooseTarget(h: Hostile, u: UnitDef) {
     const s = this.s;
     let best = -1, bd = Infinity;
+    const g = h.guard;
+    if (g) {
+      // a guard: only what comes near its post (and near it), never the base beyond
+      const post = (o: { x: number; z: number }, r: number) => Math.hypot(o.x - g.x, o.z - g.z) <= r;
+      for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
+        const dist = Math.hypot(d.x - h.x, d.z - h.z);
+        if (dist < Math.max(u.aggro, 6) && dist < bd && post(d, g.r * 1.6 + u.aggro)) { bd = dist; best = d.id; }
+      }
+      if (best >= 0) return best;
+      for (const b of s.buildings) {
+        const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
+        if (dist < bd && post(b, g.r + bodyR(b))) { bd = dist; best = b.id; }
+      }
+      return best;
+    }
     // underground, a burrower can't sense drones or units: it heads for the base (never a wall)
     if (!h.under) {
       for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
@@ -1146,7 +1161,7 @@ export class Sim {
       }
       // a colonist who made it indoors is out of reach
       if (tgt && 'lineage' in tgt && tgt.at >= 0) { h.target = -1; tgt = undefined; }
-      if (!tgt) continue;
+      if (!tgt) { if (h.guard) this.stepGuard(h, u); continue; }
       const isB = 'kind' in tgt, isU = 'order' in tgt, isC = 'lineage' in tgt;
       const tr = isB ? bodyR(tgt as Building) : isU ? content.units[(tgt as Unit).unit].radius : 1;
       const dx = tgt.x - h.x, dz = tgt.z - h.z, dist = Math.hypot(dx, dz);
@@ -1242,6 +1257,79 @@ export class Sim {
     }
   }
 
+  /** A guard with nothing to fight: back to its post, or on along its route. */
+  private stepGuard(h: Hostile, u: UnitDef) {
+    const g = h.guard!;
+    let tx = g.x, tz = g.z;
+    if (g.route && g.route.length >= 2) {
+      const legs = g.route.length / 2, i = (g.leg ?? 0) % legs;
+      tx = g.route[i * 2]; tz = g.route[i * 2 + 1];
+      if (Math.hypot(tx - h.x, tz - h.z) < 2.5) g.leg = (i + 1) % legs;
+    } else if (Math.hypot(tx - h.x, tz - h.z) < Math.max(2, g.r * 0.4)) return;
+    this.steer(h, tx, tz, u.speed * (g.route ? 0.6 : 1));
+  }
+
+  /**
+   * Story spawns and map encounters: `n` of a unit at (x, z). Accord units join
+   * the colony; anything else is hostile: a pack that goes for the colony, or with
+   * `guardR` a guard that stays round the spot (along `route` if given).
+   */
+  spawnAt(unit: string, n: number, x: number, z: number, guardR = 0, route?: number[], enc?: string) {
+    const s = this.s, ud = content.units[unit];
+    if (!ud) return 0;
+    let made = 0;
+    if (ud.faction === 'accord') {
+      for (let i = 0; i < n; i++) {
+        const slot = this.freeSlot();
+        if (slot < 0) break;
+        const ux = clamp(x + (i % 4) * 3, -limit(), limit()), uz = clamp(z - Math.floor(i / 4) * 3, -limit(), limit());
+        this.units.push({ id: s.nextId++, unit, slot, x: ux, z: uz, heading: 0, hp: ud.hp, cd: 0, order: { kind: 'idle' }, gx: ux, gz: uz, target: -1 });
+        made++;
+      }
+      return made;
+    }
+    const pack = guardR > 0 ? null : { id: s.nextId++, size: n, alive: 0, announced: false, from: compass(x, z) };
+    for (let i = 0; i < n; i++) {
+      const slot = this.freeSlot();
+      if (slot < 0) break;
+      const a = (i / Math.max(1, n)) * Math.PI * 2, r = n > 1 ? 1.5 + Math.sqrt(i) * 1.4 : 0;
+      const hx = clamp(x + Math.cos(a) * r, -limit(), limit()), hz = clamp(z + Math.sin(a) * r, -limit(), limit());
+      s.hostiles.push({
+        id: s.nextId++, unit, slot, x: hx, z: hz, heading: Math.atan2(-x, -z), hp: ud.hp, target: -1, cd: this.rnd(), pack: pack ? pack.id : -1,
+        under: (!guardR && ud.burrows) || undefined,
+        guard: guardR > 0 ? { x, z, r: guardR, route: route?.length ? [...route] : undefined, leg: 0 } : undefined, enc,
+      });
+      if (pack) pack.alive++;
+      made++;
+    }
+    if (pack?.alive) s.packs.push(pack);
+    return made;
+  }
+
+  /** Clear the fog within `r` of (x, z) (a reveal effect). */
+  reveal(x: number, z: number, r: number) {
+    const c = FOG_CELL;
+    for (let j = 0; j < FOG_N; j++) for (let i = 0; i < FOG_N; i++) {
+      const cx = -REGION_HALF + (i + 0.5) * c - x, cz = -REGION_HALF + (j + 0.5) * c - z;
+      if (cx * cx + cz * cz <= r * r) this.exp[j * FOG_N + i] = 1;
+    }
+    this.stepFog(true);
+  }
+
+  /** Has region point (x, z) ever been seen? */
+  explored(x: number, z: number) {
+    const i = Math.floor((x + REGION_HALF) / FOG_CELL), j = Math.floor((z + REGION_HALF) / FOG_CELL);
+    return i >= 0 && j >= 0 && i < FOG_N && j < FOG_N && this.exp[j * FOG_N + i] === 1;
+  }
+
+  /** The story ends the game: a win, or a loss with its own words. */
+  end(how: 'won' | 'story', text: string) {
+    if (this.s.over) return;
+    this.s.over = how;
+    this.s.overText = text;
+    this.emit(text || (how === 'won' ? 'The colony has won through.' : 'The colony is lost.'), how === 'won' ? 'info' : 'bad', how === 'won' ? 'packCleared' : 'alarm');
+  }
+
   private destroyBuilding(b: Building) {
     const s = this.s;
     const i = s.buildings.indexOf(b);
@@ -1265,6 +1353,7 @@ export class Sim {
         s.tick = to;
         s.waves.next += shift;
         for (const t of s.story?.timers ?? []) t.at += shift;
+        for (const t of s.story?.countdowns ?? []) t.at += shift;
         done.push(`Sol ${p.sol}`);
       }
     }
@@ -1305,6 +1394,17 @@ export class Sim {
     if (p.flags?.length) done.push(`flags ${p.flags.join(', ')}`);
     if (p.peaceful) { s.waves.next = Number.MAX_SAFE_INTEGER; done.push('no predators'); }
     if (done.length) this.emit(`Play test: ${done.join(' · ')}`, 'info');
+  }
+
+  /**
+   * Inspector: move the clock on `secs` seconds without playing them (story
+   * delays, countdowns and the next pack keep their time left).
+   */
+  skip(secs: number) {
+    const s = this.s, shift = Math.round(secs * TICK_HZ);
+    s.tick += shift;
+    s.waves.next += shift;
+    this.emit(`Inspector: skipped ${Math.round(secs / 60 * 10) / 10} min`, 'info');
   }
 
   /** People hooks: a building sabotaged to nothing, a death effect, a walking path. */
@@ -1458,6 +1558,7 @@ export class Sim {
       case 'build': {
         const dd = DEFS[c.kind];
         if (!dd || !dd.buildable) return;
+        if (this.story.locked(c.kind)) { this.emit(`${dd.name} isn't available yet`, 'warn', 'deny'); return; }
         if (!this.researched(dd.research)) { this.emit(`${dd.name} needs research: ${content.research[dd.research!]?.name}`, 'warn', 'deny'); return; }
         if (s.alloys < dd.cost) { this.emit(`Not enough alloys for a ${dd.name} (${dd.cost} needed)`, 'warn', 'deny'); return; }
         if ((s.isotopes ?? 0) < (dd.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${dd.name} (${dd.isotopes} needed)`, 'warn', 'deny'); return; }
@@ -1478,12 +1579,13 @@ export class Sim {
           }
         }
         s.buildings.push({ id: s.nextId++, kind: c.kind, x, z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
+        if (!(this.story.s.placed ??= []).includes(c.kind)) this.story.s.placed.push(c.kind);
         this.emit(`${dd.name} placed${swapped ? ` · replaces ${swapped} wall segment${swapped > 1 ? 's' : ''}` : ''}${s.drones.length ? '' : ' · waiting for a drone'}`, 'info', 'placed');
         return;
       }
       case 'buildLine': {
         const dd = DEFS[c.kind];
-        if (!dd || !dd.buildable) return;
+        if (!dd || !dd.buildable || this.story.locked(c.kind)) return;
         const { pts, yaw } = linePoints(dd, c.x1, c.z1, c.x2, c.z2);
         let placed = 0, skipped = 0, poor = false;
         for (const p of pts) {
@@ -1493,6 +1595,7 @@ export class Sim {
           s.buildings.push({ id: s.nextId++, kind: c.kind, x: p.x, z: p.z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
           placed++;
         }
+        if (placed && !(this.story.s.placed ??= []).includes(c.kind)) this.story.s.placed.push(c.kind);
         if (placed) this.emit(`${placed} ${dd.name} segment${placed > 1 ? 's' : ''} placed${skipped ? ` · ${skipped} spots blocked` : ''}${poor ? ' · ran out of alloys' : ''}`, 'info', 'placed');
         else this.emit(poor ? `Not enough alloys for a ${dd.name} (${dd.cost} each)` : `Can't build a ${dd.name} there`, 'warn', 'deny');
         return;
@@ -1538,6 +1641,22 @@ export class Sim {
       case 'cinematic':
         this.story.cineDone(c.id);
         return;
+      case 'ui':
+        this.story.opened(c.what);
+        return;
+      case 'inspect': {
+        const st = this.story.s;
+        if (c.flag && !st.flags.includes(c.flag)) st.flags.push(c.flag);
+        if (c.unflag) st.flags = st.flags.filter((f) => f !== c.unflag);
+        if (c.counter) (st.counters ??= {})[c.counter.id] = c.counter.value;
+        if (c.objective) this.missions.mark(c.objective.mission, c.objective.index);
+        if (c.finish) this.missions.complete(c.finish);
+        if (c.fail) this.missions.fail(c.fail, 'failed from the story inspector');
+        if (c.expire) { st.countdowns = (st.countdowns ?? []).filter((x) => x.id !== c.expire); if (!(st.expired ??= []).includes(c.expire)) st.expired.push(c.expire); }
+        if (c.unlock && st.locked) st.locked = st.locked.filter((x) => x !== c.unlock);
+        if (c.skip && c.skip > 0) this.skip(c.skip);
+        return;
+      }
       case 'debug': {
         if (c.setup) this.playSetup(c.setup);
         if (c.story) this.story.fire(c.story);
@@ -1578,6 +1697,7 @@ export class Sim {
         const b = s.buildings.find((x) => x.id === c.id);
         const ud = content.units[c.unit];
         if (!b || def(b).role !== 'factory' || b.progress < 1 || !ud || ud.faction !== 'accord' || ud.cost === undefined) return;
+        if (this.story.locked(c.unit)) { this.emit(`${ud.name} isn't available yet`, 'warn', 'deny'); return; }
         const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
         if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }
         if (!this.researched(ud.research)) { this.emit(`${ud.name} needs research: ${content.research[ud.research!]?.name}`, 'warn', 'deny'); return; }
@@ -1731,7 +1851,7 @@ export class Sim {
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,
-      fab: { queued: s.fab.queued, progress: s.fab.progress }, people: this.people.snapshot(), over: s.over, stats: { ...s.stats },
+      fab: { queued: s.fab.queued, progress: s.fab.progress }, people: this.people.snapshot(), over: s.over, overText: s.overText, stats: { ...s.stats },
     };
   }
 }

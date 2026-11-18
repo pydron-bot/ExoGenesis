@@ -140,24 +140,48 @@ function crossIssues(db: ContentDb): FileIssue[] {
     const maps = region ? [db.regions[region]] : Object.values(db.regions);
     return maps.some((r) => r?.sites?.some((x) => x.id === site)) ? null : `no region${region ? ` "${region}"` : ''} has a story site "${site}"`;
   };
+  /** A condition (and the conditions in its group): its site exists, built / placed name a building. */
+  const condIssues = (path: string, field: string, kind: string | undefined, c: Record<string, unknown> | undefined, region?: string) => {
+    if (!c) return;
+    const pre = field ? `${field}.` : '';
+    if ((kind === 'site' || kind === 'explored') && typeof c.site === 'string') { const miss = siteMissing(c.site, region); if (miss) out.push({ path, field: `${pre}site`, msg: miss }); }
+    if ((kind === 'built' || kind === 'placed') && !c.building) out.push({ path, field: `${pre}building`, msg: `required when the condition is ${kind}` });
+    if (kind === 'opened' && !c.panel) out.push({ path, field: `${pre}panel`, msg: 'required when the condition is opened' });
+    if ((kind === 'all' || kind === 'any') && !(c.of as unknown[] | undefined)?.length) out.push({ path, field: `${pre}of`, msg: `an ${kind} group needs at least one condition` });
+    ((c.of as Record<string, unknown>[] | undefined) ?? []).forEach((x, n) => condIssues(path, `${pre}of[${n}]`, x?.kind as string, x, region));
+  };
+  /** An effect's parameters (beyond what the schema checks). */
+  const effectIssues = (path: string, field: string, e: Record<string, unknown> | undefined, region?: string) => {
+    if (!e) return;
+    const k = e.kind as string;
+    if (typeof e.site === 'string' && e.site && ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera'].includes(k)) { const miss = siteMissing(e.site, region); if (miss) out.push({ path, field: `${field}.site`, msg: miss }); }
+    if ((k === 'spawn' || k === 'reveal' || k === 'waypoint') && !e.site) out.push({ path, field: `${field}.site`, msg: `a ${k} needs a story site` });
+    if (k === 'spawn' && !e.unit) out.push({ path, field: `${field}.unit`, msg: 'a spawn needs a unit' });
+    if ((k === 'lock' || k === 'unlock') && !e.building && !e.unit) out.push({ path, field: `${field}.building`, msg: `${k}: pick a building or a unit` });
+    if (k === 'camera' && !e.site && !e.building) out.push({ path, field: `${field}.site`, msg: 'camera: pick a story site or a building' });
+    if (k === 'hint' && e.target === 'buildItem' && !e.building) out.push({ path, field: `${field}.building`, msg: 'a build-menu hint needs the building' });
+    if (k === 'spawn' && typeof e.unit === 'string' && db.units[e.unit]?.nest) out.push({ path, field: `${field}.unit`, msg: 'nests grow on predator spawns; spawn the creatures instead' });
+  };
   for (const [id, m] of Object.entries(db.missions ?? {})) {
     if (!m || typeof m !== 'object') continue;
-    if (m.after === id) out.push({ path: `missions/${id}.json`, field: 'after', msg: 'a mission can\'t follow itself' });
-    (m.objectives ?? []).forEach((o, n) => {
-      const miss = o?.kind === 'site' && o.site ? siteMissing(o.site, m.region) : null;
-      if (miss) out.push({ path: `missions/${id}.json`, field: `objectives[${n}].site`, msg: miss });
-    });
+    const P = `missions/${id}.json`;
+    if (m.after === id) out.push({ path: P, field: 'after', msg: 'a mission can\'t follow itself' });
+    (m.objectives ?? []).forEach((o, n) => condIssues(P, `objectives[${n}]`, o?.kind, o as unknown as Record<string, unknown>, m.region));
+    (m.fails ?? []).forEach((o, n) => condIssues(P, `fails[${n}]`, o?.kind, o as unknown as Record<string, unknown>, m.region));
+    (m.rewards ?? []).forEach((e, n) => effectIssues(P, `rewards[${n}]`, e as unknown as Record<string, unknown>, m.region));
+    if (m.failEnds && !m.fails?.length) out.push({ path: P, field: 'failEnds', msg: 'it has no fail conditions, so it can\'t fail' });
   }
   for (const [id, ev] of Object.entries(db.story ?? {})) {
     if (!ev || typeof ev !== 'object') continue;
-    const miss = ev.trigger === 'site' && ev.site ? siteMissing(ev.site, ev.region) : null;
-    if (miss) out.push({ path: `story/${id}.json`, field: 'site', msg: miss });
+    const P = `story/${id}.json`;
+    condIssues(P, '', ev.trigger, ev as unknown as Record<string, unknown>, ev.region);
     (ev.effects ?? []).forEach((e, n) => {
-      if ((e?.after ?? 0) > (ev.choices?.length ?? 0)) out.push({ path: `story/${id}.json`, field: `effects[${n}].after`, msg: `there is no choice ${e.after}` });
+      if ((e?.after ?? 0) > (ev.choices?.length ?? 0)) out.push({ path: P, field: `effects[${n}].after`, msg: `there is no choice ${e.after}` });
+      effectIssues(P, `effects[${n}]`, e as unknown as Record<string, unknown>, ev.region);
     });
-    if (ev.trigger === 'after' && ev.event === id) out.push({ path: `story/${id}.json`, field: 'event', msg: 'an event can\'t follow itself' });
-    if (ev.style === 'radio' && ev.choices?.length) out.push({ path: `story/${id}.json`, field: 'choices', msg: 'a radio message can\'t have choices (make it a card)' });
-    if (ev.style === 'radio' && ev.lines?.length) out.push({ path: `story/${id}.json`, field: 'lines', msg: 'a radio message is one line (make it a card for a conversation)' });
+    if (ev.trigger === 'after' && ev.event === id) out.push({ path: P, field: 'event', msg: 'an event can\'t follow itself' });
+    if (ev.style === 'radio' && ev.choices?.length) out.push({ path: P, field: 'choices', msg: 'a radio message can\'t have choices (make it a card)' });
+    if (ev.style === 'radio' && ev.lines?.length) out.push({ path: P, field: 'lines', msg: 'a radio message is one line (make it a card for a conversation)' });
   }
   if (db.buildings.core && db.buildings.core.role !== 'core') out.push({ path: 'buildings/core.json', field: 'role', msg: 'must be core' });
   if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });

@@ -6,7 +6,7 @@ import { Input } from './input';
 import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
-import { content, contentIssues, type RegionDef } from './content';
+import { content, contentIssues, onContentHot, type RegionDef } from './content';
 import { PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
@@ -19,6 +19,8 @@ import { Landing } from './landing';
 import { Cinematic, type CineHooks } from './cinematic';
 import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
+import { StoryHud } from './story-hud';
+import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
 import { ArmyView } from './skirmish/view';
@@ -491,6 +493,7 @@ function restartGame() {
   sim.command({ type: 'landing', stage: 'deploy' });
   sim.flush(); // overwrite the old autosave right away
   hud.reset();
+  storyHud.reset();
   fogView.reset();
   ui.sel = null; setBuild(null);
   selectFirstDrone = true;
@@ -508,6 +511,15 @@ const hud = new ColonyHud({
   },
   load: () => $('b-load').click(),
   log,
+  onSelect: (kind, role) => storyHud.selected(kind, role),
+});
+/** Tutorial hints, waypoints and camera moves the story asks for. */
+const storyHud = new StoryHud({
+  cam, command: (c) => sim.command(c),
+  screenOf: (x, z, lift = 0) => {
+    const v = regionToWorld(x, z, lift).project(camera);
+    return v.z > 1 ? null : { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
+  },
 });
 $('b-build').onclick = () => hud.toggleMenu();
 $('b-new').onclick = () => { if (confirm('Start a new game? Your current colony will be lost (unless you Saved it).')) restartGame(); };
@@ -518,6 +530,28 @@ if (!skirmishMode) {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
   addEventListener('pagehide', flush);
   setInterval(saveCamera, 10000);
+}
+
+// the story inspector: play tests (?preview=1) and ?inspect=1; in dev it also takes story edits live
+const inspector = !skirmishMode && (preview || params.get('inspect') === '1')
+  ? new Inspector({ content, cur: () => sim.cur, command: (c) => sim.command(c), log })
+  : null;
+if (inspector) {
+  onContentHot((next) => {
+    const live = content as unknown as Record<string, Record<string, unknown>>, nx = next as unknown as Record<string, Record<string, unknown>>;
+    const changed = Object.keys(nx).filter((k) => JSON.stringify(nx[k]) !== JSON.stringify(live[k]));
+    // only story records can change under a running game; anything else restarts it
+    if (!changed.length || changed.some((k) => !(LIVE_COLLECTIONS as readonly string[]).includes(k))) return false;
+    const patch: Record<string, Record<string, unknown>> = {};
+    for (const k of changed) {
+      patch[k] = nx[k];
+      for (const key of Object.keys(live[k])) delete live[k][key];
+      Object.assign(live[k], nx[k]);
+    }
+    sim.patchContent(patch);
+    inspector.liveEdit(changed);
+    return true;
+  });
 }
 
 // playtesting: ?debug=1 → F8 summons the next predator pack now, F9 adds 500 alloys
@@ -670,7 +704,7 @@ function fmtAlt(u: number) {
 let fpsAcc = 0, fpsN = 0, fpsShown = 0;
 function updateHud(dt: number, now: number) {
   const s = sim.cur;
-  if (s && !skirmish) hud.update(s, speed, now);
+  if (s && !skirmish) { hud.update(s, speed, now); if (s.deployed) storyHud.update(s.story); inspector?.update(now); }
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
   el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
     ? `${provinces.landCount} REGIONS · ALT ${fmtAlt(cam.altitude())}`

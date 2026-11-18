@@ -9,7 +9,7 @@
 import './editor.css';
 import { COLLECTIONS, CONDITION_HELP, type BuildingDef, type UnitDef, EFFECT_HELP, ID_RE, PREVIEW_KEY, locate, pathOf, type Collection, type CollectionName, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
 import { applies, blank, type Field, type IdIndex, type Issue, type ListField } from '../content/schema';
-import { renderFlow } from './flow';
+import { condText, effectShort, renderFlow } from './flow';
 import { renderPlanet } from './planet';
 import { balanceRunPanel } from './balance-run';
 import { playSetup, setupPanel } from './playsetup';
@@ -491,17 +491,17 @@ function storyPanel(): HTMLElement {
 /** "when the clock reaches Sol (Sol 2)" for a condition. */
 function conditionText(kind: Condition | undefined, c: ConditionDef): string {
   if (!kind) return '?';
-  const param = kind === 'time' ? `Sol ${c.sol ?? '?'}` : kind === 'built' ? `${c.count && c.count > 1 ? `${c.count}× ` : ''}${c.building ?? '?'}`
-    : ['colonists', 'packs', 'units', 'drones', 'firstAge', 'acceptance', 'distrust'].includes(kind) ? String(c.count ?? 1) : kind === 'site' ? `site "${c.site ?? '?'}"`
-    : kind === 'contact' || kind === 'trust' ? c.group ?? '?' : kind === 'flag' ? `flag "${c.flag ?? '?'}"` : kind === 'after' ? `"${c.event ?? '?'}"`
-    : kind === 'mission' ? `"${c.mission ?? '?'}"` : '';
+  const param = kind === 'start' || kind === 'never' || kind === 'pod' ? '' : condText(kind, c);
   return `${CONDITION_HELP[kind]}${param ? ` (${param})` : ''}`;
 }
 
 /** "add 60 alloys" for an effect. */
 function effectText(e: Partial<EffectDef>): string {
   if (!e.kind) return '?';
-  return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace('the Flag', `flag "${e.flag ?? '?'}"`).replace('the Group', e.group ?? '?').replace('the Event', `"${e.event ?? '?'}"`).replace('the Cinematic', `"${e.cinematic ?? '?'}"`).replace('(Text)', e.text ? `: “${e.text.slice(0, 60)}${e.text.length > 60 ? '…' : ''}”` : '');
+  const plain = ['log', 'alloys', 'isotopes', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'event', 'pack', 'cinematic'];
+  const text = e.text ? `: “${e.text.slice(0, 60)}${e.text.length > 60 ? '…' : ''}”` : '';
+  if (!plain.includes(e.kind)) return `${effectShort(e)}${text}`;
+  return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace('the Flag', `flag "${e.flag ?? '?'}"`).replace('the Group', e.group ?? '?').replace('the Event', `"${e.event ?? '?'}"`).replace('the Cinematic', `"${e.cinematic ?? '?'}"`).replace('(Text)', text);
 }
 
 /** Ids of records in `coll` whose data passes `test`. */
@@ -539,6 +539,9 @@ function missionSummary(m: Partial<MissionDef>): string[] {
   if (!m.objectives?.length) out.push('No objectives yet: it would be done the moment it starts.');
   for (const e of m.rewards ?? []) out.push(`Reward: ${effectText(e)}`);
   if (m.onDone) out.push(`When done, fires “${m.onDone}”`);
+  for (const f of m.fails ?? []) out.push(`Fails ${conditionText(f.kind, f)}${f.text ? `: “${f.text}”` : ''}`);
+  if (m.fails?.length) out.push(m.failEnds ? 'Failing it ends the game.' : 'Failing it stops it: no rewards, nothing after it starts.');
+  if (m.onFail) out.push(`When failed, fires “${m.onFail}”`);
   const next = whoRefs<MissionDef>('missions', (d) => d.after === id);
   const events = whoRefs<StoryDef>('story', (d) => d.trigger === 'mission' && d.mission === id);
   out.push(next.length ? `Followed by: ${next.join(', ')}` : 'Nothing follows it.');

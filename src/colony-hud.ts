@@ -32,6 +32,8 @@ interface HudDeps {
   /** Story cards: pause the game (true) or resume (false). */
   pause(on: boolean): void;
   log(text: string, level?: 'info' | 'warn' | 'bad'): void;
+  /** A building was selected (tutorial `opened` conditions). */
+  onSelect?(kind: string, role?: string): void;
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -138,6 +140,10 @@ export class ColonyHud {
   selected() {
     this.cardKey = '';
     const sel = this.d.ui.sel;
+    if (sel?.kind === 'building') {
+      const b = this.cur?.buildings.find((x) => x.id === sel.id);
+      if (b) this.d.onSelect?.(b.kind, this.d.defs[b.kind]?.role);
+    }
     this.people.deselected(sel?.kind === 'building' ? sel.id : null);
     if (this.cur) this.renderCard(this.cur);
   }
@@ -190,6 +196,11 @@ export class ColonyHud {
         return `<li class="${cls}">${esc(o.text)}</li>`;
       }).join('')).join('');
     } else if (m.done.length) html = '<li class="done">All missions complete</li>';
+    // countdowns the story started, under the goals
+    for (const c of s.story?.countdowns ?? []) {
+      html += `<li class="timer${c.left < 30 ? ' low' : ''}">⏱ ${esc(c.text || c.id)} <b>${mmss(Math.ceil(c.left))}</b></li>`;
+      if (head === 'GOALS') head = 'COUNTDOWN';
+    }
     const key = head + html;
     this.el.goals.style.display = key === 'GOALS' ? 'none' : '';
     if (key === this.goalsKey) return;
@@ -203,7 +214,8 @@ export class ColonyHud {
     const s = this.cur;
     const alloys = s ? Math.floor(s.alloys) : 0, iso = s ? Math.floor(s.isotopes ?? 0) : 0;
     const done = (id?: string) => !id || !this.d.research[id] || !!s?.research?.done.includes(id);
-    const items = Object.entries(this.d.defs).filter(([, d]) => d.buildable && d.role !== 'core').sort((a, b) => Number(!done(a[1].research)) - Number(!done(b[1].research)) || a[1].cost - b[1].cost);
+    const locked = s?.story?.locked ?? [];
+    const items = Object.entries(this.d.defs).filter(([k, d]) => d.buildable && d.role !== 'core' && !locked.includes(k)).sort((a, b) => Number(!done(a[1].research)) - Number(!done(b[1].research)) || a[1].cost - b[1].cost);
     const key = items.map(([k, d]) => `${k}:${alloys >= d.cost && iso >= (d.isotopes ?? 0)}:${done(d.research)}`).join() + this.d.ui.build;
     if (key === this.menuKey) return;
     this.menuKey = key;
@@ -323,6 +335,7 @@ export class ColonyHud {
         for (const [k, u] of Object.entries(this.d.units).sort((a, b) => (a[1].cost ?? 0) - (b[1].cost ?? 0))) {
           if (u.faction !== 'accord' || u.cost === undefined) continue;
           if (u.research && this.d.research[u.research] && !s.research?.done.includes(u.research)) continue; // not yet: the Tech Lab lists it
+          if (s.story?.locked?.includes(k)) continue; // the story hasn't opened it up yet
           btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || (s.isotopes ?? 0) < (u.isotopes ?? 0) || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆${u.isotopes ? ` ${u.isotopes}◇` : ''}</small></button>`);
         }
         if (q.length) btn.push('<button data-act="unqueue" title="Cancel the last queued unit (full refund)">Cancel last</button>');
@@ -460,6 +473,11 @@ export class ColonyHud {
     g.fillStyle = '#ff4d5e';
     const bl = rv.offline ? new Float32Array(0) : s.blips ?? new Float32Array(0);
     for (let i = 0; i < bl.length; i += 2) g.fillRect(px(bl[i]) - 1.5, pz(bl[i + 1]) - 1.5, 3, 3);
+    // story waypoints
+    const pulse = 3 + Math.sin(performance.now() / 200) * 1.2;
+    g.strokeStyle = '#ffb547'; g.lineWidth = 2;
+    for (const m of s.story?.marks ?? []) { g.beginPath(); g.arc(px(m.x), pz(m.z), pulse + 2, 0, 7); g.stroke(); }
+    g.lineWidth = 1;
     // where the camera is looking
     g.strokeStyle = 'rgba(255,255,255,.7)';
     g.strokeRect(px(this.d.cam.fx) - 10, pz(this.d.cam.fz) - 7, 20, 14);
@@ -478,8 +496,9 @@ export class ColonyHud {
     const on = !!s.over;
     this.el.over.classList.toggle('on', on);
     if (!on) return;
-    $('over-title').textContent = 'COLONY LOST';
-    $('over-sub').textContent = s.over === 'core' ? 'The Command Core was destroyed.' : s.over === 'cryo' ? 'The cryo bank failed. The last embryos are gone, and no one is left to carry on.' : 'No colonists are left, and the cryo bank is empty.';
+    this.el.over.classList.toggle('won', s.over === 'won');
+    $('over-title').textContent = s.over === 'won' ? 'COLONY ENDURES' : 'COLONY LOST';
+    $('over-sub').textContent = s.over === 'won' || s.over === 'story' ? (s.overText || (s.over === 'won' ? 'You won through.' : 'The colony is lost.')) : s.over === 'core' ? 'The Command Core was destroyed.' : s.over === 'cryo' ? 'The cryo bank failed. The last embryos are gone, and no one is left to carry on.' : 'No colonists are left, and the cryo bank is empty.';
     const sol = Math.floor(s.secs / this.d.rules.solSeconds) + 1;
     $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · missions ${s.missions?.done.length ?? 0}${s.people ? `\n${s.people.stats.grown} grown · ${s.people.stats.births} born · ${s.people.stats.deaths} lost · ${s.people.stats.departed} left · ${s.people.embryos} embryos left` : ''}`;
   }

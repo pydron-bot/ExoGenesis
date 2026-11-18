@@ -118,6 +118,13 @@ export interface Hostile {
   dormant?: boolean;
   /** A Field Engineer's re-tuning of a grid node, 0..1. */
   tune?: number;
+  /**
+   * A guard (story spawn or map encounter): it stays within `r` of its post and
+   * only goes after what comes near; with a `route` it walks it (x, z pairs), leg by leg.
+   */
+  guard?: { x: number; z: number; r: number; route?: number[]; leg?: number };
+  /** The map encounter it belongs to (region `encounters` id). */
+  enc?: string;
 }
 
 /** A predator spawn's nest: the hostile id while it stands, or when it regrows. */
@@ -217,6 +224,26 @@ export interface StoryState {
   cines?: string[];
   /** Cinematics waiting to play, oldest first (the renderer plays them, then says so). */
   cineQueue?: string[];
+  /** Named counters (counter effects; counter conditions). */
+  counters?: Record<string, number>;
+  /** Countdowns running: name, the tick it runs out, what the HUD shows. */
+  countdowns?: { id: string; at: number; text: string }[];
+  /** Countdowns that have run out. */
+  expired?: string[];
+  /** Building and unit ids taken out of the build menus (lock / unlock effects). */
+  locked?: string[];
+  /** Waypoints: story sites marked on the ground and the minimap. */
+  marks?: { site: string; x: number; z: number; text: string }[];
+  /** The tutorial hint showing (HUD target, text); `n` counts hints so the HUD notices a new one. */
+  hint?: { target: string; building?: string; text: string; n: number } | null;
+  /** The last camera move asked for (`n` counts them). */
+  look?: { x: number; z: number; n: number };
+  /** Parts of the HUD the player has opened (`opened` conditions), e.g. 'build', 'select:solar'. */
+  opened?: string[];
+  /** Building kinds the player has placed (`placed` conditions). */
+  placed?: string[];
+  /** Map encounters that have appeared. */
+  encounters?: string[];
 }
 
 /** Missions (content/missions): which are under way, done, and which objectives are met. */
@@ -225,9 +252,32 @@ export interface MissionState {
   done: string[];
   /** Per mission: indexes of its objectives already met (they stay met). */
   marks: Record<string, number[]>;
+  /** Missions that failed (their fail conditions were met while under way). */
+  failed?: string[];
 }
 
 export interface MissionSnap { id: string; marks: boolean[] }
+
+/** The story as the HUD (and the story inspector) sees it. */
+export interface StorySnap {
+  inbox: string[];
+  flags: string[];
+  /** The first pod-born colonist's name, for {first} in story text. */
+  first?: string;
+  cine?: string[];
+  counters: Record<string, number>;
+  /** Countdowns running: seconds left. */
+  countdowns: { id: string; left: number; text: string }[];
+  locked: string[];
+  marks: { site: string; x: number; z: number; text: string }[];
+  hint: { target: string; building?: string; text: string; n: number } | null;
+  look?: { x: number; z: number; n: number };
+  /** For the inspector: events fired and answered, delays waiting, countdowns run out. */
+  fired: string[];
+  answered: string[];
+  timers: { id: string; left: number }[];
+  expired: string[];
+}
 
 export interface Deposit { x: number; z: number; alloys: number; max: number }
 
@@ -292,8 +342,10 @@ export interface SimState {
   camps?: Camp[];
   /** Colonists, embryos, pods, food, Trust (absent in saves from before people existed). */
   people?: PeopleState;
-  /** Set when the game is lost. */
-  over: null | 'core' | 'cryo' | 'people';
+  /** Set when the game ends: lost ('core', 'cryo', 'people', 'story': a fail effect or mission), or won (a win effect). */
+  over: null | 'core' | 'cryo' | 'people' | 'story' | 'won';
+  /** The end screen's text for 'story' and 'won'. */
+  overText?: string;
   stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number };
 }
 
@@ -319,6 +371,10 @@ export type Command =
   | { type: 'landing'; stage: LandingStage }
   /** A story card answered: the choice's index (0 for Continue). */
   | { type: 'story'; id: string; choice: number }
+  /** The player opened a part of the HUD (tutorial `opened` conditions): 'build', 'people', 'select:solar'… */
+  | { type: 'ui'; what: string }
+  /** The story inspector (play tests): set or clear a flag, change a counter, finish an objective or mission, jump the clock, end a countdown. */
+  | { type: 'inspect'; flag?: string; unflag?: string; counter?: { id: string; value: number }; objective?: { mission: string; index: number }; finish?: string; fail?: string; skip?: number; expire?: string; unlock?: string }
   /** First contact with an inhabitant camp: the player's answer. */
   | { type: 'contact'; camp: number; choice: ContactChoice }
   | PeopleCommand
@@ -341,6 +397,8 @@ export type ToWorker =
   | { type: 'save'; reqId: number }
   | { type: 'load'; state: SimState }
   | { type: 'new'; seed: number }
+  /** Story content edited while playing (dev: the story inspector's live reload): these collections replace the worker's. */
+  | { type: 'content'; patch: Record<string, Record<string, unknown>> }
   /** Autosave to IndexedDB every few seconds while on; `flush` saves right now. */
   | { type: 'autosave'; on: boolean }
   | { type: 'flush' };
@@ -393,11 +451,11 @@ export interface Snapshot {
   /** Effects this tick (skirmish FX layout). */
   fx: Float32Array;
   hostiles: number;
-  /** Missions under way (with their objectives met so far) and done. */
-  missions: { active: MissionSnap[]; done: string[] };
+  /** Missions under way (with their objectives met so far), done and failed. */
+  missions: { active: MissionSnap[]; done: string[]; failed: string[] };
   /** Story cards waiting (ids, oldest first) and flags set. */
   /** `first`: the first pod-born colonist's name, for {first} in story text. */
-  story: { inbox: string[]; flags: string[]; first?: string; cine?: string[] };
+  story: StorySnap;
   /** Inhabitant camps (structures show once explored). */
   camps: CampSnap[];
   /** Inhabitants in sight: x, z, heading, camp index, elder (1/0) per person. */
@@ -422,6 +480,7 @@ export interface Snapshot {
   fab: { queued: number; progress: number };
   people: PeopleSnap;
   over: SimState['over'];
+  overText?: string;
   stats: SimState['stats'];
 }
 

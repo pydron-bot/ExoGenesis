@@ -44,12 +44,15 @@ export class Missions {
     let changed = false;
     // start the ones whose turn has come
     for (const [id, def] of Object.entries(content.missions)) {
-      if (m.active.includes(id) || m.done.includes(id) || !this.ready(def)) continue;
+      if (m.active.includes(id) || m.done.includes(id) || !this.ready(id, def)) continue;
       this.start(id, quiet);
       changed = true;
     }
     for (const id of [...m.active]) {
       const def = content.missions[id];
+      // a fail condition met while it's under way: it fails (before any objective counts)
+      const fail = (def.fails ?? []).find((f) => conditionMet(this.sim, f.kind, f, { sites: this.region().sites }));
+      if (fail) { this.fail(id, fail.text, quiet); changed = true; continue; }
       const marks = (m.marks[id] ??= []);
       def.objectives.forEach((o, i) => {
         if (marks.includes(i) || !conditionMet(this.sim, o.kind, o, { sites: this.region().sites })) return;
@@ -62,9 +65,36 @@ export class Missions {
     return changed;
   }
 
-  private ready(def: MissionDef) {
+  /** A mission failed: no rewards, its fail event, and maybe the end of the game. */
+  fail(id: string, text: string | undefined, quiet = false) {
+    const def = content.missions[id], m = this.s;
+    if (!def) return;
+    m.active = m.active.filter((x) => x !== id);
+    if (!(m.failed ??= []).includes(id)) m.failed.push(id);
+    if (quiet) return;
+    const why = text ? this.sim.story.fill(text) : '';
+    this.sim.emit(`Mission failed: ${def.title}${why ? ` · ${why}` : ''}`, 'bad', 'alarm');
+    if (def.onFail) this.sim.story.fire(def.onFail);
+    if (def.failEnds) this.sim.end('story', why || `Mission failed: ${def.title}`);
+  }
+
+  /** Inspector: tick off one objective now. */
+  mark(id: string, index: number) {
+    const marks = (this.s.marks[id] ??= []);
+    if (this.s.active.includes(id) && !marks.includes(index)) marks.push(index);
+  }
+
+  /** Inspector: finish a mission now (rewards and all). */
+  complete(id: string) {
+    if (!content.missions[id]) return;
+    if (!this.s.active.includes(id)) this.start(id);
+    this.finish(id, false);
+  }
+
+  private ready(id: string, def: MissionDef) {
     if (!this.sim.deployed) return false;
     if (def.region && def.region !== this.region().id) return false;
+    if (this.s.failed?.includes(id)) return false;
     return !def.after || this.s.done.includes(def.after);
   }
 
@@ -73,6 +103,7 @@ export class Missions {
     const def = content.missions[id], m = this.s;
     if (!def || m.active.includes(id)) return;
     m.done = m.done.filter((x) => x !== id);
+    if (m.failed) m.failed = m.failed.filter((x) => x !== id);
     m.active.push(id);
     m.marks[id] = [];
     if (quiet) return;
@@ -100,11 +131,12 @@ export class Missions {
     if (def.onDone) this.sim.story.fire(def.onDone);
   }
 
-  snapshot(): { active: MissionSnap[]; done: string[] } {
+  snapshot(): { active: MissionSnap[]; done: string[]; failed: string[] } {
     const m = this.s;
     return {
       active: m.active.filter((id) => content.missions[id]).map((id) => ({ id, marks: content.missions[id].objectives.map((_, i) => (m.marks[id] ?? []).includes(i)) })),
       done: [...m.done],
+      failed: [...(m.failed ?? [])],
     };
   }
 }

@@ -25,7 +25,41 @@ export interface Flow {
   /** Missions not reachable from a start (they follow a missing mission, or a loop). */
   stray: string[];
   flags: Map<string, FlagUse>;
+  /** Counters: what changes them (setBy), what waits on them. */
+  counters: Map<string, FlagUse>;
+  /** Countdowns: what starts them (setBy), stops them (clearedBy), waits for them to run out. */
+  timers: Map<string, FlagUse>;
   problems: FlowProblem[];
+}
+
+/** Every condition in a trigger or objective, groups opened up. */
+export function conditionsIn(kind: Condition, c: ConditionDef): { kind: Condition; c: ConditionDef }[] {
+  if (kind === 'all' || kind === 'any') return (c.of ?? []).map((x) => ({ kind: x.kind as Condition, c: x as ConditionDef }));
+  return [{ kind, c }];
+}
+
+/** Short form of an effect: "add 60 alloys", "spawn 4× brute at ridge". */
+export function effectShort(e: Partial<EffectDef>): string {
+  switch (e.kind) {
+    case 'counter': return `${e.counter ?? '?'} ${(e.amount ?? 0) >= 0 ? '+' : ''}${e.amount ?? '?'}`;
+    case 'setCounter': return `${e.counter ?? '?'} = ${e.amount ?? '?'}`;
+    case 'countdown': return `countdown ${e.timer ?? '?'} (${e.amount ?? '?'} s)`;
+    case 'stopCountdown': return `stop countdown ${e.timer ?? '?'}`;
+    case 'spawn': return `spawn ${e.count && e.count > 1 ? `${e.count}× ` : ''}${e.unit ?? '?'} at ${e.site ?? '?'}${e.guard ? ' (guarding)' : ''}`;
+    case 'research': return `research ${e.research ?? '?'} done`;
+    case 'lock': case 'unlock': return `${e.kind} ${[e.building, e.unit].filter(Boolean).join(', ') || '?'}`;
+    case 'reveal': return `reveal ${e.site ?? '?'}`;
+    case 'waypoint': return `waypoint at ${e.site ?? '?'}`;
+    case 'clearWaypoint': return e.site ? `clear waypoint ${e.site}` : 'clear waypoints';
+    case 'camera': return `camera to ${e.site ?? e.building ?? '?'}`;
+    case 'hint': return `hint at ${e.target === 'buildItem' ? e.building ?? '?' : e.target ?? '?'}`;
+    case 'unhint': return 'clear hint';
+    case 'win': return 'WIN';
+    case 'fail': return 'LOSE';
+    case 'cinematic': return `play ${e.cinematic ?? '?'}`;
+    case undefined: return '?';
+    default: return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace(/ \(.*\)/, '').replace('the Group', e.group ?? '?').replace('the Flag', `flag ${e.flag ?? '?'}`).replace('the Event', e.event ?? '?');
+  }
 }
 
 const flagsSet = (effects: EffectDef[] | undefined) => (effects ?? []).filter((e) => e.kind === 'flag' && e.flag).map((e) => e.flag!);
@@ -51,37 +85,58 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
   }
 
   // ---- flags
-  const flags = new Map<string, FlagUse>();
-  const use = (f: string) => { let u = flags.get(f); if (!u) flags.set(f, (u = { setBy: [], clearedBy: [], waits: [], blocks: [] })); return u; };
-  const wants = (c: ConditionDef, kind: Condition, at: FlowLink) => { if (kind === 'flag' && c.flag) use(c.flag).waits.push(at); };
+  const flags = new Map<string, FlagUse>(), counters = new Map<string, FlagUse>(), timers = new Map<string, FlagUse>();
+  const useIn = (m: Map<string, FlagUse>) => (f: string) => { let u = m.get(f); if (!u) m.set(f, (u = { setBy: [], clearedBy: [], waits: [], blocks: [] })); return u; };
+  const use = useIn(flags), useC = useIn(counters), useT = useIn(timers);
+  const wants = (c: ConditionDef, kind: Condition, at: FlowLink) => {
+    for (const x of conditionsIn(kind, c)) {
+      if (x.kind === 'flag' && x.c.flag) use(x.c.flag).waits.push(at);
+      if ((x.kind === 'counter' || x.kind === 'counterBelow') && x.c.counter) useC(x.c.counter).waits.push(at);
+      if (x.kind === 'timer' && x.c.timer) useT(x.c.timer).waits.push(at);
+      if (x.kind === 'failed' && x.c.mission && missions[x.c.mission] && !missions[x.c.mission].fails?.length) problems.push({ at, msg: `waits for mission "${x.c.mission}" to fail, but it has no fail conditions` });
+    }
+  };
+  const does = (effects: EffectDef[] | undefined, at: FlowLink) => {
+    for (const f of flagsSet(effects)) use(f).setBy.push(at);
+    for (const e of effects ?? []) {
+      if (e.kind === 'unflag' && e.flag) use(e.flag).clearedBy.push(at);
+      if ((e.kind === 'counter' || e.kind === 'setCounter') && e.counter) useC(e.counter).setBy.push(at);
+      if (e.kind === 'countdown' && e.timer) useT(e.timer).setBy.push(at);
+      if (e.kind === 'stopCountdown' && e.timer) useT(e.timer).clearedBy.push(at);
+      if (e.kind === 'research' && e.research) use(`research-${e.research}`).setBy.push(at);
+    }
+  };
   for (const [id, ev] of Object.entries(story)) {
     const at: FlowLink = { coll: 'story', id };
-    for (const f of flagsSet(ev.effects)) use(f).setBy.push(at);
-    for (const e of ev.effects ?? []) if (e.kind === 'unflag' && e.flag) use(e.flag).clearedBy.push(at);
+    does(ev.effects, at);
     wants(ev, ev.trigger, at);
     if (ev.unless) use(ev.unless).blocks.push(at);
   }
   for (const [id, m] of Object.entries(missions)) {
     const at: FlowLink = { coll: 'missions', id };
-    for (const f of flagsSet(m.rewards)) use(f).setBy.push(at);
-    for (const e of m.rewards ?? []) if (e.kind === 'unflag' && e.flag) use(e.flag).clearedBy.push(at);
+    does(m.rewards, at);
     for (const o of m.objectives ?? []) wants(o, o.kind, at);
+    for (const f of m.fails ?? []) wants(f, f.kind, at);
   }
+  // flags the game itself sets (research-<id>, wreck-found, relic-woke…) are never "missing"
+  const builtin = (f: string) => f.startsWith('research-') || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed'].includes(f);
   for (const [f, u] of flags) {
-    if (!u.setBy.length) for (const w of u.waits) problems.push({ at: w, msg: `waits for flag "${f}", which nothing sets` });
+    if (!u.setBy.length && !builtin(f)) for (const w of u.waits) problems.push({ at: w, msg: `waits for flag "${f}", which nothing sets` });
   }
+  for (const [f, u] of counters) if (!u.setBy.length) for (const w of u.waits) problems.push({ at: w, msg: `waits on counter "${f}", which nothing changes` });
+  for (const [f, u] of timers) if (!u.setBy.length) for (const w of u.waits) problems.push({ at: w, msg: `waits for countdown "${f}", which nothing starts` });
 
   // ---- events that can't fire
   const startedBy = (id: string) =>
     Object.values(story).some((e) => e.effects?.some((x) => x.kind === 'event' && x.event === id)) ||
-    Object.values(missions).some((m) => m.onStart === id || m.onDone === id || m.rewards?.some((x) => x.kind === 'event' && x.event === id));
+    Object.values(missions).some((m) => m.onStart === id || m.onDone === id || m.onFail === id || m.rewards?.some((x) => x.kind === 'event' && x.event === id));
   for (const [id, ev] of Object.entries(story)) {
     const at: FlowLink = { coll: 'story', id };
     if (ev.trigger === 'never' && !startedBy(id)) problems.push({ at, msg: 'trigger is "never" and nothing starts it' });
     if (ev.trigger === 'after' && ev.event && !story[ev.event]) problems.push({ at, msg: `follows event "${ev.event}", which doesn't exist` });
     if (ev.trigger === 'mission' && ev.mission && stray.includes(ev.mission)) problems.push({ at, msg: `waits on mission "${ev.mission}", which never starts` });
   }
-  return { chain, stray, flags, problems };
+  return { chain, stray, flags, counters, timers, problems };
 }
 
 // ---------- rendering ----------
@@ -99,26 +154,41 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (No
 };
 
 /** Short form of a condition: "built solar", "2 drones", "Sol 4". */
-function condText(kind: Condition, c: ConditionDef) {
+export function condText(kind: Condition, c: ConditionDef): string {
   const n = c.count ?? 1;
+  const pl = (k: number, w: string) => `${k} ${w}${k === 1 ? '' : 's'}`;
   switch (kind) {
     case 'start': return 'on deploy';
     case 'time': return `Sol ${c.sol ?? '?'}`;
     case 'built': return `built ${n > 1 ? `${n}× ` : ''}${c.building ?? '?'}`;
-    case 'colonists': return `${n} colonist${n > 1 ? 's' : ''}`;
+    case 'placed': return `placed ${c.building ?? '?'}`;
+    case 'colonists': return pl(n, 'colonist');
     case 'pod': return 'a growth pod running';
     case 'firstAge': return `first colonist ${c.count ?? 1} years old`;
     case 'acceptance': return `acceptance ≥ ${c.count ?? 1}`;
     case 'distrust': return `acceptance ≤ ${c.count ?? 1}`;
-    case 'units': return `${n} combat unit${n > 1 ? 's' : ''}`;
-    case 'drones': return `${n} drone${n > 1 ? 's' : ''}`;
-    case 'packs': return `${n} pack${n > 1 ? 's' : ''} destroyed`;
+    case 'births': return pl(n, 'birth');
+    case 'deaths': return pl(n, 'death');
+    case 'units': return pl(n, 'combat unit');
+    case 'drones': return pl(n, 'drone');
+    case 'packs': return `${pl(n, 'pack')} destroyed`;
+    case 'kills': return `${pl(n, 'hostile')} killed`;
+    case 'lost': return `${pl(n, 'building')} lost`;
+    case 'alloys': return `${n} alloys held`;
+    case 'researched': return `researched ${c.research ?? '?'}`;
     case 'site': return `reach site ${c.site ?? '?'}`;
+    case 'explored': return `see site ${c.site ?? '?'}`;
     case 'contact': return `meet ${c.group ?? '?'}`;
     case 'trust': return `${c.group ?? '?'} trust us`;
     case 'flag': return `flag ${c.flag ?? '?'}`;
+    case 'counter': return `${c.counter ?? '?'} ≥ ${c.count ?? 0}`;
+    case 'counterBelow': return `${c.counter ?? '?'} ≤ ${c.count ?? 0}`;
+    case 'timer': return `countdown ${c.timer ?? '?'} out`;
+    case 'opened': return `opened ${c.panel ?? '?'}${c.panel === 'select' && c.building ? ` ${c.building}` : ''}`;
     case 'after': return `after ${c.event ?? '?'}`;
     case 'mission': return `mission ${c.mission ?? '?'} done`;
+    case 'failed': return `mission ${c.mission ?? '?'} failed`;
+    case 'all': case 'any': return (c.of ?? []).map((x) => `${x.not ? 'not ' : ''}${condText(x.kind as Condition, x as ConditionDef)}`).join(kind === 'all' ? ' and ' : ' or ') || `(empty ${kind} group)`;
     case 'never': return 'only when started';
   }
 }
@@ -137,7 +207,7 @@ export function renderFlow(main: HTMLElement, aside: HTMLElement, host: FlowHost
   const effLine = (e: EffectDef): Node => {
     if (e.kind === 'event' && e.event) return h('span', '', 'starts ', ev(e.event));
     if (e.kind === 'flag' || e.kind === 'unflag') return h('span', '', `${e.kind === 'flag' ? 'sets' : 'clears'} `, h('code', '', e.flag ?? '?'));
-    return h('span', 'dim', EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace(/ \(.*\)/, '').replace('the Group', e.group ?? '?'));
+    return h('span', 'dim', effectShort(e));
   };
 
   // ---- campaign
@@ -157,6 +227,8 @@ export function renderFlow(main: HTMLElement, aside: HTMLElement, host: FlowHost
     if (m.onStart) out.push(h('div', '', '▶ at start: ', ev(m.onStart)));
     for (const e of m.rewards ?? []) out.push(h('div', '', '★ reward: ', effLine(e)));
     if (m.onDone) out.push(h('div', '', '■ when done: ', ev(m.onDone)));
+    for (const f of m.fails ?? []) out.push(h('div', '', `✕ fails: ${condText(f.kind, f)}${m.failEnds ? ' (ends the game)' : ''}`));
+    if (m.onFail) out.push(h('div', '', '✕ when failed: ', ev(m.onFail)));
     for (const [sid, s] of Object.entries(story)) if (s.trigger === 'mission' && s.mission === id) out.push(h('div', '', '→ then fires ', ev(sid)));
     if (out.length) box.append(h('div', 'fl-out', ...out));
     camp.append(box);
@@ -202,6 +274,13 @@ export function renderFlow(main: HTMLElement, aside: HTMLElement, host: FlowHost
       u.blocks.length ? h('div', '', 'blocks ', ...list(u.blocks)) : null));
   }
   if (!flow.flags.size) fl.append(h('p', 'note', 'No flags yet.'));
+  const named = (title: string, m: Map<string, FlagUse>, setWord: string, clearWord: string) => {
+    if (!m.size) return [];
+    return [h('div', 'group', title), ...[...m].sort((a, b) => a[0].localeCompare(b[0])).map(([f, u]) => h('div', `fl-flag${u.setBy.length ? '' : ' bad'}`, h('code', '', f),
+      h('div', '', `${setWord} `, ...list(u.setBy)),
+      u.clearedBy.length ? h('div', '', `${clearWord} `, ...list(u.clearedBy)) : null,
+      u.waits.length ? h('div', '', 'waited on by ', ...list(u.waits)) : null))];
+  };
 
   main.replaceChildren(
     h('div', 'head', h('div', '', h('h1', '', 'Story flow'), h('div', 'path', 'How missions and story events link up. Click a name to open it.'))),
@@ -215,5 +294,7 @@ export function renderFlow(main: HTMLElement, aside: HTMLElement, host: FlowHost
     ...flow.problems.map((p) => h('div', 'issue fl-problem', link(p.at), `: ${p.msg}`)),
     h('div', 'group', 'Flags'),
     fl,
+    ...named('Counters', flow.counters, 'changed by', ''),
+    ...named('Countdowns', flow.timers, 'started by', 'stopped by'),
   );
 }

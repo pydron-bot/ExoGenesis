@@ -7,7 +7,7 @@
  * knob that does nothing.
  */
 import { REGION_HALF } from '../sim/types';
-import { bool, choice, color, grid, int, list, num, ref, str, type Infer, type NumField, type RefField, type Shape, type StrField } from './schema';
+import { bool, choice, color, grid, int, list, num, ref, str, type ChoiceField, type Infer, type NumField, type RefField, type Shape, type StrField } from './schema';
 
 /** Attack looks: tracer + sound. */
 export const WEAPONS = ['bolt', 'cannon', 'shell', 'arc', 'pd', 'bite', 'spit', 'rail'] as const;
@@ -313,74 +313,159 @@ export type InhabitantDef = Infer<typeof inhabitantShape>;
  * Conditions: what starts a story event (its trigger) and what completes a
  * mission objective. One evaluator (src/sim/conditions.ts) serves both.
  */
-export const CONDITIONS = ['start', 'time', 'built', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'units', 'drones', 'packs', 'site', 'contact', 'trust', 'flag', 'after', 'mission', 'never'] as const;
+export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'all', 'any', 'never'] as const;
 export type Condition = (typeof CONDITIONS)[number];
+/** Conditions a group (all / any) can hold: everything but groups. */
+export const SUB_CONDITIONS = CONDITIONS.filter((c) => c !== 'all' && c !== 'any') as Exclude<Condition, 'all' | 'any'>[];
 /** Read as "… when <help>" / "Fires <help>". */
 export const CONDITION_HELP: Record<Condition, string> = {
   start: 'when the colony deploys',
   time: 'when the clock reaches Sol',
   built: 'when Count (default 1) finished buildings of that kind stand',
+  placed: 'when the player has placed a building of that kind (finished or not): for tutorials',
   colonists: 'when the colony has Count colonists (children too)',
   pod: 'when a growth pod is running (or someone has come out of one)',
   firstAge: 'when the first colonist out of a pod is Count years old (1 sol = 1 year; they come out at the People rules\' age)',
   acceptance: 'when the adults\' average acceptance of the AI reaches Count (0–100)',
   distrust: 'when the adults\' average acceptance of the AI falls to Count or below (0–100)',
+  births: 'when Count children have been born naturally (not from a pod)',
+  deaths: 'when Count colonists have died',
   units: 'when the colony has Count combat units',
   drones: 'when the colony has Count worker drones',
   packs: 'when Count predator packs have been destroyed',
+  kills: 'when Count hostiles have been killed',
+  lost: 'when Count of the colony\'s buildings have been destroyed',
+  alloys: 'when the colony holds Count alloys',
+  researched: 'when the Research is done',
   site: 'when a drone or combat unit reaches the Site (a story site on the region map)',
+  explored: 'when the Site has been seen (it came out of the fog, by any means)',
   contact: 'at first contact with a camp of the Group',
   trust: 'when a camp of the Group trusts you',
   flag: 'when the Flag is set (by an event or mission)',
+  counter: 'when the Counter is Count or more (counters start at 0; effects add to them)',
+  counterBelow: 'when the Counter is Count or less',
+  timer: 'when the Countdown runs out (a countdown effect starts it)',
+  opened: 'when the player opens that part of the HUD (for tutorials)',
   after: 'when the Event has been answered (its card closed)',
   mission: 'when the Mission is complete',
+  failed: 'when the Mission has failed',
+  all: 'when every condition in the group is true',
+  any: 'when any condition in the group is true',
   never: 'only when another event starts it',
 };
+/** Parts of the HUD the `opened` condition can wait for (the renderer reports them). */
+export const HUD_PANELS = ['build', 'people', 'mood', 'army', 'goals', 'minimap', 'select', 'research', 'speed'] as const;
+export type HudPanel = (typeof HUD_PANELS)[number];
+const PANEL_HELP: Record<HudPanel, string> = {
+  build: 'the Build menu',
+  people: 'the colonists list (👤)',
+  mood: 'the wellbeing and acceptance panel (☺ ⚖)',
+  army: 'selecting every combat unit (⚔)',
+  goals: 'the GOALS panel (tapped open or closed)',
+  minimap: 'a tap on the radar minimap',
+  select: 'selecting a building (of the Building kind, if set)',
+  research: 'the Tech Lab\'s research list (selecting a Tech Lab)',
+  speed: 'the pause or fast-forward buttons',
+};
 
-export const STORY_EFFECTS = ['log', 'alloys', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'event', 'pack', 'cinematic'] as const;
+export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail'] as const;
 export type StoryEffect = (typeof STORY_EFFECTS)[number];
 export const EFFECT_HELP: Record<StoryEffect, string> = {
   log: 'a line in the log (Text)',
   alloys: 'add Amount alloys (negative takes)',
+  isotopes: 'add Amount exotic isotopes (negative takes)',
   biomass: 'add Amount biomass',
   stance: 'shift every colonist\'s AI acceptance by Amount',
   wellbeing: 'shift every colonist\'s wellbeing by Amount',
   regard: 'change the Group\'s regard by Amount',
   flag: 'set the Flag (other events can wait for it or be blocked by it)',
   unflag: 'clear the Flag',
+  counter: 'add Amount to the Counter (negative takes; counters start at 0)',
+  setCounter: 'set the Counter to Amount',
+  countdown: 'start the Countdown: Amount seconds, shown under GOALS with the Text (a timer condition waits for it)',
+  stopCountdown: 'stop the Countdown without it running out',
   event: 'start the Event now, whatever its trigger',
   pack: 'the next predator pack attacks now',
+  spawn: 'Count of the Unit appear at the Site: fauna or relics attack (or guard the site), Accord units join the colony',
+  research: 'the Research is done, free',
+  lock: 'take the Building or Unit out of the build menus until an unlock',
+  unlock: 'put a locked Building or Unit back',
+  reveal: 'clear the fog round the Site (Amount = radius, default the site\'s own)',
+  waypoint: 'mark the Site on the ground and the minimap, labelled with the Text',
+  clearWaypoint: 'remove the Site\'s marker (no Site = every marker)',
+  camera: 'move the player\'s view to the Site (or the first Building of a kind)',
+  hint: 'point at a part of the HUD with the Text, until an unhint or the next hint',
+  unhint: 'take the hint down',
   cinematic: 'play the Cinematic (the game pauses while it plays)',
+  win: 'end the game as a win, with the Text on the end screen',
+  fail: 'end the game as a loss, with the Text on the end screen',
+};
+/** Where a hint can point. */
+export const HINT_TARGETS = ['build', 'buildItem', 'goals', 'minimap', 'alloys', 'energy', 'battery', 'cryo', 'clock', 'threat', 'army', 'people', 'mood', 'food', 'pause', 'fast'] as const;
+const HINT_HELP: Record<(typeof HINT_TARGETS)[number], string> = {
+  build: 'the Build button', buildItem: 'the Building in the build menu (the Build button while the menu is shut)', goals: 'the GOALS panel', minimap: 'the radar minimap',
+  alloys: 'alloys (◆)', energy: 'power (⚡)', battery: 'the battery (🔋)', cryo: 'the cryo bank (❄)', clock: 'the clock', threat: 'the threat counter (⚠)', army: 'combat units (⚔)',
+  people: 'colonists (👤)', mood: 'wellbeing and acceptance (☺ ⚖)', food: 'biomass (🌱)', pause: 'the pause button', fast: 'fast forward',
 };
 const on = (field: string, is: readonly string[], need = true) => ({ field, is, need });
 
 /** A condition's kind field plus its parameters, each shown only for the kinds that use it. */
-const conditionFields = <K extends string>(kindKey: K, label: string) => ({
-  [kindKey]: choice(CONDITIONS, { label, helps: CONDITION_HELP }),
+const conditionFields = <K extends string>(kindKey: K, label: string, kinds: readonly Condition[] = CONDITIONS) => ({
+  [kindKey]: choice(kinds, { label, helps: CONDITION_HELP }),
   sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on(kindKey, ['time']) }),
-  building: ref('buildings', { label: 'Building', optional: true, when: on(kindKey, ['built']) }),
-  count: int({ label: 'Count', min: 0, max: 10000, optional: true, help: 'Empty = 1.', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'firstAge', 'acceptance', 'distrust'], false) }),
-  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site']) }),
+  building: ref('buildings', { label: 'Building', optional: true, help: '"opened: select": empty = any building.', when: { ...on(kindKey, ['built', 'placed', 'opened']), need: false } }),
+  count: int({ label: 'Count', min: -10000, max: 10000, optional: true, help: 'Empty = 1 (0 for counters).', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'births', 'deaths', 'firstAge', 'acceptance', 'distrust', 'counter', 'counterBelow'], false) }),
+  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site', 'explored']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on(kindKey, ['contact', 'trust']) }),
   flag: str({ label: 'Flag', optional: true, when: on(kindKey, ['flag']) }),
+  counter: str({ label: 'Counter', optional: true, help: 'A name (lowercase, no spaces): counter effects add to it.', when: on(kindKey, ['counter', 'counterBelow']) }),
+  timer: str({ label: 'Countdown', optional: true, help: 'The name a countdown effect started.', when: on(kindKey, ['timer']) }),
+  panel: choice(HUD_PANELS, { label: 'Part of the HUD', optional: true, helps: PANEL_HELP, when: on(kindKey, ['opened']) }),
+  research: ref('research', { label: 'Research', optional: true, when: on(kindKey, ['researched']) }),
   event: ref('story', { label: 'Event', optional: true, when: on(kindKey, ['after']) }),
-  mission: ref('missions', { label: 'Mission', optional: true, when: on(kindKey, ['mission']) }),
+  mission: ref('missions', { label: 'Mission', optional: true, when: on(kindKey, ['mission', 'failed']) }),
 }) as { [P in K]: ReturnType<typeof choice<Condition, { label: string; helps: typeof CONDITION_HELP }>> } & {
   sol: NumField & { optional: true }; building: RefField & { optional: true }; count: NumField & { optional: true };
   site: StrField & { optional: true }; group: RefField & { optional: true }; flag: StrField & { optional: true };
-  event: RefField & { optional: true }; mission: RefField & { optional: true };
+  counter: StrField & { optional: true }; timer: StrField & { optional: true }; panel: ChoiceField<HudPanel> & { optional: true };
+  research: RefField & { optional: true }; event: RefField & { optional: true }; mission: RefField & { optional: true };
 };
 /** The parameters a condition reads. */
-export interface ConditionDef { sol?: number; building?: string; count?: number; site?: string; group?: string; flag?: string; event?: string; mission?: string }
+export interface ConditionDef {
+  sol?: number; building?: string; count?: number; site?: string; group?: string; flag?: string; counter?: string; timer?: string;
+  panel?: HudPanel; research?: string; event?: string; mission?: string;
+  /** all / any: the conditions in the group. */
+  of?: SubConditionDef[];
+}
+/** One condition inside an all / any group (it can be turned round with `not`). */
+export const subConditionShape = {
+  ...conditionFields('kind', 'Condition', SUB_CONDITIONS),
+  not: bool({ label: 'Not', optional: true, help: 'True when the condition is NOT met.' }),
+} satisfies Shape;
+export type SubConditionDef = Infer<typeof subConditionShape>;
+/** A condition's fields plus its group list (for all / any). */
+const conditionWithGroup = <K extends string>(kindKey: K, label: string) => ({
+  ...conditionFields(kindKey, label),
+  of: list(subConditionShape, { label: 'Conditions', max: 8, optional: true, help: 'The conditions in the group.', when: on(kindKey, ['all', 'any']) }),
+});
 
 const effectFields = {
   kind: choice(STORY_EFFECTS, { label: 'Effect', helps: EFFECT_HELP }),
-  amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'biomass', 'stance', 'wellbeing', 'regard']) }),
+  amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'isotopes', 'biomass', 'stance', 'wellbeing', 'regard', 'counter', 'setCounter', 'countdown', 'reveal'], false) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on('kind', ['regard']) }),
   flag: str({ label: 'Flag', optional: true, when: on('kind', ['flag', 'unflag']) }),
+  counter: str({ label: 'Counter', optional: true, help: 'A name (lowercase, no spaces).', when: on('kind', ['counter', 'setCounter']) }),
+  timer: str({ label: 'Countdown', optional: true, help: 'A name (lowercase, no spaces): a timer condition waits for it to run out.', when: on('kind', ['countdown', 'stopCountdown']) }),
   event: ref('story', { label: 'Event', optional: true, when: on('kind', ['event']) }),
   cinematic: ref('cinematics', { label: 'Cinematic', optional: true, when: on('kind', ['cinematic']) }),
-  text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', ['log']) }),
+  unit: ref('units', { label: 'Unit', optional: true, when: { ...on('kind', ['spawn', 'lock', 'unlock']), need: false } }),
+  count: int({ label: 'Count', min: 1, max: 60, optional: true, help: 'Empty = 1.', when: on('kind', ['spawn'], false) }),
+  guard: bool({ label: 'Guard the site', optional: true, help: 'Hostiles stay round the site and only fight what comes near, instead of attacking the colony.', when: on('kind', ['spawn'], false) }),
+  building: ref('buildings', { label: 'Building', optional: true, when: { ...on('kind', ['lock', 'unlock', 'camera']), need: false } }),
+  research: ref('research', { label: 'Research', optional: true, when: on('kind', ['research']) }),
+  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: { ...on('kind', ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera']), need: false } }),
+  target: choice(HINT_TARGETS, { label: 'Points at', optional: true, helps: HINT_HELP, when: on('kind', ['hint']) }),
+  text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', ['log', 'countdown', 'waypoint', 'hint', 'win', 'fail']) }),
 };
 export const effectShape = effectFields satisfies Shape;
 export type EffectDef = Infer<typeof effectShape>;
@@ -446,7 +531,7 @@ export const storyShape = {
   speaker: str({ label: 'Speaker', optional: true, help: 'Or just a name for who is talking, shown above the text.' }),
   text: str({ label: 'Text', multiline: true, help: '{first} = the first colonist\'s name.' }),
   lines: list(storyLineShape, { label: 'More lines', max: 12, optional: true, help: 'A conversation: each line follows the text, one at a time (Next). The choices come with the last line.' }),
-  ...conditionFields('trigger', 'Trigger'),
+  ...conditionWithGroup('trigger', 'Trigger'),
   delay: num({ label: 'Delay', min: 0, max: 3600, unit: 's', optional: true, help: 'Wait this long after the trigger before firing.' }),
   region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
   unless: str({ label: 'Unless flag', optional: true, help: 'Doesn\'t fire if this flag is set.' }),
@@ -459,7 +544,12 @@ export type StoryDef = Infer<typeof storyShape>;
 
 export const objectiveShape = {
   text: str({ label: 'Text', help: 'What the GOALS panel says ("Build a Solar Array").' }),
-  ...conditionFields('kind', 'Done'),
+  ...conditionWithGroup('kind', 'Done'),
+} satisfies Shape;
+/** What fails a mission (any one of them). */
+export const failShape = {
+  text: str({ label: 'Text', optional: true, help: 'Logged when it fails ("The cryo bank was lost").' }),
+  ...conditionWithGroup('kind', 'Fails'),
 } satisfies Shape;
 export type ObjectiveDef = Infer<typeof objectiveShape>;
 
@@ -476,6 +566,9 @@ export const missionShape = {
   onStart: ref('story', { label: 'Event at start', optional: true, help: 'A story event fired when the mission starts (a briefing).' }),
   onDone: ref('story', { label: 'Event when done', optional: true, help: 'A story event fired when it\'s complete.' }),
   rewards: list(effectShape, { label: 'Rewards', max: 12, optional: true, help: 'Effects when the mission is complete.' }),
+  fails: list(failShape, { label: 'Fails when', max: 6, optional: true, help: 'Any one of these fails the mission while it is under way: no rewards, and missions after it don\'t start.' }),
+  onFail: ref('story', { label: 'Event when failed', optional: true, help: 'A story event fired when it fails (a retry offer, a consequence).' }),
+  failEnds: bool({ label: 'Failing ends the game', optional: true, help: 'The game is lost when it fails (with the fail text on the end screen).' }),
   ...organizeFields,
 } satisfies Shape;
 export type MissionDef = Infer<typeof missionShape>;
@@ -711,7 +804,7 @@ export const cineSoundShape = {
   volume: num({ label: 'Volume', min: 0, max: 1, step: 0.05, default: 1 }),
   music: bool({ label: 'Music', optional: true, help: 'Loops until the cinematic ends, then fades out.' }),
 } satisfies Shape;
-const cineTrigger = conditionFields('trigger', 'Plays');
+const cineTrigger = conditionWithGroup('trigger', 'Plays');
 export const cinematicShape = {
   title: str({ label: 'Title', help: 'For the editor; players don\'t see it.' }),
   scene: choice(['world', 'landing'], { label: 'Scene', optional: true, help: 'Empty = the world.', helps: {

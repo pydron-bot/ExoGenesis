@@ -48,6 +48,8 @@ export class SimClient {
   newGame(seed: number) { this.worker.postMessage({ type: 'new', seed }); }
   autosave(on: boolean) { this.worker.postMessage({ type: 'autosave', on }); }
   flush() { this.worker.postMessage({ type: 'flush' }); }
+  /** Live story edits: replace these content collections in the worker. */
+  patchContent(patch: Record<string, Record<string, unknown>>) { this.worker.postMessage({ type: 'content', patch }); }
 
   save(): Promise<SimState> {
     const reqId = ++this.reqId;

@@ -18,6 +18,20 @@ export const contentIssues: FileIssue[] = [...built.issues, ...requiredIssues(bu
 
 export type { UnitDef, BuildingDef, ColonyRules, RegionDef, HerdDef, AssetDef } from './defs';
 
-// Dev: a content edit reloads the game, but stops here so the update isn't
-// broadcast as a full reload to every open page (the editor keeps its state).
-if (import.meta.hot && typeof document !== 'undefined') import.meta.hot.accept(() => location.reload());
+/**
+ * Dev: a content edit reloads the game, but stops here so the update isn't
+ * broadcast as a full reload to every open page (the editor keeps its state).
+ * A page can take the new content itself instead (the game's story inspector
+ * swaps story edits in live): `onContentHot` returns true when it did.
+ */
+// kept on globalThis: each hot update runs a fresh copy of this module
+type HotHandler = (next: typeof content) => boolean;
+const G = globalThis as { __exoContentHot?: HotHandler };
+export function onContentHot(fn: HotHandler) { G.__exoContentHot = fn; }
+if (import.meta.hot && typeof document !== 'undefined') {
+  import.meta.hot.accept((mod) => {
+    const next = (mod as { content?: typeof content } | undefined)?.content;
+    if (next && G.__exoContentHot?.(next)) return;
+    location.reload();
+  });
+}

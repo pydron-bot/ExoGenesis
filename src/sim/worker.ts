@@ -82,6 +82,17 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       lastSavedTick = -1;
       snapshot();
       return;
+    case 'content': {
+      // live story edits: swap the collections in place (the sim reads them by reference)
+      const live = content as unknown as Record<string, Record<string, unknown>>;
+      for (const [k, v] of Object.entries(msg.patch)) {
+        const tgt = live[k];
+        if (!tgt) continue;
+        for (const key of Object.keys(tgt)) delete tgt[key];
+        Object.assign(tgt, v);
+      }
+      return;
+    }
     case 'autosave':
       autosave = msg.on;
       return;
