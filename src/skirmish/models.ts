@@ -120,6 +120,18 @@ export function burrowerGeo() {
   return merge(parts);
 }
 
+/** Nest: a low lumpy mound with a ring of spines and dark burrow mouths (far-off look). */
+export function nestGeo() {
+  const parts: THREE.BufferGeometry[] = [];
+  parts.push(new THREE.IcosahedronGeometry(3.2, 1).scale(1, 0.42, 1).translate(0, 0.6, 0));
+  parts.push(new THREE.IcosahedronGeometry(1.8, 0).scale(1, 0.7, 1).translate(0.6, 1.5, -0.4));
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    parts.push(cone(0.3, 2.2, 4).rotateZ(-0.5).rotateY(-a).translate(Math.cos(a) * 2.4, 1.3, Math.sin(a) * 2.4));
+  }
+  return merge(parts);
+}
+
 export interface BuiltinUnitLook { geo(): THREE.BufferGeometry; glow?(): THREE.BufferGeometry; material(): THREE.Material }
 
 /**
@@ -137,6 +149,8 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   brute: { geo: () => creatureGeo(true), material: () => faunaMaterial('#8a3550', '#3a0a1c') },
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },
   burrower: { geo: burrowerGeo, material: () => faunaMaterial('#7a5a3a', '#2e1a08') },
+  lancer: { geo: tankGeo, glow: tankGlow, material: () => accordMaterial(0.55) },
+  nest: { geo: nestGeo, material: () => faunaMaterial('#6a3a3e', '#2a0a10') },
 };
 export const builtinUnitLook = (id: string, faction: string): BuiltinUnitLook =>
   BUILTIN_UNITS[id] ?? BUILTIN_UNITS[faction === 'accord' ? 'rover' : 'swarmer'];

@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.26.0',
+    date: '2026-11-18',
+    title: 'Nests and wrecks',
+    notes: [
+      'Every predator spawn now has a Nest. Packs only come from spawns whose nest stands: send an army to destroy one and that side goes quiet for ten minutes before it grows back. Hurt nests let out their guards',
+      'Wrecks: two broken landers lie out on Touchdown. Scouts find them; park a Field Engineer next to one and it strips the hull for alloys. They are built a lot like ours',
+      'Far away, Lancers now look like Lancers instead of Rovers',
+    ],
+  },
+  {
     version: '0.25.0',
     date: '2026-11-18',
     title: 'New arrivals',

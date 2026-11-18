@@ -381,6 +381,10 @@ export class ColonyHud {
     g.globalAlpha = 1;
     g.fillStyle = '#ffb547';
     for (const d of s.deposits) if (d.alloys > 0) { g.beginPath(); g.arc(px(d.x), pz(d.z), 2.5, 0, 7); g.fill(); }
+    const fill = g.fillStyle;
+    g.fillStyle = '#9aa3ab';
+    for (const w of s.wrecks ?? []) if (w.found && w.alloys > 0) g.fillRect(px(w.x) - 2.5, pz(w.z) - 1.5, 5, 3);
+    g.fillStyle = fill;
     for (const b of s.buildings) {
       const d = this.d.defs[b.kind];
       const r = Math.max(2, (d?.clearance ?? 8) / REGION_HALF * W * 0.3);

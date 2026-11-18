@@ -120,6 +120,14 @@ function weaponFx(w: Weapon, building: boolean): number {
   }
 }
 const dieFx = (radius: number) => (radius >= 1.2 ? FX.DIE_BIG : FX.DIE_SMALL);
+/** The fauna unit that grows on predator spawns (content: a unit with `nest`), if any. */
+const NEST_UNIT = Object.keys(content.units).sort().find((k) => content.units[k].nest);
+/** Field Engineers strip a wreck this fast (alloys/s), standing within reach of it. */
+const SALVAGE_RATE = 4;
+/** How close (beyond an engineer's repair reach) a wreck must be to salvage it. */
+const WRECK_R = 4;
+/** Nest guards come out at most this often (s). */
+const GUARD_CD = 12;
 /** Fauna that join packs on their own (packEvery), in id order so runs are reproducible. */
 const PACK_EXTRAS = Object.entries(content.units)
   .filter(([id, u]) => u.faction === 'fauna' && (u.packEvery ?? 0) > 0 && id !== 'swarmer')
@@ -135,6 +143,8 @@ export class Sim {
   private slotsUsed = 0;
   /** Tick of the last "burrower surfaced" warning (so a pack doesn't spam it). */
   private lastEmerge = -1e9;
+  /** Tick of the last "nest is letting out its guards" warning. */
+  private lastGuards = -1e9;
   /** Power result of the last tick. */
   power = { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 };
 
@@ -179,6 +189,8 @@ export class Sim {
       }
     });
     this.slotsUsed = 0;
+    s.wrecks = this.regionWrecks();
+    this.initNests();
     this.exp.fill(0);
     this.stepFog(true);
   }
@@ -198,10 +210,95 @@ export class Sim {
     this.missions.load();
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
+    state.wrecks ??= this.regionWrecks();
+    if (!state.nests) this.initNests();
+    else state.nests = state.nests.filter((n) => n.spawn < this.spawns().length);
     this.exp.fill(0);
     const ex = state.explored;
     if (ex?.length === this.exp.length) for (let i = 0; i < ex.length; i++) this.exp[i] = ex.charCodeAt(i) === 49 ? 1 : 0;
     this.stepFog(true);
+  }
+
+  /** The region's predator spawns (a corner if it has none). */
+  private spawns(): { x: number; z: number; nest?: boolean }[] {
+    return REGION.spawns?.length ? REGION.spawns : [{ x: LIMIT - 10, z: LIMIT - 10 }];
+  }
+
+  private regionWrecks() {
+    return (REGION.wrecks ?? []).map((w) => ({ x: w.x, z: w.z, yaw: ((w.yaw ?? 0) * Math.PI) / 180, alloys: w.alloys, max: w.alloys }));
+  }
+
+  /** A nest on every spawn that has one (none without a nest unit in content). */
+  private initNests() {
+    const s = this.s;
+    s.nests = [];
+    if (!NEST_UNIT) return;
+    this.spawns().forEach((sp, i) => {
+      if (sp.nest === false) return;
+      const n = { spawn: i, id: -1, regrow: 0 };
+      s.nests!.push(n);
+      this.growNest(n);
+    });
+  }
+
+  private growNest(n: { spawn: number; id: number; regrow: number }) {
+    const s = this.s, sp = this.spawns()[n.spawn], slot = this.freeSlot();
+    if (!sp || !NEST_UNIT || slot < 0) return false;
+    const hp = content.units[NEST_UNIT].hp, id = s.nextId++;
+    s.hostiles.push({ id, unit: NEST_UNIT, slot, x: sp.x, z: sp.z, heading: this.rnd() * Math.PI * 2, hp, target: -1, cd: 0, pack: -1, nest: n.spawn, lastHp: hp });
+    n.id = id;
+    return true;
+  }
+
+  /** Destroyed nests grow back after the regrow time. */
+  private stepNests() {
+    const s = this.s;
+    for (const n of s.nests ?? []) {
+      if (n.id >= 0) {
+        if (!s.hostiles.some((h) => h.id === n.id)) { n.id = -1; n.regrow = s.tick + Math.round((THREATS.nestRegrow ?? 600) * TICK_HZ); }
+      } else if (s.tick >= n.regrow && this.growNest(n)) {
+        const sp = this.spawns()[n.spawn];
+        this.emit(`A nest has grown back ${compass(sp.x, sp.z)} of the Core. Packs will come from there again.`, 'warn', 'warning');
+      }
+    }
+  }
+
+  /** A nest: never moves; when hurt it lets out its guards. */
+  private stepNest(h: Hostile, u: UnitDef) {
+    const s = this.s;
+    if (u.guards && h.hp < (h.lastHp ?? h.hp) - 0.01 && h.cd <= 0) {
+      h.cd = GUARD_CD;
+      const pack = { id: s.nextId++, size: u.guards, alive: 0, announced: true, from: compass(h.x, h.z) };
+      for (let i = 0; i < u.guards; i++) {
+        const slot = this.freeSlot();
+        if (slot < 0) break;
+        const a = this.rnd() * Math.PI * 2, r = u.radius + 1.5 + this.rnd() * 2;
+        s.hostiles.push({ id: s.nextId++, unit: 'swarmer', slot, x: clamp(h.x + Math.cos(a) * r, -LIMIT, LIMIT), z: clamp(h.z + Math.sin(a) * r, -LIMIT, LIMIT), heading: a, hp: content.units.swarmer.hp, target: -1, cd: this.rnd(), pack: pack.id });
+        pack.alive++;
+      }
+      if (pack.alive) {
+        s.packs.push(pack);
+        if (s.tick - this.lastGuards > 30 * TICK_HZ) { this.lastGuards = s.tick; this.emit('The nest is letting out its guards', 'warn', 'warning'); }
+      }
+    }
+    h.lastHp = h.hp;
+  }
+
+  /** Field Engineers with nothing to mend strip a wreck in reach. True if salvaging. */
+  private salvage(u: Unit, d: UnitDef) {
+    const s = this.s;
+    for (const w of s.wrecks ?? []) {
+      if (w.alloys <= 0 || Math.hypot(w.x - u.x, w.z - u.z) > d.range + d.radius + WRECK_R) continue;
+      const take = Math.min(w.alloys, SALVAGE_RATE * DT);
+      w.alloys -= take;
+      s.alloys += take;
+      s.stats.salvaged = (s.stats.salvaged ?? 0) + take;
+      u.heading = Math.atan2(w.x - u.x, w.z - u.z);
+      if ((s.tick + u.id) % 6 === 0) this.fx.push(FX.REPAIR, u.x, u.z, w.x, w.z);
+      if (w.alloys <= 0) this.emit(`Wreck stripped: ${w.max} alloys salvaged in all`, 'info', 'online');
+      return true;
+    }
+    return false;
   }
 
   rnd(): number {
@@ -236,6 +333,7 @@ export class Sim {
       this.stepRepairPads();
       this.stepUnits();
       this.stepHostiles();
+      this.stepNests();
       this.stepWaves();
       this.stepCryo();
       this.people.step();
@@ -355,6 +453,12 @@ export class Sim {
     }
     let grew = false;
     for (let i = 0; i < vis.length; i++) if (vis[i] && !exp[i]) { exp[i] = 1; grew = true; }
+    for (const w of s.wrecks ?? []) {
+      if (w.found || !this.visible(w.x, w.z)) continue;
+      w.found = true;
+      if (this.story.s && !this.story.has('wreck-found')) this.story.s.flags.push('wreck-found');
+      if (this.deployed) this.emit(`Wreck sighted ${compass(w.x, w.z)} of the Core. Field Engineers can salvage it.`, 'warn', 'warning');
+    }
     if (grew || force || !s.explored) {
       let str = '';
       for (let i = 0; i < exp.length; i++) str += exp[i] ? '1' : '0';
@@ -810,6 +914,7 @@ export class Sim {
       p = best !== null ? this.patient(best) : null;
     }
     u.target = -1;
+    if (!p && this.salvage(u, d) && !moving) return;
     const gap = p ? Math.hypot(p.e.x - u.x, p.e.z - u.z) - p.r - d.radius : Infinity;
     if (p && gap <= d.range) {
       if (!moving) {
@@ -842,6 +947,14 @@ export class Sim {
     s.hostiles.splice(i, 1);
     s.stats.kills++;
     this.fx.push(dieFx(this.unitDef(h).radius), h.x, h.z, 0, 0);
+    if (h.nest !== undefined) {
+      const n = s.nests?.find((x) => x.id === h.id);
+      const secs = THREATS.nestRegrow ?? 600;
+      if (n) { n.id = -1; n.regrow = s.tick + Math.round(secs * TICK_HZ); }
+      s.stats.nestsDestroyed = (s.stats.nestsDestroyed ?? 0) + 1;
+      if (this.story.s && !this.story.has('nest-destroyed')) this.story.s.flags.push('nest-destroyed');
+      this.emit(`Nest destroyed ${compass(h.x, h.z)} of the Core: no packs from there for ${Math.round(secs / 60)} min`, 'info', 'packCleared');
+    }
     const p = s.packs.find((x) => x.id === h.pack);
     if (p && --p.alive <= 0) {
       s.packs.splice(s.packs.indexOf(p), 1);
@@ -881,6 +994,7 @@ export class Sim {
     for (const h of hs) {
       const u = this.unitDef(h);
       h.cd = Math.max(0, h.cd - DT);
+      if (h.nest !== undefined) { this.stepNest(h, u); continue; }
       let tgt = h.target >= 0 ? this.entity(h.target) : undefined;
       if (!tgt) h.chew = false;
       if (!tgt || (!h.chew && (s.tick + h.id) % 10 === 0)) {
@@ -944,16 +1058,20 @@ export class Sim {
     for (let i = 0; i < hs.length; i++) {
       const a = hs[i], ra = this.unitDef(a).radius;
       if (a.under) continue; // tunnelling: nothing above ground pushes it about
+      const an = a.nest !== undefined;
       for (let j = i + 1; j < hs.length; j++) {
         const b = hs[j], rb = this.unitDef(b).radius;
         if (b.under) continue;
+        const bn = b.nest !== undefined;
         const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = ra + rb;
-        if (d > 1e-3 && d < min) {
-          const push = (min - d) / 2;
-          a.x -= (dx / d) * push; a.z -= (dz / d) * push;
-          b.x += (dx / d) * push; b.z += (dz / d) * push;
+        if (d > 1e-3 && d < min && !(an && bn)) {
+          // a nest never moves: whoever bumps into it takes the whole push
+          const push = min - d, ka = an ? 0 : bn ? 1 : 0.5, kb = 1 - ka;
+          a.x -= (dx / d) * push * ka; a.z -= (dz / d) * push * ka;
+          b.x += (dx / d) * push * kb; b.z += (dz / d) * push * kb;
         }
       }
+      if (an) continue;
       for (const b of s.buildings) {
         let cx = b.x, cz = b.z, min = bodyR(b) + ra;
         if (barrier(b)) {
@@ -967,6 +1085,7 @@ export class Sim {
       }
       a.x = clamp(a.x, -LIMIT, LIMIT); a.z = clamp(a.z, -LIMIT, LIMIT);
       // never end up on the other side of a wall this tick
+      if (!was[i]) continue; // spawned this tick (a nest's guards): nothing to cross yet
       const [px, pz] = was[i];
       for (const b of s.buildings) {
         if (!barrier(b)) continue;
@@ -1085,8 +1204,11 @@ export class Sim {
     if (s.tick < w.next) return;
     const night = this.power.daylight < 0.3;
     const size = Math.round(Math.min(THREATS.maxSize, THREATS.startSize + THREATS.growth * w.n) * packScale() * (night ? THREATS.nightBoost : 1));
-    const spawns = REGION.spawns?.length ? REGION.spawns : [{ x: LIMIT - 10, z: LIMIT - 10 }];
-    const sp = spawns[Math.floor(this.rnd() * spawns.length)];
+    const spawns = this.spawns();
+    // packs only come from spawns whose nest stands (or that have none)
+    const open = spawns.filter((sp, i) => sp.nest === false || !NEST_UNIT || (s.nests ?? []).some((n) => n.spawn === i && n.id >= 0));
+    if (!open.length) { w.next = s.tick + 30 * TICK_HZ; return; }
+    const sp = open[Math.floor(this.rnd() * open.length)];
     const pack = { id: s.nextId++, size, alive: 0, announced: false, from: compass(sp.x, sp.z) };
     for (let i = 0; i < size; i++) {
       const k = ++w.spawned;
@@ -1424,6 +1546,8 @@ export class Sim {
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
       drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
+      wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),
+      nests: (s.nests ?? []).map((n) => ({ x: this.spawns()[n.spawn]?.x ?? 0, z: this.spawns()[n.spawn]?.z ?? 0, alive: n.id >= 0 })),
       army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units, camps: inh.camps, natives: inh.natives, story: this.story.snapshot(), missions: this.missions.snapshot(),
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,

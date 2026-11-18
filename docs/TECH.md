@@ -517,4 +517,17 @@ From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a
 - **Habitat Block (v0.25.0):** a `civic` building with `pods: 0`, housing 6. The card says "housing only".
 - **Relay Tower (v0.25.0):** new role `relay`: once finished, new buildings may go anywhere within its Range
   (55 u), like the Core's; `placeProblem` and the placement area rings both know it. Region links come later.
+- **Nests (v0.26.0):** a fauna unit with `nest` (content `units/nest.json`: 1,600 hp, speed 0, no attack) grows on
+  every predator spawn whose `nest` isn't off (`SimState.nests`: spawn index, hostile id, regrow tick). Nests
+  are hostiles with `nest` = their spawn: they skip targeting and movement, never get pushed (whoever bumps
+  takes the whole push), have no pack, and draw only in sight like any hostile. `stepWaves` picks a spawn
+  among those with a standing nest (or none set); with none open the pack waits 30 s and tries again. A
+  killed nest regrows after `threats.nestRegrow` (600 s) with a warning; the kill sets story flag
+  `nest-destroyed` and counts `stats.nestsDestroyed`. Hurt (hp dropped since last tick) and off cooldown
+  (12 s), it lets out `guards` swarmers as an announced pack. Built-in far-LOD look `nestGeo`.
+- **Wrecks (v0.26.0):** region list `wrecks` (x, z, facing, salvage alloys; Touchdown has two). They show once
+  sighted (fog), which sets flag `wreck-found` (story card *Familiar Hull*, `story/familiar-hull.json`). A Field
+  Engineer with nothing to mend strips any wreck within reach + 4 u at 4 alloys/s (repair beam, counts
+  `stats.salvaged`); a stripped hull sinks. Model `exo-wreck` for all of them, built-in stand-in until it loads.
+  Minimap: grey marks for found wrecks with salvage left. Blender set v6: nest (900 tris), wreck (860).
 

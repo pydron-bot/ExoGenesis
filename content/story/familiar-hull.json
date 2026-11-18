@@ -1,0 +1,23 @@
+{
+  "title": "Familiar Hull",
+  "text": "The wreck is a lander, broken in two. Its frame uses our joint pattern, our bolt spacing, our hull alloy. The serial plate has been ground off. Archive: \"No match on file.\" Nobody else was supposed to be here.",
+  "trigger": "flag",
+  "flag": "wreck-found",
+  "choices": [
+    {
+      "label": "Strip it for alloys",
+      "reply": "Logged as salvage. Field Engineers can take it apart."
+    },
+    {
+      "label": "Scan the frame again",
+      "reply": "Second scan: the alloy matches our hull to four decimal places. Logged; no explanation on file."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "wreck-scanned"
+    }
+  ]
+}

@@ -1260,6 +1260,67 @@ def relay(M):
     export("relay", [join(parts, "body"), join(band, "charge")])
 
 
+
+# ---------------------------------------------------------------- set v6: nests and wrecks (2026-11-18)
+
+def nest(M):
+    """Nest: a low mound of chewed rock and resin, ~7 u across, ringed with curved spines,
+    three dark burrow mouths with a sickly glow deep inside, egg sacs clustered on top."""
+    F = fauna_mats("#8a5048", "#3a1410", "#6a4436", "#ff8a4d")
+    resin = mat("resin", "#8a5a2a", 0.1, 0.35, emit="#3a1a06", strength=0.5)
+    parts = [blob(3.2, (0, 0, 0.3), F["plate"], scale=(1, 1, 0.42), sub=2)]
+    parts.append(blob(1.9, (0.5, -0.3, 1.2), F["skin"], scale=(1, 0.9, 0.7), sub=2))
+    parts.append(blob(1.2, (-1.3, 0.9, 1.0), F["skin"], scale=(1.1, 0.9, 0.6), sub=1))
+    for k in range(3):   # burrow mouths: dark rims, a glow in the throat
+        a = k / 3 * math.tau + 0.4
+        x, y = math.cos(a) * 2.5, math.sin(a) * 2.5
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.75, minor_radius=0.28, major_segments=10, minor_segments=5,
+                                         location=(x, y, 0.55), rotation=(0.9, 0, a + math.pi / 2))
+        parts.append(_finish(bpy.context.active_object, F["claw"], 0))
+        parts.append(sphere(0.45, (x * 0.93, y * 0.93, 0.5), F["eye"], seg=8, rings=5))
+    for k in range(9):   # spines curling inward
+        a = k / 9 * math.tau
+        r0 = 2.9 + (k % 2) * 0.4
+        base = (math.cos(a) * r0, math.sin(a) * r0, 0.2)
+        tip = (math.cos(a) * (r0 - 1.0), math.sin(a) * (r0 - 1.0), 2.4 + (k % 3) * 0.5)
+        parts.append(strut(base, tip, 0.22, F["claw"], verts=4, r2=0.02))
+    for k in range(6):   # egg sacs
+        a = k / 6 * math.tau + 0.3
+        parts.append(blob(0.38, (0.5 + math.cos(a) * 0.9, -0.3 + math.sin(a) * 0.8, 2.15 + (k % 2) * 0.2), resin, scale=(1, 1, 1.25)))
+    export("nest", [join(parts, "body")])
+
+
+def wreck(M):
+    """Wreck: an Accord-pattern lander from an earlier run, broken in two and half sunk,
+    hull scorched, one landing leg up, the cyan trim long dead. ~10 u long."""
+    burnt = mat("burnt", "#3a332e", 0.4, 0.8)
+    parts = []
+    # aft section: the pod's flared base, tilted and sunk
+    aft = [cyl(2.6, 3.2, (0, 1.8, 0.6), M["hull2"], verts=8, r2=1.8, bevel=0.08)]
+    aft.append(cyl(2.7, 0.35, (0, 1.8, -0.9), M["dark"], verts=8, bevel=0.05))
+    aft.append(box((1.2, 0.2, 1.4), (1.9, 1.2, 0.6), burnt, bevel=0.04, rot=(0, 0.3, 0.6)))
+    for k in range(4):
+        a = k / 4 * math.tau + 0.4
+        aft.append(box((0.5, 0.3, 1.0), (math.cos(a) * 2.2, 1.8 + math.sin(a) * 2.2, 1.3), M["hull"], rot=(0, 0, a)))
+    for o in aft:
+        o.rotation_euler = (0.35, -0.2, 0)
+    parts += aft
+    # fore section: the nose cone, snapped off and lying on its side
+    parts.append(cyl(1.8, 3.6, (0.6, -3.2, 0.9), M["hull"], verts=8, r2=0.5, rot=(math.pi / 2 + 0.25, 0, 0.15), bevel=0.06))
+    parts.append(box((1.0, 0.1, 0.12), (0.5, -2.2, 2.25), M["dark"], bevel=0, rot=(0.25, 0, 0.15)))
+    parts.append(box((1.6, 1.0, 1.4), (-0.4, -0.9, 0.3), burnt, bevel=0.1, rot=(0.4, 0.5, 0.2)))   # torn frame
+    # struts and a landing leg pointing at the sky
+    parts.append(strut((-1.6, 2.4, 0.4), (-2.6, 3.5, 3.4), 0.14, M["dark"], verts=5))
+    parts.append(box((0.9, 0.9, 0.2), (-2.65, 3.55, 3.5), M["dark"], bevel=0.04, rot=(0.4, -0.3, 0)))
+    for k in range(5):
+        parts.append(strut((-0.2 + k * 0.3, -0.4, 0.4), (0.2 + k * 0.35, -1.8 - (k % 2) * 0.4, 1.3 + (k % 3) * 0.3), 0.05, M["hull2"], verts=4))
+    # scattered panels and the dead trim
+    for k, (x, y, r) in enumerate([(3.4, -1.0, 0.4), (-3.0, -2.6, 1.3), (2.6, 3.8, 2.2), (-3.6, 0.6, 3.0)]):
+        parts.append(box((1.2, 0.8, 0.1), (x, y, 0.1), M["hull"] if k % 2 else burnt, bevel=0.02, rot=(0.1, 0.05, r)))
+    parts.append(box((2.4, 0.08, 0.1), (0, 0.15, 1.9), mat("deadtrim", "#1d3a40", 0.3, 0.5), bevel=0, rot=(0.35, -0.2, 0)))
+    export("wreck", [join(parts, "body")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
@@ -1267,7 +1328,8 @@ MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, 
           "civic": civic, "hydroponics": hydroponics,
           "vell": vell, "vellkeeper": vellkeeper, "vellhut": vellhut, "vellstones": vellstones,
           "cantor": cantor, "tender": tender, "pylon": pylon,
-          "lancer": lancer, "sensor": sensor, "habitat": habitat, "relay": relay}
+          "lancer": lancer, "sensor": sensor, "habitat": habitat, "relay": relay,
+          "nest": nest, "wreck": wreck}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":
