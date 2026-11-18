@@ -106,7 +106,8 @@ export class StoryHud {
   }
 
   private renderMarks(st: StorySnap) {
-    const want = st.marks;
+    // only on the surface: from orbit the markers would float over the planet
+    const want = this.d.cam.a > 0.5 ? [] : st.marks;
     while (this.marks.children.length > want.length) this.marks.lastElementChild!.remove();
     while (this.marks.children.length < want.length) this.marks.append(Object.assign(document.createElement('div'), { className: 'wp' }));
     want.forEach((m, i) => {

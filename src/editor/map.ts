@@ -172,7 +172,9 @@ export class MapEditor {
     this.paint = Float32Array.from(decodeGrid(d.flora as string[] | undefined, NC, NC), (v) => v / 100);
     this.ground = Uint16Array.from(decodeGrid(d.ground as string[] | undefined, NC, NC));
     this.loadPaints();
-    for (const k of MKINDS) this.lists[k] = Array.isArray(d[k]) ? (d[k] as Marker[]) : ((d[k] = []) as Marker[]);
+    // an optional list the region doesn't have yet joins the draft once it has something in it (commitLayers),
+    // so opening a region doesn't count as changing it
+    for (const k of MKINDS) this.lists[k] = Array.isArray(d[k]) ? (d[k] as Marker[]) : regionShape[k].optional ? [] : ((d[k] = []) as Marker[]);
 
     renderer ??= new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -418,6 +420,7 @@ export class MapEditor {
 
   private commitLayers() {
     const d = this.host.draft;
+    for (const k of MKINDS) if (this.lists[k].length && d[k] !== this.lists[k]) d[k] = this.lists[k];
     const hRows = encodeGrid(this.off.map((v) => v / HEIGHT_SCALE), NC, NC);
     const fRows = encodeGrid(this.paint.map((v) => v * 100), NC, NC);
     if (isEmptyGrid(this.off.map((v) => v / HEIGHT_SCALE))) delete d.height; else d.height = hRows;

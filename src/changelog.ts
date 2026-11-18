@@ -15,6 +15,21 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.31.0',
+    date: '2026-11-18',
+    title: 'Story tools',
+    notes: [
+      'Story moments can now change the game itself: call in creatures or reinforcements, hold back buildings until their moment, start countdowns, mark places to visit, move your view, and end the game in victory or defeat',
+      'Missions can now be failed, and the countdowns you are racing show under your goals',
+      'Tutorial hints can point straight at the button or building you need, and go away once you have used it',
+      'Regions can hold placed creatures that guard a spot or walk a patrol, some of which only turn up as the story unfolds',
+      'Editor: a story inspector in play tests (fire events, tick objectives, set flags and counters, skip time), with story edits applied to the running game as you save them',
+      'Editor: Playthrough has the bot play the campaign and lists events that never fired, choices nobody took and missions that never finished',
+      'Editor: Script import turns a screenplay into story events or a cinematic\'s lines; Branch graph and Endings ledger show how the story links up and what each choice moves',
+      'Editor: map encounters, a status and comments on story records, and Checks → To do with what\'s missing and a voice script for every character',
+    ],
+  },
+  {
     version: '0.30.0',
     date: '2026-11-18',
     title: 'Coasts',
