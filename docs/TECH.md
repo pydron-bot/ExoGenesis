@@ -481,7 +481,47 @@ How content is stored and edited in general (one JSON record per file, schemas i
   - Test: `tools/hover-smoke.mjs` (coastal site keeping its sea: a Rover ordered across a bay goes round and never
     gets wet, a Skiff crosses mid-bay over the water, a Swarmer walks round the water toward the base, a Strider
     wades).
-
+- **Water units and water buildings (v0.35.0):** stage 2 of water, hover and air.
+  - **Moves on: water** (`src/sim/path.ts`): open water only, ground below `SHALLOW` (−0.6 u), so boats keep off
+    the beach. Between −0.6 and 0.3 u only hover craft go. `offLimits(move, h)` is the one rule `steer` and the
+    grids share.
+  - **Built on** (building `site`, `src/sim/rules.ts`): `land` (default: no sample under 0.6 u, the usual
+    steepness rule), `water` (every sample at least 1 u deep, `OFFSHORE_DEPTH`), `shore` (some sample over
+    0.6 u and some under −0.4 u, none over 6 u). The ghost gives the reason: "must be built out on the water",
+    "must touch the shore", "must reach the water". The build area works as before (water buildings extend it).
+  - **Factories** (`factoryMakes`): a shore factory builds water and hover units, a land one ground and hover. The
+    sim refuses the rest, and the factory card lists only what it builds. A boat is launched at the nearest open
+    water to the door (within 30 u) and moors 6 u further out. The automated playthrough only queues ground
+    units at the Bay.
+  - **Pads:** offshore buildings get none (a pad would raise an island under them). A shore building's pad levels a
+    quay that reaches out over the water: `padded(x, z, h)` (planet.ts) now applies pads to any base, and the
+    patch passes it the seabed.
+  - **Reach** (the island fix): fauna grids are terrain-only per movement type. `PathGrid.reaches` labels their
+    connected open areas (flood fill, built once) and checks whether the predator's area touches a ring round the
+    target at body + attack range + 1.5 u. `chooseTarget` skips what a predator can't reach (ground fauna and
+    islands or offshore buildings, sea creatures and anything inland). Hover, burrowing and rooted fauna aren't
+    limited. With nothing in reach, it makes for the nearest building anyway and waits as close as it can (a
+    Lurker off the coast), so it isn't idle.
+  - **Packs:** a water fauna joins a pack only if there's open water within 40 u of its spawn (`SEA_REACH`), and
+    starts at the nearest open water. Otherwise the slot goes to the next extra, or a swarmer. Touchdown, lifted
+    dry, never gets one.
+  - **Drawing:** boats sit 0.25 u down in the water, rocking 0.06 u (`src/skirmish/view.ts`).
+  - **Content:**
+    - **Shipyard:** factory, shore, 150 alloys, clearance 15, staff 1 engineer.
+    - **Tidal Generator:** new role `generator` (steady power, no conditions), water, +4 MW, 110 alloys.
+    - **Sea Turret:** turret, water, the Defense Turret's gun with range 30, no staff (colonists can't walk out).
+    - **Pier:** relay, shore, range 40, 60 alloys.
+    - **Gunboat:** accord, water, 420 hp, speed 6.5, range 24, 26 damage, splash 2.5, 100 alloys.
+    - **Lurker:** fauna, water, 160 hp, bite 18, every 6th pack slot from pack 3.
+    - Built-in looks: `src/world/sea-models.ts` (piles reach below the waterline), `buildSeaTurret` (region.ts),
+      `gunboatGeo` and `lurkerGeo` (skirmish/models.ts). There are no Blender assets yet.
+  - **Test:** `tools/sea-smoke.mjs`. It checks:
+    - each building fits only where it should;
+    - the Tidal Generator comes online;
+    - the Bay refuses a Gunboat and the Shipyard a Rover;
+    - the Gunboat launches and stays on the water, and stops at the water's edge when ordered inland;
+    - a Lurker stays in the sea;
+    - a Swarmer by the shore doesn't pick a Sea Turret 11 u out.
 ## 3. M1 — one region
 
 First playtest build (2026-11-15).

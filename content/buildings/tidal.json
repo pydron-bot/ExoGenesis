@@ -1,0 +1,15 @@
+{
+  "name": "Tidal Generator",
+  "description": "Turbines in the current under a platform out on the water: a little steady power, day and night. Must be built offshore.",
+  "role": "generator",
+  "site": "water",
+  "buildable": true,
+  "cost": 110,
+  "hp": 450,
+  "powerMW": 4,
+  "buildSeconds": 18,
+  "clearance": 9,
+  "lightColor": "#7ff7ff",
+  "lightRadius": 7,
+  "lightIntensity": 0.6
+}

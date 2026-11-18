@@ -1,0 +1,17 @@
+{
+  "name": "Pier",
+  "description": "A deck from the shore out over the water with a link mast at the end: you can build anywhere within its range, so the colony can reach out across a bay.",
+  "role": "relay",
+  "site": "shore",
+  "buildable": true,
+  "cost": 60,
+  "hp": 300,
+  "powerMW": -0.5,
+  "buildSeconds": 10,
+  "clearance": 6,
+  "range": 40,
+  "sight": 30,
+  "lightColor": "#7ff7ff",
+  "lightRadius": 6,
+  "lightIntensity": 0.6
+}

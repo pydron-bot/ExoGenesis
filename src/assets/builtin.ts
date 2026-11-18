@@ -63,11 +63,11 @@ export const BUILTINS: Builtin[] = [
   { id: 'tank', name: 'Tank', group: 'Units', where: 'src/skirmish/models.ts tankGeo()', usedBy: { coll: 'units', id: 'tank' }, swappable: true, build: () => unit(tankGeo(), unitMaterials()[1], tankGlow()) },
   { id: 'swarmer', name: 'Swarmer', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(false)', usedBy: { coll: 'units', id: 'swarmer' }, swappable: true, build: () => unit(creatureGeo(false), unitMaterials()[2]) },
   { id: 'brute', name: 'Brute', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(true)', usedBy: { coll: 'units', id: 'brute' }, swappable: true, build: () => unit(creatureGeo(true), unitMaterials()[3]) },
-  ...(['artillery', 'arc', 'engineer', 'scout', 'skiff'] as const).map((id): Builtin => ({
+  ...(['artillery', 'arc', 'engineer', 'scout', 'skiff', 'gunboat'] as const).map((id): Builtin => ({
     id, name: id[0].toUpperCase() + id.slice(1), group: 'Units', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
     build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
   })),
-  ...(['spitter', 'burrower', 'strider'] as const).map((id): Builtin => ({
+  ...(['spitter', 'burrower', 'strider', 'lurker'] as const).map((id): Builtin => ({
     id, name: id[0].toUpperCase() + id.slice(1), group: 'Fauna', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
     build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material()),
   })),
@@ -108,3 +108,13 @@ BUILTINS.push(
   { id: 'cache', name: 'Relic Cache', group: 'Relics', where: 'src/world/roster-models.ts buildCache()', swappable: false, note: 'Relic caches: drawn instead of exo-cache when zoomed out.', build: buildCache },
 );
 
+
+// Water buildings (v0.35): built-ins only so far
+import { buildPier, buildShipyard, buildTidal } from '../world/sea-models';
+import { buildSeaTurret } from '../world/region';
+BUILTINS.push(
+  ...([['shipyard', 'Shipyard', buildShipyard], ['tidal', 'Tidal Generator', buildTidal], ['pier', 'Pier', buildPier], ['seaturret', 'Sea Turret', buildSeaTurret]] as const).map(([id, name, build]): Builtin => ({
+    id, name, group: 'Buildings', where: id === 'seaturret' ? 'src/world/region.ts buildSeaTurret()' : 'src/world/sea-models.ts', usedBy: { coll: 'buildings', id }, swappable: true,
+    note: 'Built on the water: its origin is the waterline, piles reach down into the sea.', build,
+  })),
+);

@@ -101,7 +101,7 @@ function chase(sim: Sim, plan: Step[], tick: number) {
       case 'drones': if (s.drones.length + s.fab.queued < n) front(['fab']); return;
       case 'units': {
         if ((s.units?.length ?? 0) >= n) return;
-        const unit = Object.entries(content.units).filter(([k, u]) => u.faction === 'accord' && u.cost !== undefined && sim.researched(u.research) && !sim.story.locked(k)).sort((a, b) => a[1].cost! - b[1].cost!)[0];
+        const unit = Object.entries(content.units).filter(([k, u]) => u.faction === 'accord' && u.cost !== undefined && (u.move ?? 'ground') === 'ground' && sim.researched(u.research) && !sim.story.locked(k)).sort((a, b) => a[1].cost! - b[1].cost!)[0];
         if (!have('bay')) front(['bay']);
         else if (unit) front([unit[0]]);
         return;

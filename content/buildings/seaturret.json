@@ -1,0 +1,19 @@
+{
+  "name": "Sea Turret",
+  "description": "A Defense Turret on a platform out on the water: covers the approaches by sea, and can't be reached by anything that walks. Shoots hostiles in range while powered.",
+  "role": "turret",
+  "site": "water",
+  "buildable": true,
+  "cost": 95,
+  "hp": 800,
+  "powerMW": -1.5,
+  "buildSeconds": 14,
+  "clearance": 8,
+  "fireRange": 30,
+  "damage": 20,
+  "cooldown": 0.5,
+  "weapon": "cannon",
+  "lightColor": "#ffd27a",
+  "lightRadius": 9,
+  "lightIntensity": 0.7
+}

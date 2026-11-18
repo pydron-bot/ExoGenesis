@@ -50,8 +50,8 @@ export interface SkUnitDef {
   splash?: number;
   aggro: number;
   scale: number;
-  /** Hover mover: rides on water instead of sinking into it. */
-  hover?: boolean;
+  /** How it gets about (ground when unset): hover craft ride on the water, boats sit in it. */
+  move?: 'hover' | 'water';
   /** Asset model replacing the built-in mesh, if any. */
   model?: AssetDef;
 }
@@ -61,7 +61,7 @@ export const DEFS: SkUnitDef[] = ROSTER.map((id) => {
   return {
     id, team: u.faction === 'accord' ? 0 : 1, hp: u.hp, speed: u.speed, range: u.range, dmg: u.damage,
     cooldown: u.cooldown, radius: u.radius, splash: u.splash || undefined, aggro: u.aggro, scale: u.modelScale,
-    hover: u.move === 'hover' || undefined,
+    move: u.move === 'hover' || u.move === 'water' ? u.move : undefined,
     model: u.model ? content.assets[u.model] : undefined,
   };
 });

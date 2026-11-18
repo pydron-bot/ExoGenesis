@@ -1,0 +1,17 @@
+{
+  "name": "Shipyard",
+  "description": "Builds boats (and hover craft) while powered. Stands across the waterline: part on the shore, its slipway running down into the sea. Select it to queue units.",
+  "role": "factory",
+  "site": "shore",
+  "buildable": true,
+  "cost": 150,
+  "hp": 1000,
+  "powerMW": -1.5,
+  "buildSeconds": 22,
+  "clearance": 15,
+  "staff": 1,
+  "specialty": "engineer",
+  "lightColor": "#e4f2ff",
+  "lightRadius": 16,
+  "lightIntensity": 1.1
+}

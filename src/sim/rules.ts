@@ -3,7 +3,7 @@
  * thread (placement ghost), so the ghost turns red exactly when the sim would
  * refuse.
  */
-import type { BuildingDef, ColonyRules } from '../content/defs';
+import type { BuildingDef, ColonyRules, UnitDef } from '../content/defs';
 import { regionHeightRaw } from '../world/planet';
 import { REGION_HALF } from './types';
 
@@ -27,6 +27,21 @@ export const SEAM_RADIUS = 4;
 /** How close to the region's edge buildings may stand (a function: the region's size is set per region). */
 export const EDGE = () => REGION_HALF - 10;
 
+/** Where a building stands: dry land (the default), offshore, or across the waterline. */
+export type Site = 'land' | 'water' | 'shore';
+export const siteOf = (d: { site?: Site }): Site => d.site ?? 'land';
+/** Offshore buildings need at least this much water under every part of them. */
+export const OFFSHORE_DEPTH = -1;
+
+/**
+ * Whether a factory makes a unit: one on the shore (a Shipyard) makes boats and hover craft,
+ * one on land makes ground units and hover craft.
+ */
+export function factoryMakes(f: { site?: Site }, u: Pick<UnitDef, 'move'>) {
+  const m = u.move ?? 'ground';
+  return m === 'hover' || (siteOf(f) === 'shore' ? m === 'water' : m === 'ground');
+}
+
 /** Why `kind` can't go at (x, z), or null if it can. */
 export function placeProblem(
   w: PlaceWorld, defs: Record<string, BuildingDef>, rules: ColonyRules, kind: string, x: number, z: number,
@@ -40,8 +55,18 @@ export function placeProblem(
     const h = regionHeightRaw(x + dx, z + dz);
     lo = Math.min(lo, h); hi = Math.max(hi, h);
   }
-  if (lo < 0.6) return 'can’t build in water';
-  if (hi - lo > Math.max(4, r * 1.1)) return 'ground too steep';
+  const site = siteOf(d);
+  if (site === 'land') {
+    if (lo < 0.6) return 'can’t build in water';
+    if (hi - lo > Math.max(4, r * 1.1)) return 'ground too steep';
+  } else if (site === 'water') {
+    if (hi > OFFSHORE_DEPTH) return hi > 0 ? 'must be built out on the water' : 'water too shallow here';
+  } else {
+    // across the waterline: dry ground on one side, open water on the other
+    if (hi < 0.6) return 'must touch the shore: build it where land meets the water';
+    if (lo > -0.4) return 'must reach the water: build it on the waterline';
+    if (hi > 6) return 'shore too steep';
+  }
   for (const b of w.buildings) {
     const o = defs[b.kind];
     if (!o) continue;

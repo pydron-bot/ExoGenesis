@@ -15,6 +15,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.35.0',
+    date: '2026-11-18',
+    title: 'Boats and the shore',
+    notes: [
+      'New: the Shipyard, built across the waterline. It launches Gunboats (armoured boats with a deck cannon) and Hover Skiffs',
+      'New: the Tidal Generator, steady power from a platform out on the water',
+      'New: the Sea Turret, a Defense Turret out on the water that nothing on foot can reach',
+      'New: the Pier, a deck out over the water that lets you build across a bay',
+      'New predator: the Lurker, a sea creature that comes with packs whose spawn is near water and strikes at anything by the shore',
+      'Predators no longer get stuck on the beach trying to reach something on an island or out on the water; they go for what they can reach',
+    ],
+  },
+  {
     version: '0.34.0',
     date: '2026-11-18',
     title: 'Hover craft and waders',

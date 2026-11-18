@@ -11,13 +11,13 @@ import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
-import { PathGrid, WET, moveOf, type Move } from './path';
+import { PathGrid, moveOf, offLimits, type Move } from './path';
 import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
 import { Story } from './story';
 import { Missions } from './missions';
 import type { Colonist } from './people-types';
-import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
+import { compass, depositFor, factoryMakes, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
@@ -71,6 +71,8 @@ const PATH_PAD = 1.4;
 const REPATH = 20;
 /** A unit that hasn't got closer to its goal for this many ticks re-plans, then gives up. */
 const STALL = 30;
+/** Sea creatures join a pack only if there's open water this close to its spawn (u). */
+const SEA_REACH = 40;
 /** Predators treat walls as this much farther away when picking a target (they'd rather get past them). */
 const WALL_PENALTY = 14;
 /** Half the thickness of a wall segment, for collisions. */
@@ -145,8 +147,8 @@ export class Sim {
   private grid = new PathGrid(limit());
   /** Combat units' paths, per movement type (built on first use): buildings but not gates block. */
   private unitGrids: Partial<Record<Move, PathGrid>> = {};
-  /** Fauna's paths: terrain only (they go round water, but walk up to walls and chew through them). */
-  private faunaGrid: PathGrid | null = null;
+  /** Fauna's paths, per movement type: terrain only (they go round water, but walk up to walls and chew through them). */
+  private faunaGrids: Partial<Record<Move, PathGrid>> = {};
   /** Fog of war: in sight now / ever seen (mirrored into s.explored for saves). */
   private vis = new Uint8Array(FOG_N * FOG_N);
   private exp = new Uint8Array(FOG_N * FOG_N);
@@ -723,9 +725,21 @@ export class Sim {
       const out = bodyR(b) + 3;
       const n = this.units.length;
       const side = Math.sin(n * 2.4) * 4, ahead = out + 5 + Math.cos(n * 2.4) * 3;
-      const gx = b.x + fx * ahead + fz * side, gz = b.z + fz * ahead - fx * side;
+      let gx = b.x + fx * ahead + fz * side, gz = b.z + fz * ahead - fx * side;
+      let ux = b.x + fx * out, uz = b.z + fz * out;
+      // a boat is launched on the water side (the nearest open water to the door), and moors out on it
+      const m = moveOf(ud);
+      if (m === 'water') {
+        const g = this.faunaGrid('water');
+        const at = g.openNear(ux, uz, 30) ?? g.openNear(b.x, b.z, 40);
+        if (at) {
+          ux = at.x; uz = at.z;
+          const away = Math.atan2(at.x - b.x, at.z - b.z), moor = g.openNear(at.x + Math.sin(away) * (6 + side), at.z + Math.cos(away) * (6 + side), 12) ?? at;
+          gx = moor.x; gz = moor.z;
+        }
+      }
       this.units.push({
-        id: s.nextId++, unit: kind, slot, x: b.x + fx * out, z: b.z + fz * out, heading: yaw + Math.PI, hp: ud.hp, cd: 0,
+        id: s.nextId++, unit: kind, slot, x: ux, z: uz, heading: yaw + Math.PI, hp: ud.hp, cd: 0,
         order: { kind: 'move', x: gx, z: gz }, gx, gz, target: -1,
       });
       this.emit(`${ud.name} ready${b.queue.length ? ` · ${b.queue.length} more queued` : ''}`, 'info', 'unitReady');
@@ -895,6 +909,18 @@ export class Sim {
   }
 
   private unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
+  private faunaGrid(m: Move) { return (this.faunaGrids[m] ??= new PathGrid(limit(), m)); }
+
+  /**
+   * Whether a predator can get close enough to hit something at (x, z) (`r` = its body radius):
+   * ground fauna can't cross water to an island, sea creatures can't leave the water. Hover,
+   * burrowing and rooted ones (nests, relics) aren't limited.
+   */
+  private canReach(h: Hostile, u: UnitDef, x: number, z: number, r: number) {
+    const m = moveOf(u);
+    if (m === 'hover' || h.under || u.burrows || u.speed <= 0) return true;
+    return this.faunaGrid(m).reaches(h.x, h.z, x, z, r + u.range + 1.5);
+  }
 
   /**
    * A predator heads for (tx, tz): ground fauna follow a path round water (re-planned every few
@@ -906,9 +932,8 @@ export class Sim {
     const t = this.s.tick;
     const moved = !h.goal || Math.hypot(h.goal[0] - tx, h.goal[1] - tz) > 3;
     if (!h.path || (h.repath ?? 0) <= t || (moved && t - (h.planned ?? 0) >= 10)) {
-      this.faunaGrid ??= new PathGrid(limit(), 'ground');
       h.goal = [tx, tz];
-      h.path = this.faunaGrid.find(h.x, h.z, tx, tz) ?? [tx, tz];
+      h.path = this.faunaGrid(move).find(h.x, h.z, tx, tz) ?? [tx, tz];
       h.planned = t;
       h.repath = t + REPATH * 2 + (h.id % 11);
     }
@@ -1145,7 +1170,7 @@ export class Sim {
 
   private blocked(x: number, z: number, move: Move = 'ground') {
     if (Math.abs(x) > limit() || Math.abs(z) > limit()) return true;
-    return move === 'ground' && regionHeightRaw(x, z) < WET;
+    return offLimits(move, regionHeightRaw(x, z));
   }
 
   private chooseTarget(h: Hostile, u: UnitDef) {
@@ -1170,13 +1195,21 @@ export class Sim {
     if (!h.under) {
       for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
         const dist = Math.hypot(d.x - h.x, d.z - h.z);
-        if (dist < u.aggro && dist < bd) { bd = dist; best = d.id; }
+        if (dist < u.aggro && dist < bd && this.canReach(h, u, d.x, d.z, 1)) { bd = dist; best = d.id; }
       }
       if (best >= 0) return best;
     }
+    // nearest building it can get at (not one across the water, or inland for a sea creature)
     for (const b of s.buildings) {
       if (h.under && barrier(b)) continue;
       const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0) - (def(b).lure ?? 0);
+      if (dist < bd && this.canReach(h, u, b.x, b.z, bodyR(b))) { bd = dist; best = b.id; }
+    }
+    if (best >= 0) return best;
+    // nothing it can get at: make for the nearest anyway and wait as close as it can (a sea creature off the coast)
+    for (const b of s.buildings) {
+      if (h.under && barrier(b)) continue;
+      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
       if (dist < bd) { bd = dist; best = b.id; }
     }
     return best;
@@ -1516,12 +1549,22 @@ export class Sim {
       const k = ++w.spawned;
       let unit = 'swarmer';
       if (THREATS.bruteEvery > 0 && k % THREATS.bruteEvery === 0) unit = 'brute';
-      else for (const [id, x] of PACK_EXTRAS) if (w.n >= (x.packFrom ?? 0) && k % x.packEvery! === 0) { unit = id; break; }
+      else for (const [id, x] of PACK_EXTRAS) {
+        if (w.n < (x.packFrom ?? 0) || k % x.packEvery! !== 0) continue;
+        // a sea creature only comes with a pack that has water near its spawn
+        if (moveOf(x) === 'water' && !this.faunaGrid('water').openNear(sp.x, sp.z, SEA_REACH)) continue;
+        unit = id; break;
+      }
       const slot = this.freeSlot();
       if (slot < 0) break;
       const a = this.rnd() * Math.PI * 2, r = Math.sqrt(this.rnd()) * 7;
+      let hx = clamp(sp.x + Math.cos(a) * r, -limit(), limit()), hz = clamp(sp.z + Math.sin(a) * r, -limit(), limit());
+      if (moveOf(content.units[unit]) === 'water') {
+        const at = this.faunaGrid('water').openNear(hx, hz, SEA_REACH + 8);
+        if (at) { hx = at.x; hz = at.z; }
+      }
       s.hostiles.push({
-        id: s.nextId++, unit, slot, x: clamp(sp.x + Math.cos(a) * r, -limit(), limit()), z: clamp(sp.z + Math.sin(a) * r, -limit(), limit()),
+        id: s.nextId++, unit, slot, x: hx, z: hz,
         heading: Math.atan2(-sp.x, -sp.z), hp: content.units[unit].hp, target: -1, cd: this.rnd(), pack: pack.id,
         under: content.units[unit].burrows || undefined,
       });
@@ -1752,6 +1795,7 @@ export class Sim {
         const b = s.buildings.find((x) => x.id === c.id);
         const ud = content.units[c.unit];
         if (!b || def(b).role !== 'factory' || b.progress < 1 || !ud || ud.faction !== 'accord' || ud.cost === undefined) return;
+        if (!factoryMakes(def(b), ud)) { this.emit(`The ${def(b).name} can't build a ${ud.name}`, 'warn', 'deny'); return; }
         if (this.story.locked(c.unit)) { this.emit(`${ud.name} isn't available yet`, 'warn', 'deny'); return; }
         const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
         if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }

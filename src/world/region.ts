@@ -11,10 +11,11 @@ import { Flora } from './flora';
 import { addFog } from './fog';
 import { Printed } from './print';
 import { buildWater, seabedColor, setWaterDetail } from './water';
+import { buildPier, buildSeaPlatform, buildShipyard, buildTidal } from './sea-models';
 
 import { ROSTER_BUILDINGS, buildCache, buildWreck } from './roster-models';
 import {
-  E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, applyGroundPaint, worldToRegion, seabed,
+  E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, applyGroundPaint, worldToRegion, seabed, padded,
   type GroundPad,
 } from './planet';
 
@@ -676,7 +677,19 @@ export function buildFarm(): THREE.Group {
 }
 
 /** Built-in models for particular building kinds (variants that share a role but not a look). */
-const KIND_MODELS: Record<string, () => THREE.Group> = { cannon: buildCannon, pointdefense: buildPointDefense, ...ROSTER_BUILDINGS };
+const KIND_MODELS: Record<string, () => THREE.Group> = {
+  cannon: buildCannon, pointdefense: buildPointDefense, ...ROSTER_BUILDINGS,
+  shipyard: buildShipyard, tidal: buildTidal, pier: buildPier, seaturret: buildSeaTurret,
+};
+
+/** Sea Turret: the Defense Turret on a platform over the water (its `head` still aims). */
+export function buildSeaTurret(): THREE.Group {
+  const g = buildSeaPlatform();
+  const t = buildTurret();
+  t.position.y = 1.2;
+  g.add(t);
+  return g;
+}
 
 /** Camera distance below which asset models draw instead of the built-ins (hysteresis: built-ins again beyond LOD_FAR); as the army's (src/skirmish/view.ts). */
 const LOD_NEAR = 90, LOD_FAR = 105;
@@ -781,7 +794,7 @@ class GroundRing {
   hide() { this.line.visible = false; }
 }
 
-export interface BuildingLook { role: string; name: string; hp: number; clearance: number; fireRange?: number; range?: number; storage?: number }
+export interface BuildingLook { role: string; name: string; hp: number; clearance: number; fireRange?: number; range?: number; storage?: number; site?: string }
 export interface RegionRules { defs: Record<string, BuildingLook>; buildRadius: number }
 
 export type Selection = { kind: 'drone' | 'building' | 'colonist'; id: number } | { kind: 'units'; ids: number[] } | null;
@@ -1232,7 +1245,8 @@ export class RegionView {
    * buildings come and go; only the patch vertices near a changed pad move.
    */
   private syncPads(list: Building[]) {
-    const ids = list.filter((b) => b.kind !== 'core').map((b) => b.id);
+    // offshore buildings stand on piles: no pad (it would raise an island under them)
+    const ids = list.filter((b) => b.kind !== 'core' && this.rules.defs[b.kind]?.site !== 'water').map((b) => b.id);
     const key = ids.join(',');
     if (key === this.padKey) return;
     this.padKey = key;
@@ -1240,7 +1254,7 @@ export class RegionView {
     const keep = new Set(ids);
     for (const [id, p] of this.pads) if (!keep.has(id)) { changed.push(p); this.pads.delete(id); }
     for (const b of list) {
-      if (b.kind === 'core' || this.pads.has(b.id)) continue;
+      if (b.kind === 'core' || this.pads.has(b.id) || this.rules.defs[b.kind]?.site === 'water') continue;
       const r = (this.rules.defs[b.kind]?.clearance ?? 8) / 2 + 0.5;
       let h = 0, n = 0;
       for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r * 0.7, r * 0.7], [-r * 0.7, -r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, r * 0.7]]) {
@@ -1261,7 +1275,7 @@ export class RegionView {
       const x = verts.x[i], z = verts.z[i];
       if (!changed.some((p) => Math.abs(x - p.x) < p.r + PAD_FALL + 1 && Math.abs(z - p.z) < p.r + PAD_FALL + 1)) continue;
       const raw = regionHeightRaw(x, z);
-      regionDir(x, z, v).multiplyScalar(R + (raw < 0 ? seabed(raw) : regionHeight(x, z)) - verts.drop[i]);
+      regionDir(x, z, v).multiplyScalar(R + (raw < 0 ? padded(x, z, seabed(raw)) : regionHeight(x, z)) - verts.drop[i]);
       pos.setXYZ(i, v.x, v.y, v.z);
       moved++;
     }

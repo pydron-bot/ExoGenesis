@@ -1,0 +1,18 @@
+{
+  "name": "Gunboat",
+  "faction": "accord",
+  "description": "An armoured boat with a deck cannon: holds the water, shells the shore. Open water only: it can't come up the beach. Built at a Shipyard.",
+  "hp": 420,
+  "speed": 6.5,
+  "range": 24,
+  "damage": 26,
+  "cooldown": 1.2,
+  "splash": 2.5,
+  "weapon": "cannon",
+  "radius": 1.3,
+  "aggro": 26,
+  "move": "water",
+  "modelScale": 1,
+  "cost": 100,
+  "buildSeconds": 20
+}

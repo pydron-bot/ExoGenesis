@@ -9,6 +9,7 @@ import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
+import { factoryMakes } from './sim/rules';
 import { FOG_N, REGION_HALF } from './sim/types';
 import { regionColor } from './world/planet';
 import type { RegionUi } from './world/region';
@@ -333,7 +334,7 @@ export class ColonyHud {
         rows.push(['Army', `${s.units.length} / ${this.d.rules.maxUnits}${total > s.units.length ? ` (+${total - s.units.length} queued)` : ''}`]);
         queue = q.length ? `<div class="q">${q.map((k, i) => `<i class="${i ? '' : 'now'}">${esc(this.d.units[k]?.name ?? k)}</i>`).join('')}</div>` : '';
         for (const [k, u] of Object.entries(this.d.units).sort((a, b) => (a[1].cost ?? 0) - (b[1].cost ?? 0))) {
-          if (u.faction !== 'accord' || u.cost === undefined) continue;
+          if (u.faction !== 'accord' || u.cost === undefined || !factoryMakes(d, u)) continue; // a Shipyard builds boats, a Bay vehicles
           if (u.research && this.d.research[u.research] && !s.research?.done.includes(u.research)) continue; // not yet: the Tech Lab lists it
           if (s.story?.locked?.includes(k)) continue; // the story hasn't opened it up yet
           btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || (s.isotopes ?? 0) < (u.isotopes ?? 0) || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆${u.isotopes ? ` ${u.isotopes}◇` : ''}</small></button>`);

@@ -135,6 +135,33 @@ export function striderGeo() {
   return merge(parts);
 }
 
+/** Gunboat: a pointed hull riding low in the water, a wheelhouse and a turret on the foredeck. */
+export function gunboatGeo() {
+  const hull = new THREE.CylinderGeometry(1.0, 0.75, 0.9, 6).scale(1, 1, 2.4).translate(0, 0.45, -0.2);
+  const bow = new THREE.ConeGeometry(1.0, 1.6, 6).rotateX(Math.PI / 2).scale(1, 0.9, 1).translate(0, 0.5, 2.4);
+  return merge([
+    hull, bow, box(1.2, 0.9, 1.4, 0, 1.3, -1.0), box(0.9, 0.3, 0.9, 0, 1.9, -1.1),
+    new THREE.CylinderGeometry(0.5, 0.6, 0.45, 8).translate(0, 1.15, 1.0),
+    new THREE.CylinderGeometry(0.1, 0.1, 1.6, 5).rotateX(Math.PI / 2).translate(0, 1.25, 1.85),
+    new THREE.CylinderGeometry(0.04, 0.04, 1.2, 4).translate(0, 2.6, -1.1),
+  ]);
+}
+export function gunboatGlow() { return merge([box(1.24, 0.12, 0.08, 0, 1.45, -0.3), box(2.0, 0.06, 0.06, 0, 0.95, -2.75), box(0.12, 0.12, 0.12, 0, 3.25, -1.1)]); }
+
+/** Lurker: a sea creature mostly under the water: a ridged back, two dorsal fins, a wide jaw breaking the surface. */
+export function lurkerGeo() {
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 4; i++) {
+    const r = 0.85 - Math.abs(i - 1.2) * 0.13;
+    parts.push(new THREE.IcosahedronGeometry(r, 0).scale(1.1, 0.55, 1.3).translate(0, 0.15 + Math.sin(i * 1.1) * 0.12, 1.1 - i * 1.15));
+  }
+  parts.push(cone(0.3, 1.3, 3).scale(0.4, 1, 1.6).translate(0, 0.9, 0.2), cone(0.24, 0.9, 3).scale(0.4, 1, 1.5).translate(0, 0.6, -1.9));
+  // the jaw: two wedges, slightly open
+  parts.push(cone(0.75, 1.5, 4).rotateX(Math.PI / 2 - 0.15).scale(1, 0.4, 1).translate(0, 0.35, 2.4));
+  parts.push(cone(0.65, 1.3, 4).rotateX(Math.PI / 2 + 0.2).scale(1, 0.35, 1).translate(0, 0.0, 2.3));
+  return merge(parts);
+}
+
 /** Spitter: a hunched creature with a swollen venom sac and a raised neck. */
 export function spitterGeo() {
   const parts: THREE.BufferGeometry[] = [];
@@ -202,6 +229,8 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   scout: { geo: scoutGeo, glow: scoutGlow, material: () => accordMaterial(0.6) },
   skiff: { geo: skiffGeo, glow: skiffGlow, material: () => accordMaterial(0.5) },
   strider: { geo: striderGeo, material: () => faunaMaterial('#4f7f86', '#0f3a40') },
+  gunboat: { geo: gunboatGeo, glow: gunboatGlow, material: () => accordMaterial(0.5) },
+  lurker: { geo: lurkerGeo, material: () => faunaMaterial('#2f5a5e', '#3ad6c8') },
   swarmer: { geo: () => creatureGeo(false), material: () => faunaMaterial('#c0563a', '#5a1408') },
   brute: { geo: () => creatureGeo(true), material: () => faunaMaterial('#8a3550', '#3a0a1c') },
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },
