@@ -9,6 +9,12 @@
  *     hundreds of lights cost one tiny render pass plus one texture read. No
  *     shadows, and no light direction beyond "facing up gets more" — fine from an
  *     RTS camera.
+ *     The map's alpha channel carries ground shadows the same way: every
+ *     building, drone and vehicle draws a soft dark blob under itself, pushed
+ *     away from the sun and stretched as it sinks (long shadows at dusk), so
+ *     things sit on the ground instead of floating. Shadows only darken
+ *     fragments near the ground, and they stay on when the lights are off
+ *     (`?shadows=0` leaves them out).
  *  2. On desktop, two real point lights (fixed count, so shaders never
  *     recompile) handed each frame to the biggest live explosions, for proper
  *     highlights on the sides of things. Phones get none (see REAL).
@@ -27,7 +33,7 @@ import { GRID_N, rawGrid, regionPoint } from './heightGrid';
 
 /** Light map resolution: 256² over the 240 u region ≈ 1 texel per unit. */
 const RES = 256;
-const MAX_BLOBS = 2048;
+const MAX_BLOBS = 4096;
 const MAX_FLASHES = 384;
 /**
  * Real point lights for the biggest flashes. Every lit shader pays for each one on every pixel, so phones
@@ -55,6 +61,8 @@ export const lightUniforms = {
   uLmTex: { value: rt.texture as THREE.Texture },
   uLmH: { value: null as THREE.Texture | null },
   uLmOn: { value: 0 },
+  /** Ground shadows (the map's alpha) on or off. */
+  uShOn: { value: 0 },
   uLmU: { value: U.clone() },
   uLmE: { value: E.clone() },
   uLmN: { value: N.clone() },
@@ -86,7 +94,8 @@ export function addLights(mat: THREE.Material) {
         uniform float uLmR, uLmHalf;
         uniform vec3 uLmU, uLmE, uLmN;
         varying vec2 vLmUv;
-        varying float vLmK;`)
+        varying float vLmK;
+        varying float vLmS;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         {
           vec4 lmW4 = vec4(transformed, 1.0);
@@ -100,23 +109,36 @@ export function addLights(mat: THREE.Material) {
           vec2 rp = uLmR * vec2(dot(fd, uLmE), dot(fd, uLmN)) / max(up, 0.5);
           vLmUv = (rp + uLmHalf) / (2.0 * uLmHalf);
           vLmK = 0.0;
+          vLmS = 0.0;
           if (lmRad < uLmR + 400.0 && up > 0.5 && abs(rp.x) < uLmHalf && abs(rp.y) < uLmHalf) {
             float g = texture2D(uLmH, (rp + uLmHalf + 0.5) / (2.0 * uLmHalf + 1.0)).r;
             float lift = max(0.0, lmRad - uLmR - g);
             // pools on the ground: tall things catch less the higher they reach
             vLmK = 1.0 / (1.0 + lift * lift * 0.006);
+            // shadows lie on the ground: only the bottom of things is darkened
+            vLmS = 1.0 - smoothstep(0.3, 2.4, lift);
           }
         }`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform sampler2D uLmTex;
-        uniform float uLmOn;
+        uniform float uLmOn, uShOn;
         uniform vec3 uLmUpV;
         varying vec2 vLmUv;
-        varying float vLmK;`)
+        varying float vLmK;
+        varying float vLmS;`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        vec4 lmT = vec4(0.0);
+        if ((uLmOn > 0.001 && vLmK > 0.002) || (uShOn > 0.001 && vLmS > 0.002)) lmT = texture2D(uLmTex, vLmUv);
+        if (uShOn > 0.001 && vLmS > 0.002) {
+          // sun (direct) light is blocked; sky light only partly (contact shade)
+          float sh = min(lmT.a, 0.8) * vLmS * uShOn;
+          reflectedLight.directDiffuse *= 1.0 - sh;
+          reflectedLight.directSpecular *= 1.0 - sh;
+          reflectedLight.indirectDiffuse *= 1.0 - sh * 0.55;
+        }
         if (uLmOn > 0.001 && vLmK > 0.002) {
-          vec3 L = texture2D(uLmTex, vLmUv).rgb;
+          vec3 L = lmT.rgb;
           L /= 1.0 + 0.35 * dot(L, vec3(0.333)); // soft cap: a parked army's headlights shouldn't white out
           // tops catch more than sides
           float k = uLmOn * vLmK * (0.45 + 0.55 * max(dot(normal, uLmUpV), 0.0));
@@ -152,6 +174,13 @@ const blobFrag = /* glsl */ `
   void main() {
     vec2 p = vUv;
     float w;
+    if (vShape > 1.5) {
+      // a shadow: a soft ellipse, written to alpha only
+      float d = dot(p, p);
+      w = max(0.0, 1.0 - d);
+      gl_FragColor = vec4(0.0, 0.0, 0.0, vCol.r * w * sqrt(w));
+      return;
+    }
     if (vShape > 0.5) {
       // a headlight: narrow at the lamp (y = -1), widening and fading toward the far end
       float along = (p.y + 1.0) * 0.5;
@@ -164,7 +193,7 @@ const blobFrag = /* glsl */ `
       w = max(0.0, 1.0 - d);
       w *= w;
     }
-    gl_FragColor = vec4(vCol * w, 1.0);
+    gl_FragColor = vec4(vCol * w, 0.0);
   }`;
 
 interface Flash { x: number; z: number; r: number; i: number; col: THREE.Color; life: number; max: number; real: boolean }
@@ -176,7 +205,7 @@ export interface LightLook { color: string; radius: number; intensity: number; f
 export interface LightFields { lightColor?: string; lightRadius?: number; lightIntensity?: number; lightFlicker?: boolean }
 
 const BEACON = new THREE.Color('#ffb547');
-const SCAFFOLD = new THREE.Color('#ffc46b');
+const SCAFFOLD = new THREE.Color('#7fe8ff'); // the printer's cyan (src/world/print.ts)
 const HEADLIGHT = new THREE.Color('#e6f6ff');
 
 /** Light-relevant view of an army (ArmyView), kept structural so this module has no skirmish imports. */
@@ -206,11 +235,14 @@ export class ColonyLights {
   private flashes: Flash[] = Array.from({ length: MAX_FLASHES }, () => ({ x: 0, z: 0, r: 0, i: 0, col: new THREE.Color(), life: 0, max: 1, real: false }));
   private nextFlash = 0;
   private real: THREE.PointLight[] = [];
-  private armies: { army: ArmyLights; team: (type: number) => number }[] = [];
+  private armies: { army: ArmyLights; team: (type: number) => number; size: (type: number) => number }[] = [];
   private colors = new Map<string, THREE.Color>();
   /** Floodlight per building kind, from the building records. */
   private looks: Record<string, LightLook> = {};
   private on = true;
+  private shade = true;
+  /** Sun direction in region terms: horizontal (x, z) and elevation; set each update. */
+  private sun = { x: 0, z: 0, up: 1 };
   /** 0 day .. 1 night: steady lights are faint by day. */
   night = 0;
   /** Count of blobs drawn last frame (debug / tests). */
@@ -221,6 +253,7 @@ export class ColonyLights {
     lightUniforms.uLmHalf.value = HALF;
     lightUniforms.uLmH.value = heightTexture();
     lightUniforms.uLmOn.value = 1;
+    this.shadows = new URLSearchParams(location.search).get('shadows') !== '0';
     const geo = new THREE.PlaneGeometry(2, 2);
     this.aCol = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BLOBS * 3), 3);
     this.aShape = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BLOBS), 1);
@@ -230,7 +263,9 @@ export class ColonyLights {
     geo.setAttribute('aShape', this.aShape);
     this.blobs = new THREE.InstancedMesh(geo, new THREE.ShaderMaterial({
       vertexShader: blobVert, fragmentShader: blobFrag,
-      blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true, toneMapped: false,
+      // plain additive on all four channels: light sums in rgb, shadow in alpha
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+      depthTest: false, depthWrite: false, transparent: true, toneMapped: false,
     }), MAX_BLOBS);
     this.blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.blobs.frustumCulled = false;
@@ -265,8 +300,56 @@ export class ColonyLights {
     if (!v) for (const l of this.real) l.intensity = 0;
   }
 
-  /** Register an army so its player vehicles get headlights. `team(type)` → 0 player, 1 fauna. */
-  addArmy(army: ArmyLights, team: (type: number) => number) { this.armies.push({ army, team }); }
+  /** Ground shadows on or off (`?shadows=0`). They don't depend on the lights being on. */
+  get shadows() { return this.shade; }
+  set shadows(v: boolean) {
+    this.shade = v;
+    lightUniforms.uShOn.value = v ? 1 : 0;
+  }
+
+  /**
+   * Register an army: its player vehicles get headlights (`team(type)` → 0 player, 1 fauna), and
+   * every unit a shadow `size(type)` across (body radius) and about as tall.
+   */
+  addArmy(army: ArmyLights, team: (type: number) => number, size: (type: number) => number = () => 1) { this.armies.push({ army, team, size }); }
+
+  /**
+   * Queue a ground shadow for something `r` in radius and `h` tall standing at (x, z): a soft
+   * contact patch under it plus (with `cast`) the sun's shadow, pushed away from the sun and
+   * longer as it sinks. Small things get one blob that does both.
+   */
+  shadow(x: number, z: number, r: number, h: number, cast = true) {
+    if (!this.shade) return;
+    const s = this.sun;
+    const day = THREE.MathUtils.smoothstep(s.up, -0.02, 0.2);
+    // shadow length along the ground: h / tan(elevation), capped so dawn doesn't paint the map
+    const len = day > 0 ? Math.min(h * Math.sqrt(Math.max(0, 1 - s.up * s.up)) / Math.max(s.up, 0.12), h * 4) : 0;
+    const heading = Math.atan2(-s.x, -s.z);
+    if (!cast || r < 2.5) {
+      const off = len * 0.35 * day;
+      this.shadowBlob(x + Math.sin(heading) * off, z + Math.cos(heading) * off, r * 1.35, r * 1.35 + off, heading, 0.5 + 0.25 * day);
+      return;
+    }
+    this.shadowBlob(x, z, r * 1.25, r * 1.25, 0, 0.45);
+    if (day > 0.01) {
+      const half = r + len * 0.5;
+      const c = len * 0.5;
+      this.shadowBlob(x + Math.sin(heading) * c, z + Math.cos(heading) * c, r * 1.05, half, heading, 0.68 * day);
+    }
+  }
+
+  private shadowBlob(x: number, z: number, w: number, half: number, heading: number, dark: number) {
+    if (this.n >= MAX_BLOBS) return;
+    if (Math.abs(x) > HALF + half || Math.abs(z) > HALF + half) return;
+    const j = this.n++;
+    this.q.setFromAxisAngle(this.zAxis, -heading);
+    this.m.compose(this.p.set(x, z, 0), this.q, this.s.set(w, half, 1));
+    this.aShape.array[j] = 2;
+    this.blobs.setMatrixAt(j, this.m);
+    this.aCol.array[j * 3] = dark;
+    this.aCol.array[j * 3 + 1] = 0;
+    this.aCol.array[j * 3 + 2] = 0;
+  }
 
   private color(hex: string) {
     let c = this.colors.get(hex);
@@ -337,16 +420,41 @@ export class ColonyLights {
     buildings?: { kind: string; x: number; z: number; progress: number; powered: boolean; yaw?: number }[];
     core?: { x: number; z: number; beacon: number } | null;
     drones?: { x: number; z: number; heading: number }[];
+    /** Direction toward the sun (world space), for the shadows. */
+    sun?: THREE.Vector3;
+    /** Building sizes for their shadows: body radius and height per kind. */
+    sizes?: Record<string, { r: number; h: number }>;
   }) {
     this.n = 0;
-    if (!this.on) return;
+    if (src.sun) {
+      const d = src.sun;
+      this.sun.x = d.dot(E); this.sun.z = d.dot(N); this.sun.up = d.dot(U);
+    }
+    // shadows first: under the lights in draw order (it doesn't matter for the sums, but keeps the cap fair)
+    if (this.shade) {
+      for (const b of src.buildings ?? []) {
+        const sz = src.sizes?.[b.kind];
+        if (!sz) continue;
+        this.shadow(b.x, b.z, sz.r, sz.h * Math.max(0.15, Math.min(1, b.progress)));
+      }
+      if (src.core) this.shadow(src.core.x, src.core.z, src.sizes?.core?.r ?? 5, src.sizes?.core?.h ?? 8);
+      for (const d of src.drones ?? []) this.shadow(d.x, d.z, 0.9, 1.6, false);
+      for (const { army, size } of this.armies) {
+        for (let s = 0; s < army.slots; s++) {
+          if (!army.visible[s]) continue;
+          const r = size(army.type[s]);
+          this.shadow(army.lx[s], army.lz[s], r, r * 1.3, false);
+        }
+      }
+    }
+    if (!this.on) { this.render(renderer, camera); return; }
     const steady = (0.12 + 0.88 * this.night) * 0.75;
     // floodlights
     for (const b of src.buildings ?? []) {
       if (b.kind === 'core') continue;
       if (b.progress < 1) {
         // construction work light, a little restless
-        this.blob(b.x, b.z, 9, SCAFFOLD, 0.55 * steady * (0.85 + 0.15 * Math.sin(t * 9 + b.x)));
+        this.blob(b.x, b.z, 9, SCAFFOLD, 0.35 * steady * (0.85 + 0.15 * Math.sin(t * 9 + b.x)));
         continue;
       }
       const l = this.looks[b.kind];
@@ -393,6 +501,11 @@ export class ColonyLights {
       l.intensity = 60 * f.i * k * k * flashK;
     }
 
+    this.render(renderer, camera);
+  }
+
+  private render(renderer: THREE.WebGLRenderer, camera: THREE.Camera) {
+    if (!this.on && !this.shade) return;
     this.blobs.count = this.n;
     this.drawn = this.n;
     this.blobs.instanceMatrix.needsUpdate = true;
@@ -406,7 +519,7 @@ export class ColonyLights {
     renderer.getClearColor(this.c);
     const prevAlpha = renderer.getClearAlpha();
     renderer.setRenderTarget(rt);
-    renderer.setClearColor(0x000000, 1);
+    renderer.setClearColor(0x000000, 0);
     renderer.clear(true, false, false);
     if (this.n) renderer.render(this.scene, this.cam);
     renderer.setRenderTarget(prevTarget);

@@ -400,6 +400,40 @@ How content is stored and edited in general (one JSON record per file, schemas i
 - **Blender set v5 (2026-11-18): roster batch A** (`docs/ROSTER.md`): Lancer (1,372 tris), Sensor Mast (752; head is
   `dish`), Habitat Block (1,204), Relay Tower (944; beacon bands are `charge`). Same script and conventions.
 
+- **Glow, ground shadows, printed construction (v0.32.0):**
+  - **Glow** (`src/world/post.ts`): with glow on, the scene renders into a HalfFloat target, then `UnrealBloomPass`
+    (run at half the canvas size) and `OutputPass` (tone mapping + sRGB). With glow off the renderer draws straight to
+    the screen as before. The threshold follows the light: 1.0 by day (only flashes, explosions and the core's glow
+    bloom; sunlit ground never does), 0.72 at night (glow strips, pods, light pools, gunfire, the flora's tips), 0.85
+    in orbit. Default: on for desktop, off on phones (`pointer: coarse`) and in automated browsers (it halves
+    SwiftShader frame rates, and tests like the turret-aim check count frames). Desktop multisamples the target 4×;
+    phones don't (`?glowaa=N`). Phone size, dpr 1, SwiftShader: ~100 ms/frame glow off, ~190 with 4× MSAA, ~80 with
+    none (cheaper than off, since the canvas's own MSAA then only draws a quad). Needs a real-phone check before
+    defaulting it on there.
+  - **Ground shadows** (`src/world/lights.ts`): drawn into the light map's alpha channel (the blob pass now blends
+    ONE/ONE on all four channels and clears alpha to 0). Buildings get a contact patch plus a sun shadow pushed
+    away from the sun, `h / tan(elevation)` long (capped at 4h), fading out as the sun sets. Drones and units get
+    one blob that does both. Building radius = clearance / 2 × 0.85, height ≈ 1.2 × radius (max 9; walls and gates 3),
+    scaled by build progress. Unit radius = body radius × model scale (`addArmy`'s third argument). In the lit
+    shaders the alpha darkens direct light (and sky light by 55%) only within ~2.4 u of the ground
+    (`vLmS`), so roofs over their own shadow stay lit. Shadows don't depend on the Lights toggle: the pass runs when
+    either is on. Cost: within noise in the perf probe. `?shadows=0|1`.
+  - **Printed construction** (`src/world/print.ts`): a building under construction is its real model (`modelFor`,
+    LOD pair included) with per-building material copies: solid below the print line, discarding above it, with
+    a 0.45 u emissive band at the line and back faces drawn as a glowing cyan cross-section (DoubleSide). A
+    wireframe twin of every mesh shows the unbuilt part, with scanlines. 18 sparks run along the footprint's
+    edge at the line. The line is measured along the building's own up from its base, from 4% to 100% of the model's
+    height. See-through parts (gate field, plumes) wait for the finished model. The construction work light is now
+    cyan and dimmer (0.35). `?print=0` (or the option) brings back the scaffold box. `region.printing` switches it
+    at runtime (buildings under construction rebuild).
+  - **Options** (`src/options.ts`): one panel, opened from OPTIONS on the title screen and ⚙ Options in the ⋯ menu
+    (it replaces nothing; ✦ Lights stays). Toggles: glow (`exo.glow`), shadows (`exo.shadows`), printed construction
+    (`exo.print`), colony lights (`exo.lights`), each remembered in localStorage. A URL param locks its row ("Set in
+    URL"). Test: `tools/options-smoke.mjs` (title → options → every toggle flips and the game follows → remembered
+    after a reload, desktop and phone).
+  - Shots: `node tools/polish-shot.mjs [--hours 23,12] [--modes "on:&bloom=1,off:&bloom=0&shadows=0"] [--fight] [--perf]`
+    stages a colony with buildings under construction, vehicles and a pack.
+
 ## 3. M1 — one region
 
 First playtest build (2026-11-15).

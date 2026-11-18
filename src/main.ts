@@ -23,6 +23,8 @@ import { StoryHud } from './story-hud';
 import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
+import { Post } from './world/post';
+import { openOptions, type Toggle } from './options';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
 import { InhabitantView } from './world/inhabitants';
@@ -209,7 +211,7 @@ function adaptRes(rawDt: number) {
   if (fps < 40) { next = Math.max(dprMin, res.scale - 0.25); res.good = 0; }
   else if (fps > 56 && ++res.good >= 3) { next = Math.min(dprMax, res.scale + 0.25); res.good = 0; } // 6 s of headroom
   else if (fps <= 56) res.good = 0;
-  if (next !== res.scale) { res.scale = next; renderer.setPixelRatio(next); renderer.setSize(innerWidth, viewH()); }
+  if (next !== res.scale) { res.scale = next; renderer.setPixelRatio(next); renderer.setSize(innerWidth, viewH()); post?.resize(); }
 }
 renderer.setSize(innerWidth, viewH());
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -228,6 +230,22 @@ if (lights) {
   lights.setLooks(content.buildings);
   try { lights.enabled = params.get('lights') === '1' || localStorage.getItem(LIGHTS_KEY) !== 'off'; } catch { /* private mode */ }
 }
+// glow (bloom, src/world/post.ts): on by default on desktop, off on phones; ⋯ menu ✺ Glow, remembered; ?bloom=0|1 overrides
+// (automated browsers default to off: SwiftShader halves the frame rate with it, and tests time things in frames)
+const GLOW_KEY = 'exo.glow', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print';
+/** A remembered on/off option: the URL (?name=0|1) wins, then what the player chose, then the default. */
+function setting(key: string, param: string, dflt: boolean) {
+  const q = params.get(param);
+  if (q === '0' || q === '1') return q === '1';
+  try { const v = localStorage.getItem(key); if (v) return v === 'on'; } catch { /* private mode */ }
+  return dflt;
+}
+function remember(key: string, on: boolean) {
+  try { localStorage.setItem(key, on ? 'on' : 'off'); } catch { /* private mode */ }
+}
+const post = new Post(renderer, scene, camera);
+post.enabled = setting(GLOW_KEY, 'bloom', !coarse && !navigator.webdriver);
+if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
 
 await loadStep('Charting the solar system…');
 const system = new SolarSystem(scene, $('labels'), content.bodies, bodyId);
@@ -240,6 +258,7 @@ const region = new RegionView(
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
 );
 if (!skirmishMode) region.setVents(regionDef.vents ?? []);
+region.printing = setting(PRINT_KEY, 'print', true);
 const cam = new ZoomCamera(camera);
 // the globe and provinces were generated in a worker meanwhile
 await loadStep('Forming the planet…');
@@ -691,6 +710,7 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth / viewH();
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, viewH());
+  post?.resize();
 });
 
 // ---------- HUD refresh ----------
@@ -764,6 +784,30 @@ lightsBtn.onclick = () => {
   syncLights();
 };
 syncLights();
+// ---------- options (title screen OPTIONS, ⋯ menu ⚙ Options) ----------
+const urlLock = (param: string) => () => (params.has(param) ? 'Set in URL' : null);
+const graphicsToggles: Toggle[] = [
+  {
+    id: 'glow', label: 'Glow', help: 'Lights, glow strips and gunfire spill soft light. Costs some speed on phones.',
+    get: () => post.enabled, set: (v) => { post.enabled = v; remember(GLOW_KEY, v); }, locked: urlLock('bloom'),
+  },
+  {
+    id: 'shadows', label: 'Ground shadows', help: 'Buildings, drones and vehicles cast soft shadows that follow the sun.',
+    get: () => !!lights?.shadows, set: (v) => { if (lights) lights.shadows = v; remember(SHADOWS_KEY, v); },
+    locked: () => (!lights ? 'Off in URL' : urlLock('shadows')()),
+  },
+  {
+    id: 'print', label: 'Printed construction', help: 'New buildings print from the ground up. Off: a plain construction frame.',
+    get: () => region.printing, set: (v) => { region.printing = v; remember(PRINT_KEY, v); }, locked: urlLock('print'),
+  },
+  {
+    id: 'lights', label: 'Colony lights', help: 'Floodlights, headlights and gunfire light the ground at night. Off saves battery on older phones.',
+    get: () => !!lights?.enabled, set: (v) => { if (lights) { lights.enabled = v; remember(LIGHTS_KEY, v); syncLights(); } },
+    locked: () => (!lights ? 'Off in URL' : null),
+  },
+];
+const showOptions = (onClose?: () => void) => openOptions(graphicsToggles, () => audio.play('tap'), onClose);
+$('b-options').onclick = () => showOptions();
 // a soft tick for HUD buttons
 hudEl.addEventListener('pointerdown', (e) => { if ((e.target as Element).closest?.('button')) audio.play('tap'); });
 /** World sounds: quieter away from the camera focus and when zoomed out; panned by screen x. */
@@ -801,6 +845,7 @@ function showTitle() {
       id: 'sound', label: 'SOUND', sub: soundSub(),
       run: () => { if (!audio.disabled) { audio.setOn(!audio.on); syncSound(); } title?.setSub('sound', soundSub()); },
     },
+    { id: 'options', label: 'OPTIONS', sub: 'Glow, shadows, printed construction, lights', run: () => showOptions() },
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
   ];
   title = new TitleScreen(cam, camera, {
@@ -813,6 +858,12 @@ function showTitle() {
   ver.onclick = () => { audio.play('tap'); openWhatsNew(() => ver.querySelector('.badge')?.remove()); };
 }
 
+// ground shadows (in the light map): each building kind's body radius and a rough height
+const shadowSun = new THREE.Vector3();
+const shadowSizes = Object.fromEntries(Object.entries(content.buildings).map(([k, d]) => {
+  const r = Math.max(1, (d.clearance ?? 8) / 2 * 0.85);
+  return [k, { r, h: d.role === 'wall' || d.role === 'gate' ? 3 : Math.min(r * 1.2, 9) }];
+}));
 // ---------- frame loop ----------
 // the body's sky: Home's by default; airless bodies have a black one, day and night
 const skyDay = new THREE.Color(bodyDef?.sky ?? (airGlow ? '#8fb0ad' : '#05070b'));
@@ -907,6 +958,8 @@ function frame(now: number) {
     lights.update(renderer, camera, dt, t, {
       buildings: live ? c.buildings : undefined,
       core: core && region.core.visible ? { x: core.x, z: core.z, beacon: Math.max(0, Math.sin(t * 4)) } : null,
+      sun: shadowSun.copy(system.sunPos).normalize(),
+      sizes: shadowSizes,
       drones: live ? c.drones.map((b) => {
         const a = p.drones.find((d) => d.id === b.id) ?? b;
         let dh = b.heading - a.heading;
@@ -916,7 +969,8 @@ function frame(now: number) {
     });
   }
   updateHud(dt, now);
-  renderer.render(scene, camera);
+  post?.update({ night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air });
+  post ? post.render(dt) : renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 // compile every shader now rather than stalling on the first frame
@@ -972,7 +1026,8 @@ const exo = {
     return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
   },
   canPlace,
-  capture: () => { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
+  capture: () => { post ? post.render(0) : renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
+  post,
   height: regionHeight,
   fogView,
   audio,

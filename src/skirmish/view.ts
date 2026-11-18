@@ -103,7 +103,7 @@ export class ArmyView {
 
   constructor(scene: THREE.Scene) {
     scene.add(this.group);
-    colonyLights?.addArmy(this, (t) => DEFS[t]?.team ?? 1);
+    colonyLights?.addArmy(this, (t) => DEFS[t]?.team ?? 1, (t) => (DEFS[t]?.radius ?? 1) * (DEFS[t]?.scale ?? 1));
     // one instanced draw per unit type, plus a glow layer for types that have one (player vehicles)
     for (const d of DEFS) {
       const look = builtinUnitLook(d.id, d.team === 0 ? 'accord' : 'fauna');

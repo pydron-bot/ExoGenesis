@@ -9,6 +9,8 @@ import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
 import { Flora } from './flora';
 import { addFog } from './fog';
+import { Printed } from './print';
+
 import { ROSTER_BUILDINGS, buildCache, buildWreck } from './roster-models';
 import {
   E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, applyGroundPaint, worldToRegion,
@@ -797,7 +799,7 @@ export interface RegionUi {
   ghostLine?: { pts: { x: number; z: number; ok: boolean }[]; yaw: number } | null;
 }
 
-interface BEntry { kind: string; done: boolean; obj: THREE.Group; powered: boolean; emissive: [THREE.MeshStandardMaterial, number][]; bar: THREE.Group }
+interface BEntry { kind: string; done: boolean; obj: THREE.Group; powered: boolean; emissive: [THREE.MeshStandardMaterial, number][]; bar: THREE.Group; print?: Printed }
 
 /** Every part called `name` in a model (an asset and its zoomed-out built-in both have one). */
 function parts(root: THREE.Object3D, name: string): THREE.Object3D[] {
@@ -847,6 +849,15 @@ export class RegionView {
   private reachRing = new GroundRing(AMBER, 0.6);
   private areaRings: GroundRing[] = [];
   private ghosts = new Map<string, THREE.Group>();
+  private printOn = true;
+  /** Printed construction (src/world/print.ts) or the plain scaffold box (Options; `?print=0`). */
+  get printing() { return this.printOn; }
+  set printing(v: boolean) {
+    if (v === this.printOn) return;
+    this.printOn = v;
+    // buildings under construction rebuild in the new style on the next update
+    for (const [id, e] of this.buildings) if (!e.done) { this.dropBuilding(id, e); this.buildings.delete(id); }
+  }
   private ghostOk = new THREE.MeshBasicMaterial({ color: '#5bff9a', transparent: true, opacity: 0.4, depthWrite: false });
   private ghostBad = new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.4, depthWrite: false });
   private border: THREE.LineLoop;
@@ -1006,6 +1017,7 @@ export class RegionView {
 
   private dropBuilding(id: number, e: BEntry) {
     this.dropLod(e.obj);
+    e.print?.dispose();
     this.details.remove(e.obj, e.bar);
     this.batches.get(e.kind)?.remove(id);
   }
@@ -1275,7 +1287,10 @@ export class RegionView {
         else this.flora?.clear(b.x, b.z, (d?.clearance ?? 8) / 2 + 2);
         // batched kinds: an empty placeholder (it keeps the pose for facing()); the batch draws the model
         const batch = done ? this.batchFor(b.kind) : null;
-        const obj = batch ? new THREE.Group() : done ? this.modelFor(b.kind) : buildScaffold();
+        // under construction: the real model, printed from the ground up (src/world/print.ts); ?print=0: the old scaffold
+        const print = !done && this.printOn ? new Printed(this.modelFor(b.kind)) : undefined;
+        if (print) print.root.userData.lod = print.root.children[0].userData.lod;
+        const obj = batch ? new THREE.Group() : done ? this.modelFor(b.kind) : print ? print.root : buildScaffold();
         if (batch?.partName) {
           // the moving part keeps a stand-in so aiming and facing() work as before; the batch draws it
           const stand = new THREE.Object3D();
@@ -1283,7 +1298,7 @@ export class RegionView {
           batch.partRest.decompose(stand.position, stand.quaternion, stand.scale);
           obj.add(stand);
         }
-        if (!done) {
+        if (!done && !print) {
           // scale the construction frame to the footprint
           const k = (d?.clearance ?? 8) / 9;
           obj.scale.set(k, 1, k * 1.6);
@@ -1292,7 +1307,7 @@ export class RegionView {
         this.details.add(obj);
         if (batch) { obj.updateMatrix(); batch.set(b.id, obj.matrix); }
         const emissive: [THREE.MeshStandardMaterial, number][] = [];
-        obj.traverse((o) => {
+        if (done) obj.traverse((o) => {
           const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
           if (mm && 'emissiveIntensity' in mm) {
             // own copy so dimming one building doesn't dim the others
@@ -1301,11 +1316,12 @@ export class RegionView {
             emissive.push([c, c.emissiveIntensity]);
           }
         });
-        e = { kind: b.kind, done, obj, powered: true, emissive, bar: makeBar() };
+        e = { kind: b.kind, done, obj, powered: true, emissive, bar: makeBar(), print };
         this.details.add(e.bar);
         this.buildings.set(b.id, e);
       }
-      if (!done) {
+      if (!done && e.print) e.print.set(b.progress, t);
+      else if (!done) {
         const fill = e.obj.getObjectByName('fill') as THREE.Mesh;
         fill.scale.y = Math.max(0.02, b.progress);
         fill.position.y = 1.5 * Math.max(0.02, b.progress);

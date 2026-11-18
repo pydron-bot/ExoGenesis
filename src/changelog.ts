@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.32.0',
+    date: '2026-11-18',
+    title: 'Glow, shadows and printed construction',
+    notes: [
+      'Glow: lights, glowing strips and gunfire now spill soft light, strongest at night (on by default on computers, off on phones)',
+      'Buildings, drones, vehicles and creatures cast soft shadows on the ground that follow the sun, long at dawn and dusk',
+      'New buildings print from the ground up: solid below a glowing cyan line, a wireframe above it, with sparks along the line',
+      'Options on the title screen (and ⚙ Options in the ⋯ menu) turn glow, shadows, printed construction and colony lights on or off, and remember your choice',
+    ],
+  },
+  {
     version: '0.31.0',
     date: '2026-11-18',
     title: 'Story tools',
