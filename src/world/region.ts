@@ -573,6 +573,32 @@ export function buildVent(seed: number): THREE.Group {
   return g;
 }
 
+/** Isotope seam: a ring of tall violet-cyan crystals round a glowing crack in the rock. */
+export function buildSeam(seed: number): THREE.Group {
+  const g = new THREE.Group();
+  const crystal = new THREE.MeshStandardMaterial({ color: '#8f7bff', roughness: 0.2, metalness: 0.3, emissive: '#5a3cff', emissiveIntensity: 1.1, flatShading: true });
+  const pale = new THREE.MeshStandardMaterial({ color: '#bff6ff', roughness: 0.15, metalness: 0.2, emissive: '#3fd8ff', emissiveIntensity: 0.9, flatShading: true });
+  const rock = new THREE.MeshStandardMaterial({ color: '#2e2a34', roughness: 0.95, flatShading: true });
+  let r = seed * 7121 + 19;
+  const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  const base = new THREE.Mesh(new THREE.CircleGeometry(4.2, 9), rock);
+  base.rotation.x = -Math.PI / 2;
+  base.position.y = 0.06;
+  const crack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 5), glow('#7a5cff', 2.6));
+  crack.position.y = 0.1;
+  crack.rotation.y = rnd() * 3;
+  g.add(base, crack);
+  for (let i = 0; i < 11; i++) {
+    const a = rnd() * Math.PI * 2, d = 0.6 + rnd() * 3.0, h = 1.4 + rnd() * 3.8;
+    const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.5 + rnd() * 0.35, 0), i % 3 ? crystal : pale);
+    c.scale.set(1, h, 1);
+    c.position.set(Math.cos(a) * d, h * 0.45, Math.sin(a) * d);
+    c.rotation.set((rnd() - 0.5) * 0.7, rnd() * 3, (rnd() - 0.5) * 0.7);
+    g.add(c);
+  }
+  return g;
+}
+
 /** Wreck (built-in stand-in until the asset loads): a broken hull section half sunk in the ground. */
 export function buildWreck(): THREE.Group {
   const g = new THREE.Group();
@@ -801,6 +827,7 @@ export class RegionView {
   private partM = new THREE.Matrix4();
   private deposits: THREE.Group[] = [];
   private wrecks: THREE.Group[] = [];
+  private seams: THREE.Group[] = [];
   private wreckModel: THREE.Object3D | null = null;
   private vents: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
@@ -925,6 +952,7 @@ export class RegionView {
     addFog(this.faunaMesh.material as THREE.Material);
     this.flora?.group.traverse((o) => { if (o instanceof THREE.Mesh) addFog(o.material as THREE.Material); });
     for (const g of this.deposits) this.fogObj(g);
+    for (const g of this.seams) this.fogObj(g);
     for (const g of this.vents) this.fogObj(g);
   }
 
@@ -1090,6 +1118,7 @@ export class RegionView {
     this.syncBuildings(cur, t, ui, camera);
     this.syncDeposits(cur);
     this.syncWrecks(cur);
+    this.syncSeams(cur);
     this.animateVents(cur.buildings);
 
     // grazers
@@ -1362,6 +1391,25 @@ export class RegionView {
     const x = lerp(b.x, dep!.x, k), z = lerp(b.z, dep!.z, k);
     const toward = cyc < 0.5;
     orient(h, x, z, Math.atan2((dep!.x - b.x) * (toward ? 1 : -1), (dep!.z - b.z) * (toward ? 1 : -1)), 4 + Math.sin(k * Math.PI) * 2);
+  }
+
+  /** Isotope seams: crystals that shrink as they're mined (a mine sits on top). */
+  private syncSeams(cur: Snapshot) {
+    (cur.seams ?? []).forEach((v, i) => {
+      let g = this.seams[i];
+      if (!g) {
+        g = buildSeam(i + 1);
+        if (this.fog) this.fogObj(g);
+        orient(g, v.x, v.z, i * 1.3, 0);
+        this.flora?.clear(v.x, v.z, 6);
+        this.details.add(g);
+        this.seams[i] = g;
+      }
+      const f = v.max > 0 ? v.isotopes / v.max : 0;
+      g.visible = f > 0;
+      const k = 0.4 + 0.6 * Math.sqrt(f);
+      g.scale.set(k, k, k);
+    });
   }
 
   /** The wrecks' model (an asset), replacing the built-in stand-in. */

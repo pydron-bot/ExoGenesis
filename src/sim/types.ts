@@ -23,6 +23,8 @@ export interface Building {
   id: number;
   /** Wardens' cooldown (Autonomist-led colonies: the people inside fight back). */
   mcd?: number;
+  /** Reactor out of fuel (warned once until it has some again). */
+  starved?: boolean;
   kind: string;
   x: number;
   z: number;
@@ -205,6 +207,12 @@ export interface MissionSnap { id: string; marks: boolean[] }
 
 export interface Deposit { x: number; z: number; alloys: number; max: number }
 
+/** An isotope seam (region `seams`): what's left to mine. */
+export interface Seam { x: number; z: number; isotopes: number; max: number }
+
+/** Research done, and the one under way at the Tech Lab. */
+export interface ResearchState { done: string[]; active: { id: string; progress: number } | null }
+
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
 
 export interface SimState {
@@ -233,6 +241,12 @@ export interface SimState {
   nests?: NestState[];
   /** Wrecks to salvage (absent in older saves: set up from the region on load). */
   wrecks?: Wreck[];
+  /** Exotic isotopes in store (absent in older saves). */
+  isotopes?: number;
+  /** Isotope seams (absent in older saves: set up from the region on load). */
+  seams?: Seam[];
+  /** Research (absent in older saves). */
+  research?: ResearchState;
   /** Fog of war: cells ever seen, one '0'/'1' per cell (absent in older saves). */
   explored?: string;
   packs: Pack[];
@@ -254,7 +268,7 @@ export interface SimState {
   people?: PeopleState;
   /** Set when the game is lost. */
   over: null | 'core' | 'cryo' | 'people';
-  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number };
+  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number };
 }
 
 export type LandingStage = 'burn' | 'touchdown' | 'deploy';
@@ -270,6 +284,8 @@ export type Command =
   | { type: 'fab' }
   /** Factory: queue a unit, or drop the last queued one. */
   | { type: 'produce'; id: number; unit: string }
+  | { type: 'research'; id: string }
+  | { type: 'unresearch' }
   | { type: 'unqueue'; id: number }
   /** Combat units: move (spread out around the point), or stop and guard where they stand. */
   | { type: 'order'; ids: number[]; x: number; z: number }
@@ -289,7 +305,7 @@ export type Command =
  * finished buildings round the Core, add colonists, alloys and story flags,
  * optionally hold off the predators. Applied once, as the colony deploys.
  */
-export interface PlaySetup { sol?: number; alloys?: number; colonists?: number; buildings?: string[]; flags?: string[]; peaceful?: boolean }
+export interface PlaySetup { sol?: number; alloys?: number; isotopes?: number; colonists?: number; buildings?: string[]; flags?: string[]; research?: string[]; peaceful?: boolean }
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
@@ -334,6 +350,9 @@ export interface Snapshot {
   deposits: Deposit[];
   /** Wrecks (all of them; the renderer hides unexplored ones under the fog). */
   wrecks: Wreck[];
+  seams: Seam[];
+  isotopes: number;
+  research: ResearchState;
   /** Nests standing / regrowing, by spawn. */
   nests: { x: number; z: number; alive: boolean }[];
   /** Hostiles in the skirmish renderer's layout (see skirmish/types STRIDE / F). Only ones in sight. */

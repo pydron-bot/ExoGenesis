@@ -1,0 +1,21 @@
+{
+  "name": "Deep-Core Mine",
+  "description": "A drill rig that sits on an isotope seam and brings up exotic isotopes. Loud: predator packs go for it first.",
+  "role": "deepmine",
+  "research": "deep-survey",
+  "buildable": true,
+  "cost": 140,
+  "hp": 550,
+  "powerMW": -4,
+  "buildSeconds": 24,
+  "clearance": 8,
+  "range": 6,
+  "mineRate": 0.15,
+  "lure": 30,
+  "staff": 1,
+  "specialty": "engineer",
+  "lightColor": "#a58cff",
+  "lightRadius": 12,
+  "lightIntensity": 1,
+  "model": "exo-deepmine"
+}

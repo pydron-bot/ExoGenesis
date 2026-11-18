@@ -12,6 +12,8 @@ export interface PlaceWorld {
   deposits: { x: number; z: number; alloys: number }[];
   /** Geothermal vents (from the region map). */
   vents?: { x: number; z: number }[];
+  /** Isotope seams still holding isotopes. */
+  seams?: { x: number; z: number; isotopes: number }[];
   /** Inhabitant camps still lived in: nothing may be built on the camp itself (r = its radius). */
   campSites?: { x: number; z: number; r: number; name: string }[];
 }
@@ -20,6 +22,8 @@ export interface PlaceWorld {
 export const isBarrier = (role: string | undefined) => role === 'wall' || role === 'gate';
 
 export const DEPOSIT_RADIUS = 6;
+/** Nothing but a Deep-Core Mine may stand this close to a seam's centre (plus its body). */
+export const SEAM_RADIUS = 4;
 export const EDGE = REGION_HALF - 10;
 
 /** Why `kind` can't go at (x, z), or null if it can. */
@@ -50,6 +54,9 @@ export function placeProblem(
   for (const dep of w.deposits) {
     if (dep.alloys > 0 && Math.hypot(dep.x - x, dep.z - z) < DEPOSIT_RADIUS + r) return 'on top of a deposit';
   }
+  if (d.role !== 'deepmine') for (const sm of w.seams ?? []) {
+    if (sm.isotopes > 0 && Math.hypot(sm.x - x, sm.z - z) < SEAM_RADIUS + r) return 'on top of an isotope seam';
+  }
   // must be near the core or a finished building
   let near = false;
   for (const b of w.buildings) {
@@ -62,6 +69,7 @@ export function placeProblem(
   if (!near) return 'outside the build area: build closer to the Core or a finished building';
   if (d.role === 'depot' && depositFor(w, d, x, z) < 0) return `no alloy deposit within ${d.range} u`;
   if (d.role === 'geothermal' && ventFor(w, defs, d, x, z) < 0) return 'must sit on a free geothermal vent';
+  if (d.role === 'deepmine' && seamFor(w, defs, d, x, z) < 0) return 'must sit on a free isotope seam';
   return null;
 }
 
@@ -73,6 +81,19 @@ export function ventFor(w: PlaceWorld, defs: Record<string, BuildingDef>, d: Bui
     const dist = Math.hypot(v.x - x, v.z - z);
     if (dist > reach || dist >= bd) return;
     const taken = w.buildings.some((b) => defs[b.kind]?.role === 'geothermal' && Math.hypot(b.x - v.x, b.z - v.z) <= (defs[b.kind].range ?? 5) && (b.x !== x || b.z !== z));
+    if (!taken) { bd = dist; best = i; }
+  });
+  return best;
+}
+
+/** An unmined isotope seam within a deep-core mine's range of (x, z), or -1. */
+export function seamFor(w: PlaceWorld, defs: Record<string, BuildingDef>, d: BuildingDef, x: number, z: number): number {
+  const reach = d.range ?? 6;
+  let best = -1, bd = Infinity;
+  (w.seams ?? []).forEach((v, i) => {
+    const dist = Math.hypot(v.x - x, v.z - z);
+    if (v.isotopes <= 0 || dist > reach || dist >= bd) return;
+    const taken = w.buildings.some((b) => defs[b.kind]?.role === 'deepmine' && Math.hypot(b.x - v.x, b.z - v.z) <= (defs[b.kind].range ?? 6) && (b.x !== x || b.z !== z));
     if (!taken) { bd = dist; best = i; }
   });
   return best;

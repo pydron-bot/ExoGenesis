@@ -2,12 +2,13 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
+import { ASSET_EXT, COLLECTIONS, locate, type AssetDef, type BuildingDef, type CharacterDef, type InterfaceDef, type CinematicDef, BEATS, type CollectionName, type ColonyRules, type InhabitantDef, type PeopleRules, type RegionDef, type ResearchDef, type MissionDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
   units: Record<string, UnitDef>;
   buildings: Record<string, BuildingDef>;
+  research: Record<string, ResearchDef>;
   regions: Record<string, RegionDef>;
   assets: Record<string, AssetDef>;
   inhabitants: Record<string, InhabitantDef>;
@@ -54,6 +55,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
   const db0 = {
     units: recs.units,
     buildings: recs.buildings,
+    research: recs.research,
     regions: recs.regions,
     assets: recs.assets,
     inhabitants: recs.inhabitants,
@@ -117,7 +119,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if (a && a.kind !== 'audio') out.push({ path: COLLECTIONS.sound.path, field: k, msg: `"${id}" is ${a.kind === 'image' ? 'an image' : 'a model'}, not audio` });
   }
   // each role's game logic needs its numbers
-  const NEEDS: Record<string, string[]> = { civic: ['housing'], farm: ['biomassRate'], core: ['range'], depot: ['range', 'mineRate'], battery: ['storage'], turret: ['fireRange', 'damage', 'cooldown'] };
+  const NEEDS: Record<string, string[]> = { civic: ['housing'], farm: ['biomassRate'], core: ['range'], depot: ['range', 'mineRate'], deepmine: ['range', 'mineRate'], reactor: ['fuelRate'], battery: ['storage'], turret: ['fireRange', 'damage', 'cooldown'] };
   for (const [id, b] of Object.entries(db.buildings)) {
     if (!b || typeof b !== 'object') continue;
     for (const f of NEEDS[b.role] ?? []) {

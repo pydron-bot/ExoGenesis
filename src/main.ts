@@ -455,7 +455,7 @@ const canPlace = (kind: string, x: number, z: number) => {
   return placeProblem(placeWorld(c), content.buildings, content.colony, kind, x, z);
 };
 /** What placement rules see: the colony plus the region's static features (vents). */
-const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits']; camps?: Snapshot['camps'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: regionDef.vents ?? [], campSites: campSites(c.camps ?? []) });
+const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits']; seams?: Snapshot['seams']; camps?: Snapshot['camps'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: regionDef.vents ?? [], seams: c.seams ?? [], campSites: campSites(c.camps ?? []) });
 const snapGate = (kind: string, x: number, z: number) => {
   const c = sim.cur;
   return c && content.buildings[kind]?.role === 'gate' ? gateSnap(c, content.buildings, x, z) : null;
@@ -488,7 +488,7 @@ function restartGame() {
   document.body.classList.remove('more');
 }
 const hud = new ColonyHud({
-  defs: content.buildings, units: content.units, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
+  defs: content.buildings, units: content.units, research: content.research, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
   command: (c) => sim.command(c),
   setBuild,
   restart: () => restartGame(),

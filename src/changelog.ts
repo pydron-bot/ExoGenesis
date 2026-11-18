@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.27.0',
+    date: '2026-11-18',
+    title: 'Research and isotopes',
+    notes: [
+      'Tech Lab: select it to research, one project at a time. Technicians working there speed it up',
+      'Exotic isotopes (◇): research Deep Survey, then put a Deep-Core Mine on one of the glowing violet seams. Touchdown has two, out past the build area, so a Relay Tower helps. The drill is loud: packs go for it first',
+      'Fusion Cell (research Isotope Cells): 16 MW day and night, as long as it has isotopes to burn',
+      'Building the Tech Lab sets off a new story beat',
+    ],
+  },
+  {
     version: '0.26.0',
     date: '2026-11-18',
     title: 'Nests and wrecks',

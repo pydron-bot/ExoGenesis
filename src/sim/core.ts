@@ -17,7 +17,7 @@ import { People } from './people';
 import { Story } from './story';
 import { Missions } from './missions';
 import type { Colonist } from './people-types';
-import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, wallsUnderGate, type PlaceWorld } from './rules';
+import { compass, depositFor, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
@@ -190,6 +190,9 @@ export class Sim {
     });
     this.slotsUsed = 0;
     s.wrecks = this.regionWrecks();
+    s.isotopes = 0;
+    s.seams = this.regionSeams();
+    s.research = { done: [], active: null };
     this.initNests();
     this.exp.fill(0);
     this.stepFog(true);
@@ -211,6 +214,11 @@ export class Sim {
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
     state.wrecks ??= this.regionWrecks();
+    state.isotopes ??= 0;
+    state.seams ??= this.regionSeams();
+    state.research ??= { done: [], active: null };
+    // research that no longer exists in content is dropped (its cost is lost)
+    if (state.research.active && !content.research[state.research.active.id]) state.research.active = null;
     if (!state.nests) this.initNests();
     else state.nests = state.nests.filter((n) => n.spawn < this.spawns().length);
     this.exp.fill(0);
@@ -222,6 +230,15 @@ export class Sim {
   /** The region's predator spawns (a corner if it has none). */
   private spawns(): { x: number; z: number; nest?: boolean }[] {
     return REGION.spawns?.length ? REGION.spawns : [{ x: LIMIT - 10, z: LIMIT - 10 }];
+  }
+
+  private regionSeams() {
+    return (REGION.seams ?? []).map((v) => ({ x: v.x, z: v.z, isotopes: v.isotopes, max: v.isotopes }));
+  }
+
+  /** Has this research been done? (Records without a research gate are always available.) */
+  researched(id?: string) {
+    return !id || !content.research[id] || !!this.s.research?.done.includes(id);
   }
 
   private regionWrecks() {
@@ -313,7 +330,7 @@ export class Sim {
   get deployed() { return this.s.phase === 'deployed'; }
   get units(): Unit[] { return (this.s.units ??= []); }
   /** What placement rules see. */
-  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS, campSites: campSites(this.s.camps ?? []) }; }
+  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS, seams: this.s.seams, campSites: campSites(this.s.camps ?? []) }; }
   private entity(id: number): Building | Drone | Unit | Colonist | undefined {
     return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id) ?? this.people.colonist(id);
   }
@@ -328,6 +345,7 @@ export class Sim {
       this.stepDrones();
       this.stepFab();
       this.stepFactories();
+      this.stepResearch();
       this.stepMining();
       this.stepTurrets();
       this.stepRepairPads();
@@ -366,6 +384,14 @@ export class Sim {
       b.powered = false;
       if (b.progress < 1 || !b.on) continue;
       if (d.role === 'battery') { cap += d.storage ?? 0; b.powered = true; }
+      if (d.role === 'reactor') {
+        // steady power while it has fuel: no isotopes, no power
+        const need = (d.fuelRate ?? 0) * DT;
+        if ((s.isotopes ?? 0) >= need) { s.isotopes = (s.isotopes ?? 0) - need; gen += d.powerMW * this.people.mult(b); b.powered = true; }
+        else if (!b.starved) { b.starved = true; this.emit(`${d.name} is out of isotopes: no power from it`, 'warn', 'warning'); }
+        if ((s.isotopes ?? 0) >= need * 20) b.starved = false;
+        continue;
+      }
       if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
@@ -619,11 +645,44 @@ export class Sim {
     }
   }
 
+  /** The research under way moves on at the best powered Tech Lab (staff speed it up). */
+  private stepResearch() {
+    const s = this.s, a = s.research?.active;
+    if (!a) return;
+    const r = content.research[a.id];
+    if (!r) { s.research!.active = null; return; }
+    let rate = 0;
+    for (const b of s.buildings) if (b.progress >= 1 && b.powered && def(b)?.role === 'lab') rate = Math.max(rate, this.people.mult(b));
+    for (const b of s.buildings) if (def(b)?.role === 'lab') b.engaged = rate > 0;
+    if (!rate) return;
+    a.progress = Math.min(1, a.progress + (DT * rate) / Math.max(1, r.seconds));
+    if (a.progress < 1) return;
+    s.research!.done.push(a.id);
+    s.research!.active = null;
+    s.stats.researched = (s.stats.researched ?? 0) + 1;
+    const unlocks = [...Object.values(DEFS), ...Object.values(content.units)].filter((x) => x.research === a.id).map((x) => x.name);
+    this.emit(`Research complete: ${r.name}${unlocks.length ? ` · unlocks ${unlocks.join(', ')}` : ''}`, 'info', 'online');
+    const flag = `research-${a.id}`;
+    if (this.story.s && !this.story.has(flag)) this.story.s.flags.push(flag);
+  }
+
   // ---------- mining ----------
   private stepMining() {
     const s = this.s;
     for (const b of s.buildings) {
       const d = def(b);
+      if (d.role === 'deepmine' && b.progress >= 1) {
+        const seams = s.seams ?? [];
+        if (b.mining === undefined || b.mining < 0 || !seams[b.mining] || seams[b.mining].isotopes <= 0) b.mining = seamFor(this.world, DEFS, d, b.x, b.z);
+        if (!b.powered || b.mining < 0) continue;
+        const sm = seams[b.mining];
+        const take = Math.min(sm.isotopes, (d.mineRate ?? 0) * this.people.mult(b) * DT);
+        sm.isotopes -= take;
+        s.isotopes = (s.isotopes ?? 0) + take;
+        s.stats.isotopesMined = (s.stats.isotopesMined ?? 0) + take;
+        if (sm.isotopes <= 0) this.emit(`Isotope seam ${compass(sm.x, sm.z)} of the Core is exhausted`, 'warn');
+        continue;
+      }
       if (d.role !== 'depot' || b.progress < 1) continue;
       if (b.mining === undefined || b.mining < 0 || !s.deposits[b.mining] || s.deposits[b.mining].alloys <= 0) b.mining = depositFor(s, d, b.x, b.z);
       if (!b.powered || b.mining < 0) continue;
@@ -981,7 +1040,7 @@ export class Sim {
     }
     for (const b of s.buildings) {
       if (h.under && barrier(b)) continue;
-      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0);
+      const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0) - (def(b).lure ?? 0);
       if (dist < bd) { bd = dist; best = b.id; }
     }
     return best;
@@ -1128,6 +1187,9 @@ export class Sim {
       }
     }
     if (p.alloys) { s.alloys += p.alloys; done.push(`${p.alloys} alloys`); }
+    if (p.isotopes) { s.isotopes = (s.isotopes ?? 0) + p.isotopes; done.push(`${p.isotopes} isotopes`); }
+    for (const id of p.research ?? []) if (content.research[id] && !s.research!.done.includes(id)) s.research!.done.push(id);
+    if (p.research?.length) done.push(`research ${p.research.join(', ')}`);
     let built = 0;
     (p.buildings ?? []).forEach((kind, n) => {
       const dd = DEFS[kind];
@@ -1139,6 +1201,9 @@ export class Sim {
         if (d) { tx = d.x * 0.8; tz = d.z * 0.8; }
       } else if (dd.role === 'geothermal') {
         const v = VENTS.find((x) => !s.buildings.some((b) => Math.hypot(b.x - x.x, b.z - x.z) < 6));
+        if (v) { tx = v.x; tz = v.z; }
+      } else if (dd.role === 'deepmine') {
+        const v = (s.seams ?? []).find((x) => x.isotopes > 0 && !s.buildings.some((b) => Math.hypot(b.x - x.x, b.z - x.z) < 6));
         if (v) { tx = v.x; tz = v.z; }
       }
       for (let r = 0; r < 80; r += 2) {
@@ -1311,7 +1376,9 @@ export class Sim {
       case 'build': {
         const dd = DEFS[c.kind];
         if (!dd || !dd.buildable) return;
+        if (!this.researched(dd.research)) { this.emit(`${dd.name} needs research: ${content.research[dd.research!]?.name}`, 'warn', 'deny'); return; }
         if (s.alloys < dd.cost) { this.emit(`Not enough alloys for a ${dd.name} (${dd.cost} needed)`, 'warn', 'deny'); return; }
+        if ((s.isotopes ?? 0) < (dd.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${dd.name} (${dd.isotopes} needed)`, 'warn', 'deny'); return; }
         let { x, z } = c, yaw = c.yaw ?? 0;
         // a gate dropped by a wall snaps onto its line
         const sn = dd.role === 'gate' ? gateSnap(this.world, DEFS, x, z) : null;
@@ -1319,6 +1386,7 @@ export class Sim {
         const why = placeProblem(this.world, DEFS, RULES, c.kind, x, z);
         if (why) { this.emit(`Can't build there: ${why}`, 'warn', 'deny'); return; }
         s.alloys -= dd.cost;
+        s.isotopes = (s.isotopes ?? 0) - (dd.isotopes ?? 0);
         let swapped = 0;
         if (dd.role === 'gate') {
           for (const w of wallsUnderGate(s.buildings, DEFS, dd, x, z, yaw)) {
@@ -1430,8 +1498,11 @@ export class Sim {
         if (!b || def(b).role !== 'factory' || b.progress < 1 || !ud || ud.faction !== 'accord' || ud.cost === undefined) return;
         const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
         if (this.units.length + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }
+        if (!this.researched(ud.research)) { this.emit(`${ud.name} needs research: ${content.research[ud.research!]?.name}`, 'warn', 'deny'); return; }
         if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn', 'deny'); return; }
+        if ((s.isotopes ?? 0) < (ud.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${ud.name} (${ud.isotopes} needed)`, 'warn', 'deny'); return; }
         s.alloys -= ud.cost;
+        s.isotopes = (s.isotopes ?? 0) - (ud.isotopes ?? 0);
         (b.queue ??= []).push(c.unit);
         if (b.queue.length === 1) b.prod = 0;
         return;
@@ -1441,6 +1512,7 @@ export class Sim {
         if (!b?.queue?.length) return;
         const k = b.queue.pop()!;
         s.alloys += content.units[k]?.cost ?? 0;
+        s.isotopes = (s.isotopes ?? 0) + (content.units[k]?.isotopes ?? 0);
         if (!b.queue.length) b.prod = 0;
         return;
       }
@@ -1459,6 +1531,28 @@ export class Sim {
       }
       case 'stop': {
         for (const u of this.units) if (c.ids.includes(u.id)) { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; }
+        return;
+      }
+      case 'research': {
+        const r = content.research[c.id], R = (s.research ??= { done: [], active: null });
+        if (!r || R.done.includes(c.id)) return;
+        if (R.active) { this.emit(`The Tech Lab is busy with ${content.research[R.active.id]?.name ?? 'other research'}`, 'warn', 'deny'); return; }
+        if (!s.buildings.some((b) => b.progress >= 1 && def(b)?.role === 'lab')) { this.emit('Research needs a finished Tech Lab', 'warn', 'deny'); return; }
+        if (!this.researched(r.requires)) { this.emit(`${r.name} needs ${content.research[r.requires!]?.name} first`, 'warn', 'deny'); return; }
+        if (s.alloys < r.cost) { this.emit(`Not enough alloys for ${r.name} (${r.cost} needed)`, 'warn', 'deny'); return; }
+        if ((s.isotopes ?? 0) < (r.isotopes ?? 0)) { this.emit(`Not enough isotopes for ${r.name} (${r.isotopes} needed)`, 'warn', 'deny'); return; }
+        s.alloys -= r.cost;
+        s.isotopes = (s.isotopes ?? 0) - (r.isotopes ?? 0);
+        R.active = { id: c.id, progress: 0 };
+        this.emit(`Research started: ${r.name}`, 'info', 'placed');
+        return;
+      }
+      case 'unresearch': {
+        const R = s.research, a = R?.active, r = a && content.research[a.id];
+        if (!R || !a) return;
+        if (r) { s.alloys += r.cost; s.isotopes = (s.isotopes ?? 0) + (r.isotopes ?? 0); }
+        R.active = null;
+        this.emit(`Research cancelled${r ? `: ${r.name} (refunded)` : ''}`, 'info');
         return;
       }
       case 'fab': {
@@ -1547,6 +1641,8 @@ export class Sim {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
       drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
       wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),
+      seams: (s.seams ?? []).map((v) => ({ ...v })), isotopes: s.isotopes ?? 0,
+      research: { done: [...(s.research?.done ?? [])], active: s.research?.active ? { ...s.research.active } : null },
       nests: (s.nests ?? []).map((n) => ({ x: this.spawns()[n.spawn]?.x ?? 0, z: this.spawns()[n.spawn]?.z ?? 0, alive: n.id >= 0 })),
       army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units, camps: inh.camps, natives: inh.natives, story: this.story.snapshot(), missions: this.missions.snapshot(),
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
