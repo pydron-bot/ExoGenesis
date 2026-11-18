@@ -453,6 +453,8 @@ for (const [kind, d] of Object.entries(content.buildings)) {
     (e) => console.warn(`${kind} model failed to load; keeping the built-in`, e),
   );
 }
+// wrecks (region map objects) use the exo-wreck asset when there is one
+if (!builtinModels && content.assets['exo-wreck']) loadModel(content.assets['exo-wreck']).then((m) => region.setWreckModel(m), (e) => console.warn('wreck model failed to load', e));
 
 const canPlace = (kind: string, x: number, z: number) => {
   const c = sim.cur;
@@ -767,6 +769,7 @@ function showTitle() {
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
   ];
   title = new TitleScreen(cam, camera, {
+    system,
     choices,
     foot: `<button class="t-ver" title="What's new">v${VERSION}${hasUnseen() ? '<span class="badge">NEW</span>' : ''}</button> · M1 · <a href="https://deeek.org/">deeek.org</a>`,
     tap: () => audio.play('tap'),

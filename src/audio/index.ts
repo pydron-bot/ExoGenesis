@@ -17,7 +17,7 @@ import { RECIPES, STEADY } from './synth';
 /** Shortest gap between two plays of the same sound (s). Fights fire hundreds of shots a minute. */
 const MIN_GAP: Record<SoundId, number> = {
   turretShot: 0.11, roverShot: 0.09, tankShot: 0.22, bite: 0.14, deathSmall: 0.08, deathBig: 0.25,
-  shell: 0.3, arc: 0.12, pdShot: 0.07, spit: 0.2, emerge: 0.6, repair: 0.35,
+  shell: 0.3, arc: 0.12, pdShot: 0.07, rail: 0.25, spit: 0.2, emerge: 0.6, repair: 0.35,
   placed: 0.08, online: 0.4, unitReady: 0.4, droneReady: 0.4, packCleared: 1.5, lost: 0.8,
   warning: 2, alarm: 3, tap: 0.04, deny: 0.3, wind: 0,
 };
@@ -34,7 +34,7 @@ const PREF_KEY = 'exo.sound';
 /** World FX kinds (skirmish/types FX) → sound. */
 const FX_SOUND: Record<number, SoundId | undefined> = {
   0: 'roverShot', 1: 'tankShot', 2: 'bite', 3: 'deathSmall', 4: 'deathBig', 6: 'turretShot',
-  7: 'shell', 8: 'arc', 9: 'spit', 10: 'emerge', 11: 'repair', 12: 'pdShot',
+  7: 'shell', 8: 'arc', 9: 'spit', 10: 'emerge', 11: 'repair', 12: 'pdShot', 13: 'rail',
 };
 
 export type Spatial = (x: number, z: number) => { gain: number; pan: number } | null;

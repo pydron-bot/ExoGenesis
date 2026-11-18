@@ -4,6 +4,7 @@
  * it. Distances are compressed for play, not to physical scale.
  */
 import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm3, smoothstep } from './noise';
 import type { BodyDef } from '../content/defs';
 import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
@@ -57,9 +58,15 @@ function markerSprite(color: string): THREE.Sprite {
   return s;
 }
 
-/** A rocky body from its terrain: the same height and colours as landing on it. */
+/** A rocky body from its terrain: the same height and colours as landing on it, smooth-shaded. */
 function rockyBody(w: BodyTerrain, detail: number): THREE.Mesh {
-  const geo = new THREE.IcosahedronGeometry(1, detail);
+  // big enough for the title tour's close-ups: a finer mesh so the silhouette stays round
+  if (w.radius >= 600) detail = Math.max(detail, 18);
+  // shared vertices, so the normals average across faces (smooth shading)
+  const ico = new THREE.IcosahedronGeometry(1, detail);
+  ico.deleteAttribute('normal');
+  ico.deleteAttribute('uv');
+  const geo = mergeVertices(ico, 1e-6);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const col = new Float32Array(pos.count * 3);
   const d = new THREE.Vector3();
@@ -75,7 +82,7 @@ function rockyBody(w: BodyTerrain, detail: number): THREE.Mesh {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
+  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
 }
 
 function giant(radius: number, palette: string[], sd: number, ring?: RingLook): THREE.Group {
@@ -176,6 +183,11 @@ export class SolarSystem {
   private stars: THREE.Points;
   /** The body being played: at the origin, drawn by the globe (not here). */
   private here: Body;
+  /**
+   * 0..1: the title screen's camera is away visiting another body. Lights the scene from
+   * the real star, keeps the stars bright and hides the map markers and orbit lines.
+   */
+  tour = 0;
 
   /**
    * `defs`: content.bodies; `hereId`: the body the region being played is on.
@@ -318,7 +330,14 @@ export class SolarSystem {
    * the xz-plane. Near the surface the sun and light follow it (so day/night
    * matches the sim's clock); in the system view the star sits at its orbit.
    */
+  /** Bodies worth a close look (the title screen's tour): planets and the bigger moons. */
+  tourStops(): { name: string; sub: string; radius: number; pos: THREE.Vector3 }[] {
+    return this.bodies.filter((b) => b !== this.here && b.kind !== 'comet' && b.radius >= 600);
+  }
+
   update(t: number, camera: THREE.PerspectiveCamera, sys: number, surface: number, width: number, height: number, sunAngle?: number) {
+    const away = this.tour;
+    surface *= 1 - away;
     // positions round the star (parents first: `bodies` is in that order), then shift so this body is the origin
     const zero = new THREE.Vector3();
     for (const b of this.bodies) this.orbitPos(b, t, b.parent ? b.parent.abs : zero, b.abs);
@@ -326,7 +345,7 @@ export class SolarSystem {
     this.starPos.copy(off).negate();
     const sunDist = Math.max(1000, this.starPos.length());
     if (sunAngle === undefined) this.sunPos.copy(this.starPos);
-    else this.sunPos.set(Math.cos(sunAngle) * sunDist, 0, Math.sin(sunAngle) * sunDist).lerp(this.starPos, smoothstep(0.05, 0.5, sys));
+    else this.sunPos.set(Math.cos(sunAngle) * sunDist, 0, Math.sin(sunAngle) * sunDist).lerp(this.starPos, Math.max(away, smoothstep(0.05, 0.5, sys)));
     this.star.position.copy(this.sunPos);
     this.light.position.copy(this.sunPos);
     this.belts[0].rotation.y = t * 0.0004;
@@ -353,6 +372,7 @@ export class SolarSystem {
       } else {
         k = smoothstep(0.1, 0.5, sys);
       }
+      k *= 1 - away;
       const m = b.marker!;
       m.visible = k > 0.01;
       m.position.copy(b.pos);
@@ -371,12 +391,12 @@ export class SolarSystem {
     }
 
     for (const r of this.rings) {
-      (r.line.material as THREE.LineBasicMaterial).opacity = r.op * sys;
-      r.line.visible = sys > 0.01;
+      (r.line.material as THREE.LineBasicMaterial).opacity = r.op * sys * (1 - away);
+      r.line.visible = sys * (1 - away) > 0.01;
       r.line.position.copy(shift);
     }
     for (const b of this.belts) b.position.copy(shift);
-    const hk = smoothstep(0.1, 0.5, sys);
+    const hk = smoothstep(0.1, 0.5, sys) * (1 - away);
     this.homeMarker.visible = hk > 0.01;
     this.homeMarker.scale.setScalar(Math.max(hereR * 2.6, camera.position.length() * 0.028));
     (this.homeMarker.material as THREE.SpriteMaterial).opacity = hk * 0.9;

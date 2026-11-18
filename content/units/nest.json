@@ -1,0 +1,17 @@
+{
+  "name": "Nest",
+  "faction": "fauna",
+  "description": "A mound of chewed rock and resin where the packs breed. Packs only come from spawns whose nest stands: destroy it and that side goes quiet until it regrows. It lets out swarmers when hurt.",
+  "hp": 1600,
+  "speed": 0,
+  "range": 0,
+  "damage": 0,
+  "cooldown": 1,
+  "radius": 4.2,
+  "aggro": 0,
+  "sight": 0,
+  "nest": true,
+  "guards": 4,
+  "model": "exo-nest",
+  "modelScale": 1.3
+}

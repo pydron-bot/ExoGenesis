@@ -79,6 +79,13 @@ export const RECIPES: Record<Exclude<SoundId, 'wind'>, Recipe> = {
     hiss(c, o, t, 'lowpass', 1400 * p, 160 * p, 0.28, 0.4, 0.7, 0.002);
     return 0.34;
   },
+  rail(c, o, t, p) {
+    // a capacitor whine snapping into a sharp crack and a low thud
+    tone(c, o, t, 'sawtooth', 2400 * p, 5200 * p, 0.05, 0.12);
+    hiss(c, o, t + 0.04, 'highpass', 5000 * p, 2500 * p, 0.12, 0.35, 0.8, 0.001);
+    tone(c, o, t + 0.04, 'sine', 160 * p, 50 * p, 0.25, 0.45, 0.002);
+    return 0.3;
+  },
   shell(c, o, t, p) {
     // a deep thump and a rolling boom
     tone(c, o, t, 'sine', 95 * p, 30 * p, 0.6, 0.6, 0.002);

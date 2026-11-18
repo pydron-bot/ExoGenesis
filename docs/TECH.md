@@ -9,6 +9,7 @@
 - [3. M1 — one region](#3-m1--one-region)
 - [4. M2 — people](#4-m2--people)
 - [5. Proof of concept and performance](#5-proof-of-concept-and-performance)
+- [6. Roster additions](#6-roster-additions)
 
 ## 1. Content and the editor
 
@@ -277,6 +278,9 @@ How content is stored and edited in general (one JSON record per file, schemas i
   switching runs the sun forward through a ~2.5 s dusk or dawn. Remembered; `?time=day|night` overrides. At night
   the colony lights carry the battle (headlights, gunfire, explosions).
 
+- **Blender set v5 (2026-11-18): roster batch A** (`docs/ROSTER.md`): Lancer (1,372 tris), Sensor Mast (752; head is
+  `dish`), Habitat Block (1,204), Relay Tower (944; beacon bands are `charge`). Same script and conventions.
+
 ## 3. M1 — one region
 
 First playtest build (2026-11-15).
@@ -541,6 +545,14 @@ First results 2026-11-15; later measurements added below them.
   colony exists; plays the landing), SKIRMISH, SOUND, EDITOR, deeek.org link. HUD, labels, province overlay
   and fog are hidden behind it; the remembered camera isn't overwritten by the title's orbit. Skipped by
   `?title=0` (resume or land as before), `?intro=0`, `?new=1`, `?view=…` and skirmish, so tools are unchanged.
+- **Title tour (2026-11-18, v0.24.0):** after 25 s over home the title camera flies to a random planet or
+  big moon (`SolarSystem.tourStops()`: no comets, radius ≥ 600), stays 15–25 s, moves on, and goes home
+  ~30% of the time (25 s there). A trip is a log-space distance arc (out, pan near the top, in) over 5–9 s;
+  the arrival yaw is picked with `ZoomCamera.viewDir` so the sun sits ~57° off the view axis (a lit disc
+  with a terminator). `SolarSystem.tour` (0..1) lights from the real star, keeps the stars bright and hides
+  markers/orbit lines while away. Leaving the title while away snaps back to orbit over home. The wordmark
+  also shrinks to fit its column (`fitMark`, v0.23.1): SF Mono on iPad clipped the last S. Test: set
+  `__exo.title.dwell = 0` to start a trip now.
 - **Planet detail + versions (2026-11-16, v0.9.0):** `src/world/surface.ts`. A 2048×1024 equirect surface
   map (colour + flora, height + baked slopes) from the same `surfaceAt` as the globe geometry, baked in
   `surface-worker.ts` after the first frame (~2 s on hive1, nothing waits on it) and faded in. The globe
@@ -549,3 +561,30 @@ First results 2026-11-15; later measurements added below them.
   ~400 u. `?surface=0` turns it off. Planet view costs ~2× the old globe in SwiftShader (130 vs 65 ms at
   390 px); the ground view is unchanged. Versions: `package.json` + `src/changelog.ts` (What's new on the
   title and ⋯), checked by `tools/version-check.mjs` in `npm run build`.
+
+## 6. Roster additions
+
+From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a-smoke.mjs`.
+
+- **Lancer (v0.25.0):** a unit record only, plus a new weapon look `rail` (`FX.RAIL` = 13: a thin white
+  full-length tracer and an impact flash; its own synthesised sound, `rail` in the sound rules). 100 damage
+  every 2.8 s at 30 u: three hits kill a Brute.
+- **Sensor Mast (v0.25.0):** new building role `sensor`, which does nothing but see (its Sight, 55 u). Power
+  rank with the radar.
+- **Habitat Block (v0.25.0):** a `civic` building with `pods: 0`, housing 6. The card says "housing only".
+- **Relay Tower (v0.25.0):** new role `relay`: once finished, new buildings may go anywhere within its Range
+  (55 u), like the Core's; `placeProblem` and the placement area rings both know it. Region links come later.
+- **Nests (v0.26.0):** a fauna unit with `nest` (content `units/nest.json`: 1,600 hp, speed 0, no attack) grows on
+  every predator spawn whose `nest` isn't off (`SimState.nests`: spawn index, hostile id, regrow tick). Nests
+  are hostiles with `nest` = their spawn: they skip targeting and movement, never get pushed (whoever bumps
+  takes the whole push), have no pack, and draw only in sight like any hostile. `stepWaves` picks a spawn
+  among those with a standing nest (or none set); with none open the pack waits 30 s and tries again. A
+  killed nest regrows after `threats.nestRegrow` (600 s) with a warning; the kill sets story flag
+  `nest-destroyed` and counts `stats.nestsDestroyed`. Hurt (hp dropped since last tick) and off cooldown
+  (12 s), it lets out `guards` swarmers as an announced pack. Built-in far-LOD look `nestGeo`.
+- **Wrecks (v0.26.0):** region list `wrecks` (x, z, facing, salvage alloys; Touchdown has two). They show once
+  sighted (fog), which sets flag `wreck-found` (story card *Familiar Hull*, `story/familiar-hull.json`). A Field
+  Engineer with nothing to mend strips any wreck within reach + 4 u at 4 alloys/s (repair beam, counts
+  `stats.salvaged`); a stripped hull sinks. Model `exo-wreck` for all of them, built-in stand-in until it loads.
+  Minimap: grey marks for found wrecks with salvage left. Blender set v6: nest (900 tris), wreck (860).
+

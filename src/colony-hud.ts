@@ -199,7 +199,7 @@ export class ColonyHud {
     if (key === this.menuKey) return;
     this.menuKey = key;
     this.el.menu.innerHTML = items.map(([k, d]) => {
-      const pw = d.powerMW > 0 ? `+${d.powerMW} MW${d.role === 'solar' ? ' by day' : ''}` : d.powerMW < 0 ? `${d.powerMW} MW` : d.role === 'battery' ? `${d.storage} MJ` : d.role === 'wall' ? `per ${d.clearance} u` : d.role === 'gate' ? 'on a wall' : '';
+      const pw = d.powerMW > 0 ? `+${d.powerMW} MW${d.role === 'solar' ? ' by day' : ''}` : d.powerMW < 0 ? `${d.powerMW} MW` : d.role === 'battery' ? `${d.storage} MJ` : d.role === 'wall' ? `per ${d.clearance} u` : d.role === 'gate' ? 'on a wall' : d.role === 'sensor' ? `sees ${d.sight} u` : d.role === 'civic' && d.housing ? `homes ${d.housing}` : '';
       return `<button data-kind="${k}" class="${alloys < d.cost ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">${d.cost}◆</small> <small>${pw}</small></span></button>`;
     }).join('');
   }
@@ -211,6 +211,8 @@ export class ColonyHud {
     if (d.role === 'depot' && (b.mining === undefined || b.mining < 0)) return ['Idle: no deposit in reach', 'warn'];
     if (d.role === 'repair') return b.engaged ? ['Repairing units', ''] : ['Idle: park damaged units here', ''];
     if (d.role === 'gate') return ['Closed to predators · open to your units', ''];
+    if (d.role === 'sensor') return ['Watching', ''];
+    if (d.role === 'relay') return ['Relaying · build area extended', ''];
     if (d.role === 'factory') {
       if (!b.queue?.length) return ['Idle: queue a unit', ''];
       return [`Producing ${this.d.units[b.queue[0]]?.name ?? b.queue[0]} · ${Math.floor((b.prod ?? 0) * 100)}%`, ''];
@@ -278,6 +280,9 @@ export class ColonyHud {
       }
       if (d.role === 'battery') rows.push(['Bank (all)', `${Math.round(s.stored)} / ${Math.round(s.storageMax)} MJ`]);
       if (d.role === 'radar') rows.push(['Next pack', s.nextPack !== null ? mmss(s.nextPack) : '—']);
+      if (d.role === 'sensor' && d.sight) rows.push(['Sees', `${d.sight} u`]);
+      if (d.role === 'relay' && d.range) rows.push(['Build area', `${d.range} u around it`]);
+      if (d.role === 'civic' && !d.pods && d.housing) rows.push(['Growth pods', 'none: housing only']);
       const pe = this.people.buildingRows(s, b, d);
       rows.push(...pe.rows);
       if (d.role === 'core') {
@@ -376,6 +381,10 @@ export class ColonyHud {
     g.globalAlpha = 1;
     g.fillStyle = '#ffb547';
     for (const d of s.deposits) if (d.alloys > 0) { g.beginPath(); g.arc(px(d.x), pz(d.z), 2.5, 0, 7); g.fill(); }
+    const fill = g.fillStyle;
+    g.fillStyle = '#9aa3ab';
+    for (const w of s.wrecks ?? []) if (w.found && w.alloys > 0) g.fillRect(px(w.x) - 2.5, pz(w.z) - 1.5, 5, 3);
+    g.fillStyle = fill;
     for (const b of s.buildings) {
       const d = this.d.defs[b.kind];
       const r = Math.max(2, (d?.clearance ?? 8) / REGION_HALF * W * 0.3);

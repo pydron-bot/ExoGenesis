@@ -1,0 +1,17 @@
+{
+  "name": "Habitat Block",
+  "description": "Stacked living modules for six more colonists. No growth pods: it only houses people, so the colony can grow past the Civilian Center.",
+  "role": "civic",
+  "buildable": true,
+  "cost": 80,
+  "hp": 450,
+  "powerMW": -1,
+  "buildSeconds": 18,
+  "clearance": 10,
+  "housing": 6,
+  "pods": 0,
+  "lightColor": "#ffc98a",
+  "lightRadius": 12,
+  "lightIntensity": 0.8,
+  "model": "exo-habitat"
+}

@@ -574,6 +574,20 @@ export function buildVent(seed: number): THREE.Group {
   return g;
 }
 
+/** Wreck (built-in stand-in until the asset loads): a broken hull section half sunk in the ground. */
+export function buildWreck(): THREE.Group {
+  const g = new THREE.Group();
+  const hull = metal('#7d8288'), dark = metal('#3a3f45');
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 9, 8, 1, false, 0, Math.PI * 1.4), hull);
+  body.rotation.set(Math.PI / 2, 0, 0.5);
+  body.position.y = 0.8;
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3, 3.5), dark);
+  fin.position.set(1.4, 1.8, 3);
+  fin.rotation.z = 0.6;
+  g.add(body, fin);
+  return g;
+}
+
 /** Alloy deposit: a cluster of metallic crystals. */
 export function buildDeposit(seed: number): THREE.Group {
   const g = new THREE.Group();
@@ -787,6 +801,8 @@ export class RegionView {
   private batches = new Map<string, BuildingBatch>();
   private partM = new THREE.Matrix4();
   private deposits: THREE.Group[] = [];
+  private wrecks: THREE.Group[] = [];
+  private wreckModel: THREE.Object3D | null = null;
   private vents: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
   /** Game-time seconds this frame (see update). */
@@ -1063,17 +1079,18 @@ export class RegionView {
       g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = mat; });
       const d = this.rules.defs[ui.build];
       if (d?.fireRange) this.rangeRing.set(ui.ghost.x, ui.ghost.z, d.fireRange);
-      if (d?.role === 'depot' && d.range) this.reachRing.set(ui.ghost.x, ui.ghost.z, d.range);
+      if ((d?.role === 'depot' || d?.role === 'relay') && d.range) this.reachRing.set(ui.ghost.x, ui.ghost.z, d.range);
     } else if (selB) {
       const d = this.rules.defs[selB.kind];
       if (d?.fireRange) this.rangeRing.set(selB.x, selB.z, d.fireRange);
       if (d?.role === 'depot' && d.range) this.reachRing.set(selB.x, selB.z, d.range);
-      if (d?.role === 'core' && d.range) this.reachRing.set(selB.x, selB.z, d.range);
+      if ((d?.role === 'core' || d?.role === 'relay') && d.range) this.reachRing.set(selB.x, selB.z, d.range);
     }
     this.syncAreaRings(ui.build ? cur.buildings : []);
 
     this.syncBuildings(cur, t, ui, camera);
     this.syncDeposits(cur);
+    this.syncWrecks(cur);
     this.animateVents(cur.buildings);
 
     // grazers
@@ -1162,6 +1179,7 @@ export class RegionView {
       const d = this.rules.defs[b.kind];
       if (!d) continue;
       if (d.role === 'core') want.push([b.x, b.z, d.range ?? this.rules.buildRadius]);
+      else if (d.role === 'relay' && b.progress >= 1) want.push([b.x, b.z, Math.max(d.range ?? 0, this.rules.buildRadius + d.clearance / 2)]);
       else if (b.progress >= 1) want.push([b.x, b.z, this.rules.buildRadius + d.clearance / 2]);
     }
     while (this.areaRings.length < want.length) {
@@ -1345,6 +1363,32 @@ export class RegionView {
     const x = lerp(b.x, dep!.x, k), z = lerp(b.z, dep!.z, k);
     const toward = cyc < 0.5;
     orient(h, x, z, Math.atan2((dep!.x - b.x) * (toward ? 1 : -1), (dep!.z - b.z) * (toward ? 1 : -1)), 4 + Math.sin(k * Math.PI) * 2);
+  }
+
+  /** The wrecks' model (an asset), replacing the built-in stand-in. */
+  setWreckModel(obj: THREE.Object3D | null) {
+    this.wreckModel = obj;
+    for (const g of this.wrecks) this.details.remove(g);
+    this.wrecks = [];
+  }
+
+  /** Wrecks show once sighted; a stripped one sinks lower and darker. */
+  private syncWrecks(cur: Snapshot) {
+    (cur.wrecks ?? []).forEach((w, i) => {
+      let g = this.wrecks[i];
+      if (!g) {
+        g = new THREE.Group();
+        g.add(this.wreckModel ? this.wreckModel.clone(true) : buildWreck());
+        if (this.fog) this.fogObj(g);
+        orient(g, w.x, w.z, w.yaw, 0);
+        this.flora?.clear(w.x, w.z, 7);
+        this.details.add(g);
+        this.wrecks[i] = g;
+      }
+      g.visible = !!w.found;
+      const f = w.max > 0 ? w.alloys / w.max : 0;
+      g.children[0].position.y = -1.2 * (1 - f);
+    });
   }
 
   /** Geothermal vents from the region map (static). */

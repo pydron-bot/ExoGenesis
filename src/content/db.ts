@@ -227,7 +227,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
       const v = r[g];
       if (Array.isArray(v) && v.length !== n) out.push({ path: P, field: g, msg: `has ${v.length} rows; a ${size} u region needs ${n} (resize it in the map editor)` });
     }
-    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites'] as const) {
+    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites', 'wrecks'] as const) {
       (r[k] as { x?: number; z?: number }[] | undefined)?.forEach((m, i) => {
         if (m && (Math.abs(m.x ?? 0) > half || Math.abs(m.z ?? 0) > half)) out.push({ path: P, field: `${k}[${i}]`, msg: `outside the region (it's ${size} u across)` });
       });

@@ -15,7 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.24.0',
+    version: '0.27.0',
     date: '2026-11-18',
     title: 'Other worlds',
     notes: [
@@ -26,6 +26,45 @@ export const CHANGELOG: Release[] = [
       'Editor: the map editor paints the ground\'s colour, generates landforms (hills, ridges, craters, mesas, dunes, basins, plateaus, canyons), auto-paints by height and slope, and resizes a region',
       'Editor: Story → Story board lays out missions, events, cinematics, characters, inhabitants and a new story bible by chapter, with tags, writer\'s notes and filters; drag a card to move it to another chapter',
     ],
+  },
+  {
+    version: '0.26.0',
+    date: '2026-11-18',
+    title: 'Nests and wrecks',
+    notes: [
+      'Every predator spawn now has a Nest. Packs only come from spawns whose nest stands: send an army to destroy one and that side goes quiet for ten minutes before it grows back. Hurt nests let out their guards',
+      'Wrecks: two broken landers lie out on Touchdown. Scouts find them; park a Field Engineer next to one and it strips the hull for alloys. They are built a lot like ours',
+      'Far away, Lancers now look like Lancers instead of Rovers',
+    ],
+  },
+  {
+    version: '0.25.0',
+    date: '2026-11-18',
+    title: 'New arrivals',
+    notes: [
+      'Lancer (Vehicle Bay): a slow rail-lance tank that hits one target very hard from far away. The answer to Brutes; wasted on swarms',
+      'Sensor Mast: a cheap tripod of cameras that clears the fog around it. Put them along mining lines and at gaps in your walls',
+      'Habitat Block: housing for six more colonists, no growth pods, so the colony can grow past the Civilian Center',
+      'Relay Tower: you can build anywhere within its range, so a far deposit or vent no longer needs a chain of buildings',
+    ],
+  },
+  {
+    version: '0.24.1',
+    date: '2026-11-18',
+    title: 'Smoother worlds',
+    notes: ['The other planets and moons are smooth-shaded and rounder up close, so the title tour looks its best'],
+  },
+  {
+    version: '0.24.0',
+    date: '2026-11-18',
+    title: 'Grand tour',
+    notes: ['Leave the title screen open and the camera sets off on a tour of the system: it flies out to the other planets and moons, settles into orbit over each one, and now and then comes home'],
+  },
+  {
+    version: '0.23.1',
+    date: '2026-11-18',
+    title: 'Title fix',
+    notes: ['The EXO GENESIS title no longer cuts off its last letter on iPad: it shrinks to fit the screen'],
   },
   {
     version: '0.23.0',

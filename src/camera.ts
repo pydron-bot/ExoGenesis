@@ -136,6 +136,16 @@ export class ZoomCamera {
     cam.updateProjectionMatrix();
   }
 
+  /** The unit vector from the focus out to the camera for a yaw/pitch/distance (as update() frames it, with freePitch). */
+  viewDir(yaw: number, pitch: number, dist: number, out = new THREE.Vector3()) {
+    const b = smoothstep(25000, 320000, dist);
+    const up = new THREE.Vector3().copy(U).lerp(Y, b).normalize();
+    const ef = new THREE.Vector3().copy(E).addScaledVector(up, -E.dot(up)).normalize();
+    const nf = new THREE.Vector3().crossVectors(up, ef);
+    const fwd = ef.multiplyScalar(Math.sin(yaw)).addScaledVector(nf, Math.cos(yaw));
+    return out.copy(up).multiplyScalar(Math.sin(pitch)).addScaledVector(fwd, -Math.cos(pitch));
+  }
+
   /** Altitude above the home planet's surface, in world units. */
   altitude() {
     return Math.max(0, this.camera.position.length() - R);

@@ -10,7 +10,7 @@ import { REGION_HALF } from '../sim/types';
 import { bool, choice, color, grid, int, list, num, ref, str, type Infer, type NumField, type RefField, type Shape, type StrField } from './schema';
 
 /** Attack looks: tracer + sound. */
-export const WEAPONS = ['bolt', 'cannon', 'shell', 'arc', 'pd', 'bite', 'spit'] as const;
+export const WEAPONS = ['bolt', 'cannon', 'shell', 'arc', 'pd', 'bite', 'spit', 'rail'] as const;
 export type Weapon = (typeof WEAPONS)[number];
 
 export const unitShape = {
@@ -28,6 +28,8 @@ export const unitShape = {
   chainRange: num({ label: 'Chain range', min: 0, max: 40, step: 0.5, unit: 'u', optional: true }),
   weapon: choice(WEAPONS, { label: 'Weapon look', optional: true, help: 'How its attack looks and sounds. Empty = bolt (cannon if it has splash) for vehicles, bite (spit if Attack range > 4) for fauna.' }),
   repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', optional: true, help: 'Accord units: repairs damaged units and buildings within Attack range instead of fighting (costs alloys, like a drone\'s repairs).' }),
+  nest: bool({ label: 'Nest', optional: true, help: 'Fauna: a nest. One grows on every predator spawn (unless the spawn says no); packs only come from spawns whose nest stands. It never moves or attacks, and regrows after the threat rules\' regrow time.' }),
+  guards: int({ label: 'Nest guards', min: 0, max: 30, optional: true, help: 'Nests: swarmers it releases when hurt (at most every 12 s).' }),
   burrows: bool({ label: 'Burrows', optional: true, help: 'Fauna: travels underground to its target, through walls and unseen (radar still shows it), then surfaces to attack.' }),
   packEvery: int({ label: 'Joins packs: every', min: 0, max: 100, optional: true, help: 'Fauna: every Nth attacker in a pack is one of these (0 or empty = only if the threat rules name it).' }),
   packFrom: int({ label: 'Joins packs: from pack', min: 0, max: 200, optional: true, help: 'Fauna: first pack (0 = the first) it can join.' }),
@@ -41,7 +43,7 @@ export const unitShape = {
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -49,7 +51,7 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center). farm: grows biomass (Hydroponics).',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core.',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
@@ -57,7 +59,7 @@ export const buildingShape = {
   powerMW: num({ label: 'Power', min: -100, max: 100, step: 0.1, unit: 'MW', help: 'Positive generates (solar: at noon), negative draws.' }),
   buildSeconds: num({ label: 'Build time', min: 0, max: 600, step: 0.5, unit: 's' }),
   clearance: num({ label: 'Clearance', min: 0, max: 60, step: 0.5, unit: 'u', help: 'Nothing new may be placed closer than this. Half of it is the building\'s body radius.' }),
-  range: num({ label: 'Range', min: 0, max: 400, unit: 'u', optional: true, help: 'core: build radius · depot: how far it reaches for a deposit · repair: how far it reaches to units · geothermal: how close to a vent it must be.' }),
+  range: num({ label: 'Range', min: 0, max: 400, unit: 'u', optional: true, help: 'core, relay: build radius · depot: how far it reaches for a deposit · repair: how far it reaches to units · geothermal: how close to a vent it must be.' }),
   fireRange: num({ label: 'Firing range', min: 0, max: 400, unit: 'u', optional: true, help: 'Any building with a firing range, damage and cooldown shoots hostiles while powered (turrets; the Core\'s point defense).' }),
   damage: num({ label: 'Damage per shot', min: 0, max: 10000, optional: true }),
   cooldown: num({ label: 'Fire cooldown', min: 0.05, max: 30, step: 0.05, unit: 's', optional: true }),
@@ -158,6 +160,7 @@ export const threatRulesShape = {
   maxSize: int({ label: 'Largest pack', min: 0, max: 300 }),
   bruteEvery: int({ label: 'Brute every', min: 0, max: 100, help: 'Every Nth attacker is a Brute (0 = never).' }),
   nightBoost: num({ label: 'Night pack size', min: 0, max: 5, step: 0.05, help: 'Multiplier for packs that arrive at night.' }),
+  nestRegrow: num({ label: 'Nest regrow time', min: 30, max: 36000, unit: 's', optional: true, help: 'How long a destroyed nest takes to grow back (no packs from that spawn meanwhile). Empty = 600 s.' }),
   sightRange: num({ label: 'Sight without radar', min: 0, max: 240, unit: 'u', help: 'Packs show up (and warn) only this close to a building unless a radar is powered.' }),
 } satisfies Shape;
 export type ThreatRules = Infer<typeof threatRulesShape>;
@@ -173,6 +176,7 @@ export const SOUNDS = {
   shell: { label: 'Artillery / cannon shell', cat: 'combat' },
   arc: { label: 'Arc discharge', cat: 'combat' },
   pdShot: { label: 'Point-defense burst', cat: 'combat' },
+  rail: { label: 'Lancer rail shot', cat: 'combat' },
   spit: { label: 'Spitter glob', cat: 'combat' },
   emerge: { label: 'Burrower surfacing', cat: 'combat' },
   repair: { label: 'Repair beam', cat: 'combat' },
@@ -548,7 +552,16 @@ export type VentDef = Infer<typeof ventShape>;
 export const spawnShape = {
   x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
   z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  nest: bool({ label: 'Nest', optional: true, default: true, help: 'A nest grows here (a fauna unit with Nest set). Destroy it and packs stop coming from here until it regrows. Off = packs come from open ground.' }),
 } satisfies Shape;
+
+export const wreckShape = {
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  yaw: num({ label: 'Facing', min: -180, max: 180, step: 5, unit: '°', optional: true }),
+  alloys: int({ label: 'Salvage', min: 0, max: 100000, unit: 'alloys', help: 'What Field Engineers can strip from it.' }),
+} satisfies Shape;
+export type WreckDef = Infer<typeof wreckShape>;
 export type SpawnDef = Infer<typeof spawnShape>;
 
 export const siteShape = {
@@ -600,6 +613,7 @@ export const regionShape = {
   vents: list(ventShape, { label: 'Geothermal vents', max: 20, optional: true }),
   camps: list(campShape, { label: 'Inhabitant camps', max: 8, optional: true }),
   sites: list(siteShape, { label: 'Story sites', max: 40, optional: true }),
+  wrecks: list(wreckShape, { label: 'Wrecks', max: 20, optional: true, help: 'Hulls from an earlier run, in our own build style. The first sight of one sets the story flag wreck-found; Field Engineers salvage alloys from them.' }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 /**

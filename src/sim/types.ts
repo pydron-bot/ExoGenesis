@@ -106,7 +106,17 @@ export interface Hostile {
   under?: boolean;
   best?: number;
   stall?: number;
+  /** A nest (unit `nest`): never moves; `spawn` is its predator spawn index. */
+  nest?: number;
+  /** Hit points at the last tick (nests release guards when hurt). */
+  lastHp?: number;
 }
+
+/** A predator spawn's nest: the hostile id while it stands, or when it regrows. */
+export interface NestState { spawn: number; id: number; regrow: number }
+
+/** A wreck from an earlier run (region `wrecks`): salvage left, and whether we've seen it. */
+export interface Wreck { x: number; z: number; yaw: number; alloys: number; max: number; found?: boolean }
 
 /**
  * A player combat unit (Rover, Tank...). Orders: `move` walks there ignoring
@@ -231,6 +241,10 @@ export interface SimState {
   hostiles: Hostile[];
   /** Player combat units (absent in saves from before units existed). */
   units?: Unit[];
+  /** Nests at the predator spawns (absent in older saves: grown on load). */
+  nests?: NestState[];
+  /** Wrecks to salvage (absent in older saves: set up from the region on load). */
+  wrecks?: Wreck[];
   /** Fog of war: cells ever seen, one '0'/'1' per cell (absent in older saves). */
   explored?: string;
   packs: Pack[];
@@ -252,7 +266,7 @@ export interface SimState {
   people?: PeopleState;
   /** Set when the game is lost. */
   over: null | 'core' | 'cryo' | 'people';
-  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number };
+  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number };
 }
 
 export type LandingStage = 'burn' | 'touchdown' | 'deploy';
@@ -330,6 +344,10 @@ export interface Snapshot {
   fauna: Float32Array;
   buildings: Building[];
   deposits: Deposit[];
+  /** Wrecks (all of them; the renderer hides unexplored ones under the fog). */
+  wrecks: Wreck[];
+  /** Nests standing / regrowing, by spawn. */
+  nests: { x: number; z: number; alive: boolean }[];
   /** Hostiles in the skirmish renderer's layout (see skirmish/types STRIDE / F). Only ones in sight. */
   army: Float32Array;
   /** Fog of war, FOG_N² cells: 0 never seen, 1 seen before, 2 in sight now. */

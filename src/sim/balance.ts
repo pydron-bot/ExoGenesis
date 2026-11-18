@@ -157,7 +157,7 @@ export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult 
       if (near.length && idle.length) {
         const cx = near.reduce((m, h) => m + h.x, 0) / near.length, cz = near.reduce((m, h) => m + h.z, 0) / near.length;
         sim.command({ type: 'order', ids: idle.map((u) => u.id), x: cx, z: cz } as never);
-      } else if (!s.hostiles.length && idle.length) {
+      } else if (!s.hostiles.some((h) => h.nest === undefined) && idle.length) {
         const bay = s.buildings.find((b) => b.kind === 'bay');
         const far = idle.filter((u) => bay && Math.hypot(u.x - bay.x, u.z - bay.z) > 30);
         if (far.length && bay) sim.command({ type: 'order', ids: far.map((u) => u.id), x: bay.x, z: bay.z - 14 } as never);

@@ -57,7 +57,7 @@ export function placeProblem(
     const o = defs[b.kind];
     if (!o) continue;
     // walls don't extend the build area (no creeping a wall across the map)
-    const reach = o.role === 'core' ? (o.range ?? rules.buildRadius) : b.progress >= 1 && !isBarrier(o.role) ? rules.buildRadius + o.clearance / 2 : 0;
+    const reach = o.role === 'core' ? (o.range ?? rules.buildRadius) : o.role === 'relay' && b.progress >= 1 ? Math.max(o.range ?? 0, rules.buildRadius + o.clearance / 2) : b.progress >= 1 && !isBarrier(o.role) ? rules.buildRadius + o.clearance / 2 : 0;
     if (Math.hypot(b.x - x, b.z - z) <= reach) { near = true; break; }
   }
   if (!near) return 'outside the build area: build closer to the Core or a finished building';

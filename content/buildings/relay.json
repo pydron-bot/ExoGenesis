@@ -1,0 +1,17 @@
+{
+  "name": "Relay Tower",
+  "description": "A tall mast that links back to the Core: you can build anywhere within its range, so the colony can reach a far deposit or vent without a chain of buildings. Later it links regions.",
+  "role": "relay",
+  "buildable": true,
+  "cost": 90,
+  "hp": 220,
+  "powerMW": -1,
+  "buildSeconds": 16,
+  "clearance": 6,
+  "range": 55,
+  "sight": 34,
+  "lightColor": "#7ff7ff",
+  "lightRadius": 6,
+  "lightIntensity": 0.6,
+  "model": "exo-relay"
+}

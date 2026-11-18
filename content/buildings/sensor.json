@@ -1,0 +1,16 @@
+{
+  "name": "Sensor Mast",
+  "description": "A cheap mast of cameras and motion sensors. Pushes back the fog around it; no minimap and no early warning (that's the Radar). Good along mining lines and at gaps in a wall.",
+  "role": "sensor",
+  "buildable": true,
+  "cost": 35,
+  "hp": 120,
+  "powerMW": -0.4,
+  "buildSeconds": 8,
+  "clearance": 4,
+  "sight": 55,
+  "lightColor": "#9fe8ff",
+  "lightRadius": 5,
+  "lightIntensity": 0.5,
+  "model": "exo-sensor"
+}
