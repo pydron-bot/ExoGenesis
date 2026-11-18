@@ -15,6 +15,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.24.0',
+    date: '2026-11-18',
+    title: 'Other worlds',
+    notes: [
+      'Regions can now be on any planet, moon, asteroid or comet in the system: land on one and that world becomes yours, with its own size, ground, colours and sky (airless worlds have a black one), and the rest of the system turning round it',
+      'Regions come in sizes from small to twice as wide as before',
+      'Inhabitant camps and their people switch to simpler models when you zoom out, so busy maps stay smooth',
+      'Editor: Maps → Worlds edits every planet, moon, asteroid and comet (terrain, colours, atmosphere, orbit, rings) with a turning preview and an orbit map; the Planet map works per world and starts new regions where you click',
+      'Editor: the map editor paints the ground\'s colour, generates landforms (hills, ridges, craters, mesas, dunes, basins, plateaus, canyons), auto-paints by height and slope, and resizes a region',
+      'Editor: Story → Story board lays out missions, events, cinematics, characters, inhabitants and a new story bible by chapter, with tags, writer\'s notes and filters; drag a card to move it to another chapter',
+    ],
+  },
+  {
     version: '0.23.0',
     date: '2026-11-18',
     title: 'Editor preview',
