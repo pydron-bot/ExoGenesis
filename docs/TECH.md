@@ -139,7 +139,7 @@ How content is stored and edited in general (one JSON record per file, schemas i
 - **Collapsible side panels** (v0.23.0): the sidebar and the details panel fold to an 18 px strip (edge
   button, a click on the strip, or `[` / `]` except in the map editor, where those size the brush);
   remembered per browser (`exo.editor.panels`). Test: `tools/cinematic-smoke.mjs`.
-- **Worlds** (v0.24.0): the solar system is content: `content/bodies/<id>.json` (Maps → Worlds; `bodyShape` in
+- **Worlds** (v0.27.0): the solar system is content: `content/bodies/<id>.json` (Maps → Worlds; `bodyShape` in
   `src/content/defs.ts`): kind (planet, moon, asteroid, comet, giant), what it orbits, radius, orbit (size,
   eccentricity, tilt, period, start angle), and for bodies with a surface the terrain (relief, feature size, seed,
   seas, plant life, ground colours low to high, water, plant and snow colours, snow line), atmosphere (colour,
@@ -158,14 +158,14 @@ How content is stored and edited in general (one JSON record per file, schemas i
   Content checks: orbits can't loop, moons need a parent, nothing lands on a giant, a body's radius must be at least
   1.5× the size of the regions on it. The Worlds form shows the body turning (the system view's own mesh) and a
   top-down orbit map with its moons in an inset (`src/editor/world-preview.ts`).
-- **Region size** (v0.24.0): a region's `size` (120–480 u in steps of 40; empty = 240) sets the playable square.
+- **Region size** (v0.27.0): a region's `size` (120–480 u in steps of 40; empty = 240) sets the playable square.
   `REGION_HALF` and `FOG_N` in `src/sim/types.ts` are live bindings set by `setRegionHalf` (from `setRegionTerrain`);
   the sim's edge limits are functions (`limit()`, `EDGE()`), and the fog texture, light map uniforms and height grid
   size themselves when created, after the region is loaded. Region grids are square at the region's size
   (`regionCells`; schema grids with `cols: 0` take their size from the record and the content check compares).
   The map editor's **World and size** resizes a region: sculpt, flora and ground paint are cropped or padded round
   the centre and markers outside move in to the new edge.
-- **Ground paint and generators** (v0.24.0): a region's `ground` grid (paint × 100 + amount) tints the generated
+- **Ground paint and generators** (v0.27.0): a region's `ground` grid (paint × 100 + amount) tints the generated
   ground colour with one of its `paints` (up to 8; the standard eight when it lists none) wherever the game colours
   the ground (`applyGroundPaint` / `regionColor` in `world/planet.ts`: the landing patch, the globe under the
   region, the minimap). Map editor: **Paint ground** (G; Shift or E erases), fill or clear the selected area,
@@ -175,7 +175,7 @@ How content is stored and edited in general (one JSON record per file, schemas i
   seed, add or replace, and a feathered edge; **Smooth area** and a **Roughen** brush (7). The region's own
   generated bumps are fields too (`detail`, `detailSize`, `detailSeed`; Touchdown's values are the defaults).
   **Maps → Planet map** picks the body, draws each region at its size, and ＋ New region starts one where you click.
-- **Story organisation** (v0.24.0): **Chapters** (`content/chapters/<id>.json`: title, order, act, colour, summary,
+- **Story organisation** (v0.27.0): **Chapters** (`content/chapters/<id>.json`: title, order, act, colour, summary,
   notes) and the **Story bible** (`content/lore/<id>.json`: places, history, factions, objects and ideas, with a
   "secret" mark) are editor-only collections; missions, story events, cinematics, characters, inhabitant groups and
   bible entries gain editor-only `chapter`, `tags` (comma-separated) and `notes` fields (`organizeFields` in
@@ -186,6 +186,27 @@ How content is stored and edited in general (one JSON record per file, schemas i
   ＋ in a column starts a record already in that chapter. The sidebar lists story records under their chapters
   once any have one. Seeded with Act 1's four chapters, Act 2 and the endings, and eight bible entries from
   STORY.md.
+- **Cinematic editing tools** (v0.27.0): fly the preview (drag orbits, Shift / right drag pans the focus over the
+  ground, wheel = distance, Alt+wheel = focus height; the numbers show while free) and **＋ Key from view**
+  adds a `site` key at the playhead (x, z, lift, dist to 0.1, pitch, yaw to 0.001 rad; a key already within
+  0.05 s takes the view instead). **Update selected key** points a key at the view; a building / story site /
+  camp / probe key keeps its target and takes distance (less the probe's `follow` pull-back), pitch, yaw and
+  the focus height as lift. The free view sets `ZoomCamera` exactly as `Cinematic.direct` does for a site key
+  (focus `regionToWorld(x, z, lift)`, override weight 1, free pitch), so a captured key plays back the same
+  shot (within the rounding: ~0.02–0.05 u in the smoke test). Yaw 0 looks from the south (−N); the captured
+  yaw is the turn nearest the neighbouring keys' mean, kept inside ±6.3, so the PCHIP doesn't spin the long
+  way. Beside the preview, a **map** from above (`cine-preview.ts`, a second silent `Cinematic` on its own
+  camera, 160 samples): camera path, focus path, numbered keys (click to select), the camera and its field
+  of view at the playhead. Overlays: thirds / title-safe guides (remembered, `exo.editor.pvguides`) and the
+  key and time in a corner. **Timeline** (`timeline.ts`): click selects (its form card lights up; Enter or a
+  double-click on a key or sound jumps to its fields), Delete / Backspace removes, Ctrl/Cmd+D copies to the
+  playhead, ← / → nudge 0.1 s (Shift 1 s), Esc lets go; Home / End, `,` / `.` move the playhead; drag the
+  ruler to scrub; ＋ Camera key / Caption / Line / Sound add at the playhead (a caption or line opens for
+  typing in place, a sound shows its field); a double-click on a caption or line edits its text in place;
+  drag a line's right edge for `for`; Ctrl+wheel zooms the time axis (it scrolls sideways, row labels stay).
+  Every edit is one `rerender()` (form, undo history; lists re-sorted by `at`); the selection, zoom and free
+  view live at module level because each edit rebuilds the form, and the preview is kept across those
+  rebuilds. Test: `tools/cinematic-smoke.mjs`.
 - **Interface** (v0.20.0): `content/rules/interface.json` (Rules → Interface): accent, warning, danger,
   text and panel colours, panel and outline opacity, interface size (CSS `zoom` on the HUD's children)
   and the log's length and timing. `src/ui-theme.ts` sets them as CSS variables; `style.css` derives

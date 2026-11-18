@@ -409,6 +409,25 @@ details.setup .help { color: var(--dim); font-size: 12px; }
 /* ---------- cinematic timeline ---------- */
 .tl-wrap { margin: 0 0 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0 8px; }
 svg.tl { display: block; width: 100%; user-select: none; touch-action: none; cursor: crosshair; }
+.tl-scroll { position: relative; overflow-x: auto; overflow-y: hidden; }
+.tl-ruler { fill: transparent; cursor: col-resize; }
+.tl-gutter { fill: var(--panel); pointer-events: none; }
+.tl-knum { fill: var(--dim); font: 9px ui-monospace, monospace; text-anchor: middle; pointer-events: none; }
+.tl-key.sel path { fill: #fff; stroke: var(--amber); stroke-width: 2; }
+.tl-key.sel .tl-knum { fill: #fff; }
+.tl-cap.sel > rect:first-of-type, .tl-line.sel > rect:first-of-type { stroke: #fff; stroke-width: 2; }
+.tl-cap.sel > rect:first-of-type { fill: rgba(63, 214, 255, .32); }
+.tl-line.sel > rect:first-of-type { fill: rgba(255, 181, 71, .32); }
+.tl-sound.sel circle { fill: #fff; stroke: var(--amber); stroke-width: 2; }
+.tl-line rect.tl-grip { fill: rgba(255, 181, 71, .5); stroke: none; cursor: col-resize; }
+.tl-line rect.tl-grip:hover { fill: var(--amber); }
+.tl-edit { position: absolute; height: 22px; padding: 0 6px; font: 12px ui-monospace, monospace; background: var(--bg); color: var(--text); border: 1px solid var(--accent); border-radius: 3px; z-index: 2; }
+.tl-tools, .pv-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 12px 6px; }
+.tl-tools button, .pv-tools button { padding: 2px 9px; font-size: 12px; white-space: nowrap; }
+.pv-tools button.primary-ish { border-color: var(--accent); color: #fff; }
+.tl-tools-lbl { color: var(--dim); font-size: 12px; }
+.tl-tools-keys, .pv-hint { margin-left: auto; color: var(--dim); font-size: 11px; }
+.item-card.tl-sel { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber) inset; }
 .tl-tick { stroke: var(--dim); stroke-opacity: .5; }
 .tl-lbl { fill: var(--dim); font: 10px ui-monospace, monospace; }
 .tl-row { fill: var(--dim); font: 11px system-ui, sans-serif; }
@@ -484,7 +503,9 @@ button.panel-toggle:hover { color: var(--accent); }
 #aside-toggle { right: calc(var(--aside-w) - 10px); }
 
 /* cinematic preview (above the timeline): the game's player over the region, at the playhead */
-.cine-pv { position: relative; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #000; max-width: 720px; }
+.cine-pv-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.cine-pv-row .pv-map { flex: 0 0 auto; width: clamp(110px, 30%, 240px); aspect-ratio: 1; border: 1px solid var(--line); border-radius: 6px; background: #05080d; cursor: pointer; }
+.cine-pv { position: relative; flex: 1 1 0; min-width: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: #000; max-width: 720px; }
 .cine-pv .pv-view { width: 100%; }
 .cine-pv .pv-view canvas { display: block; width: 100% !important; height: 100% !important; }
 .cine-pv .pv-bars .pv-bar { position: absolute; left: 0; right: 0; height: 11%; background: #000; pointer-events: none; }
@@ -558,3 +579,12 @@ button.panel-toggle:hover { color: var(--accent); }
 /* sidebar: story records under their chapters */
 .chap-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dim); padding: 6px 16px 2px 22px; text-transform: uppercase; letter-spacing: 0.06em; }
 .chap-head i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.cine-pv .pv-view { cursor: grab; }
+.cine-pv.free { outline: 2px solid var(--amber); outline-offset: -2px; }
+.cine-pv .pv-hud { position: absolute; right: 8px; top: 6px; font: 11px ui-monospace, monospace; color: #fff; background: rgba(0,0,0,.55); padding: 1px 6px; border-radius: 3px; pointer-events: none; }
+.cine-pv .pv-nums { position: absolute; left: 8px; bottom: 6px; font: 11px ui-monospace, monospace; color: var(--amber); background: rgba(0,0,0,.6); padding: 1px 6px; border-radius: 3px; pointer-events: none; }
+.cine-pv .pv-guides { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cine-pv .pv-guides line { stroke: rgba(255,255,255,.55); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cine-pv .pv-guides rect { fill: none; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cine-pv .pv-guides rect.title { stroke: rgba(255,181,71,.8); }
+.cine-pv .pv-guides rect.action { stroke: rgba(255,255,255,.4); stroke-dasharray: 4 3; }

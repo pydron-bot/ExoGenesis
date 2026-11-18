@@ -24,6 +24,7 @@ export const CHANGELOG: Release[] = [
       'Inhabitant camps and their people switch to simpler models when you zoom out, so busy maps stay smooth',
       'Editor: Maps → Worlds edits every planet, moon, asteroid and comet (terrain, colours, atmosphere, orbit, rings) with a turning preview and an orbit map; the Planet map works per world and starts new regions where you click',
       'Editor: the map editor paints the ground\'s colour, generates landforms (hills, ridges, craters, mesas, dunes, basins, plateaus, canyons), auto-paints by height and slope, and resizes a region',
+      'Editor: cinematics are much quicker to make: fly the preview camera and add a key from the view, add captions, lines and sounds at the playhead, edit text in place, delete, copy and nudge with the keyboard, zoom the timeline, see the camera\'s path from above, and turn on framing guides',
       'Editor: Story → Story board lays out missions, events, cinematics, characters, inhabitants and a new story bible by chapter, with tags, writer\'s notes and filters; drag a card to move it to another chapter',
     ],
   },
