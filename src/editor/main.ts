@@ -63,6 +63,8 @@ let viewHandle: { dispose(): void } | null = null;
 let timeline: { el: HTMLElement; update(): void; stop(): void } | null = null;
 /** The cinematic preview under it. */
 let preview: CinePreview | null = null;
+/** The record the preview shows (kept across form re-renders: every timeline edit re-renders). */
+let previewFor: Current | null = null;
 /** What the main pane shows when no record is open. */
 let view: 'none' | 'library' | PageName | { builtin: string } = 'none';
 /** The Compare page's records. */
@@ -88,6 +90,7 @@ function teardown() {
   timeline = null;
   preview?.dispose();
   preview = null;
+  previewFor = null;
   $('main').classList.remove('map-mode');
 }
 
@@ -688,12 +691,12 @@ function renderForm() {
   if (cur.coll === 'missions') panel = missionPanel();
   timeline?.stop();
   timeline = null;
-  preview?.dispose();
-  preview = null;
+  if (cur.coll !== 'cinematics' || previewFor !== cur) { preview?.dispose(); preview = null; previewFor = null; }
   if (cur.coll === 'cinematics') {
     const at = cur;
     const regionOf = () => { const d = at.draft as { scene?: string; region?: string }; const id = d.scene !== 'landing' && d.region ? d.region : 'touchdown'; return files.get(pathOf('regions', id))?.data as RegionDef | undefined; };
-    preview = new CinePreview({
+    previewFor = cur;
+    preview ??= new CinePreview({
       draft: () => at.draft as unknown as CinematicDef,
       id: () => at.id,
       region: regionOf,
@@ -703,7 +706,12 @@ function renderForm() {
     timeline = timelinePanel({
       preview,
       draft: () => cur!.draft as unknown as CinematicDef,
+      id: () => at.id,
       changed,
+      highlight(item) {
+        for (const c of document.querySelectorAll('.item-card.tl-sel')) c.classList.remove('tl-sel');
+        if (item) document.querySelector(`[data-item^="${item}."]`)?.closest('.item-card')?.classList.add('tl-sel');
+      },
       rerender: () => renderForm(),
       reveal(field) {
         const row = document.querySelector<HTMLElement>(`[data-item="${field}"]`) ?? document.querySelector<HTMLElement>(`.row[data-key="${field}"]`);
@@ -1424,4 +1432,4 @@ addEventListener('hashchange', () => routeTo(location.hash));
 setInterval(() => void poll(), 4000);
 
 declare global { interface Window { __editor: unknown } }
-window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, get assetPanel() { return assetPanel; }, files, media, dirty, api };
+window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, get preview() { return preview; }, get assetPanel() { return assetPanel; }, files, media, dirty, api };

@@ -138,6 +138,27 @@ How content is stored and edited in general (one JSON record per file, schemas i
 - **Collapsible side panels** (v0.23.0): the sidebar and the details panel fold to an 18 px strip (edge
   button, a click on the strip, or `[` / `]` except in the map editor, where those size the brush);
   remembered per browser (`exo.editor.panels`). Test: `tools/cinematic-smoke.mjs`.
+- **Cinematic editing tools**: fly the preview (drag orbits, Shift / right drag pans the focus over the
+  ground, wheel = distance, Alt+wheel = focus height; the numbers show while free) and **＋ Key from view**
+  adds a `site` key at the playhead (x, z, lift, dist to 0.1, pitch, yaw to 0.001 rad; a key already within
+  0.05 s takes the view instead). **Update selected key** points a key at the view; a building / story site /
+  camp / probe key keeps its target and takes distance (less the probe's `follow` pull-back), pitch, yaw and
+  the focus height as lift. The free view sets `ZoomCamera` exactly as `Cinematic.direct` does for a site key
+  (focus `regionToWorld(x, z, lift)`, override weight 1, free pitch), so a captured key plays back the same
+  shot (within the rounding: ~0.02–0.05 u in the smoke test). Yaw 0 looks from the south (−N); the captured
+  yaw is the turn nearest the neighbouring keys' mean, kept inside ±6.3, so the PCHIP doesn't spin the long
+  way. Beside the preview, a **map** from above (`cine-preview.ts`, a second silent `Cinematic` on its own
+  camera, 160 samples): camera path, focus path, numbered keys (click to select), the camera and its field
+  of view at the playhead. Overlays: thirds / title-safe guides (remembered, `exo.editor.pvguides`) and the
+  key and time in a corner. **Timeline** (`timeline.ts`): click selects (its form card lights up; Enter or a
+  double-click on a key or sound jumps to its fields), Delete / Backspace removes, Ctrl/Cmd+D copies to the
+  playhead, ← / → nudge 0.1 s (Shift 1 s), Esc lets go; Home / End, `,` / `.` move the playhead; drag the
+  ruler to scrub; ＋ Camera key / Caption / Line / Sound add at the playhead (a caption or line opens for
+  typing in place, a sound shows its field); a double-click on a caption or line edits its text in place;
+  drag a line's right edge for `for`; Ctrl+wheel zooms the time axis (it scrolls sideways, row labels stay).
+  Every edit is one `rerender()` (form, undo history; lists re-sorted by `at`); the selection, zoom and free
+  view live at module level because each edit rebuilds the form, and the preview is kept across those
+  rebuilds. Test: `tools/cinematic-smoke.mjs`.
 - **Interface** (v0.20.0): `content/rules/interface.json` (Rules → Interface): accent, warning, danger,
   text and panel colours, panel and outline opacity, interface size (CSS `zoom` on the HUD's children)
   and the log's length and timing. `src/ui-theme.ts` sets them as CSS variables; `style.css` derives
