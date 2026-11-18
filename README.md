@@ -93,7 +93,11 @@ minor for features, patch for fixes. `npm run build` checks they agree (`npm run
 ## Content and the editor
 
 Game numbers and maps live in `content/` as JSON (units, buildings, regions, colony rules), not in code.
-Open a region (Maps → Touchdown) to sculpt terrain, paint flora and place grazer herds.
+Open a region (Maps → Touchdown) to sculpt terrain, paint flora and the ground's colour, generate landforms
+(hills, ridges, craters, mesas, dunes…), change its size and place grazer herds. Maps → Worlds holds every planet,
+moon, asteroid and comet (radius, terrain, colours, sky, orbit); any but a gas giant can hold regions, and Maps →
+Planet map places them on each body. Story → Story board lays missions, events, cinematics, characters, inhabitants
+and the story bible out by chapter.
 Assets → Library lists every model (files and the built-in procedural ones); drop .glb, image or
 audio files onto the editor to add them, then pick a model in a unit's or building's Model field.
 Story → Characters, missions and story events write the campaign; Cinematics holds the opening landing and
