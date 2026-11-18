@@ -58,7 +58,7 @@ export const BUILTINS: Builtin[] = [
   { id: 'vent', name: 'Geothermal vent', group: 'Terrain', where: 'src/world/region.ts buildVent()', swappable: false, note: 'Placed with the map editor (Vents).', build: () => buildVent(1) },
   { id: 'deposit', name: 'Alloy deposit', group: 'Terrain', where: 'src/world/region.ts buildDeposit()', swappable: false, note: 'Placed with the map editor (Deposits).', build: () => buildDeposit(1) },
   { id: 'scaffold', name: 'Construction scaffold', group: 'Buildings', where: 'src/world/region.ts buildScaffold()', swappable: false, note: 'Shown while any building is under construction.', build: buildScaffold },
-  { id: 'drone', name: 'Worker drone', group: 'Units', where: 'src/world/region.ts buildDrone()', swappable: false, note: 'Not a content record yet.', build: buildDrone },
+  { id: 'drone', name: 'Worker drone', group: 'Units', where: 'src/world/region.ts buildDrone()', swappable: false, note: 'Not a content record: the game uses the exo-drone asset when there is one (drones and ore haulers), this built-in when zoomed out.', build: buildDrone },
   { id: 'rover', name: 'Rover', group: 'Units', where: 'src/skirmish/models.ts roverGeo()', usedBy: { coll: 'units', id: 'rover' }, swappable: true, build: () => unit(roverGeo(), unitMaterials()[0], roverGlow()) },
   { id: 'tank', name: 'Tank', group: 'Units', where: 'src/skirmish/models.ts tankGeo()', usedBy: { coll: 'units', id: 'tank' }, swappable: true, build: () => unit(tankGeo(), unitMaterials()[1], tankGlow()) },
   { id: 'swarmer', name: 'Swarmer', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(false)', usedBy: { coll: 'units', id: 'swarmer' }, swappable: true, build: () => unit(creatureGeo(false), unitMaterials()[2]) },

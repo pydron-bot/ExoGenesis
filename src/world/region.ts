@@ -857,6 +857,8 @@ export class RegionView {
   private wreckModel: THREE.Object3D | null = null;
   private vents: THREE.Group[] = [];
   private haulers = new Map<number, THREE.Group>();
+  /** The worker drone's asset model (exo-drone), or null for the built-in. Drones and haulers are shells whose contents swap. */
+  private droneModel: THREE.Object3D | null = null;
   /** Game-time seconds this frame (see update). */
   private gameT = 0;
   private orderRibbon = new Ribbon(CYAN, 0.45);
@@ -911,7 +913,7 @@ export class RegionView {
     orient(this.core, 0, 0, 0, 0);
     this.details.add(this.core);
 
-    this.drone = buildDrone();
+    this.drone = this.droneShell();
     this.details.add(this.drone);
 
     this.flora = floraSeed === null ? null : new Flora({ seed: floraSeed, flat: look === 'flat', density: floraDensity });
@@ -1119,7 +1121,7 @@ export class RegionView {
       let e = this.drones.get(b.id);
       if (!e) {
         if (this.firstDrone < 0) this.firstDrone = b.id;
-        const obj = b.id === this.firstDrone ? this.drone : buildDrone();
+        const obj = b.id === this.firstDrone ? this.drone : this.droneShell();
         if (obj !== this.drone) this.details.add(obj);
         e = { obj, x: b.x, z: b.z, world: new THREE.Vector3() };
         this.drones.set(b.id, e);
@@ -1478,12 +1480,8 @@ export class RegionView {
     const active = b.powered && dep && dep.alloys > 0;
     if (!active) { if (h) h.visible = false; return; }
     if (!h) {
-      h = buildDrone();
+      h = this.droneShell(true);
       h.scale.setScalar(0.7);
-      h.traverse((o) => {
-        const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
-        if (mm?.emissive && mm.emissiveIntensity > 1) { const c = mm.clone(); c.emissive.set(AMBER); (o as THREE.Mesh).material = c; }
-      });
       this.haulers.set(b.id, h);
       this.details.add(h);
     }
@@ -1541,6 +1539,33 @@ export class RegionView {
   }
 
   /** The wrecks' model (an asset), replacing the built-in stand-in. */
+  /** Use an asset model for worker drones and ore haulers (null = built-in); swaps the ones already flying. */
+  setDroneModel(obj: THREE.Object3D | null) {
+    this.droneModel = obj;
+    for (const e of this.drones.values()) this.fillDrone(e.obj);
+    if (![...this.drones.values()].some((e) => e.obj === this.drone)) this.fillDrone(this.drone);
+    for (const h of this.haulers.values()) this.fillDrone(h, true);
+  }
+
+  private droneShell(hauler = false): THREE.Group {
+    const g = new THREE.Group();
+    this.fillDrone(g, hauler);
+    return g;
+  }
+
+  /** (Re)fill a drone shell: the asset up close and the built-in far off, or the built-in; haulers glow amber. */
+  private fillDrone(g: THREE.Group, hauler = false) {
+    this.dropLod(g);
+    delete g.userData.lod;
+    g.clear();
+    if (this.droneModel) { const near = this.droneModel.clone(true); g.add(near); this.lodPair(g, near, buildDrone()); }
+    else g.add(buildDrone());
+    if (hauler) g.traverse((o) => {
+      const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (mm?.emissive && mm.emissiveIntensity > 1) { const c = mm.clone(); c.emissive.set(AMBER); (o as THREE.Mesh).material = c; }
+    });
+  }
+
   setWreckModel(obj: THREE.Object3D | null) {
     this.wreckModel = obj;
     for (const g of this.wrecks) { this.dropLod(g); this.details.remove(g); }

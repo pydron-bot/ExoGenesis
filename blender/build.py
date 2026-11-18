@@ -648,7 +648,7 @@ def artillery(M):
 
 
 def arc(M):
-    parts = wheels((-0.8, 0.8), (-0.8, 0, 0.8), 0.3, 0.26, 0.35, M)
+    parts = wheels((-0.8, 0.8), (-0.8, 0, 0.8), 0.3, 0.26, 0.35, M, verts=8)   # 8-sided: keeps it under 1,500 tris
     parts.append(box((1.4, 2.2, 0.55), (0, 0, 0.75), M["hull"], bevel=0.1))
     parts.append(box((1.0, 1.0, 0.45), (0, 0.4, 1.2), M["hull2"], bevel=0.1))
     parts.append(box((0.85, 0.06, 0.25), (0, -0.12, 1.22), M["glass"], bevel=0, rot=(-0.5, 0, 0)))
@@ -658,7 +658,7 @@ def arc(M):
     parts.append(cyl(0.3, 0.3, (0, -0.45, 1.15), M["dark"], verts=8))
     parts.append(cyl(0.28, 1.4, (0, -0.45, 1.7), M["dark"], verts=8, r2=0.18))
     for z in (1.3, 1.65, 2.0):
-        bpy.ops.mesh.primitive_torus_add(major_radius=0.36 - (z - 1.3) * 0.12, minor_radius=0.08, major_segments=10, minor_segments=4, location=(0, -0.45, z))
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.36 - (z - 1.3) * 0.12, minor_radius=0.08, major_segments=8, minor_segments=4, location=(0, -0.45, z))
         parts.append(_finish(bpy.context.active_object, M["accent"], 0))
     parts.append(sphere(0.42, (0, -0.45, 2.55), M["cyan"], seg=8, rings=5))
     parts.append(box((1.05, 0.06, 0.08), (0, -1.12, 0.88), M["cyan"], bevel=0))
@@ -1942,6 +1942,35 @@ def skimmerwing(M):
     export("skimmerwing", [join(parts, "body")])
 
 
+def drone(M):
+    """Worker drone: a compact quad-rotor work body, cyan visor at the front (−Y), four rotors in
+    ducts on short arms, a folded manipulator arm and a tool pod underneath. Origin at the body's
+    centre (the game flies it 2.4 u up). ~3.4 u across the rotors."""
+    rotor = glow_mat("rotorglow", "#7ff7ff", 0.8)
+    parts = []
+    parts.append(box((1.6, 2.0, 0.6), (0, 0, 0), M["hull"], bevel=0.14))
+    parts.append(box((1.2, 1.3, 0.3), (0, 0.15, 0.42), M["hull2"], bevel=0.08))
+    parts.append(box((1.1, 0.1, 0.25), (0, -1.02, 0.05), M["cyan"], bevel=0))
+    parts.append(box((1.3, 0.12, 0.12), (0, -0.98, -0.25), M["dark"], bevel=0.02))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * 1.1, sy * 0.9
+            parts.append(strut((sx * 0.6, sy * 0.6, 0.1), (x, y, 0.22), 0.09, M["dark"], verts=5))
+            bpy.ops.mesh.primitive_torus_add(major_radius=0.6, minor_radius=0.07, major_segments=12, minor_segments=4, location=(x, y, 0.25))
+            parts.append(_finish(bpy.context.active_object, M["dark"], 0))
+            parts.append(cyl(0.55, 0.05, (x, y, 0.25), rotor, verts=10, bevel=0))
+            parts.append(cyl(0.1, 0.18, (x, y, 0.32), M["hull2"], verts=6, bevel=0))
+    # manipulator arm under the nose, folded, and a tool pod
+    parts.append(box((0.2, 0.2, 0.5), (0, -0.55, -0.45), M["dark"], bevel=0.03))
+    parts.append(box((0.2, 0.7, 0.2), (0, -0.95, -0.65), M["dark"], bevel=0.03))
+    parts.append(box((0.08, 0.2, 0.25), (-0.08, -1.35, -0.7), M["hull2"], bevel=0))
+    parts.append(box((0.08, 0.2, 0.25), (0.08, -1.35, -0.7), M["hull2"], bevel=0))
+    parts.append(box((0.7, 0.6, 0.3), (0, 0.4, -0.42), M["hull2"], bevel=0.06))
+    parts.append(box((0.5, 0.06, 0.06), (0, 0.09, -0.42), M["amber"], bevel=0))
+    parts.append(sphere(0.07, (0.5, 0.9, 0.35), M["red"], seg=6, rings=4))
+    export("drone", [join(parts, "body")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
@@ -1955,7 +1984,7 @@ MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, 
           "sentinel": sentinel, "gridnode": gridnode, "cache": cache,
           "shipyard": shipyard, "tidal": tidal, "pier": pier, "seaturret": seaturret, "airpad": airpad, "flak": flak,
           "skiff": skiff, "strider": strider, "gunboat": gunboat, "barge": barge, "lurker": lurker,
-          "gunship": gunship, "skimmerwing": skimmerwing}
+          "gunship": gunship, "skimmerwing": skimmerwing, "drone": drone}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":

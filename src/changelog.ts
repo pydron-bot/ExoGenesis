@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.36.2',
+    date: '2026-11-18',
+    title: 'Drones, up close',
+    notes: [
+      'Worker drones and ore haulers get a detailed model: four ducted rotors, a visor and a folded work arm',
+      'The Arc Caster\'s model is lighter to draw, with the same look',
+    ],
+  },
+  {
     version: '0.36.1',
     date: '2026-11-18',
     title: 'Sea and sky, up close',

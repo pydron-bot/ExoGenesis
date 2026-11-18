@@ -479,6 +479,8 @@ for (const [kind, d] of Object.entries(content.buildings)) {
 }
 // wrecks and relic caches (region map objects) use the exo-wreck / exo-cache assets when there are ones
 if (!builtinModels && content.assets['exo-cache']) loadModel(content.assets['exo-cache']).then((m) => region.setCacheModel(m), (e) => console.warn('cache model failed to load', e));
+// worker drones (and the ore haulers) use the exo-drone asset when there is one
+if (!builtinModels && content.assets['exo-drone']) loadModel(content.assets['exo-drone']).then((m) => region.setDroneModel(m), (e) => console.warn('drone model failed to load', e));
 if (!builtinModels && content.assets['exo-wreck']) loadModel(content.assets['exo-wreck']).then((m) => region.setWreckModel(m), (e) => console.warn('wreck model failed to load', e));
 
 const canPlace = (kind: string, x: number, z: number) => {

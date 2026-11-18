@@ -408,6 +408,12 @@ How content is stored and edited in general (one JSON record per file, schemas i
   drawn 0.25 u down). Built with Blender 5.2 (`~/.local/bin/blender`). `join()` now bakes each part's rotation and scale
   before joining, so a rotated or scaled first part no longer leaves its transform on the joined node. Flyers sit 9 u
   up, out of `model-gallery.mjs`'s frame: check them in the editor or in `air-smoke.mjs --shots`.
+- **Worker drone model (v0.36.2):** `exo-drone` (1,020 tris; origin at the body's centre). Drones aren't a content
+  record, so it's picked up by id like `exo-wreck`/`exo-cache`: `main.ts` loads it and calls `region.setDroneModel`.
+  Each drone (and each ore hauler) is an empty shell group that `fillDrone` fills with the asset (built-in as the far
+  LOD) or the built-in, so `region.drone` keeps its identity for the landing; haulers get their bright glow turned
+  amber either way. `?models=builtin` keeps the built-in. The **Arc** model went from 1,600 to 1,408 tris (8-sided
+  wheels and coil rings).
 
 - **Glow, ground shadows, printed construction (v0.32.0):**
   - **Glow** (`src/world/post.ts`): with glow on, the scene renders into a HalfFloat target, then `UnrealBloomPass`
