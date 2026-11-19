@@ -75,7 +75,7 @@ export class MusicPanel {
       return s;
     }));
     const p = this.music?.played;
-    this.now.textContent = p ? `chord ${p.chord + 1} of ${chords.length} · ${p.bells} bells${p.pulses ? ` · ${p.pulses} beats` : ''}` : '';
+    this.now.textContent = p ? `chord ${p.chord + 1} of ${chords.length} · ${p.bells} bells${p.pulses ? ` · ${p.pulses} beats` : ''}${p.hits ? ` · ${p.hits} drum hits` : ''}` : '';
   }
 
   dispose() { this.stop(); }

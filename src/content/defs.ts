@@ -7,6 +7,7 @@
  * knob that does nothing.
  */
 import { REGION_HALF } from '../sim/types';
+import { DRUMS, DRUM_HELP } from '../audio/drums';
 import { bool, choice, color, grid, int, list, num, ref, str, type ChoiceField, type Infer, type NumField, type RefField, type Shape, type StrField } from './schema';
 
 /** Attack looks: tracer + sound. */
@@ -274,6 +275,12 @@ export const musicChordShape = {
   bass: notes('Bass', 'One note, e.g. "D2". Empty = the lowest pad note an octave down.', true),
   bells: notes('Bell notes', 'The notes bells may pick from, low to high, e.g. "F#5 A5 C#6". Empty = the pad notes two octaves up.', true),
 } satisfies Shape;
+export const musicDrumShape = {
+  sound: choice(DRUMS, { label: 'Drum', default: 'kick', helps: DRUM_HELP }),
+  steps: str({ label: 'Pattern', help: 'One character per step, 16 steps to a bar: x = hit, o = soft hit, . = rest; spaces and | are ignored, e.g. "x... ..x. x... ....". Each track loops on its own length, so tracks of different lengths drift against each other.' }),
+  level: num({ label: 'Level', min: 0, max: 1, step: 0.05 }),
+  pan: num({ label: 'Pan', min: -1, max: 1, step: 0.1, optional: true, help: '−1 left … 1 right. Empty = centre.' }),
+} satisfies Shape;
 export const musicShape = {
   name: str({ label: 'Name' }),
   use: choice(MUSIC_USES, {
@@ -308,7 +315,11 @@ export const musicShape = {
   bellGapMax: num({ label: 'Bells · gap longest', min: 0.2, max: 60, step: 0.1, unit: 's' }),
   phrases: num({ label: 'Bells · phrases', min: 0, max: 1, step: 0.05, help: 'How often bells come as a run of 2 or 3 notes rather than one.' }),
   pulse: num({ label: 'Pulse · level', min: 0, max: 1, step: 0.05, help: 'A low, steady throb on the bass note: heartbeat tension. 0 = none.' }),
-  pulseRate: num({ label: 'Pulse · rate', min: 20, max: 200, step: 1, unit: 'bpm', optional: true, help: 'Empty = 70.' }),
+  pulseRate: num({ label: 'Tempo', min: 20, max: 200, step: 1, unit: 'bpm', optional: true, help: 'Beats a minute for the pulse and the drums (a beat is 4 drum steps). Empty = 70.' }),
+  drums: num({ label: 'Drums · level', min: 0, max: 1, step: 0.05, optional: true, help: 'Percussion from the drum tracks below. Empty or 0 = no drums.' }),
+  drumTracks: list(musicDrumShape, { label: 'Drum tracks', max: 8, optional: true, help: 'Each track is one drum playing a looping step pattern at the tempo above.' }),
+  swing: num({ label: 'Drums · swing', min: 0, max: 0.5, step: 0.05, optional: true, help: 'Delays every other step for a lilting, uneven feel. Empty = straight.' }),
+  drumsIn: int({ label: 'Drums · come in after', min: 0, max: 12, optional: true, help: 'Chords to wait before the drums start, so the music can settle first. Empty = straight away.' }),
   air: num({ label: 'Air · level', min: 0, max: 2, step: 0.05, help: 'A faint, sweeping hiss behind everything.' }),
   echo: num({ label: 'Echo', min: 0, max: 1, step: 0.05, help: 'How much the bells bounce left and right.' }),
   space: num({ label: 'Reverb', min: 0, max: 1, step: 0.05, help: 'How big the room sounds.' }),
@@ -316,6 +327,7 @@ export const musicShape = {
 } satisfies Shape;
 export type MusicDef = Infer<typeof musicShape>;
 export type MusicChord = Infer<typeof musicChordShape>;
+export type MusicDrum = Infer<typeof musicDrumShape>;
 
 export const ASSET_KINDS = ['model', 'image', 'audio'] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];

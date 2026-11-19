@@ -5,6 +5,7 @@
 import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, type WildlifeDef, locate, regionCells } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 import { parseNotes } from '../audio/notes';
+import { parseSteps } from '../audio/drums';
 
 export interface ContentDb {
   units: Record<string, UnitDef>;
@@ -132,6 +133,12 @@ function crossIssues(db: ContentDb): FileIssue[] {
         if (bad.length) out.push({ path: at, field: `chords[${i}].${f}`, msg: `not a note: ${bad.join(', ')} (write e.g. C#4, Eb3)` });
       }
       if (c && !parseNotes(c.notes).notes.length) out.push({ path: at, field: `chords[${i}].notes`, msg: 'needs at least one note' });
+    });
+    (m.drumTracks ?? []).forEach((d, i) => {
+      const { steps, bad } = parseSteps(d?.steps);
+      if (bad.length) out.push({ path: at, field: `drumTracks[${i}].steps`, msg: `use x (hit), o (soft hit) and . (rest), not ${[...new Set(bad)].join(' ')}` });
+      else if (!steps.length) out.push({ path: at, field: `drumTracks[${i}].steps`, msg: 'needs at least one step' });
+      else if (steps.length > 64) out.push({ path: at, field: `drumTracks[${i}].steps`, msg: `${steps.length} steps; at most 64 (4 bars)` });
     });
     if (m.use !== 'none' && !(m.chords ?? []).length) out.push({ path: at, field: 'chords', msg: 'needs at least one chord' });
     for (const [a, b] of [['chordMin', 'chordMax'], ['bellGapMin', 'bellGapMax']] as const) {

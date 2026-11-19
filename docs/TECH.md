@@ -716,6 +716,16 @@ First playtest build (2026-11-15).
     bells), **Night · Long Dark** (C Dorian, glass pads, sparse, more echo and air), **Tension · Contact** (E
     Phrygian, hollow pads, metal bells, 72 bpm pulse, 8–12 s chords). The editor's **▶ Listen** (`src/editor/
     music-panel.ts`) plays the draft with its own AudioContext, lights the chord sounding, ⏭ moves on now.
+  - **Percussion (v0.44.0):** `src/audio/drums.ts` synthesises eight drums (kick, thud, tom, snare, rim, hat,
+    shaker, clank). A mood's **Drum tracks** (up to 8) each give a drum, a step pattern ("x... o..." — x hit,
+    o soft hit, . rest; spaces and | ignored; 16 steps a bar, at most 64), a level and a pan; each track loops on
+    its own length, so a 12-step track drifts against a 16-step bar. They run at the mood's **Tempo** (the
+    pulse's `pulseRate`; a beat is 4 steps), start on the pulse's beat, with optional **swing** (every other step
+    late) and **come in after** N chords; ±6 ms and ±10% velocity of human variation. Drums go mostly dry with
+    a little of the hall. Content checks flag bad pattern characters. **Tension · Contact** uses six tracks
+    (kick, a thud every two bars, toms, a backbeat clank, shaker eighths, a 12-step hat), pulse down to 0.5,
+    overall level 0.8. Measured offline: its drums alone about −32 LUFS, about 5 dB under the rest of the mood;
+    the whole mood about −26.
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min

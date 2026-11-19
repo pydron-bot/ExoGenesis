@@ -37,10 +37,49 @@
   "bellGapMin": 3,
   "bellGapMax": 8,
   "phrases": 0.2,
-  "pulse": 0.9,
+  "pulse": 0.5,
   "pulseRate": 72,
+  "drums": 1,
+  "drumTracks": [
+    {
+      "sound": "kick",
+      "steps": "x... .... x.x. ....",
+      "level": 0.9
+    },
+    {
+      "sound": "thud",
+      "steps": "x... .... .... .... .... .... .... ....",
+      "level": 0.7
+    },
+    {
+      "sound": "tom",
+      "steps": ".... ..x. .... x.o.",
+      "level": 0.55,
+      "pan": -0.3
+    },
+    {
+      "sound": "clank",
+      "steps": ".... x... .... x...",
+      "level": 0.4,
+      "pan": 0.35
+    },
+    {
+      "sound": "shaker",
+      "steps": "x.o. x.o. x.o. x.o.",
+      "level": 0.3,
+      "pan": 0.5
+    },
+    {
+      "sound": "hat",
+      "steps": "x.. x.. o.. x.o",
+      "level": 0.22,
+      "pan": -0.5
+    }
+  ],
+  "swing": 0.1,
+  "drumsIn": 0,
   "air": 0.6,
   "echo": 0.4,
   "space": 0.6,
-  "level": 1
+  "level": 0.8
 }

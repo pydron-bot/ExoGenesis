@@ -4,7 +4,7 @@
  * chords and how they're played: slow pad chords that drift from one to the
  * next (a random walk that keeps coming home to the first), a soft bass on
  * each chord's root, sparse FM bells picking chord tones through a ping-pong
- * echo, an optional low heartbeat pulse for tension, and a faint band of
+ * echo, an optional low heartbeat pulse, step-sequenced drums, and a faint band of
  * filtered noise; all into one long synthetic hall reverb.
  *
  * The mood is read through a getter every time something is scheduled, so the
@@ -16,6 +16,7 @@
  */
 import type { MusicChord, MusicDef } from '../content/defs';
 import { midiHz, parseNotes } from './notes';
+import { HITS, parseSteps } from './drums';
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 /** A mood number, or `d` while it's blank or half-typed in the editor. */
@@ -26,6 +27,7 @@ const PAD_PEAK = 0.045;
 const BASS_PEAK = 0.09;
 const BELL_PEAK = 0.07;
 const PULSE_PEAK = 0.11;
+const DRUM_PEAK = 0.35;
 const AIR_PEAK = 0.024;
 const LOOKAHEAD = 1.2;
 
@@ -69,12 +71,16 @@ export class AmbientMusic {
   private nextChord = 0;
   private nextBell = 0;
   private nextPulse = 0;
+  /** Drums: the next step's time and its number (each track loops on its own length). */
+  private nextStep = 0;
+  private step = 0;
+  private drumBus: GainNode;
   /** Chords already queued, with their start times (bells and pulse follow whichever is sounding). */
   private queue: { t: number; c: Chord; i: number }[] = [];
   /** The chord being played and when it ends (its pads release then). */
   private chordEnd: { t: number; nodes: GainNode[] } | null = null;
   /** Test and editor hook: what has been queued, and the chord now sounding (index into the mood's chords). */
-  played = { chords: 0, bells: 0, pulses: 0, chord: -1 };
+  played = { chords: 0, bells: 0, pulses: 0, hits: 0, chord: -1 };
 
   constructor(private c: AudioContext, dest: AudioNode, private mood: () => MusicDef, volume = 1, fadeIn = 6) {
     const out = (this.out = c.createGain());
@@ -121,6 +127,14 @@ export class AmbientMusic {
     merge.connect(lvl);
     merge.connect(verb);
 
+    // drums: mostly dry, a little of the hall so they sit in the same space
+    this.drumBus = c.createGain();
+    this.drumBus.connect(lvl);
+    const drumVerb = c.createGain();
+    drumVerb.gain.value = 0.3;
+    this.drumBus.connect(drumVerb).connect(verb);
+    this.nodes.push(this.drumBus, drumVerb);
+
     this.airGain = c.createGain();
     this.airGain.connect(this.pads);
     this.nodes.push(out, lvl, verb, this.wet, this.pads, this.bellBus, dry, send, dl, dr, fb, tone, merge, this.echoSend, this.airGain);
@@ -131,6 +145,7 @@ export class AmbientMusic {
     this.nextChord = t;
     this.nextBell = t + rand(3, 5);
     this.nextPulse = t + 1;
+    this.nextStep = t + 1; // on the pulse's beat
     this.tick();
     this.timer = window.setInterval(() => this.tick(), 200);
   }
@@ -173,6 +188,7 @@ export class AmbientMusic {
     while (this.nextChord < ahead) this.nextChord += this.playChord(this.nextChord);
     while (this.nextBell < ahead) this.nextBell += this.bells(this.nextBell);
     while (this.nextPulse < ahead) this.nextPulse += this.pulse(this.nextPulse);
+    while (this.nextStep < ahead) this.nextStep += this.drumStep(this.nextStep);
     while (this.queue.length > 2 && this.queue[1].t < now) this.queue.shift();
     const q = [...this.queue].reverse().find((x) => x.t <= now);
     if (q) this.played.chord = q.i;
@@ -352,6 +368,36 @@ export class AmbientMusic {
     }
     this.played.pulses++;
     return beat;
+  }
+
+  /** Play drum step `this.step` at `t` (every track's hit on it); returns the time to the next step. */
+  private drumStep(t: number): number {
+    const m = this.mood(), dur = 60 / Math.max(20, fin(m.pulseRate, 70)) / 4;
+    const n = this.step++;
+    const level = fin(m.drums, 0);
+    if (!(level > 0) || !m.drumTracks?.length || this.played.chords <= fin(m.drumsIn, 0)) return dur;
+    // swing: every other step a little late
+    const at = t + (n % 2 ? dur * Math.min(0.5, fin(m.swing, 0)) : 0);
+    for (const tr of m.drumTracks) {
+      const hit = HITS[tr?.sound];
+      const { steps } = parseSteps(tr?.steps);
+      if (!hit || !steps.length) continue;
+      const v = steps[n % steps.length];
+      if (!v) continue;
+      // a touch of human: velocity and timing vary slightly
+      const peak = DRUM_PEAK * level * fin(tr.level, 0.7) * v * rand(0.88, 1.06);
+      let out: AudioNode = this.drumBus;
+      if (tr.pan) {
+        const p = this.c.createStereoPanner();
+        p.pan.value = Math.max(-1, Math.min(1, tr.pan));
+        p.connect(this.drumBus);
+        out = p;
+        setTimeout(() => p.disconnect(), (at - this.c.currentTime + 2) * 1000);
+      }
+      hit(this.c, out, at + rand(0, 0.006), peak);
+      this.played.hits++;
+    }
+    return dur;
   }
 
   /** A faint, slowly sweeping band of noise: the hiss of distance. 11 s of it, played at a drifting speed, so it never audibly repeats. */

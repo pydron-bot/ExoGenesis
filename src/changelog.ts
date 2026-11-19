@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.44.0',
+    date: '2026-11-19',
+    title: 'Drums in the dark',
+    notes: [
+      'The tension music now has percussion: a heavy, slow beat with distant booms, low toms, a metallic clank and a rattling shaker that drift against each other when a fight breaks out',
+    ],
+  },
+  {
     version: '0.43.0',
     date: '2026-11-19',
     title: 'Wildlife and plants, remodelled',
