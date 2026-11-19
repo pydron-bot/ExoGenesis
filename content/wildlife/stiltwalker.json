@@ -11,5 +11,6 @@
   "herdScale": 0.3,
   "color": "#8aa0a8",
   "accent": "#3c4f58",
-  "glow": "#7affd0"
+  "glow": "#7affd0",
+  "model": "exo-wild-stilt"
 }

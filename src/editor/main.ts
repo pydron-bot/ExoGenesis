@@ -812,6 +812,7 @@ function renderForm() {
       kind: at.coll as 'biomes' | 'wildlife',
       draft: () => at.draft as unknown as BiomeDef & WildlifeDef,
       wildlife: () => Object.fromEntries(recordsOf('wildlife').map((r) => [r.id, (at.coll === 'wildlife' && r.id === at.id ? at.draft : r.rec.data) as WildlifeDef])),
+      asset: (id) => files.get(pathOf('assets', id))?.data as AssetDef | undefined,
     });
     panel = naturePv.el;
   }

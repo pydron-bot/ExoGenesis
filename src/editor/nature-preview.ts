@@ -5,7 +5,9 @@
  * beside a grazer for scale. Day / night shows the glow. Redraws as the form changes.
  */
 import * as THREE from 'three';
-import type { BiomeDef, WildlifeDef } from '../content/defs';
+import type { AssetDef, BiomeDef, WildlifeDef } from '../content/defs';
+import { loadModel } from '../assets/models';
+import { recolorModel, type Slots } from '../world/recolor';
 import { ARCHETYPES, Mesher, floraMaterial, floraUniforms, mulberry, palette } from '../world/flora';
 import { buildCreatureLook, creatureMaterial } from '../world/fauna-models';
 
@@ -15,6 +17,8 @@ export interface NatureSource {
   kind: 'biomes' | 'wildlife';
   draft(): BiomeDef | WildlifeDef;
   wildlife(): Record<string, WildlifeDef>;
+  /** Model assets, to draw records that name one. */
+  asset(id: string): AssetDef | undefined;
 }
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string)[]) => {
@@ -77,7 +81,7 @@ export class NaturePreview {
   refresh() {
     const d = this.src.draft();
     if (!d) return;
-    const key = JSON.stringify(d) + this.seed + (this.src.kind === 'biomes' ? JSON.stringify(this.src.wildlife()) : '');
+    const key = JSON.stringify(d) + this.seed + JSON.stringify(this.src.wildlife());
     if (key === this.key) return;
     this.key = key;
     for (const o of [...this.group.children]) { this.group.remove(o); (o as THREE.Mesh).geometry?.dispose(); }
@@ -93,8 +97,10 @@ export class NaturePreview {
     forms.forEach((p, i) => {
       const arch = ARCHETYPES.find((a) => a.name === p.plant)!;
       const m = new Mesher();
-      arch.build(mulberry(this.seed * 131 + i * 31), palette(r, b), m);
+      const pal = palette(r, b);
+      arch.build(mulberry(this.seed * 131 + i * 31), pal, m);
       const mesh = new THREE.Mesh(m.build(false), mat);
+      this.useModel(mesh, p.model, { stem: { color: pal.base }, tip: { color: pal.tip }, leaf: { color: pal.tip.clone().lerp(pal.base, 0.2) }, glow: { color: pal.glow, glow: 1 } });
       const a = (i / Math.max(1, forms.length)) * Math.PI * 2;
       const rad = arch.big ? 13 : 7;
       mesh.position.set(Math.cos(a) * rad, 0, Math.sin(a) * rad);
@@ -130,6 +136,7 @@ export class NaturePreview {
 
   private addStatic(w: WildlifeDef, size: number, x: number) {
     const mesh = new THREE.Mesh(buildCreatureLook(w), creatureMaterial());
+    this.useModel(mesh, w.model, this.wildSlots(w));
     mesh.scale.setScalar(size);
     mesh.position.set(x, w.behavior === 'flyer' ? 2 : 0, 0);
     mesh.rotation.y = 0.6;
@@ -139,10 +146,28 @@ export class NaturePreview {
 
   private addWalker(w: WildlifeDef, r: number, i: number) {
     const mesh = new THREE.Mesh(buildCreatureLook(w), creatureMaterial());
+    this.useModel(mesh, w.model, this.wildSlots(w));
     const s = (w.size + (w.sizeMax ?? w.size)) / 2;
     mesh.scale.setScalar(s);
     this.group.add(mesh);
     this.walkers.push({ obj: mesh, r, speed: (w.speed ?? 2.2) / r, a: i * 2.1, flyer: w.behavior === 'flyer', height: Math.min(12, w.height ?? 10), hop: w.body === 'hopper', sx: s });
+  }
+
+  /** Swap a mesh's built-in shape for a model in the given colours once it loads (if the record still shows). */
+  private useModel(mesh: THREE.Mesh, id: string | undefined, slots: Slots) {
+    const a = id ? this.src.asset(id) : undefined;
+    if (!a) return;
+    const key = this.key;
+    loadModel(a).then((root) => {
+      if (this.key !== key || this.disposed) return;
+      const old = mesh.geometry;
+      mesh.geometry = recolorModel(root, slots);
+      old.dispose();
+    }, (e) => console.warn(`${id} failed to load`, e));
+  }
+
+  private wildSlots(w: WildlifeDef): Slots {
+    return { color: { color: new THREE.Color(w.color) }, accent: { color: new THREE.Color(w.accent) }, glow: { color: new THREE.Color(w.glow || w.accent), glow: w.glow ? 1 : 0 } };
   }
 
   dispose() {

@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.43.0',
+    date: '2026-11-19',
+    title: 'Wildlife and plants, remodelled',
+    notes: [
+      'All seven wildlife body types have detailed new models: plated grazers, beaked stilt-walkers, hoppers with glowing feelers, gliders with swept wings and whip tails, armoured crawlers, shelled plodders and banded snakes',
+      'The new plants are remodelled too: canopy trees with hanging glow fruit, tendrils with glowing suckers, reeds with seed heads, spotted mushroom clusters, cacti with flowering arms, thorn scrub and lichen crusts',
+      'Every species still wears its own colours, and performance stays the same',
+    ],
+  },
+  {
     version: '0.42.0',
     date: '2026-11-19',
     title: 'Music for the long view',

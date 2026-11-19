@@ -8,7 +8,8 @@
     },
     {
       "plant": "cap",
-      "amount": 1.1
+      "amount": 1.1,
+      "model": "exo-flora-cap"
     },
     {
       "plant": "crystal",
@@ -16,12 +17,14 @@
     },
     {
       "plant": "lichen",
-      "chance": 0.7
+      "chance": 0.7,
+      "model": "exo-flora-lichen"
     },
     {
       "plant": "thorn",
       "chance": 0.5,
-      "amount": 0.8
+      "amount": 0.8,
+      "model": "exo-flora-thorn"
     },
     {
       "plant": "spire",

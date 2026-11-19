@@ -1208,3 +1208,22 @@ beside a grazer; Night shows the glow; Another roll rebuilds the plants from a n
 - Asset browser: the old Grazer built-in is replaced by **Wildlife: <body plan>** entries; Flora lists all 13 forms.
 - Checked with close-up renders of Touchdown as verdant, arid, frozen, volcanic and lush (`?biome=`), the editor
   previews, `npm run build` and `tools/map-smoke.mjs` (now reads 4 floats per creature).
+
+### Blender nature models (v0.43.0)
+
+`blender/build.py` "set v10: nature" builds the seven wildlife body plans (`exo-wild-<plan>`, 260–760 tris) and the
+seven new plant forms (`exo-flora-<form>`, 87–572 tris) as recolourable models: their materials are colour slots, not
+colours. Wildlife: `color`, `accent`, `glow` (`claw` keeps its dark colour). Plants: `stem` (graded from the species'
+base colour at the root to its tip colour at the top), `leaf`, `glow`.
+
+- `src/world/recolor.ts recolorModel(root, slots)`: flattens the model (`flattenForInstancing`) and bakes it into one
+  geometry with vertex colours and `aGlow` in a species' colours, so it draws with the shared flora / wildlife material
+  and instances exactly like the procedural shapes (draw calls unchanged). A material that isn't a slot keeps its own
+  colour and glows if emissive.
+- Content: wildlife and biome plant rows gained an optional **Model** (asset ref). All 23 species and every biome row
+  for the seven new forms name their model; empty = the built-in shape (the older six forms stay procedural).
+- Game (`main.ts`): loads only the models the region's biome and herds use (`?models=builtin` skips them), then
+  `RegionView.setNatureModels` swaps each species' geometry when its model arrives (`Flora.setModels` widens the
+  per-instance cull spheres by the radius ratio). The built-ins draw until then.
+- Editor: the Nature preview loads the models too, so a species or biome shows as the game draws it.
+- Checked: in-game renders of Touchdown as verdant and arid, editor previews of a shell, ray, serpent and the lush biome.

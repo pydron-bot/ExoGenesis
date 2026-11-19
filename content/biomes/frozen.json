@@ -8,7 +8,8 @@
     },
     {
       "plant": "lichen",
-      "amount": 1.2
+      "amount": 1.2,
+      "model": "exo-flora-lichen"
     },
     {
       "plant": "fan",

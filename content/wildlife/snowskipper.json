@@ -11,5 +11,6 @@
   "herdScale": 1.2,
   "color": "#eef4f8",
   "accent": "#8a9aaa",
-  "glow": "#9ff6ff"
+  "glow": "#9ff6ff",
+  "model": "exo-wild-hopper"
 }

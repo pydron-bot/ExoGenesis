@@ -10,5 +10,6 @@
   "spread": 16,
   "herdScale": 1.2,
   "color": "#d8b880",
-  "accent": "#8a6a3a"
+  "accent": "#8a6a3a",
+  "model": "exo-wild-hopper"
 }

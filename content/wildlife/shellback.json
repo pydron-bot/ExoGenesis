@@ -10,5 +10,6 @@
   "spread": 24,
   "herdScale": 0.3,
   "color": "#b08a5a",
-  "accent": "#5a3a20"
+  "accent": "#5a3a20",
+  "model": "exo-wild-shell"
 }

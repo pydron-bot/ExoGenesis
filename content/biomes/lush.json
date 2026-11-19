@@ -4,11 +4,13 @@
   "plants": [
     {
       "plant": "canopy",
-      "amount": 1.2
+      "amount": 1.2,
+      "model": "exo-flora-canopy"
     },
     {
       "plant": "tendril",
-      "chance": 0.6
+      "chance": 0.6,
+      "model": "exo-flora-tendril"
     },
     {
       "plant": "parasol",
@@ -20,7 +22,8 @@
     },
     {
       "plant": "reeds",
-      "amount": 1.3
+      "amount": 1.3,
+      "model": "exo-flora-reeds"
     },
     {
       "plant": "bulbs",
@@ -28,7 +31,8 @@
     },
     {
       "plant": "cap",
-      "chance": 0.6
+      "chance": 0.6,
+      "model": "exo-flora-cap"
     }
   ],
   "extra": 2,

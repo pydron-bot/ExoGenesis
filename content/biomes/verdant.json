@@ -22,15 +22,18 @@
     },
     {
       "plant": "tendril",
-      "chance": 0.45
+      "chance": 0.45,
+      "model": "exo-flora-tendril"
     },
     {
       "plant": "cap",
-      "chance": 0.5
+      "chance": 0.5,
+      "model": "exo-flora-cap"
     },
     {
       "plant": "reeds",
-      "chance": 0.5
+      "chance": 0.5,
+      "model": "exo-flora-reeds"
     }
   ],
   "extra": 1,

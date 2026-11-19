@@ -12,6 +12,7 @@ import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
 import { Flora, type FloraBiome } from './flora';
 import { buildCreatureLook, creatureMaterial } from './fauna-models';
+import { recolorModel } from './recolor';
 import type { WildlifeDef } from '../content/defs';
 import { hash01 } from '../content/nature';
 import { addFog } from './fog';
@@ -824,6 +825,9 @@ export class RegionView {
   private wild = new Map<number, THREE.InstancedMesh>();
   private wildIds: string[] = [];
   private wildDefs: Record<string, WildlifeDef> = {};
+  /** Loaded wildlife models (asset id → scene), and each species' geometry built from them or the built-in. */
+  private wildModels: Record<string, THREE.Object3D> = {};
+  private wildGeos = new Map<number, THREE.BufferGeometry>();
   /** Per creature: how far a burrower has sunk (0..1), eased. */
   private wildSink = new Float32Array(0);
   private wildLastT = 0;
@@ -1212,8 +1216,7 @@ export class RegionView {
     for (const [k, c] of counts) {
       let mesh = this.wild.get(k);
       if (mesh && mesh.instanceMatrix.count >= c) continue;
-      const def = this.wildDefs[this.wildIds[k]];
-      const geo = mesh?.geometry ?? buildCreatureLook(def ?? { body: 'hexapod', color: '#c78a5a', accent: '#6a3a24' });
+      const geo = this.wildGeo(k);
       if (mesh) { this.wildGroup.remove(mesh); mesh.dispose(); }
       mesh = new THREE.InstancedMesh(geo, this.wildMat, Math.max(16, Math.ceil(c * 1.25)));
       mesh.name = `wild-${this.wildIds[k] ?? k}`;
@@ -1271,6 +1274,39 @@ export class RegionView {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
   }
+  /** A species' geometry: its model in its colours once loaded, else its built-in body plan. */
+  private wildGeo(k: number): THREE.BufferGeometry {
+    let g = this.wildGeos.get(k);
+    if (g) return g;
+    const def = this.wildDefs[this.wildIds[k]] ?? { body: 'hexapod', color: '#c78a5a', accent: '#6a3a24' } as WildlifeDef;
+    const model = def.model ? this.wildModels[def.model] : undefined;
+    if (model) {
+      try {
+        g = recolorModel(model, {
+          color: { color: new THREE.Color(def.color) }, accent: { color: new THREE.Color(def.accent) },
+          glow: { color: new THREE.Color(def.glow || def.accent), glow: def.glow ? 1 : 0 },
+        });
+      } catch (e) { console.warn(`wildlife model ${def.model} failed`, e); }
+    }
+    g ??= buildCreatureLook(def);
+    this.wildGeos.set(k, g);
+    return g;
+  }
+
+  /** Models for wildlife and plants arrived (asset id → loaded scene): species that use them switch over. */
+  setNatureModels(models: Record<string, THREE.Object3D>) {
+    Object.assign(this.wildModels, models);
+    for (const [k, mesh] of this.wild) {
+      const def = this.wildDefs[this.wildIds[k]];
+      if (!def?.model || !models[def.model]) continue;
+      const old = this.wildGeos.get(k);
+      this.wildGeos.delete(k);
+      mesh.geometry = this.wildGeo(k);
+      old?.dispose();
+    }
+    this.flora?.setModels(models);
+  }
+
   private wildM = new THREE.Matrix4();
   private wildP = new THREE.Vector3();
   private wildU = new THREE.Vector3();

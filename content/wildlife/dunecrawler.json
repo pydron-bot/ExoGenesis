@@ -11,5 +11,6 @@
   "herdScale": 0.6,
   "color": "#a0703a",
   "accent": "#4a3018",
-  "glow": "#ff9a4a"
+  "glow": "#ff9a4a",
+  "model": "exo-wild-crawler"
 }

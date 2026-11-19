@@ -8,5 +8,6 @@
   "run": 7,
   "color": "#7a9a4a",
   "accent": "#3a4a22",
-  "glow": "#e8ff7a"
+  "glow": "#e8ff7a",
+  "model": "exo-wild-hexapod"
 }

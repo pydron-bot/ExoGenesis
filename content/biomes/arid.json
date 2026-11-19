@@ -4,11 +4,13 @@
   "plants": [
     {
       "plant": "barrel",
-      "amount": 1.2
+      "amount": 1.2,
+      "model": "exo-flora-barrel"
     },
     {
       "plant": "thorn",
-      "amount": 1.2
+      "amount": 1.2,
+      "model": "exo-flora-thorn"
     },
     {
       "plant": "crystal",
@@ -16,12 +18,14 @@
     },
     {
       "plant": "lichen",
-      "chance": 0.7
+      "chance": 0.7,
+      "model": "exo-flora-lichen"
     },
     {
       "plant": "reeds",
       "chance": 0.6,
-      "amount": 0.7
+      "amount": 0.7,
+      "model": "exo-flora-reeds"
     },
     {
       "plant": "bulbs",

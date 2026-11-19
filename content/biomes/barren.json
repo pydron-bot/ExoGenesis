@@ -3,7 +3,8 @@
   "description": "Airless rock: only lichen crusts and lithophyte crystals grow where painted; rock mites skitter about.",
   "plants": [
     {
-      "plant": "lichen"
+      "plant": "lichen",
+      "model": "exo-flora-lichen"
     },
     {
       "plant": "crystal"

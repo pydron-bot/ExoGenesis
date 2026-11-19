@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm3, smoothstep } from './noise';
+import { recolorModel } from './recolor';
 import { E, HALF, N, currentBody, floraPaintAt, regionDir, regionFlora, regionHeightRaw, regionToWorld } from './planet';
 
 type Rng = () => number;
@@ -184,7 +185,7 @@ export class Mesher {
 
 /** A biome's plant look: stem and glow colours (content/biomes). Home's when none is given. */
 export interface FloraBiome {
-  plants?: { plant: string; chance?: number; amount?: number }[];
+  plants?: { plant: string; chance?: number; amount?: number; model?: string }[];
   extra?: number;
   stems?: { color: string }[];
   glows?: { color: string }[];
@@ -638,7 +639,7 @@ export class Flora {
         return m.build(!opts.flat);
       });
       this.speciesNames.push(arch.name);
-      return { arch, habitat, nicheSeed, geos, si, amount: row.amount ?? 1 };
+      return { arch, habitat, nicheSeed, geos, si, amount: row.amount ?? 1, model: row.model, pal };
     });
     // the same ground cover however many species share it (Home's mix was 3 big, 5 small)
     const share = (big: boolean) => {
@@ -747,7 +748,35 @@ export class Flora {
         });
         this.count += list.length;
       }
+      if (sp.model) this.modelled.push({ model: sp.model, pal: sp.pal, variants: this.variants.filter((v) => v.species === si) });
     });
+  }
+
+  /** Species drawn with a model (biome plant row `model`), waiting for it to load. */
+  private modelled: { model: string; pal: Palette; variants: Variant[]; done?: boolean }[] = [];
+
+  /** Models arrived (asset id → loaded scene): species that use one swap their built-in shapes for it, in their colours. */
+  setModels(models: Record<string, THREE.Object3D>) {
+    for (const m of this.modelled) {
+      const root = models[m.model];
+      if (!root || m.done) continue;
+      let geo: THREE.BufferGeometry;
+      try {
+        geo = recolorModel(root, {
+          stem: { color: m.pal.base }, tip: { color: m.pal.tip }, leaf: { color: mix(m.pal.tip, m.pal.base, 0.2) }, glow: { color: m.pal.glow, glow: 1 },
+        });
+      } catch (e) { console.warn(`flora model ${m.model} failed`, e); continue; }
+      m.done = true;
+      const newR = geo.boundingSphere!.radius;
+      for (const v of m.variants) {
+        const old = v.mesh.geometry;
+        const k = newR / Math.max(1e-3, old.boundingSphere?.radius ?? newR);
+        for (let i = 0; i < v.hidden.length; i++) v.sphere[i * 4 + 3] *= Math.max(1, k);
+        v.mesh.geometry = geo;
+        old.dispose();
+      }
+      this.dirty = true;
+    }
   }
 
   /** Remove plants within `r` of a region point (building footprint). Returns how many were cleared. */

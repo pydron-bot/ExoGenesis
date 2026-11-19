@@ -12,5 +12,6 @@
   "herdScale": 0.35,
   "color": "#a8d0f0",
   "accent": "#3a5a7a",
-  "glow": "#bff4ff"
+  "glow": "#bff4ff",
+  "model": "exo-wild-ray"
 }

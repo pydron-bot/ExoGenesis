@@ -486,6 +486,20 @@ for (const [kind, d] of Object.entries(content.buildings)) {
 if (!builtinModels && content.assets['exo-cache']) loadModel(content.assets['exo-cache']).then((m) => region.setCacheModel(m), (e) => console.warn('cache model failed to load', e));
 // worker drones (and the ore haulers) use the exo-drone asset when there is one
 if (!builtinModels && content.assets['exo-drone']) loadModel(content.assets['exo-drone']).then((m) => region.setDroneModel(m), (e) => console.warn('drone model failed to load', e));
+// wildlife and plants: the models this region's biome and herds use (recoloured per species, src/world/recolor.ts)
+if (!builtinModels && !skirmishMode) {
+  const biome = biomeOf(content, regionDef);
+  const ids = new Set<string>();
+  for (const w of [...(biome?.wildlife ?? []).map((r) => r.species), ...regionDef.herds.map((h) => h.species)]) {
+    const m = w ? content.wildlife[w]?.model : undefined;
+    if (m) ids.add(m);
+  }
+  for (const r of biome?.plants ?? []) if (r.model) ids.add(r.model);
+  for (const id of ids) {
+    if (!content.assets[id]) continue;
+    loadModel(content.assets[id]).then((m) => region.setNatureModels({ [id]: m }), (e) => console.warn(`${id} failed to load; keeping the built-in`, e));
+  }
+}
 if (!builtinModels && content.assets['exo-wreck']) loadModel(content.assets['exo-wreck']).then((m) => region.setWreckModel(m), (e) => console.warn('wreck model failed to load', e));
 
 const canPlace = (kind: string, x: number, z: number) => {

@@ -2189,6 +2189,298 @@ MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, 
           "gunship": gunship, "skimmerwing": skimmerwing, "drone": drone,
           "shield": shield, "seedbank": seedbank, "aegis": aegis, "medevac": medevac,
           "medbay": medbay, "memorial": memorial}
+
+# ---------------------------------------------------------------- set v10: nature (recoloured by the game)
+# Wildlife body plans and plant forms. Their materials are colour slots, not colours: the game swaps
+# them per species / biome (src/world/recolor.ts). Wildlife: `color`, `accent`, `glow`, `claw` (stays dark).
+# Plants: `stem` (graded from the species' base colour at the root to its tip colour at the top), `leaf`
+# (tip colour), `glow`. The placeholder colours here are only for Blender and the asset browser.
+# Scale 1 = the old grazer (~1.5 u long); origin on the ground; front −Y (the game's +Z). Kept light:
+# hundreds of animals and thousands of plants are instanced, so ≤ ~700 tris an animal, ≤ ~350 a plant.
+
+def wild_mats():
+    return {
+        "color": mat("color", "#b89a7a", 0.0, 0.8),
+        "accent": mat("accent", "#5a4a3a", 0.05, 0.7),
+        "glow": glow_mat("glow", "#9ff6ff", 2.0),
+        "claw": mat("claw", "#1e1a18", 0.1, 0.5),
+    }
+
+
+def plant_mats():
+    return {
+        "stem": mat("stem", "#4a3a5a", 0.0, 0.85),
+        "leaf": mat("leaf", "#7a5aa0", 0.0, 0.75),
+        "glow": glow_mat("glow", "#7affd0", 2.0),
+    }
+
+
+def limb(pts, r, m, verts=5, tip=None, tip_m=None):
+    """A jointed limb through `pts`, tapering; an optional dark tip cone at the end."""
+    parts = []
+    n = len(pts) - 1
+    for i in range(n):
+        r0 = r * (1 - 0.35 * i / n)
+        parts.append(strut(pts[i], pts[i + 1], r0, m, verts=verts, r2=r0 * 0.8))
+        parts.append(sphere(r0 * 0.95, pts[i + 1], m, seg=6, rings=4)) if i < n - 1 else None
+    if tip:
+        parts.append(strut(pts[-1], tip, r * 0.5, tip_m or m, verts=4, r2=0.01))
+    return [p for p in parts if p]
+
+
+def eyes2(W, x, y, z, r=0.07):
+    return [sphere(r, (sx * x, y, z), W["glow"], seg=6, rings=4) for sx in (-1, 1)]
+
+
+def wild_hexapod(M):
+    W = wild_mats()
+    p = [blob(0.6, (0, 0.05, 1.0), W["color"], scale=(0.9, 1.6, 0.68))]
+    for k in range(4):   # back plates
+        p.append(blob(0.3, (0, 0.6 - k * 0.42, 1.36 - abs(k - 1.5) * 0.05), W["accent"], scale=(1.2, 0.9, 0.4)))
+    p.append(blob(0.34, (0, -1.0, 1.1), W["color"], scale=(0.95, 1.15, 0.85)))   # head
+    p.append(strut((0, -1.25, 1.02), (0, -1.6, 0.9), 0.17, W["accent"], verts=6, r2=0.08))   # snout
+    p += eyes2(W, 0.2, -1.22, 1.25)
+    p.append(strut((0, 0.95, 1.0), (0, 1.45, 0.8), 0.14, W["color"], verts=5, r2=0.03))   # tail
+    for sx in (-1, 1):
+        for y in (-0.55, 0.0, 0.55):
+            p += limb([(sx * 0.4, y, 0.9), (sx * 0.68, y - 0.05, 0.62), (sx * 0.6, y - 0.1, 0.12)], 0.08, W["accent"], tip=(sx * 0.6, y - 0.18, 0.0), tip_m=W["claw"])
+    export("wild-hexapod", [join(p, "body")])
+
+
+def wild_stilt(M):
+    W = wild_mats()
+    p = [blob(0.42, (0, 0, 1.78), W["color"], scale=(1.0, 1.5, 0.8))]
+    p.append(blob(0.3, (0, 0.25, 2.05), W["accent"], scale=(1.1, 1.3, 0.35)))   # saddle
+    for sx in (-1, 1):
+        for y in (-0.35, 0.35):
+            p += limb([(sx * 0.25, y, 1.68), (sx * 0.55, y * 1.4, 1.95), (sx * 0.62, y * 1.7, 0.9), (sx * 0.52, y * 1.75, 0.1)], 0.06, W["accent"], tip=(sx * 0.5, y * 1.8, 0.0), tip_m=W["claw"])
+    p += limb([(0, -0.5, 1.88), (0, -0.85, 2.05), (0, -1.15, 1.78)], 0.11, W["color"], verts=6)   # neck
+    p.append(blob(0.17, (0, -1.32, 1.66), W["accent"], scale=(0.9, 1.6, 0.85)))
+    p.append(strut((0, -1.55, 1.62), (0, -1.75, 1.52), 0.05, W["claw"], verts=4, r2=0.01))   # beak
+    p += eyes2(W, 0.1, -1.4, 1.74, 0.05)
+    p.append(strut((0, 0.6, 1.8), (0, 1.0, 1.55), 0.07, W["color"], verts=4, r2=0.02))
+    export("wild-stilt", [join(p, "body")])
+
+
+def wild_hopper(M):
+    W = wild_mats()
+    p = [blob(0.38, (0, 0, 0.52), W["color"], scale=(1.0, 1.2, 0.95), sub=2)]
+    p.append(blob(0.22, (0, -0.4, 0.68), W["color"], scale=(1, 1, 0.9)))   # head
+    p += eyes2(W, 0.15, -0.55, 0.75, 0.065)
+    for sx in (-1, 1):
+        p += limb([(sx * 0.3, 0.15, 0.48), (sx * 0.42, 0.55, 0.62), (sx * 0.4, 0.35, 0.05)], 0.1, W["accent"], tip=(sx * 0.4, 0.05, 0.0), tip_m=W["claw"])   # folded hind leg
+        p += limb([(sx * 0.15, -0.32, 0.35), (sx * 0.18, -0.4, 0.05)], 0.045, W["accent"], verts=4)
+        p.append(strut((sx * 0.1, -0.5, 0.85), (sx * 0.32, -0.8, 1.3), 0.025, W["accent"], verts=4, r2=0.015))   # feelers
+        p.append(strut((sx * 0.32, -0.8, 1.3), (sx * 0.45, -1.0, 1.42), 0.015, W["accent"], verts=4, r2=0.01))
+        p.append(sphere(0.05, (sx * 0.45, -1.0, 1.42), W["glow"], seg=6, rings=4))
+    p.append(blob(0.12, (0, 0.45, 0.6), W["accent"], scale=(1, 1, 0.8)))   # tuft
+    export("wild-hopper", [join(p, "body")])
+
+
+def wild_ray(M):
+    W = wild_mats()
+    p = [blob(0.24, (0, -0.1, 0), W["color"], scale=(1.0, 2.6, 0.5))]
+    for sx in (-1, 1):   # wings: a swept, cambered membrane with a leading-edge spar
+        v = [(sx * 0.15, -0.55, 0.02), (sx * 0.75, -0.25, 0.1), (sx * 1.45, 0.35, 0.14), (sx * 0.85, 0.3, 0.06), (sx * 0.15, 0.45, 0.0)]
+        p.append(solid_poly(v + [(x, y, z - 0.04) for x, y, z in v], [(0, 1, 2, 3, 4), (9, 8, 7, 6, 5), (0, 5, 6, 1), (1, 6, 7, 2), (2, 7, 8, 3), (3, 8, 9, 4), (4, 9, 5, 0)], W["color"], "wing"))
+        p.append(strut((sx * 0.15, -0.55, 0.04), (sx * 1.45, 0.35, 0.15), 0.035, W["accent"], verts=4, r2=0.015))
+        p.append(blob(0.09, (sx * 0.72, 0.05, 0.12), W["glow"], scale=(1.2, 1.2, 0.3)))
+    p += limb([(0, 0.5, 0), (0, 1.1, 0.06), (0, 1.75, 0.18)], 0.06, W["accent"], verts=4, tip=(0, 2.0, 0.22), tip_m=W["glow"])
+    p += eyes2(W, 0.1, -0.68, 0.08, 0.05)
+    export("wild-ray", [join(p, "body")])
+
+
+def wild_crawler(M):
+    W = wild_mats()
+    p = []
+    for y, s in ((0.55, 0.85), (0.0, 1.0), (-0.5, 0.9)):
+        p.append(blob(0.36 * s, (0, y, 0.3), W["color"], scale=(1.0, 0.95, 0.68)))
+        p.append(blob(0.36 * s, (0, y + 0.05, 0.42), W["accent"], scale=(0.9, 0.7, 0.35)))   # carapace plate
+        p.append(blob(0.07, (0, y, 0.55), W["glow"], scale=(1, 1.5, 0.5)))
+    p.append(blob(0.22, (0, -0.86, 0.28), W["accent"], scale=(1, 0.9, 0.75)))
+    for sx in (-1, 1):
+        p.append(strut((sx * 0.1, -1.0, 0.24), (sx * 0.2, -1.25, 0.2), 0.035, W["claw"], verts=4, r2=0.01))   # mandibles
+        for y in (-0.5, 0.0, 0.45):
+            p += limb([(sx * 0.25, y, 0.28), (sx * 0.55, y - 0.08, 0.38), (sx * 0.62, y - 0.12, 0.06)], 0.04, W["accent"], verts=4, tip=(sx * 0.64, y - 0.14, 0.0), tip_m=W["claw"])
+    p += eyes2(W, 0.1, -1.02, 0.36, 0.045)
+    export("wild-crawler", [join(p, "body")])
+
+
+def wild_shell(M):
+    W = wild_mats()
+    p = [blob(1.0, (0, 0, 0.42), W["color"], scale=(0.95, 1.15, 0.66), sub=2)]
+    for k in range(7):   # shell plates
+        a = k / 7 * math.tau
+        p.append(blob(0.3, (math.cos(a) * 0.48, math.sin(a) * 0.58, 0.9), W["accent"], scale=(1.0, 1.0, 0.35)))
+        p.append(sphere(0.06, (math.cos(a + 0.45) * 0.72, math.sin(a + 0.45) * 0.86, 0.72), W["glow"], seg=6, rings=4))
+    p.append(blob(0.3, (0, 0, 1.08), W["accent"], scale=(1.1, 1.1, 0.35)))
+    p.append(blob(0.3, (0, -1.2, 0.45), W["color"], scale=(0.95, 1.2, 0.8)))   # head
+    p.append(strut((0, -0.9, 0.42), (0, -1.05, 0.45), 0.22, W["color"], verts=6))
+    p += eyes2(W, 0.14, -1.42, 0.56, 0.06)
+    for sx in (-1, 1):
+        for y in (-0.6, 0.6):
+            p.append(cyl(0.16, 0.42, (sx * 0.72, y, 0.21), W["accent"], verts=6, r2=0.2, bevel=0))
+            p.append(strut((sx * 0.72, y - 0.12, 0.04), (sx * 0.72, y - 0.26, 0.0), 0.05, W["claw"], verts=4, r2=0.01))
+    p.append(strut((0, 1.05, 0.3), (0, 1.4, 0.12), 0.12, W["color"], verts=5, r2=0.02))
+    export("wild-shell", [join(p, "body")])
+
+
+def wild_serpent(M):
+    W = wild_mats()
+    p = []
+    pts = []
+    for i in range(11):
+        t = i / 10
+        pts.append((math.sin(t * math.pi * 2.2) * 0.3 * (1 - t * 0.3), -1.0 + t * 2.6, 0.18 + 0.03 * math.sin(t * 9)))
+    for i in range(10):
+        t = i / 10
+        r = 0.2 * (1 - t * 0.8)
+        p.append(strut(pts[i], pts[i + 1], r, W["color"] if i % 2 == 0 else W["accent"], verts=6, r2=r * 0.92))
+        p.append(sphere(r * 0.98, pts[i + 1], W["color"], seg=6, rings=4))
+        if i % 2 == 0 and i < 8:
+            p.append(sphere(0.04, (pts[i][0], pts[i][1], pts[i][2] + r * 0.9), W["glow"], seg=5, rings=3))
+    p.append(blob(0.22, (pts[0][0], -1.12, 0.22), W["color"], scale=(0.95, 1.4, 0.7)))
+    p.append(strut((pts[0][0], -1.38, 0.18), (pts[0][0], -1.6, 0.17), 0.012, W["glow"], verts=3))   # tongue
+    p += eyes2(W, 0.1, -1.25, 0.32, 0.045)
+    export("wild-serpent", [join(p, "body")])
+
+
+# plant forms -----------------------------------------------------------
+
+def dot(r, loc, m, scale=(1, 1, 1)):
+    """A tiny 20-tri lump (glow spots, berries): plants are instanced by the thousand."""
+    return blob(r, loc, m, scale=scale, sub=0)
+
+
+def flora_canopy(M):
+    P = plant_mats()
+    p = [strut((0, 0, -0.3), (0.2, 0.1, 2.0), 0.36, P["stem"], verts=7, r2=0.26)]
+    p.append(cyl(0.55, 0.4, (0, 0, -0.05), P["stem"], verts=7, r2=0.36, bevel=0))   # root flare
+    clumps = []
+    for k, (a, out, up) in enumerate(((0.3, 1.4, 1.5), (2.4, 1.2, 1.3), (4.4, 1.5, 1.6))):
+        end = (0.2 + math.cos(a) * out, 0.1 + math.sin(a) * out, 2.0 + up)
+        mid = (0.2 + math.cos(a) * out * 0.5, 0.1 + math.sin(a) * out * 0.5, 2.0 + up * 0.6)
+        p.append(strut((0.2, 0.1, 2.0), mid, 0.2, P["stem"], verts=5, r2=0.16))
+        p.append(strut(mid, end, 0.16, P["stem"], verts=5, r2=0.1))
+        clumps.append(blob(1.35, (end[0], end[1], end[2] + 0.35), P["leaf"], scale=(1.0, 1.0, 0.65)))
+        clumps.append(blob(0.9, (end[0] + math.cos(a) * 0.7, end[1] + math.sin(a) * 0.7, end[2] + 0.05), P["leaf"], scale=(1.0, 1.0, 0.6)))
+        p.append(dot(0.16, (end[0] + math.cos(a) * 0.6, end[1] + math.sin(a) * 0.6, end[2] - 0.55), P["glow"]))
+        p.append(strut((end[0] + math.cos(a) * 0.6, end[1] + math.sin(a) * 0.6, end[2] - 0.4), (end[0] + math.cos(a) * 0.6, end[1] + math.sin(a) * 0.6, end[2] - 0.05), 0.02, P["stem"], verts=3))
+    clumps.append(blob(1.5, (0.2, 0.1, 4.4), P["leaf"], scale=(1.0, 1.0, 0.7)))
+    export("flora-canopy", [join(p + clumps, "body")])
+
+
+def flora_tendril(M):
+    P = plant_mats()
+    p = [dot(0.5, (0, 0, 0.0), P["stem"], scale=(1, 1, 0.5))]
+    for k, (a, H, curl) in enumerate(((0.0, 6.5, 2.6), (2.2, 4.6, 3.0), (4.1, 3.8, 2.2))):
+        d = Vector((math.cos(a), math.sin(a), 0))
+        pts = []
+        for i in range(10):
+            t = i / 9
+            ang = t * t * curl
+            pts.append(Vector((0, 0, 0)) + d * (k * 0.25 + math.sin(ang) * H * 0.35) + Vector((0, 0, H * (0.12 + 0.88 * math.sin(min(math.pi / 2, t * 1.7))) - (max(0, ang - 1.6) * H * 0.12))))
+        for i in range(9):
+            r = 0.3 * (1 - i / 9 * 0.85)
+            p.append(strut(pts[i], pts[i + 1], r, P["glow"] if i == 8 else P["stem"], verts=5, r2=r * 0.85))
+            if i in (3, 5):   # suckers
+                p.append(dot(0.08, tuple(pts[i] + Vector((0, 0, r * 0.8))), P["glow"]))
+    export("flora-tendril", [join(p, "body")])
+
+
+def flora_reeds(M):
+    P = plant_mats()
+    p = []
+    for k in range(9):
+        a = k * 2.4
+        d = Vector((math.cos(a), math.sin(a), 0))
+        L = 1.6 + (k % 3) * 0.45
+        base = d * (0.05 + (k % 4) * 0.06)
+        pts = [base + Vector((0, 0, -0.1)), base + d * L * 0.08 + Vector((0, 0, L * 0.5)), base + d * L * (0.2 + 0.08 * (k % 3)) + Vector((0, 0, L))]
+        side = Vector((-d.y, d.x, 0))
+        w0, w1 = 0.07, 0.04
+        v = [tuple(pts[0] + side * w0), tuple(pts[0] - side * w0), tuple(pts[1] - side * w1), tuple(pts[1] + side * w1), tuple(pts[2])]
+        p.append(poly(v, [(0, 1, 2, 3), (3, 2, 4)], P["stem"], "blade"))
+        if k % 3 == 0:   # seed head
+            p.append(dot(0.07, tuple(pts[2] + Vector((0, 0, 0.08))), P["glow"], scale=(1, 1, 2.2)))
+    export("flora-reeds", [join(p, "body")])
+
+
+def flora_cap(M):
+    P = plant_mats()
+    p = []
+    for k, (x, y, h, r) in enumerate(((0, 0, 1.5, 0.75), (0.7, 0.3, 0.9, 0.5), (-0.5, 0.55, 0.6, 0.38), (0.2, -0.7, 1.1, 0.55))):
+        p.append(cyl(0.12 + h * 0.03, h, (x, y, h / 2 - 0.1), P["stem"], verts=6, r2=0.09, bevel=0))
+        bpy.ops.mesh.primitive_cone_add(vertices=7, radius1=r, radius2=r * 0.15, depth=r * 0.6, location=(x, y, h + r * 0.25))
+        p.append(_finish(bpy.context.active_object, P["leaf"], 0))
+        bpy.ops.mesh.primitive_cone_add(vertices=7, radius1=r * 0.95, radius2=0.12, depth=r * 0.18, location=(x, y, h - 0.07), rotation=(math.pi, 0, 0))
+        p.append(_finish(bpy.context.active_object, P["glow"], 0))   # gills
+        for j in range(2):   # spots
+            a = j * 2.1 + k
+            p.append(dot(r * 0.12, (x + math.cos(a) * r * 0.5, y + math.sin(a) * r * 0.5, h + r * 0.32), P["glow"], scale=(1, 1, 0.4)))
+    export("flora-cap", [join(p, "body")])
+
+
+def flora_barrel(M):
+    P = plant_mats()
+    p = [cyl(0.5, 1.8, (0, 0, 0.8), P["stem"], verts=8, r2=0.42, bevel=0)]
+    p.append(blob(0.47, (0, 0, 1.7), P["stem"], scale=(1.0, 1.0, 0.55)))
+    for k in range(8):   # ribs
+        a = k / 8 * math.tau
+        p.append(strut((math.cos(a) * 0.48, math.sin(a) * 0.48, -0.05), (math.cos(a) * 0.43, math.sin(a) * 0.43, 1.75), 0.06, P["leaf"], verts=3))
+        if k % 2 == 0:
+            for z in (0.8,):   # spines
+                p.append(strut((math.cos(a) * 0.5, math.sin(a) * 0.5, z), (math.cos(a) * 0.68, math.sin(a) * 0.68, z + 0.1), 0.012, P["stem"], verts=3, r2=0.002))
+    for sx in (-1, 1):   # arms
+        a0, a1 = Vector((sx * 0.45, 0.1, 0.9)), Vector((sx * 0.95, 0.1, 0.95))
+        p.append(strut(a0, a1, 0.22, P["stem"], verts=6))
+        p.append(dot(0.22, tuple(a1), P["stem"]))
+        p.append(strut(a1, a1 + Vector((0, 0, 0.6 + 0.2 * sx)), 0.22, P["stem"], verts=6, r2=0.18))
+        p.append(dot(0.12, tuple(a1 + Vector((0, 0, 0.88 + 0.2 * sx))), P["glow"], scale=(1, 1, 0.6)))
+    for k in range(3):   # crown flowers
+        a = k * 2.1
+        p.append(dot(0.13, (math.cos(a) * 0.18, math.sin(a) * 0.18, 1.98), P["glow"], scale=(1, 1, 0.6)))
+    export("flora-barrel", [join(p, "body")])
+
+
+def flora_thorn(M):
+    P = plant_mats()
+    p = []
+    for k in range(6):
+        a = k / 6 * math.tau + 0.3
+        up = 0.6 + (k % 3) * 0.25
+        d = Vector((math.cos(a), math.sin(a), up)).normalized()
+        L = 1.2 + (k % 2) * 0.5
+        mid, end = d * L * 0.5, d * L + Vector((0, 0, L * 0.15))
+        p.append(strut((0, 0, -0.1), mid, 0.06, P["stem"], verts=4, r2=0.045))
+        p.append(strut(mid, end, 0.045, P["stem"], verts=4, r2=0.015))
+        b = a + (0.7 if k % 2 else -0.7)
+        twig = mid + Vector((math.cos(b) * L * 0.35, math.sin(b) * L * 0.35, L * 0.3))
+        p.append(strut(mid, twig, 0.03, P["stem"], verts=3, r2=0.01))
+        for q in (0.5,):   # thorns
+            t0 = mid.lerp(end, q)
+            p.append(strut(t0, t0 + Vector((math.cos(a + 1.6), math.sin(a + 1.6), 0.1)) * 0.15, 0.015, P["leaf"], verts=3, r2=0.002))
+        p.append(dot(0.04, tuple(end), P["glow"]))
+    export("flora-thorn", [join(p, "body")])
+
+
+def flora_lichen(M):
+    P = plant_mats()
+    p = []
+    for k, (x, y, r) in enumerate(((0, 0, 0.7), (0.75, 0.35, 0.45), (-0.6, 0.5, 0.5), (-0.2, -0.7, 0.4), (0.55, -0.55, 0.3))):
+        p.append(cyl(r, 0.12, (x, y, 0.02), P["stem"], verts=7, r2=r * 0.85, bevel=0))
+        p.append(cyl(r * 0.7, 0.08, (x + 0.05, y, 0.12), P["leaf"], verts=6, r2=r * 0.5, bevel=0))   # raised rim
+        for j in range(1):
+            a = j * 3.1 + k
+            p.append(dot(r * 0.16, (x + math.cos(a) * r * 0.45, y + math.sin(a) * r * 0.45, 0.17), P["glow"], scale=(1, 1, 0.4)))
+    export("flora-lichen", [join(p, "body")])
+
+
+NATURE = {"wild-hexapod": wild_hexapod, "wild-stilt": wild_stilt, "wild-hopper": wild_hopper, "wild-ray": wild_ray,
+          "wild-crawler": wild_crawler, "wild-shell": wild_shell, "wild-serpent": wild_serpent,
+          "flora-canopy": flora_canopy, "flora-tendril": flora_tendril, "flora-reeds": flora_reeds, "flora-cap": flora_cap,
+          "flora-barrel": flora_barrel, "flora-thorn": flora_thorn, "flora-lichen": flora_lichen}
+MODELS.update(NATURE)
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":

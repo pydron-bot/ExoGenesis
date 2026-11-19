@@ -1082,6 +1082,7 @@ export const plantRowShape = {
   plant: choice(PLANT_FORMS, { label: 'Form', helps: PLANT_HELPS }),
   chance: num({ label: 'Chance', min: 0, max: 1, step: 0.05, optional: true, default: 1, help: 'Chance a region grows this form (1 = always).' }),
   amount: num({ label: 'Amount', min: 0.1, max: 3, step: 0.05, optional: true, default: 1, help: 'How much of it, against the other forms.' }),
+  model: ref('assets', { label: 'Model', optional: true, help: 'A model to draw instead of the built-in shape, coloured from its materials named stem (graded root to tip), leaf and glow. Empty = the built-in, a new shape every seed.' }),
 } satisfies Shape;
 export const wildRowShape = {
   species: ref('wildlife', { label: 'Species' }),
@@ -1135,6 +1136,7 @@ export const wildlifeShape = {
   color: color({ label: 'Colour' }),
   accent: color({ label: 'Accent', help: 'Legs, head, shell markings.' }),
   glow: color({ label: 'Glow', optional: true, help: 'Eyes and spots that light up at night. Empty = none.' }),
+  model: ref('assets', { label: 'Model', optional: true, help: 'A model to draw instead of the built-in body plan, coloured from its materials named color, accent and glow (others keep their own). Empty = the built-in.' }),
 } satisfies Shape;
 export type WildlifeDef = Infer<typeof wildlifeShape>;
 
