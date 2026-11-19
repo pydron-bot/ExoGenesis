@@ -1,0 +1,80 @@
+{
+  "name": "Tension · Siege",
+  "use": "tension",
+  "chords": [
+    {
+      "notes": "C3 G3 C4 Eb4",
+      "bass": "C2",
+      "bells": "G5 C6 Eb6"
+    },
+    {
+      "notes": "Db3 Ab3 C4 F4",
+      "bass": "Db2",
+      "bells": "Ab5 C6 F6"
+    },
+    {
+      "notes": "C3 Ab3 Eb4",
+      "bass": "C2",
+      "bells": "Ab5 Eb6 G6"
+    },
+    {
+      "notes": "Bb2 F3 Bb3 Eb4",
+      "bass": "Bb1",
+      "bells": "F5 Bb5 Eb6"
+    }
+  ],
+  "homePull": 0.45,
+  "chordMin": 6,
+  "chordMax": 9,
+  "swell": 1.5,
+  "release": 3,
+  "pad": 0.85,
+  "padTone": "warm",
+  "brightness": 0.9,
+  "bass": 1,
+  "bells": 0.5,
+  "bellTone": "pluck",
+  "bellGapMin": 1,
+  "bellGapMax": 3,
+  "phrases": 0.5,
+  "pulse": 0.6,
+  "pulseRate": 96,
+  "drums": 0.9,
+  "drumTracks": [
+    {
+      "sound": "kick",
+      "steps": "x..x ..x. x..x ..x.",
+      "level": 0.8
+    },
+    {
+      "sound": "snare",
+      "steps": ".... x... .... x...",
+      "level": 0.5,
+      "pan": 0.1
+    },
+    {
+      "sound": "hat",
+      "steps": "x.x. x.x. x.x. x.xo",
+      "level": 0.25,
+      "pan": 0.4
+    },
+    {
+      "sound": "tom",
+      "steps": ".... .... .... .xox .... .... .... ....",
+      "level": 0.45,
+      "pan": -0.3
+    },
+    {
+      "sound": "clank",
+      "steps": ".... .... x... .... .... ....",
+      "level": 0.3,
+      "pan": 0.5
+    }
+  ],
+  "swing": 0,
+  "drumsIn": 0,
+  "air": 0.4,
+  "echo": 0.3,
+  "space": 0.5,
+  "level": 1.0
+}

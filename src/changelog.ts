@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.45.0',
+    date: '2026-11-19',
+    title: 'More music',
+    notes: [
+      'Six new pieces of music, two each for day, night and fights, so the soundtrack has more variety. You won\'t hear the same one twice in a row',
+      'Day: Survey, a light, moving piece with plucked runs and a gentle shaker groove; and Wide Sky, slow and open with glassy chords and far-off drums',
+      'Night: Deep Watch, low and brooding with a distant boom; and Starfield, dreamy, with twinkling bells and a faint ticking beat',
+      'Fights: Siege, fast and driving with full drums; and Stalker, slow and creepy, with a ticking clock and a heartbeat',
+    ],
+  },
+  {
     version: '0.44.0',
     date: '2026-11-19',
     title: 'Drums in the dark',

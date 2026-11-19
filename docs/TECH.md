@@ -726,6 +726,15 @@ First playtest build (2026-11-15).
     (kick, a thud every two bars, toms, a backbeat clank, shaker eighths, a 12-step hat), pulse down to 0.5,
     overall level 0.8. Measured offline: its drums alone about −32 LUFS, about 5 dB under the rest of the mood;
     the whole mood about −26.
+  - **More moods (v0.45.0):** two more each for day, night and tension, all with some drums: **Day · Survey**
+    (F major, 92 bpm, soft pads, plucked bells in runs, shaker/rim/kick with swing, drums after 2 chords), **Day ·
+    Wide Sky** (E Lydian, glass pads, soft bells, far-off toms and a thud), **Night · Deep Watch** (D minor,
+    hollow dark pads, low soft bells, a thud every 32 steps at 50 bpm), **Night · Starfield** (A♭ major, glass
+    pads, glass bell phrases with lots of echo, a faint swung hat/rim tick), **Tension · Siege** (C Phrygian, 96
+    bpm, short warm chords, kick/snare/hat, tom fills, clank), **Tension · Stalker** (dissonant chords over a held
+    B, 60 bpm heartbeat, clock-tick rim, a 20-step thud, metal bells). Levels set so every day and night piece
+    measures about −27 LUFS offline and tension about −26. The director now avoids picking the same mood twice
+    in a row for a use (`lastMood`).
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min

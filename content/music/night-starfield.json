@@ -1,0 +1,69 @@
+{
+  "name": "Night · Starfield",
+  "use": "night",
+  "chords": [
+    {
+      "notes": "Ab2 Eb3 G3 Bb3 C4",
+      "bass": "Ab1",
+      "bells": "C6 Eb6 G6 Bb6"
+    },
+    {
+      "notes": "F2 C3 Eb3 G3 Ab3",
+      "bass": "F1",
+      "bells": "Ab5 C6 Eb6 G6"
+    },
+    {
+      "notes": "Db3 Ab3 C4 F4 G4",
+      "bass": "Db2",
+      "bells": "F5 G5 C6 F6"
+    },
+    {
+      "notes": "Eb3 Ab3 Bb3 Db4",
+      "bass": "Eb2",
+      "bells": "Bb5 Db6 Eb6 Ab6"
+    }
+  ],
+  "homePull": 0.35,
+  "chordMin": 18,
+  "chordMax": 26,
+  "swell": 8,
+  "release": 10,
+  "pad": 0.6,
+  "padTone": "glass",
+  "brightness": 1,
+  "bass": 0.6,
+  "bells": 0.9,
+  "bellTone": "glass",
+  "bellGapMin": 1.5,
+  "bellGapMax": 4,
+  "phrases": 0.6,
+  "pulse": 0,
+  "pulseRate": 80,
+  "drums": 0.4,
+  "drumTracks": [
+    {
+      "sound": "hat",
+      "steps": "x.o. ..o. x.o. ..o.",
+      "level": 0.35,
+      "pan": 0.45
+    },
+    {
+      "sound": "rim",
+      "steps": ".... .... .... ..x. .... .... x... ....",
+      "level": 0.3,
+      "pan": -0.4
+    },
+    {
+      "sound": "shaker",
+      "steps": "o.....",
+      "level": 0.2,
+      "pan": 0.1
+    }
+  ],
+  "swing": 0.2,
+  "drumsIn": 2,
+  "air": 1,
+  "echo": 0.7,
+  "space": 0.9,
+  "level": 1.3
+}

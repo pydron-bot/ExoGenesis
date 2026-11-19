@@ -1,0 +1,73 @@
+{
+  "name": "Tension · Stalker",
+  "use": "tension",
+  "chords": [
+    {
+      "notes": "B2 F#3 C4",
+      "bass": "B1",
+      "bells": "C6 F#6 B5"
+    },
+    {
+      "notes": "B2 F3 A3",
+      "bass": "B1",
+      "bells": "F5 A5 B5"
+    },
+    {
+      "notes": "B2 D3 G3",
+      "bass": "B1",
+      "bells": "G5 B5 D6"
+    },
+    {
+      "notes": "B2 E3 F#3 C4",
+      "bass": "B1",
+      "bells": "E5 F#5 C6"
+    }
+  ],
+  "homePull": 0.5,
+  "chordMin": 10,
+  "chordMax": 16,
+  "swell": 4,
+  "release": 6,
+  "pad": 0.9,
+  "padTone": "hollow",
+  "brightness": 0.5,
+  "bass": 1,
+  "bells": 0.6,
+  "bellTone": "metal",
+  "bellGapMin": 3,
+  "bellGapMax": 7,
+  "phrases": 0.15,
+  "pulse": 0.6,
+  "pulseRate": 60,
+  "drums": 0.8,
+  "drumTracks": [
+    {
+      "sound": "rim",
+      "steps": "x... x... x... x...",
+      "level": 0.3,
+      "pan": -0.4
+    },
+    {
+      "sound": "thud",
+      "steps": "x... .... .... .... ....",
+      "level": 0.7
+    },
+    {
+      "sound": "shaker",
+      "steps": "..o...",
+      "level": 0.2,
+      "pan": 0.6
+    },
+    {
+      "sound": "clank",
+      "steps": ".... .... .... .... .... ..x. ....",
+      "level": 0.35,
+      "pan": 0.4
+    }
+  ],
+  "drumsIn": 0,
+  "air": 0.8,
+  "echo": 0.45,
+  "space": 0.7,
+  "level": 1.15
+}

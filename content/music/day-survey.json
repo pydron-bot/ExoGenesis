@@ -1,0 +1,68 @@
+{
+  "name": "Day · Survey",
+  "use": "day",
+  "chords": [
+    {
+      "notes": "F3 A3 C4 E4 G4",
+      "bass": "F2",
+      "bells": "A5 C6 E6 F6 G6"
+    },
+    {
+      "notes": "D3 A3 C4 E4 F4",
+      "bass": "D2",
+      "bells": "A5 C6 D6 E6 F6"
+    },
+    {
+      "notes": "Bb2 F3 A3 D4 E4",
+      "bass": "Bb1",
+      "bells": "F5 A5 Bb5 D6 E6"
+    },
+    {
+      "notes": "C3 G3 A3 D4 F4",
+      "bass": "C2",
+      "bells": "G5 A5 C6 D6 F6"
+    }
+  ],
+  "homePull": 0.3,
+  "chordMin": 8,
+  "chordMax": 12,
+  "swell": 2.5,
+  "release": 4,
+  "pad": 0.7,
+  "padTone": "soft",
+  "brightness": 1.4,
+  "bass": 0.6,
+  "bells": 0.8,
+  "bellTone": "pluck",
+  "bellGapMin": 0.6,
+  "bellGapMax": 2.5,
+  "phrases": 0.8,
+  "pulse": 0,
+  "pulseRate": 92,
+  "drums": 0.5,
+  "drumTracks": [
+    {
+      "sound": "shaker",
+      "steps": "x.o. x.o. x.o. x.o.",
+      "level": 0.4,
+      "pan": 0.4
+    },
+    {
+      "sound": "rim",
+      "steps": ".... x... .... ..x.",
+      "level": 0.35,
+      "pan": -0.3
+    },
+    {
+      "sound": "kick",
+      "steps": "x... .... .... ....",
+      "level": 0.45
+    }
+  ],
+  "swing": 0.15,
+  "drumsIn": 2,
+  "air": 0.3,
+  "echo": 0.3,
+  "space": 0.55,
+  "level": 1.4
+}

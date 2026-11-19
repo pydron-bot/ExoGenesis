@@ -1,0 +1,55 @@
+{
+  "name": "Night · Deep Watch",
+  "use": "night",
+  "chords": [
+    {
+      "notes": "D3 A3 E4 F4",
+      "bass": "D2",
+      "bells": "A4 D5 E5 F5"
+    },
+    {
+      "notes": "Bb2 F3 A3 D4",
+      "bass": "Bb1",
+      "bells": "F4 A4 D5"
+    },
+    {
+      "notes": "G2 D3 F3 A3 Bb3",
+      "bass": "G1",
+      "bells": "Bb4 D5 F5 A5"
+    },
+    {
+      "notes": "A2 E3 A3 D4",
+      "bass": "A1",
+      "bells": "A4 D5 E5"
+    }
+  ],
+  "homePull": 0.4,
+  "chordMin": 20,
+  "chordMax": 30,
+  "swell": 9,
+  "release": 12,
+  "pad": 0.9,
+  "padTone": "hollow",
+  "brightness": 0.6,
+  "bass": 1,
+  "bells": 0.5,
+  "bellTone": "soft",
+  "bellGapMin": 5,
+  "bellGapMax": 12,
+  "phrases": 0.2,
+  "pulse": 0,
+  "pulseRate": 50,
+  "drums": 0.5,
+  "drumTracks": [
+    {
+      "sound": "thud",
+      "steps": "x... .... .... .... .... .... .... ....",
+      "level": 0.8
+    }
+  ],
+  "drumsIn": 1,
+  "air": 1.2,
+  "echo": 0.6,
+  "space": 1,
+  "level": 0.85
+}

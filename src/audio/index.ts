@@ -75,6 +75,8 @@ export class GameAudio {
   /** Wall-clock seconds of recent ticks with fighting, and when tension music may stop. */
   private fights: number[] = [];
   private tenseUntil = -1;
+  /** The mood last played for each use (so the next is a different one). */
+  private lastMood: Partial<Record<MusicUse, string>> = {};
 
   constructor(private rules: SoundRules, private assets: Record<string, AssetDef>, readonly disabled: boolean, private moods: Record<string, MusicDef> = {}) {
     try {
@@ -231,9 +233,12 @@ export class GameAudio {
     const a = use === 'title' && this.rules.titleMusic ? this.assets[this.rules.titleMusic] : undefined;
     const stop = a ? this.clip(a, 1, true, this.cats.music) : null;
     if (stop) { this.music = { use, mood: `file:${a!.file}`, stop }; return; }
-    const ids = Object.keys(this.moods).filter((id) => this.moods[id].use === use);
-    if (!ids.length) return;
+    const all = Object.keys(this.moods).filter((id) => this.moods[id].use === use);
+    if (!all.length) return;
+    // a different piece from last time, when there's a choice
+    const ids = all.length > 1 ? all.filter((id) => id !== this.lastMood[use]) : all;
     const id = ids[Math.floor(Math.random() * ids.length)];
+    this.lastMood[use] = id;
     const m = new AmbientMusic(this.ctx!, this.cats.music, () => this.moods[id], 1, fadeIn);
     this.music = { use, mood: id, stop: (f) => m.stop(f), played: m.played };
   }
