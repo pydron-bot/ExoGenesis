@@ -89,6 +89,14 @@ export interface Creature {
   tx: number;
   tz: number;
   herd: number;
+  /** Wildlife species (content/wildlife id). Old saves lack it: the herd's is filled in on load. */
+  sp?: string;
+  /** 0 calm, 1 running, 2 hidden (a burrower underground). */
+  st?: number;
+  /** Ticks left to pause (skittish), or to stay hidden (burrowers). */
+  wait?: number;
+  /** A flyer's angle round its herd's centre. */
+  ang?: number;
 }
 
 export interface Hostile {
@@ -346,7 +354,7 @@ export interface SimState {
   stored: number;
   drones: Drone[];
   buildings: Building[];
-  herds: { x: number; z: number }[];
+  herds: { x: number; z: number; sp?: string }[];
   fauna: Creature[];
   deposits: Deposit[];
   hostiles: Hostile[];
@@ -484,7 +492,7 @@ export interface Snapshot {
   /** False until the landing sequence has put the drone on the ground. */
   deployed: boolean;
   drones: DroneSnap[];
-  /** x, z, heading per grazer. */
+  /** x, z, heading, species index × 4 + state (0 calm, 1 running, 2 hidden) per creature; species index into nature.ts wildlifeIds(). */
   fauna: Float32Array;
   buildings: Building[];
   deposits: Deposit[];

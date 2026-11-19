@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, type AssetDef, BEATS, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, locate, regionCells } from './defs';
+import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, type WildlifeDef, locate, regionCells } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 
 export interface ContentDb {
@@ -11,6 +11,8 @@ export interface ContentDb {
   research: Record<string, ResearchDef>;
   regions: Record<string, RegionDef>;
   bodies: Record<string, BodyDef>;
+  biomes: Record<string, BiomeDef>;
+  wildlife: Record<string, WildlifeDef>;
   /** Editor only (the game ignores them). */
   chapters: Record<string, ChapterDef>;
   lore: Record<string, LoreDef>;
@@ -62,6 +64,8 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     research: recs.research,
     regions: recs.regions,
     bodies: recs.bodies,
+    biomes: recs.biomes,
+    wildlife: recs.wildlife,
     chapters: recs.chapters,
     lore: recs.lore,
     assets: recs.assets,
@@ -87,6 +91,8 @@ export const REQUIRED: Partial<Record<CollectionName, string[]>> = {
   buildings: ['core', 'solar'],
   regions: ['touchdown'],
   bodies: ['home'],
+  biomes: ['verdant'],
+  wildlife: ['grazer'],
   cinematics: ['landing'],
 };
 
@@ -238,6 +244,10 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if (b.kind === 'moon' && !b.parent) out.push({ path: P, field: 'parent', msg: 'a moon needs something to orbit' });
     if (id === 'home' && b.kind === 'giant') out.push({ path: P, field: 'kind', msg: 'Home must have a surface' });
     if (b.ring && (b.ringOuter ?? 2.2) <= (b.ringInner ?? 1.4)) out.push({ path: P, field: 'ringOuter', msg: 'must be bigger than the inner edge' });
+  }
+  // wildlife: the largest size isn't below the smallest
+  for (const [id, w] of Object.entries(db.wildlife ?? {})) {
+    if (w && typeof w === 'object' && w.sizeMax !== undefined && w.sizeMax < w.size) out.push({ path: `wildlife/${id}.json`, field: 'sizeMax', msg: 'smaller than Size' });
   }
   // regions: on a body with a surface, big enough to hold them; grids match the size; markers inside
   for (const [id, r] of Object.entries(db.regions ?? {})) {

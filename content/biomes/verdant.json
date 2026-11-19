@@ -1,0 +1,97 @@
+{
+  "name": "Verdant (Home)",
+  "description": "Home's mix: violet and teal stalks, parasols and fronds that glow at night.",
+  "plants": [
+    {
+      "plant": "spire"
+    },
+    {
+      "plant": "parasol"
+    },
+    {
+      "plant": "fan"
+    },
+    {
+      "plant": "tubes"
+    },
+    {
+      "plant": "bulbs"
+    },
+    {
+      "plant": "crystal"
+    },
+    {
+      "plant": "tendril",
+      "chance": 0.45
+    },
+    {
+      "plant": "cap",
+      "chance": 0.5
+    },
+    {
+      "plant": "reeds",
+      "chance": 0.5
+    }
+  ],
+  "extra": 1,
+  "stems": [
+    {
+      "color": "#301e43"
+    },
+    {
+      "color": "#3b1e43"
+    },
+    {
+      "color": "#1e433c"
+    },
+    {
+      "color": "#1e3e43"
+    },
+    {
+      "color": "#431e34"
+    },
+    {
+      "color": "#43291e"
+    },
+    {
+      "color": "#1e2843"
+    }
+  ],
+  "glows": [
+    {
+      "color": "#4cf0f0"
+    },
+    {
+      "color": "#4cd3f0"
+    },
+    {
+      "color": "#ed4cf0"
+    },
+    {
+      "color": "#f04c9b"
+    },
+    {
+      "color": "#6df04c"
+    },
+    {
+      "color": "#f0c24c"
+    }
+  ],
+  "wildlife": [
+    {
+      "species": "grazer",
+      "weight": 3
+    },
+    {
+      "species": "skipper",
+      "weight": 1.2
+    },
+    {
+      "species": "stiltwalker"
+    },
+    {
+      "species": "driftkite",
+      "weight": 0.8
+    }
+  ]
+}

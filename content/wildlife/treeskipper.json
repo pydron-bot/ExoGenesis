@@ -1,0 +1,14 @@
+{
+  "name": "Treeskipper",
+  "body": "hopper",
+  "behavior": "skittish",
+  "size": 0.5,
+  "sizeMax": 0.7,
+  "speed": 3,
+  "run": 11,
+  "flee": 22,
+  "spread": 14,
+  "color": "#6ac08a",
+  "accent": "#2a5a3a",
+  "glow": "#8affd8"
+}

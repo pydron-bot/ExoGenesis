@@ -70,7 +70,7 @@ const TOOLS: { id: Tool; label: string; key: string; tip: string }[] = [
 type MKind = 'herds' | 'deposits' | 'spawns' | 'vents' | 'camps' | 'sites' | 'encounters';
 type Marker = Record<string, number>;
 const MARKERS: Record<MKind, { label: string; one: string; shape: Shape; tool: Tool; make(x: number, z: number): Marker; summary(m: Marker): string; color: string; sel: string }> = {
-  herds: { label: 'Grazer herds', one: 'Herd', shape: herdShape, tool: 'herd', make: (x, z) => ({ x, z, grazers: 20, roam: 40 }), summary: (m) => `${m.grazers} grazers`, color: '#c99a4a', sel: '#ffe08a' },
+  herds: { label: 'Grazer herds', one: 'Herd', shape: herdShape, tool: 'herd', make: (x, z) => ({ x, z, grazers: 20, roam: 40 }), summary: (m) => `${m.grazers} ${m.species || 'wildlife (biome)'}`, color: '#c99a4a', sel: '#ffe08a' },
   deposits: { label: 'Alloy deposits', one: 'Deposit', shape: depositShape, tool: 'deposit', make: (x, z) => ({ x, z, alloys: 1000 }), summary: (m) => `${m.alloys} alloys`, color: '#e08a2c', sel: '#ffd08a' },
   spawns: { label: 'Predator spawns', one: 'Spawn', shape: spawnShape, tool: 'spawn', make: (x, z) => ({ x, z }), summary: () => 'packs enter here', color: '#d8414e', sel: '#ff9aa3' },
   vents: { label: 'Geothermal vents', one: 'Vent', shape: ventShape, tool: 'vent', make: (x, z) => ({ x, z }), summary: () => 'a Geothermal Tap fits here', color: '#ff7a2a', sel: '#ffc08a' },

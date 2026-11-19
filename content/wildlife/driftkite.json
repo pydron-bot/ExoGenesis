@@ -1,0 +1,16 @@
+{
+  "name": "Driftkite",
+  "body": "ray",
+  "behavior": "flyer",
+  "size": 1.2,
+  "sizeMax": 1.8,
+  "speed": 5,
+  "run": 9,
+  "flee": 16,
+  "spread": 26,
+  "height": 12,
+  "herdScale": 0.35,
+  "color": "#d77aa8",
+  "accent": "#5a2a4a",
+  "glow": "#ff9ad8"
+}

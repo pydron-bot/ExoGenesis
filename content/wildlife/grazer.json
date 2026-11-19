@@ -1,0 +1,11 @@
+{
+  "name": "Grazer",
+  "body": "hexapod",
+  "behavior": "herd",
+  "size": 1,
+  "sizeMax": 1.48,
+  "description": "The original six-legged herd beast of Home.",
+  "color": "#c78a5a",
+  "accent": "#6a3a24",
+  "glow": "#ffb36a"
+}

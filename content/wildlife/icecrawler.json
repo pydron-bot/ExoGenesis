@@ -1,0 +1,15 @@
+{
+  "name": "Icecrawler",
+  "body": "crawler",
+  "behavior": "burrow",
+  "size": 0.7,
+  "sizeMax": 1.05,
+  "speed": 1.2,
+  "run": 3,
+  "flee": 16,
+  "spread": 16,
+  "herdScale": 0.6,
+  "color": "#9ab8d0",
+  "accent": "#3a4a6a",
+  "glow": "#7ad8ff"
+}

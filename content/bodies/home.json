@@ -10,6 +10,7 @@
   "relief": 90,
   "feature": 2.1,
   "seed": 7,
+  "biome": "verdant",
   "ocean": true,
   "plants": 0,
   "ground": [

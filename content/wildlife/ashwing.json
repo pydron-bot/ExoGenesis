@@ -1,0 +1,16 @@
+{
+  "name": "Ashwing",
+  "body": "ray",
+  "behavior": "flyer",
+  "size": 1.2,
+  "sizeMax": 1.9,
+  "speed": 5,
+  "run": 9,
+  "flee": 16,
+  "spread": 28,
+  "height": 13,
+  "herdScale": 0.35,
+  "color": "#4a4040",
+  "accent": "#1a1414",
+  "glow": "#ffb03a"
+}

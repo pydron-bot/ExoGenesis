@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.41.0',
+    date: '2026-11-19',
+    title: 'Living worlds',
+    notes: [
+      'Every world has its own plants and wildlife: lush forests and reed beds, dry scrub and barrel succulents in the deserts, frost ferns and ice prisms on frozen worlds, vent chimneys and ember-glowing ash caps on volcanic ones, and only lichen and crystals on airless rock',
+      'Seven new plant forms: broad canopy trees, giant curling tendrils, reeds, mushroom caps, barrel succulents, thorn scrub and lichen',
+      '23 wildlife species with their own sizes and habits: herds that bolt, skittish hoppers that dart and pause, huge plodders that stop and stare, gliders circling overhead, and burrowers that duck underground when you come close',
+      'Home has new neighbours too: Skippers, towering Stiltwalkers and Driftkites share the plains with the grazers',
+      'Wildlife eyes and markings glow at night like the plants',
+    ],
+  },
+  {
     version: '0.40.1',
     date: '2026-11-19',
     title: 'A tidier title screen',

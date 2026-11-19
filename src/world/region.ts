@@ -10,7 +10,10 @@ import { BATCHED_KINDS, BuildingBatch } from './batch';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
 import { makeGroundTextures } from './terrainTex';
-import { Flora } from './flora';
+import { Flora, type FloraBiome } from './flora';
+import { buildCreatureLook, creatureMaterial } from './fauna-models';
+import type { WildlifeDef } from '../content/defs';
+import { hash01 } from '../content/nature';
 import { addFog } from './fog';
 import { Printed } from './print';
 import { buildWater, seabedColor, setWaterDetail } from './water';
@@ -723,38 +726,6 @@ export function buildForRole(role: string): THREE.Group {
   }
 }
 
-export function buildCreature(): THREE.BufferGeometry {
-  // low-poly six-legged grazer, merged into one geometry for instancing
-  const parts: THREE.BufferGeometry[] = [];
-  const body = new THREE.IcosahedronGeometry(0.7, 0);
-  body.scale(0.8, 0.6, 1.4);
-  body.translate(0, 1.0, 0);
-  const head = new THREE.ConeGeometry(0.35, 0.9, 5);
-  head.rotateX(Math.PI / 2);
-  head.translate(0, 1.15, 1.2);
-  parts.push(body, head);
-  for (const z of [-0.6, 0, 0.6]) for (const x of [-0.45, 0.45]) {
-    const leg = new THREE.CylinderGeometry(0.06, 0.04, 0.9, 4);
-    leg.translate(x, 0.45, z);
-    parts.push(leg);
-  }
-  const merged = mergeGeometries(parts);
-  merged.computeVertexNormals();
-  return merged;
-}
-
-function mergeGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const pos: number[] = [];
-  for (const g of geos) {
-    const ng = g.index ? g.toNonIndexed() : g;
-    const p = ng.getAttribute('position');
-    for (let i = 0; i < p.count; i++) pos.push(p.getX(i), p.getY(i), p.getZ(i));
-  }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  return out;
-}
-
 function glowSprite(color: string): THREE.Sprite {
   const cv = document.createElement('canvas');
   cv.width = cv.height = 64;
@@ -847,7 +818,15 @@ export class RegionView {
   readonly core: THREE.Group;
   /** Interpolated drone positions this frame (for picking and HUD). */
   readonly drones = new Map<number, { obj: THREE.Group; x: number; z: number; world: THREE.Vector3 }>();
-  private faunaMesh: THREE.InstancedMesh;
+  /** Wildlife: one instanced mesh per species on the map (index into the sorted species ids), all in `wildGroup`. */
+  private wildGroup = new THREE.Group();
+  private wildMat = creatureMaterial();
+  private wild = new Map<number, THREE.InstancedMesh>();
+  private wildIds: string[] = [];
+  private wildDefs: Record<string, WildlifeDef> = {};
+  /** Per creature: how far a burrower has sunk (0..1), eased. */
+  private wildSink = new Float32Array(0);
+  private wildLastT = 0;
   private buildings = new Map<number, BEntry>();
   /** Instanced finished buildings, per kind in BATCHED_KINDS. */
   private batches = new Map<string, BuildingBatch>();
@@ -908,7 +887,8 @@ export class RegionView {
     if (this.water) setWaterDetail(this.water.material as THREE.Material, v);
   }
 
-  constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1, private rules: RegionRules = { defs: {}, buildRadius: 30 }) {
+  constructor(scene: THREE.Scene, look: Look = 'flat', floraSeed: number | null = 1, floraDensity = 1, private rules: RegionRules = { defs: {}, buildRadius: 30 },
+    nature: { biome?: FloraBiome; wildlife?: Record<string, WildlifeDef> } = {}) {
     this.patch = buildPatch(look);
     scene.add(this.patch);
     scene.add(this.details);
@@ -922,15 +902,13 @@ export class RegionView {
     this.drone = this.droneShell();
     this.details.add(this.drone);
 
-    this.flora = floraSeed === null ? null : new Flora({ seed: floraSeed, flat: look === 'flat', density: floraDensity });
+    this.flora = floraSeed === null ? null : new Flora({ seed: floraSeed, flat: look === 'flat', density: floraDensity, biome: nature.biome });
     if (this.flora) this.details.add(this.flora.group);
 
-    this.faunaMesh = new THREE.InstancedMesh(buildCreature(), new THREE.MeshStandardMaterial({
-      color: '#c78a5a', roughness: 0.8, flatShading: true, emissive: '#3a1a10', emissiveIntensity: 0.4,
-    }), 256);
-    this.faunaMesh.count = 0;
-    this.faunaMesh.frustumCulled = false;
-    this.details.add(this.faunaMesh);
+    this.wildDefs = nature.wildlife ?? {};
+    this.wildIds = Object.keys(this.wildDefs).sort();
+    this.wildGroup.name = 'wildlife';
+    this.details.add(this.wildGroup);
 
     const ringGeo = new THREE.RingGeometry(1.8, 2.2, 32);
     ringGeo.rotateX(-Math.PI / 2);
@@ -973,9 +951,9 @@ export class RegionView {
 
   /** Skirmish mode: keep terrain + core, hide the colony's drones, grazers and overlays. */
   hideLandingEntities() {
-    for (const o of [this.drone, this.faunaMesh, this.selRing, this.targetRing, this.orderRibbon.mesh, this.targetRibbon.mesh]) o.visible = false;
+    for (const o of [this.drone, this.wildGroup, this.selRing, this.targetRing, this.orderRibbon.mesh, this.targetRibbon.mesh]) o.visible = false;
     if (this.flora) this.flora.group.visible = false;
-    this.details.remove(this.drone, this.faunaMesh, this.selRing, this.targetRing);
+    this.details.remove(this.drone, this.wildGroup, this.selRing, this.targetRing);
   }
 
   /** Ground point under a screen position (NDC), or null. */
@@ -1005,7 +983,7 @@ export class RegionView {
     this.fog = true;
     addFog(this.patch.material as THREE.Material);
     if (this.water) addFog(this.water.material as THREE.Material);
-    addFog(this.faunaMesh.material as THREE.Material);
+    addFog(this.wildMat);
     this.flora?.group.traverse((o) => { if (o instanceof THREE.Mesh) addFog(o.material as THREE.Material); });
     for (const g of this.deposits) this.fogObj(g);
     for (const g of this.seams) this.fogObj(g);
@@ -1214,23 +1192,93 @@ export class RegionView {
     this.syncCaches(cur);
     this.animateVents(cur.buildings);
 
-    // grazers
-    const pa = prev.fauna, pb = cur.fauna;
-    const n = Math.min(pb.length, pa.length) / 3;
-    this.faunaMesh.count = n;
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(1, 1, 1);
-    const tmp = new THREE.Object3D();
-    for (let i = 0; i < n; i++) {
-      const fx = lerp(pa[i * 3], pb[i * 3], alpha), fz = lerp(pa[i * 3 + 1], pb[i * 3 + 1], alpha);
-      let fh = pb[i * 3 + 2] - pa[i * 3 + 2];
-      fh = Math.atan2(Math.sin(fh), Math.cos(fh));
-      orient(tmp, fx, fz, pa[i * 3 + 2] + fh * alpha, 0);
-      q.copy(tmp.quaternion);
-      m.compose(tmp.position, q, s.setScalar(1 + (i % 5) * 0.12));
-      this.faunaMesh.setMatrixAt(i, m);
-    }
-    this.faunaMesh.instanceMatrix.needsUpdate = true;
+    this.syncWildlife(prev, cur, alpha);
   }
+
+  /**
+   * Wildlife: x, z, heading, species×4+state per creature (sim/core.ts snapshot). Each species
+   * draws as one instanced mesh; walkers bob, hoppers hop, flyers glide and flap, burrowers sink.
+   */
+  private syncWildlife(prev: Snapshot, cur: Snapshot, alpha: number) {
+    const pa = prev.fauna, pb = cur.fauna;
+    const n = Math.min(pb.length, pa.length) / 4;
+    const t = this.gameT;
+    const dt = Math.min(0.2, Math.max(0, t - this.wildLastT));
+    this.wildLastT = t;
+    if (this.wildSink.length !== n) this.wildSink = new Float32Array(n);
+    // how many of each species, so each mesh holds enough
+    const counts = new Map<number, number>();
+    for (let i = 0; i < n; i++) { const k = Math.floor(pb[i * 4 + 3] / 4); counts.set(k, (counts.get(k) ?? 0) + 1); }
+    for (const [k, c] of counts) {
+      let mesh = this.wild.get(k);
+      if (mesh && mesh.instanceMatrix.count >= c) continue;
+      const def = this.wildDefs[this.wildIds[k]];
+      const geo = mesh?.geometry ?? buildCreatureLook(def ?? { body: 'hexapod', color: '#c78a5a', accent: '#6a3a24' });
+      if (mesh) { this.wildGroup.remove(mesh); mesh.dispose(); }
+      mesh = new THREE.InstancedMesh(geo, this.wildMat, Math.max(16, Math.ceil(c * 1.25)));
+      mesh.name = `wild-${this.wildIds[k] ?? k}`;
+      mesh.frustumCulled = false;
+      mesh.setColorAt(0, new THREE.Color(1, 1, 1));
+      this.wildGroup.add(mesh);
+      this.wild.set(k, mesh);
+    }
+    for (const mesh of this.wild.values()) mesh.count = 0;
+    const m = this.wildM, pos = this.wildP, up = this.wildU, fwd = this.wildF, right = this.wildR, q = this.wildQ, sc = this.wildS, tint = this.wildC;
+    for (let i = 0; i < n; i++) {
+      const aux = pb[i * 4 + 3];
+      const k = Math.floor(aux / 4), st = aux - k * 4;
+      const mesh = this.wild.get(k)!;
+      const def = this.wildDefs[this.wildIds[k]];
+      const ax = pa[i * 4], az = pa[i * 4 + 1], bx = pb[i * 4], bz = pb[i * 4 + 1];
+      const fx = lerp(ax, bx, alpha), fz = lerp(az, bz, alpha);
+      let fh = pb[i * 4 + 2] - pa[i * 4 + 2];
+      fh = Math.atan2(Math.sin(fh), Math.cos(fh));
+      const heading = pa[i * 4 + 2] + fh * alpha;
+      const h1 = hash01(i, 7), h2 = hash01(i, 13);
+      const size = def ? def.size + ((def.sizeMax ?? def.size) - def.size) * h1 : 1 + (i % 5) * 0.12;
+      const moving = Math.hypot(bx - ax, bz - az) > 0.01;
+      const ph = h2 * 20;
+      let lift = 0, sx = 1;
+      const plan = def?.body ?? 'hexapod';
+      if (def?.behavior === 'flyer') {
+        lift = (def.height ?? 10) * (0.85 + h1 * 0.3) + Math.sin(t * 0.8 + ph) * 0.8;
+        sx = 1 + Math.sin(t * (st === 1 ? 11 : 5) + ph) * 0.28;
+      } else if (plan === 'hopper') {
+        if (moving) lift = Math.abs(Math.sin(t * 7 + ph)) * 0.55 * size;
+      } else if (moving && plan !== 'serpent' && plan !== 'ray') {
+        lift = Math.abs(Math.sin(t * (st === 1 ? 14 : 7) / Math.sqrt(size) + ph)) * 0.05 * size;
+      }
+      // burrowers ease down out of sight and back up
+      const want = st === 2 ? 1 : 0;
+      this.wildSink[i] += (want - this.wildSink[i]) * Math.min(1, dt * 3);
+      lift -= this.wildSink[i] * size * 1.1;
+      regionToWorld(fx, fz, lift, pos);
+      regionDir(fx, fz, up);
+      fwd.copy(E).multiplyScalar(Math.sin(heading)).addScaledVector(N, Math.cos(heading));
+      fwd.addScaledVector(up, -fwd.dot(up)).normalize();
+      right.crossVectors(up, fwd);
+      q.setFromRotationMatrix(m.makeBasis(right, up, fwd));
+      sc.set(size * sx, size, size);
+      m.compose(pos, q, sc);
+      const j = mesh.count++;
+      mesh.setMatrixAt(j, m);
+      const l = 0.9 + h2 * 0.2;
+      mesh.setColorAt(j, tint.setRGB(l, l, l));
+    }
+    for (const mesh of this.wild.values()) {
+      mesh.visible = mesh.count > 0;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
+  }
+  private wildM = new THREE.Matrix4();
+  private wildP = new THREE.Vector3();
+  private wildU = new THREE.Vector3();
+  private wildF = new THREE.Vector3();
+  private wildR = new THREE.Vector3();
+  private wildQ = new THREE.Quaternion();
+  private wildS = new THREE.Vector3();
+  private wildC = new THREE.Color();
 
   /** Shield domes over powered projectors, bubbles round Aegis units (interpolated). */
   private syncShields(prev: Snapshot, cur: Snapshot, alpha: number, t: number) {

@@ -20,6 +20,7 @@ import { renderTodo } from './todo';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
 import { WorldPreview } from './world-preview';
+import { NaturePreview } from './nature-preview';
 import { KINDS as BOARD_KINDS, renderBoard, tagsOf, type BoardItem } from './board';
 import { CinePreview } from './cine-preview';
 import { applyInterface } from '../ui-theme';
@@ -32,7 +33,7 @@ import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, upload
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
 import type { AssetDef } from '../content/defs';
-import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef, type ChapterDef } from '../content/defs';
+import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef, type ChapterDef, type BiomeDef, type WildlifeDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
@@ -71,6 +72,7 @@ let timeline: { el: HTMLElement; update(): void; stop(): void } | null = null;
 /** The cinematic preview under it. */
 let preview: CinePreview | null = null;
 let worldPv: WorldPreview | null = null;
+let naturePv: NaturePreview | null = null;
 /** The record the preview shows (kept across form re-renders: every timeline edit re-renders). */
 let previewFor: Current | null = null;
 /** What the main pane shows when no record is open. */
@@ -100,6 +102,8 @@ function teardown() {
   preview = null;
   worldPv?.dispose();
   worldPv = null;
+  naturePv?.dispose();
+  naturePv = null;
   previewFor = null;
   $('main').classList.remove('map-mode');
 }
@@ -796,6 +800,17 @@ function renderForm() {
   }
   worldPv?.dispose();
   worldPv = null;
+  naturePv?.dispose();
+  naturePv = null;
+  if (cur.coll === 'biomes' || cur.coll === 'wildlife') {
+    const at = cur;
+    naturePv = new NaturePreview({
+      kind: at.coll as 'biomes' | 'wildlife',
+      draft: () => at.draft as unknown as BiomeDef & WildlifeDef,
+      wildlife: () => Object.fromEntries(recordsOf('wildlife').map((r) => [r.id, (at.coll === 'wildlife' && r.id === at.id ? at.draft : r.rec.data) as WildlifeDef])),
+    });
+    panel = naturePv.el;
+  }
   if (cur.coll === 'bodies') {
     const at = cur;
     worldPv = new WorldPreview({
@@ -863,6 +878,7 @@ function changed() {
   if (cur.coll === 'characters') renderCharacter();
   timeline?.update();
   worldPv?.refresh();
+  naturePv?.refresh();
   if (cur.coll === 'interface') { const m = document.getElementById('ui-mock'); if (m) applyInterface(cur.draft as unknown as InterfaceDef, m); }
   if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {

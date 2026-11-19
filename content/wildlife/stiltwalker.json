@@ -1,0 +1,15 @@
+{
+  "name": "Stiltwalker",
+  "body": "stilt",
+  "behavior": "lumber",
+  "size": 2.4,
+  "sizeMax": 3.2,
+  "speed": 1.3,
+  "run": 2,
+  "flee": 14,
+  "spread": 30,
+  "herdScale": 0.3,
+  "color": "#8aa0a8",
+  "accent": "#3c4f58",
+  "glow": "#7affd0"
+}

@@ -1,0 +1,91 @@
+{
+  "name": "Lush",
+  "description": "Temperate and wet: broad trees, reed beds and fronds, greens and teals; big slow browsers.",
+  "plants": [
+    {
+      "plant": "canopy",
+      "amount": 1.2
+    },
+    {
+      "plant": "tendril",
+      "chance": 0.6
+    },
+    {
+      "plant": "parasol",
+      "chance": 0.7
+    },
+    {
+      "plant": "fan",
+      "amount": 1.2
+    },
+    {
+      "plant": "reeds",
+      "amount": 1.3
+    },
+    {
+      "plant": "bulbs",
+      "chance": 0.8
+    },
+    {
+      "plant": "cap",
+      "chance": 0.6
+    }
+  ],
+  "extra": 2,
+  "density": 1.15,
+  "size": 1.15,
+  "stems": [
+    {
+      "color": "#254a1c"
+    },
+    {
+      "color": "#17451e"
+    },
+    {
+      "color": "#1f4734"
+    },
+    {
+      "color": "#3b511f"
+    },
+    {
+      "color": "#1e433c"
+    },
+    {
+      "color": "#3f471f"
+    }
+  ],
+  "glows": [
+    {
+      "color": "#f0ea4c"
+    },
+    {
+      "color": "#4cf0f0"
+    },
+    {
+      "color": "#4ff04c"
+    },
+    {
+      "color": "#f04c7d"
+    }
+  ],
+  "glow": 0.8,
+  "wildlife": [
+    {
+      "species": "leafgrazer",
+      "weight": 2.5
+    },
+    {
+      "species": "mossback"
+    },
+    {
+      "species": "canopyglider"
+    },
+    {
+      "species": "treeskipper"
+    },
+    {
+      "species": "vinesnake",
+      "weight": 0.6
+    }
+  ]
+}

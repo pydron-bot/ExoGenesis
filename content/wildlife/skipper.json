@@ -1,0 +1,15 @@
+{
+  "name": "Skipper",
+  "body": "hopper",
+  "behavior": "skittish",
+  "size": 0.55,
+  "sizeMax": 0.75,
+  "speed": 3,
+  "run": 11,
+  "flee": 24,
+  "spread": 16,
+  "herdScale": 1.2,
+  "color": "#b9a0d8",
+  "accent": "#5a3a7a",
+  "glow": "#9ff6ff"
+}

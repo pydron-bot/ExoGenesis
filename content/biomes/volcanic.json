@@ -1,0 +1,79 @@
+{
+  "name": "Volcanic",
+  "description": "Ash and heat: vent chimneys, ash caps and scorched scrub, glowing ember-orange. Armoured beetles and slag-backs.",
+  "plants": [
+    {
+      "plant": "tubes",
+      "amount": 1.3
+    },
+    {
+      "plant": "cap",
+      "amount": 1.1
+    },
+    {
+      "plant": "crystal",
+      "chance": 0.8
+    },
+    {
+      "plant": "lichen",
+      "chance": 0.7
+    },
+    {
+      "plant": "thorn",
+      "chance": 0.5,
+      "amount": 0.8
+    },
+    {
+      "plant": "spire",
+      "chance": 0.3,
+      "amount": 0.6
+    }
+  ],
+  "extra": 1,
+  "density": 0.7,
+  "wind": 0.4,
+  "stems": [
+    {
+      "color": "#201d1d"
+    },
+    {
+      "color": "#261e1c"
+    },
+    {
+      "color": "#25211d"
+    },
+    {
+      "color": "#222325"
+    },
+    {
+      "color": "#221a16"
+    }
+  ],
+  "glows": [
+    {
+      "color": "#fa772e"
+    },
+    {
+      "color": "#fa472e"
+    },
+    {
+      "color": "#fab42e"
+    }
+  ],
+  "glow": 1.7,
+  "wildlife": [
+    {
+      "species": "cinderbeetle",
+      "weight": 1.5
+    },
+    {
+      "species": "slagback"
+    },
+    {
+      "species": "ashwing"
+    },
+    {
+      "species": "emberskip"
+    }
+  ]
+}

@@ -1126,3 +1126,47 @@ The title's REGION and SOUND choices moved into Options (`openOptions` takes ext
 row (HERE on the current one) that reloads into it (`goRegion`). The in-game ⋯ Options stays graphics only. Tests:
 `tools/region-smoke.mjs` (pick a region in Options), `tools/options-smoke.mjs` (sound and regions first, graphics last).
 
+
+### Biomes and wildlife (v0.41.0)
+
+Two content collections, editable under **Nature** in the editor, with a 3D preview (`src/editor/nature-preview.ts`:
+one plant of each form in the biome's colours and its wildlife walking round, or a species at its smallest and largest
+beside a grazer; Night shows the glow; Another roll rebuilds the plants from a new seed).
+
+- **Biomes** (`content/biomes/*.json`, `biomeShape`): plant forms (each row a form with a Chance that a region grows
+  it and an Amount against the others), Extra species (look-alike repeats), stem and glow colour lists, glow, density,
+  size and wind multipliers, and a weighted wildlife list. Shipped: verdant (Home), lush (Verdance), arid (Dunmore),
+  frozen (Rime), volcanic (Cinder), barren (Ash and the airless moons).
+- **Which biome** (`src/content/nature.ts biomeId`): `?biome=<id>` (test override; the sim plays the region with it),
+  else the region's `biome`, else the body's, else `autoBiome` from the body record (no air → barren; volcanic/sulfur
+  look or "molten" → volcanic; icy look, "frozen" or a low snow line → frozen; no seas or dusty → arid; plants > 0.05
+  → lush; otherwise verdant). Plant life (−1 barren) still gates how much grows, so most bodies grow nothing unless
+  their Plant life is raised or flora is painted.
+- **Flora** (`src/world/flora.ts`): 13 forms (`ARCHETYPES`): spire, parasol, canopy, tendril (big); fan, tubes, bulbs,
+  crystal, reeds, cap, barrel, thorn, lichen (small; crystal and lichen are `cliff` forms that grow on steep ground).
+  A region's species are the biome's rows that pass their Chance plus Extra repeats (at most 12, so at most 24
+  instanced draws as before: 2 variants each). Ground cover is normalised by species count per size class (`share`:
+  Home's old mix was 3 big, 5 small), so a biome with more forms isn't denser. Palettes come from the biome's colours
+  (`palette(r, biome)`), jittered per species. Glow and wind scale the shared `floraUniforms`.
+- **Wildlife** (`content/wildlife/*.json`, `wildlifeShape`): body plan (`src/world/fauna-models.ts`: hexapod, stilt,
+  hopper, ray, crawler, shell, serpent; 60–330 tris, colours and an `aGlow` channel baked into the vertices),
+  behaviour, size range, walk/run speed, wariness (flee radius), spread, herd size ×, flying height, colours.
+  23 species shipped, four or five per biome.
+- **Herds** (region `herds[]`, new optional `species`): empty picks from the biome's wildlife, weighted and stable per
+  region (`herdSpecies`: hashed from the region's flora seed and herd index; herd 0 always gets the biome's first
+  species). The count is Grazers × the species' Herd size × (`herdCount`), so big beasts come in fewer.
+- **Sim** (`stepGrazers` in `src/sim/core.ts`): `Creature` gained `sp`, `st` (0 calm, 1 running, 2 hidden), `wait`,
+  `ang`. Behaviours: **herd** (as the old grazers), **skittish** (dash at 60% run speed, pause 0.8–3.8 s, flee from
+  far), **lumber** (turns to stare at a threat instead of fleeing; still bolts from the landing), **flyer** (circles
+  the herd centre, wider and faster when disturbed, ignores buildings), **burrow** (hides 3–7 s after the last threat,
+  doesn't move while hidden). Old saves: creatures without `sp` take their herd's species on load.
+- **Snapshot**: `fauna` is now 4 floats per creature: x, z, heading, species index × 4 + state, the index into
+  `wildlifeIds()` (sorted ids, the same in worker and page).
+- **Render** (`RegionView.syncWildlife`): one `InstancedMesh` per species present (grown as needed), one shared
+  material (`creatureMaterial`: flat vertex colours, glow from `floraUniforms.uGlow`, fog-of-war patched as before).
+  Per instance on the CPU, no per-frame allocation: size from a hash of the index, walkers bob, hoppers hop, flyers
+  glide at their height and flap (x scale), burrowers ease down out of sight. Typical cost: 2–4 draws for wildlife
+  (was 1) and fewer creatures than before (big species' herds are scaled down).
+- Asset browser: the old Grazer built-in is replaced by **Wildlife: <body plan>** entries; Flora lists all 13 forms.
+- Checked with close-up renders of Touchdown as verdant, arid, frozen, volcanic and lush (`?biome=`), the editor
+  previews, `npm run build` and `tools/map-smoke.mjs` (now reads 4 floats per creature).

@@ -9,6 +9,7 @@
   "relief": 84,
   "feature": 2.2,
   "seed": 21,
+  "biome": "frozen",
   "ground": [
     {
       "color": "#7e93a6"

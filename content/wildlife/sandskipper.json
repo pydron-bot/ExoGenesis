@@ -1,0 +1,14 @@
+{
+  "name": "Sandskipper",
+  "body": "hopper",
+  "behavior": "skittish",
+  "size": 0.5,
+  "sizeMax": 0.7,
+  "speed": 3.2,
+  "run": 12,
+  "flee": 26,
+  "spread": 16,
+  "herdScale": 1.2,
+  "color": "#d8b880",
+  "accent": "#8a6a3a"
+}
