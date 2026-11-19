@@ -15,6 +15,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.37.0',
+    date: '2026-11-19',
+    title: 'Shelter and stewardship',
+    notes: [
+      'New research at the Tech Lab: Shield Lattice (after Deep Survey)',
+      'New: the Shield Projector, which throws a dome over everything near it. The dome stops bites, spit and claws from outside until it has soaked its fill, then collapses and comes back at 30%. Predators that get inside are under it with you. It draws heavy power all the time',
+      'New: the Aegis Crawler, a slow unarmed tracked shield generator whose bubble covers whatever is parked round it',
+      'Planet health (🌍 in the top bar): strip mining, burnt-out buildings and nest sites scar the land and lower it, and wiping out nests or driving the inhabitants off harms it for good. A Biosphere Report sends it home at the end of every sol',
+      'New: the Seed Bank, which heals scarred land around it with surplus biomass (never your food reserve) and, with nothing left to heal, rewilds',
+      'When a building falls, the people inside are left lying injured by the ruins, with about a minute to live',
+      'New: the Medevac, a fast ambulance from the Vehicle Bay that picks up the injured (four at a time) and brings them in to the nearest home',
+    ],
+  },
+  {
     version: '0.36.2',
     date: '2026-11-18',
     title: 'Drones, up close',
