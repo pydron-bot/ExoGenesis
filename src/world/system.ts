@@ -5,8 +5,9 @@
  */
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { fbm3, smoothstep } from './noise';
+import { smoothstep } from './noise';
 import type { BodyDef } from '../content/defs';
+import { addRockyDetail, bodyUniforms, cloudShell, giantMaterial, lookOf, ringMaterial } from './body-surface';
 import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
 
 interface Body {
@@ -85,33 +86,19 @@ function rockyBody(w: BodyTerrain, detail: number): THREE.Mesh {
   return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
 }
 
-function giant(radius: number, palette: string[], sd: number, ring?: RingLook): THREE.Group {
+/** Gas giant: a smooth sphere; its bands, storms and poles are drawn per pixel (body-surface.ts). */
+function giant(radius: number, palette: string[], sd: number, ring?: RingLook, icy = false): THREE.Group {
   const g = new THREE.Group();
-  const geo = new THREE.SphereGeometry(radius, 64, 40);
-  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-  const col = new Float32Array(pos.count * 3);
-  const bands = palette.map((p) => new THREE.Color(p));
-  const c = new THREE.Color();
-  const v = new THREE.Vector3();
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i).normalize();
-    const lat = v.y + fbm3(v.x * 3, v.y * 3, v.z * 3, 3, sd) * 0.08;
-    const b = (lat * 6 + 10) % bands.length;
-    const k = Math.floor(b);
-    c.copy(bands[k]).lerp(bands[(k + 1) % bands.length], smoothstep(0.6, 1, b - k));
-    col.set([c.r, c.g, c.b], i * 3);
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  g.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })));
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 64), giantMaterial(palette, sd, icy)));
   if (ring) g.add(ringMesh(radius, ring));
   return g;
 }
 
-interface RingLook { inner: number; outer: number; color: string; opacity: number; tilt: number }
+interface RingLook { inner: number; outer: number; color: string; opacity: number; tilt: number; seed: number }
 function ringMesh(radius: number, ring: RingLook) {
   const r = new THREE.Mesh(
     new THREE.RingGeometry(radius * ring.inner, radius * ring.outer, 128, 1),
-    new THREE.MeshBasicMaterial({ color: ring.color, transparent: true, opacity: ring.opacity, side: THREE.DoubleSide, depthWrite: false }),
+    ringMaterial(ring.color, ring.opacity, radius * ring.inner, radius * ring.outer, ring.seed),
   );
   r.rotation.x = -Math.PI / 2 + ring.tilt;
   return r;
@@ -150,11 +137,20 @@ function belt(count: number, r0: number, r1: number, thick: number, size: [numbe
 
 /** A body as seen from elsewhere in the system (and in the editor's Worlds preview). */
 export function buildBodyObject(id: string, d: BodyDef): THREE.Object3D {
-  const ring = d.ring ? { inner: d.ringInner ?? 1.4, outer: d.ringOuter ?? 2.2, color: d.ringColor ?? '#d6c39c', opacity: d.ringOpacity ?? 0.4, tilt: THREE.MathUtils.degToRad(d.ringTilt ?? 24) } : undefined;
-  if (d.kind === 'giant') return giant(d.radius, (d.bands ?? []).map((b) => b.color).filter(Boolean).length ? d.bands!.map((b) => b.color) : ['#c99a6b', '#e6cfa6'], d.seed ?? 9, ring);
+  const ring = d.ring ? { inner: d.ringInner ?? 1.4, outer: d.ringOuter ?? 2.2, color: d.ringColor ?? '#d6c39c', opacity: d.ringOpacity ?? 0.4, tilt: THREE.MathUtils.degToRad(d.ringTilt ?? 24), seed: d.seed ?? 9 } : undefined;
+  if (d.kind === 'giant') {
+    const bands = (d.bands ?? []).map((b) => b.color).filter(Boolean);
+    const pal = bands.length ? bands : ['#c99a6b', '#e6cfa6'];
+    // a pale, blue-green palette reads as an ice giant: softer storms
+    const icy = pal.every((c) => { const k = new THREE.Color(c); return k.b >= k.r; });
+    return giant(d.radius, pal, d.seed ?? 9, ring, icy);
+  }
   const w = bodyTerrain(id, d as unknown as Record<string, unknown>);
   const g = new THREE.Group();
-  g.add(rockyBody(w, detailFor(d.radius)));
+  const rock = rockyBody(w, detailFor(d.radius));
+  addRockyDetail(rock.material as THREE.MeshStandardMaterial, d, lookOf(d));
+  g.add(rock);
+  if (d.clouds) g.add(cloudShell(d.radius + Math.max(0, w.relief), d.seed ?? 7));
   if (d.atmosphere) g.add(buildAtmosphere(d.radius * 1.05, d.atmosphere, d.haze ?? 1));
   if (ring) g.add(ringMesh(d.radius, ring));
   return g;
@@ -338,6 +334,7 @@ export class SolarSystem {
   update(t: number, camera: THREE.PerspectiveCamera, sys: number, surface: number, width: number, height: number, sunAngle?: number) {
     const away = this.tour;
     surface *= 1 - away;
+    bodyUniforms.uBodyTime.value = t;
     // positions round the star (parents first: `bodies` is in that order), then shift so this body is the origin
     const zero = new THREE.Vector3();
     for (const b of this.bodies) this.orbitPos(b, t, b.parent ? b.parent.abs : zero, b.abs);

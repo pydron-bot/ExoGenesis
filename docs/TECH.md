@@ -1084,3 +1084,37 @@ for all seven; all content is bundled).
 Checks: the content check; `node tools/balance.mjs --region <id> --strategy balanced` for 25 minutes on each. The bot
 loses Touchdown at 19.7 min with that strategy; the new regions range from Burrow Reach (17.5) to Splinter Hollow
 (survives), as their threat levels intend. Every region loads in the game with no page errors.
+
+### Surface detail on the other bodies (v0.40.0)
+
+`src/world/body-surface.ts`, used by `buildBodyObject` (`src/world/system.ts`): the system view, the title screen's tour
+and the editor's Worlds preview. The body being played is unchanged (its globe has the baked maps, `surface.ts`).
+
+- **Rocky bodies** keep their vertex-coloured icosahedron; `addRockyDetail` patches its `MeshStandardMaterial`
+  (`onBeforeCompile`, program key `exo-rocky-body`). Everything is a function of the object-space direction
+  (`vBodyDir`), so it turns with the body and never stretches at the poles. Layers, each with a colour change and a
+  height (`bH`) that tilts the normal by a screen-space bump (`dFdx`/`dFdy` of the height in world units, scaled by
+  the radius):
+  - **craters** at three scales (cell noise at 6, 17 and 48 cells across the sphere): bowls, rims that wobble, central
+    peaks in the big ones, bright rays; fewer in maria;
+  - **maria** (broad dark lowlands), **ice fractures** (cell edges on warped coordinates, two scales, broken up so they
+    read as long lineae), **lava** (crust plates with glowing seams, emissive, only some of them flowing),
+    **sulfur calderas** (dark vents in pale or red halos, a few glowing), **dune streaks** along warped latitudes,
+    **polar frost** with a ragged edge, mid-scale **mottling**, rough ground and a fine **grain**.
+  - Every layer fades out once its features are under a pixel (`bFade`: `fwidth` of the scaled direction), which also
+    skips its work, so a distant moon costs little and nothing shimmers.
+- **Looks** (body field `surface`): cratered, icy, volcanic, sulfur, dusty, verdant, smooth, or `auto` (empty), which
+  picks one from the record (`autoLook`): comets icy; seas verdant; hot orange colours volcanic; yellow sulfur; bright
+  blue-grey icy; air without seas dusty; otherwise cratered. Today that gives Ash, the Dunmore moons, Maren, Orrin,
+  Pip, Sela and Talus cratered; Cinder volcanic; Io-T sulfur; Kora, Teth, Vess, Rime and both comets icy; Dunmore
+  dusty; Home and Verdance verdant. `surfaceDetail` (0–2) scales the whole look, `craters` (0–3) the crater count.
+- **Gas giants** (`giantMaterial`, key `exo-giant`): a smooth 96×64 sphere; bands from the record's palette (up to 8)
+  looked up per pixel from a latitude pushed about by turbulence, with long waves along the band edges, streaks along
+  the latitudes, a great storm oval with a dark collar and swirls (red or white on warm giants, a dark spot on ice
+  giants: a palette where every colour is at least as blue as it is red), scattered small white ovals and darker poles.
+  It drifts slowly with `bodyUniforms.uBodyTime` (set in `SolarSystem.update`).
+- **Rings** (`ringMaterial`, key `exo-ring`): a 512×1 canvas of ringlets (summed sines) and three gaps from the seed,
+  looked up by the radius in the ring plane; soft inner and outer edges.
+- **Clouds**: a body with `clouds` that isn't the one being played (Verdance; Home when playing elsewhere) gets a lit,
+  drifting cloud shell (`cloudShell`).
+- Checked with full-disk and close-up renders of all 22 bodies (no shader errors), the title tour and the system view.

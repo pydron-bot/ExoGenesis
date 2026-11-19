@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.40.0',
+    date: '2026-11-19',
+    title: 'Worlds up close',
+    notes: [
+      'The other worlds in the system have detailed surfaces, sharp at any distance: cratered moons with rays, rims and central peaks, icy moons cut by long fractures, a molten world with glowing seams, a sulfur moon spotted with calderas, wind-streaked deserts and frosted poles',
+      'Gas giants have turbulent bands, great storms and scattered white ovals, and drift slowly; their rings show ringlets and gaps',
+      'Worlds with clouds keep them when you see them from afar',
+    ],
+  },
+  {
     version: '0.39.0',
     date: '2026-11-19',
     title: 'New ground',
