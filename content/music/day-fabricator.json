@@ -29,12 +29,12 @@
   "chordMax": 5.4,
   "swell": 1,
   "release": 2,
-  "pad": 0.35,
+  "pad": 0.5,
   "padTone": "organ",
   "brightness": 1,
   "vibrato": 0.15,
   "bass": 0,
-  "bells": 0.45,
+  "bells": 0.7,
   "bellTone": "kalimba",
   "bellGapMin": 0.4,
   "bellGapMax": 1.6,
@@ -42,7 +42,7 @@
   "pulse": 0,
   "pulseRate": 112,
   "barSteps": 20,
-  "arp": 0.6,
+  "arp": 0.9,
   "arpMode": "up",
   "arpRate": "8ths",
   "arpOctaves": 2,
@@ -51,8 +51,8 @@
   "arpGate": 0.5,
   "arpBright": 0.9,
   "bassline": "x... x... 5... x... o...",
-  "basslineLevel": 0.4,
-  "drums": 0.5,
+  "basslineLevel": 0.55,
+  "drums": 0.65,
   "drumTracks": [
     {
       "sound": "block",
@@ -102,5 +102,5 @@
   "space": 0.3,
   "room": 1.2,
   "grit": 0.1,
-  "level": 1
+  "level": 2.3
 }

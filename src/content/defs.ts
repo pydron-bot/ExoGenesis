@@ -391,7 +391,7 @@ export const musicShape = {
   room: num({ label: 'Reverb · room size', min: 0.4, max: 12, step: 0.1, unit: 's', optional: true, help: 'How long the reverb rings: 1 = a small, close room, 6.5 = a hall, 10+ = a cavern. Set when the music starts (in the editor: ■ Stop and ▶ Listen again). Empty = 6.5.' }),
   grit: num({ label: 'Colour · grit', min: 0, max: 1, step: 0.05, optional: true, help: 'Saturation over the whole piece: a little warms and thickens, a lot is crunchy and distorted. Empty = clean.' }),
   lofi: num({ label: 'Colour · worn', min: 0, max: 1, step: 0.05, optional: true, help: 'Rolls off the lows and highs: an old recording, or music on a far-off radio. Empty = full range.' }),
-  level: num({ label: 'Overall level', min: 0, max: 2, step: 0.05, help: 'Balances this mood against the others. The Music volume in Rules → Sound sits on top.' }),
+  level: num({ label: 'Overall level', min: 0, max: 4, step: 0.05, help: 'Balances this mood against the others. The Music volume in Rules → Sound sits on top.' }),
 } satisfies Shape;
 export type MusicDef = Infer<typeof musicShape>;
 export type MusicChord = Infer<typeof musicChordShape>;
