@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.41.0',
+    date: '2026-11-19',
+    title: 'Music for the long view',
+    notes: [
+      'The title screen has music: quiet, slow ambient that drifts through soft chords and distant bells while the camera tours the system. It never plays the same way twice, starts with your first tap and fades away as you land',
+      'The region list in Options shows which world each region is on',
+    ],
+  },
+  {
     version: '0.40.1',
     date: '2026-11-19',
     title: 'A tidier title screen',

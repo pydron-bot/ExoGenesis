@@ -230,7 +230,7 @@ export const SOUNDS = {
   wind: { label: 'Wind (loop)', cat: 'ambient' },
 } as const;
 export type SoundId = keyof typeof SOUNDS;
-export const SOUND_CATS = ['combat', 'events', 'alerts', 'ui', 'ambient'] as const;
+export const SOUND_CATS = ['combat', 'events', 'alerts', 'ui', 'ambient', 'music'] as const;
 export type SoundCat = (typeof SOUND_CATS)[number];
 
 const vol = (label: string, help?: string) => num({ label, min: 0, max: 1, step: 0.05, help });
@@ -245,6 +245,11 @@ export const soundRulesShape = {
   alerts: vol('Alerts', 'Predator warnings and alarms (cryo integrity, buildings destroyed).'),
   ui: vol('Interface', 'Button taps, refused orders.'),
   ambient: vol('Ambient', 'The wind bed.'),
+  music: vol('Music', 'The title screen music.'),
+  titleMusic: ref('assets', {
+    label: 'Title music · file', optional: true, assetKind: 'audio',
+    help: 'An audio asset to loop on the title screen instead of the built-in generative ambient music.',
+  }),
   ...(Object.fromEntries((Object.keys(SOUNDS) as SoundId[]).map((id) => [id, soundFile(id)])) as { [K in SoundId]: ReturnType<typeof soundFile> }),
 } satisfies Shape;
 export type SoundRules = Infer<typeof soundRulesShape>;

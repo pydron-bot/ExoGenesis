@@ -699,6 +699,21 @@ First playtest build (2026-11-15).
     the ringer switch is on silent — if there's no sound on the phone, check the switch first.
   - Tests: `tools/sound-smoke.mjs` (counts what started via `__exo.audio.stats()`; it can't judge how it sounds —
     the recipes in `src/audio/synth.ts` are first guesses for Derek to tune by ear).
+- **Title music (2026-11-19, v0.41.0):** `src/audio/music.ts` — generative ambient, synthesised live like the rest
+  of the sound. Pad chords (two detuned saws + a triangle per note under a slowly breathing low-pass, 6 s swells,
+  8 s releases so chords cross-fade) random-walk through five chords in D Lydian (Dmaj9, E/D, Bm9, F♯m7, Amaj9;
+  `NEXT` leans back to Dmaj9), each held 14–22 s; a sine bass with its octave holds the root; glassy FM bells
+  (ratio 3.507, index decaying over 1.6 s) pick chord tones singly or in 2–3 note phrases every 2.5–7 s, with
+  rests, through a dark ping-pong echo (0.63 / 0.95 s); a faint swept band of noise; all into a 6.5 s synthetic
+  hall (`hall()`: noise that darkens as it decays). A 200 ms timer queues notes 1.2 s ahead on the audio clock.
+  - `GameAudio.titleMusic(on)` is called every frame with `title.active`: starts once the context runs (the first
+    tap; browsers won't play sooner), fades out over 4 s when the title hides. It plays in a new mixer category,
+    **Music** (`music` in `content/rules/sound.json`, 0.6); `titleMusic` there can name an audio asset to loop
+    instead. Measured offline: about −25 LUFS at 0.6 before master, peak 0.22, so it sits under the UI.
+  - The title's Options region list shows each region's world (the region's `body`, Home if empty) under its
+    name, Home's regions first.
+  - Tests: `tools/music-smoke.mjs` (6 checks: silent before a tap, chords and bells queue, every region row names
+    its world, stops when the title closes). The voicings and levels are first guesses to tune by ear.
 - **More units and buildings (2026-11-16, v0.10.0):** from Derek's playtest ("challenging but engaging"), a
   wider roster. All numbers are content (`content/units`, `content/buildings`); the editor shows the new fields.
   - **Roster is data now:** any unit record is drawn (`src/skirmish/types.ts` ROSTER: the skirmish's four keep

@@ -4,5 +4,6 @@
   "events": 0.7,
   "alerts": 0.8,
   "ui": 0.45,
-  "ambient": 0.35
+  "ambient": 0.35,
+  "music": 0.6
 }

@@ -13,6 +13,7 @@
  */
 import { SOUND_CATS, SOUNDS, mediaUrl, type AssetDef, type SoundCat, type SoundId, type SoundRules } from '../content/defs';
 import { RECIPES, STEADY } from './synth';
+import { AmbientMusic } from './music';
 
 /** Shortest gap between two plays of the same sound (s). Fights fire hundreds of shots a minute. */
 const MIN_GAP: Record<SoundId, number> = {
@@ -58,6 +59,7 @@ export class GameAudio {
   private buffers = new Map<SoundId, AudioBuffer>();
   private wind: { src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode; gust: number; gustTo: number } | null = null;
   private lastTick = -1;
+  private music: { stop: (fade: number) => void; played?: AmbientMusic['played'] } | null = null;
 
   constructor(private rules: SoundRules, private assets: Record<string, AssetDef>, readonly disabled: boolean) {
     try {
@@ -157,9 +159,25 @@ export class GameAudio {
     w.gain.gain.setTargetAtTime(0.5 * (0.85 + 0.25 * night) * w.gust * air, t, 0.4);
   }
 
+  /**
+   * Title music on or off; call every frame. It starts once the context runs
+   * (the first tap: browsers won't play before one) and fades out when turned off.
+   * The sound rules can name an audio file to loop instead of the generative one.
+   */
+  titleMusic(on: boolean) {
+    if (on && !this.music && this.live()) {
+      const a = this.rules.titleMusic ? this.assets[this.rules.titleMusic] : undefined;
+      const stop = a ? this.clip(a, 1, true, this.cats.music) : null;
+      this.music = stop ? { stop } : new AmbientMusic(this.ctx!, this.cats.music);
+    } else if (!on && this.music) {
+      this.music.stop(4);
+      this.music = null;
+    }
+  }
+
   /** Test hook. */
   stats() {
-    return { state: this.state, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind };
+    return { state: this.state, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, music: this.music ? { ...(this.music.played ?? { file: true }) } : null };
   }
 
   /** Play a sound now. `gain` 0..1 on top of the mixer, `pan` −1..1. */
@@ -205,15 +223,15 @@ export class GameAudio {
 
   /**
    * Play an audio asset (a cinematic's sound or music cue) straight to the
-   * master, past the mixer's categories and caps. Music loops. Returns a stopper
+   * master (or `out`), past the mixer's categories and caps. Music loops. Returns a stopper
    * that fades it out over `fade` seconds; null if sound is off or it isn't audio.
    * A file not loaded yet starts as soon as it is.
    */
-  clip(a: AssetDef | undefined, volume = 1, loop = false): ((fade: number) => void) | null {
+  clip(a: AssetDef | undefined, volume = 1, loop = false, out?: AudioNode): ((fade: number) => void) | null {
     if (!a || a.kind !== 'audio' || !this.live()) return null;
     const c = this.ctx!, g = c.createGain();
     g.gain.value = volume;
-    g.connect(this.master);
+    g.connect(out ?? this.master);
     let src: AudioBufferSourceNode | null = null, stopped = false;
     const start = (buf: AudioBuffer) => {
       if (stopped) return;

@@ -840,7 +840,11 @@ const spatial: Spatial = (x, z) => {
 // ---------- title screen ----------
 function showTitle() {
   // Touchdown first, then the rest by name
-  const regions = Object.keys(content.regions).sort((a, b) => (a === 'touchdown' ? -1 : b === 'touchdown' ? 1 : regionLabel(a).localeCompare(regionLabel(b))));
+  // which world each region is on: Home first, then the others by name
+  const bodyOf = (id: string) => { const b = content.regions[id]?.body; return b && content.bodies[b] ? b : 'home'; };
+  const bodyName = (id: string) => (content.bodies[bodyOf(id)]?.name ?? 'Home').replace(/\b[A-Z]{2,}\b/g, (w) => w[0] + w.slice(1).toLowerCase());
+  const bodyRank = (id: string) => (bodyOf(id) === 'home' ? '' : bodyName(id));
+  const regions = Object.keys(content.regions).sort((a, b) => (a === 'touchdown' ? -1 : b === 'touchdown' ? 1 : bodyRank(a).localeCompare(bodyRank(b)) || regionLabel(a).localeCompare(regionLabel(b))));
   const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
   // the title screen's Options also holds where to land and the sound
   const titleOptions: Toggle[] = [
@@ -850,7 +854,7 @@ function showTitle() {
       locked: () => (audio.disabled ? 'OFF (URL)' : null),
     },
     ...(regions.length > 1 ? regions.map((id): Toggle => ({
-      id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: '',
+      id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: bodyName(id),
       get: () => id === regionId, set: () => { if (id !== regionId) goRegion(id); }, state: (on) => (on ? 'HERE' : ''),
     })) : []),
   ];
@@ -960,6 +964,7 @@ function frame(now: number) {
     }
     // sound: only the wind (and the cinematic's own cues) during a cinematic
     audio.quiet = !!cine || !!title;
+    audio.titleMusic(!!title?.active);
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
     audio.ambient(sim.cur.daylight, air, dt);
     if (!ready) { ready = true; exo.ready = true; reveal(); }
