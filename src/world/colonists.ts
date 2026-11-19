@@ -3,7 +3,9 @@
  * bloc so the colony's politics are visible at a glance (cyan Partners, amber
  * Autonomists, violet Devoted). Children are smaller. Indoors they aren't drawn.
  *
- * Reads the snapshot's `people.walkers` (id, x, z, heading, bloc, child) and
+ * Colonists lying injured (thrown out of a fallen building) lie flat, pulsing red.
+ *
+ * Reads the snapshot's `people.walkers` (id, x, z, heading, bloc, flags: 1 child, 2 injured) and
  * interpolates between the previous and current snapshot by id.
  */
 import * as THREE from 'three';
@@ -11,6 +13,7 @@ import type { Snapshot } from '../sim/types';
 import { orient } from './region';
 
 export const BLOC_COLORS = ['#5ff3ff', '#ffb547', '#c08bff'];
+const HURT = new THREE.Color('#ff4d5e');
 const MAX = 256;
 const PICK_PX = 22;
 
@@ -73,13 +76,15 @@ export class ColonistView {
         x = b[0] + (x - b[0]) * alpha; z = b[1] + (z - b[1]) * alpha;
         let dh = h - b[2]; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); h = b[2] + dh * alpha;
       }
-      const child = w![o + 5] > 0;
-      // a little walking bob
-      orient(this.dummy, x, z, h, 0.05 + Math.abs(Math.sin(t * 9 + id)) * 0.12);
+      const flags = w![o + 5], child = (flags & 1) > 0, down = (flags & 2) > 0;
+      // a little walking bob; the injured lie still
+      orient(this.dummy, x, z, h, down ? 0.55 : 0.05 + Math.abs(Math.sin(t * 9 + id)) * 0.12);
+      if (down) this.dummy.rotateX(-Math.PI / 2);
       this.dummy.scale.setScalar(child ? 0.65 : 1);
       this.dummy.updateMatrix();
       this.mesh.setMatrixAt(i, this.dummy.matrix);
       this.color.set(BLOC_COLORS[w![o + 4]] ?? BLOC_COLORS[0]);
+      if (down) this.color.lerp(HURT, 0.5 + 0.5 * Math.sin(t * 6 + id));
       this.mesh.setColorAt(i, this.color);
       this.at.set(id, { x, z, world: this.dummy.position.clone() });
       if (id === selected) {

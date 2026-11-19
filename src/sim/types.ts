@@ -60,6 +60,9 @@ export interface Building {
   queue?: string[];
   /** Factory: 0..1 progress on queue[0]. */
   prod?: number;
+  /** Shield projector: charge (hp the dome can still soak), and whether it's collapsed (back up at 30%). */
+  sh?: number;
+  shDown?: boolean;
 }
 
 export type DroneTask =
@@ -181,6 +184,11 @@ export interface Unit {
   cargo?: Unit[];
   /** A transport ordered to land its cargo: where (on land) they're going, and the water nearest it (wx, wz). */
   drop?: { x: number; z: number; wx: number; wz: number };
+  /** A medevac: colonist ids aboard. */
+  pax?: number[];
+  /** A shield unit (Aegis): charge, and whether its bubble has dropped (back up at 30%). */
+  sh?: number;
+  shDown?: boolean;
 }
 
 /** One of the inhabitants at a camp (walker, or the elder who keeps to the centre). */
@@ -298,6 +306,28 @@ export interface Seam { x: number; z: number; isotopes: number; max: number }
 /** Research done, and the one under way at the Tech Lab. */
 export interface ResearchState { done: string[]; active: { id: string; progress: number } | null }
 
+/** Planet health (src/sim/planet.ts): scars (healable, by place), lasting harm, what's been restored, reports sent. */
+export interface PlanetState {
+  scars: { x: number; z: number; a: number }[];
+  harm: number;
+  restored: number;
+  /** Planet health in each Biosphere Report sent so far (one per sol). */
+  reports: number[];
+  /** The sol the last report covered (reports go out as each sol ends). */
+  sol?: number;
+}
+
+export interface PlanetSnap {
+  health: number;
+  start: number;
+  restored: number;
+  harm: number;
+  /** Biomass per second the seed banks are spending. */
+  use: number;
+  scars: { x: number; z: number; a: number }[];
+  reports: number[];
+}
+
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
 
 export interface SimState {
@@ -334,6 +364,8 @@ export interface SimState {
   research?: ResearchState;
   /** Relic grids (absent in older saves: set up from the region on load). */
   relics?: RelicState;
+  /** Planet health (absent in older saves: starts fresh). */
+  planet?: PlanetState;
   /** Fog of war: cells ever seen, one '0'/'1' per cell (absent in older saves). */
   explored?: string;
   packs: Pack[];
@@ -429,6 +461,12 @@ export interface UnitSnap {
   cargo?: number;
   /** On its way to board a transport. */
   boarding?: boolean;
+  /** A medevac: colonists aboard. */
+  pax?: number;
+  /** A shield unit: charge 0..1, bubble radius, and whether the bubble is up. */
+  sh?: number;
+  shR?: number;
+  shUp?: boolean;
 }
 
 export interface CampSnap {
@@ -497,6 +535,7 @@ export interface Snapshot {
   packs: { x: number; z: number; alive: number; seen: boolean }[];
   fab: { queued: number; progress: number };
   people: PeopleSnap;
+  planet: PlanetSnap;
   over: SimState['over'];
   overText?: string;
   stats: SimState['stats'];

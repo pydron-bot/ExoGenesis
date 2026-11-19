@@ -414,6 +414,10 @@ How content is stored and edited in general (one JSON record per file, schemas i
   LOD) or the built-in, so `region.drone` keeps its identity for the landing; haulers get their bright glow turned
   amber either way. `?models=builtin` keeps the built-in. The **Arc** model went from 1,600 to 1,408 tris (8-sided
   wheels and coil rings).
+- **Blender set v10 (2026-11-19, v0.37.0): roster batch C**, assigned in content. Shield Projector (1,204 tris;
+  floating ring `ring` turns while the dome is up, collar and crystal core are `charge`), Seed Bank (1,122; sprinkler
+  rotor `ring`, seed racks `charge`), Aegis Crawler (1,056), Medevac (1,232). A `charge` part with two materials comes
+  out of the glTF as a group of meshes, so the glow code walks each `charge` node's meshes.
 
 - **Glow, ground shadows, printed construction (v0.32.0):**
   - **Glow** (`src/world/post.ts`): with glow on, the scene renders into a HalfFloat target, then `UnrealBloomPass`
@@ -955,4 +959,77 @@ From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a
   (walls, solar, defences, radar, …) stay asset-only. Animated parts (`ring`, `plume`, `door`, civic `gpod`) are
   driven on both halves; placement ghosts drop the far half. Checked in `tools/roster-a-smoke.mjs`. Inhabitants
   get the same treatment on the `claude/gallant-hawking-3lse24` branch via an asset `far` field.
+
+### Roster batch C (v0.37.0)
+
+The rest of batch C from `docs/ROSTER.md`: shields, planet health with the Seed Bank, and the Medevac.
+Test: `tools/batch-c-smoke.mjs`.
+
+- **Shields** (research **Shield Lattice**: needs Deep Survey, 120◆ 20◇, 60 s):
+  - Fields `shield` (charge, hp), `shieldRadius`, `shieldRegen` on buildings (role `shield`) and on units. Charge
+    lives on the Building / Unit (`sh`, `shDown`). `stepShields` (after the units, before the predators) recharges
+    them: a projector while powered (staff speed it up), a unit always. A collapsed shield comes back at
+    `SHIELD_BACK` (30%). A new projector starts empty. The shields that are up go on a list for the tick (`domes`).
+  - `soak(h, tx, tz, dmg, fx)` is the one rule, used where a predator's blow lands (`stepHostiles`). Of the shields
+    up over the target with the attacker outside them, the one with the most charge takes the hit. Overflow goes
+    through, and at 0 it collapses ("shield down", warning). An attacker inside the dome hits normally. Covered:
+    buildings, units, drones and colonists alike. The tracer stops at the dome's edge, plus `FX.SHIELD` (14) there:
+    a cyan flash, a light-map flash and its own synthesised sound (`shieldHit`).
+  - Power: projectors rank with the shooters (most protected) and draw their full power all the time.
+  - **Shield Projector:** 180◆ 30◇, 600 hp, −5 MW, dome 1,200 charge, 22 u, 15/s, staff 1 technician.
+    **Aegis Crawler:** 140◆ 10◇, 260 hp, speed 4.2, unarmed, bubble 400, 9 u, 10/s (Vehicle Bay).
+  - Drawing: `src/world/shields.ts` (`ShieldDomes`): a sphere per shield that is up, centred on the ground (the
+    terrain hides the lower half). The shader adds a rim glow and a slowly drifting lattice, with the log-depth
+    chunks (the renderer uses a logarithmic depth buffer). It dims with the charge and flashes when the charge
+    drops between frames. `RegionView.syncShields` feeds it projectors from the snapshot's buildings and Aegis
+    units (interpolated) from `UnitSnap` (`sh` 0..1, `shR`, `shUp`). Cards: dome or bubble charge, recharge, status
+    ("Dome down · recharging 12% (up at 30%)").
+- **Planet health** (`src/sim/planet.ts`, `SimState.planet`, `Snapshot.planet`): `health = start − scars − harm +
+  restored`, 0..100. Colony rules: `planetStart` 70, `scarPerAlloy` 0.004, `scarPerIsotope` 0.02, `scarBuildingLost`
+  1, `nestHarm` 3, `campHarm` 12, `rewildMax` 20.
+  - **Scars** are places with a size in health points, merged within 6 u: a depot's mining scars its deposit,
+    a deep-core mine its seam, a destroyed building its spot (a wall segment a quarter), a destroyed nest its site.
+  - **Harm** is lasting: a nest destroyed (plus its scar), a camp gone (driven off or leaving, `Inhabitants.leave`).
+  - **Seed Bank** (role `seedbank`, 110◆, −1.5 MW, range 34, `restoreRate` 0.03 health/s, `restoreCost` 3
+    biomass per point, staff 1 botanist): while powered it heals the worst scar in its Range. With none in reach
+    it rewilds at half the rate, adding to `restored` up to `rewildMax` across the whole colony. It only spends
+    biomass above a quarter of storage, so it never starves anyone. What it spends shows in the food readout.
+    Power rank with the farms. Its `ring` turns while it works.
+  - **Biosphere Report:** as each sol ends (`p.sol` < the current sol) planet health is sent home: a log line with
+    the change since the last one, `reports` (one number per sol), and the story flag `biosphere-report` the first
+    time.
+  - Story hooks: conditions `planet` (health ≥ Count), `planetBelow` (≤), `reports` (Count sent); effect `planet`
+    (raise by Amount for good, negative = lasting harm). The playthrough bot builds a Seed Bank for a `planet`
+    condition.
+  - HUD: 🌍 in the top bar (amber below 45, red below 25; the tooltip has the last report and how many places are
+    scarred), the Seed Bank card (scars in reach, health to heal), and planet health on the end screen. The ground:
+    each scar is a dark patch in the light map's shadow layer (`ColonyLights.update({ scars })`), bigger and darker
+    the deeper it is. Like every light-map shadow it only takes away direct sunlight, so it shows by day.
+- **The injured and the Medevac:**
+  - When a building falls (not when it's recycled), the people inside who survive the 60% hit are left **lying
+    injured** by the ruins (`Colonist.down`, seconds left: people rules `downSeconds`, 60). They don't walk, decide
+    or heal, and predators can still get them. At 0 they die ("died of their injuries before help came"). The
+    alarm says a Medevac can bring them in. In the walkers they're flagged (flags 1 child, 2 injured), drawn lying
+    flat and pulsing red. The roster says "Injured: needs a Medevac (N s)".
+  - **Medevac** (unit field `rescues`: how many it carries; content `units/medevac.json`: 70◆, 220 hp, speed 8.5,
+    aggro 90, carries 4, unarmed). `stepMedevac` picks up anyone injured within 2.5 u of its hull, wherever it's
+    going (`People.board`: `at` = `AT_RIDE` (−2), `ride` = the unit, the clock stops). Idle, it drives to the nearest
+    injured person within its aggro while it has room. Then it takes everyone aboard to the nearest finished home
+    (any building with housing) or the Core, and `People.admit` puts them indoors there: hp at least half, +4
+    acceptance (the AI came for them). Move orders come first. Riders follow it about (`carry`). Lost with people
+    aboard, it spills them back on the ground injured (at most half the time, at least 15 s). A rider whose medevac
+    has gone (an old save) is put back down the same way.
+  - `People.outdoors()` (what predators can reach, the alert, the walkers) now means `at === −1`: riders are
+    neither indoors nor out.
+- Built-ins: `buildShieldProjector`, `buildSeedBank` (`src/world/batchc-models.ts`, in `KIND_MODELS`), `aegisGeo`,
+  `medevacGeo` (`src/skirmish/models.ts`). All are listed in the editor's library. Blender models: set v10 (§2).
+- **Test:** `tools/batch-c-smoke.mjs` (Touchdown, packs held off). It checks:
+  - a powered projector holds its dome; spit from outside leaves the Solar Array under it untouched;
+  - a Swarmer inside the dome bites through it; a drained dome collapses (announced) and spit gets through;
+  - an Aegis bubble soaks spit aimed at the unit under it;
+  - planet health starts at 70; mining scars the deposit and lowers it;
+  - a Seed Bank heals the scar (spending biomass), then rewilds past 70;
+  - a Biosphere Report goes out as the sol ends (flag set); the top bar shows 🌍;
+  - the three people in a fallen Civilian Center lie injured (and are drawn so); a Medevac brings all three in
+    to the Habitat Block; with no Medevac the injured die when their time runs out.
 

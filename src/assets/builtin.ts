@@ -109,6 +109,19 @@ BUILTINS.push(
 );
 
 
+// Roster batch C (v0.37): built-in looks (zoomed out, and while the Blender files load)
+import { buildSeedBank, buildShieldProjector } from '../world/batchc-models';
+BUILTINS.push(
+  ...([['shield', 'Shield Projector', buildShieldProjector], ['seedbank', 'Seed Bank', buildSeedBank]] as const).map(([id, name, build]): Builtin => ({
+    id, name, group: 'Buildings', where: 'src/world/batchc-models.ts', usedBy: { coll: 'buildings', id }, swappable: true,
+    note: id === 'shield' ? 'Its `ring` turns while the dome is up; `charge` parts glow with the charge.' : 'Its `ring` turns while it restores land; `charge` parts glow.', build,
+  })),
+  ...([['aegis', 'Aegis Crawler'], ['medevac', 'Medevac']] as const).map(([id, name]): Builtin => ({
+    id, name, group: 'Units', where: `src/skirmish/models.ts BUILTIN_UNITS.${id}`, usedBy: { coll: 'units', id }, swappable: true,
+    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+  })),
+);
+
 // Water buildings (v0.35): built-ins only so far
 import { buildPier, buildShipyard, buildTidal } from '../world/sea-models';
 import { buildSeaTurret } from '../world/region';

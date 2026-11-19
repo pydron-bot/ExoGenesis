@@ -33,6 +33,10 @@ export const unitShape = {
   guards: int({ label: 'Nest guards', min: 0, max: 30, optional: true, help: 'Nests: swarmers it releases when hurt (at most every 12 s).' }),
   move: choice(['ground', 'hover', 'water', 'air'], { label: 'Moves on', optional: true, help: 'ground (empty): land only, finds its way round water. hover: skims over land and water alike. water: boats and sea creatures, open water only (built at a shore factory, a Shipyard; in packs they start from the nearest water to the spawn). air: flies straight over everything, walls included (built at an airfield, an Airpad). Only shooters that can hit flyers (Anti-air) can hit it.' }),
   antiAir: bool({ label: 'Anti-air', optional: true, help: 'Can hit flyers (units that move on air). Nothing else can: everything else ignores them.' }),
+  shield: int({ label: 'Shield', min: 0, max: 100000, unit: 'hp', optional: true, help: 'Accord units: projects a shield bubble (Shield radius) that soaks this much damage from predators outside it before it drops. It recharges at Shield recharge; once down it comes back at 30%.' }),
+  shieldRadius: num({ label: 'Shield radius', min: 0, max: 80, step: 0.5, unit: 'u', optional: true, help: 'How far the shield reaches. Anything of ours inside it is covered from attacks that start outside it.' }),
+  shieldRegen: num({ label: 'Shield recharge', min: 0, max: 1000, step: 0.5, unit: 'hp/s', optional: true }),
+  rescues: int({ label: 'Rescues', min: 0, max: 20, optional: true, help: 'Accord units: a medevac. It drives to colonists lying injured (thrown out of a fallen building) within its Aggro radius, picks up this many, and brings them in to the nearest home (or the Core) before they die. Unarmed.' }),
   carries: int({ label: 'Carries', min: 0, max: 20, optional: true, help: 'Accord transports: how many ground units it can carry. Select ground units and tap it to load them; order it to a spot on land to land them there.' }),
   burrows: bool({ label: 'Burrows', optional: true, help: 'Fauna: travels underground to its target, through walls and unseen (radar still shows it), then surfaces to attack.' }),
   packEvery: int({ label: 'Joins packs: every', min: 0, max: 100, optional: true, help: 'Fauna: every Nth attacker in a pack is one of these (0 or empty = only if the threat rules name it).' }),
@@ -49,7 +53,7 @@ export const unitShape = {
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay', 'lab', 'deepmine', 'reactor', 'generator'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay', 'lab', 'deepmine', 'reactor', 'generator', 'shield', 'seedbank'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -57,7 +61,7 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core. lab: runs research (Tech Lab). deepmine: mines exotic isotopes from an isotope seam within Range. reactor: steady power while it burns isotopes (Fuel use). generator: steady power (its Power), day and night, no conditions (a Tidal Generator).',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core. lab: runs research (Tech Lab). deepmine: mines exotic isotopes from an isotope seam within Range. reactor: steady power while it burns isotopes (Fuel use). generator: steady power (its Power), day and night, no conditions (a Tidal Generator). shield: a shield dome (Shield, Shield radius, Shield recharge) over everything near it, while powered (a Shield Projector). seedbank: heals scarred land within Range (planet health), spending surplus biomass; with nothing to heal it rewilds (a Seed Bank).',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
   site: choice(['land', 'water', 'shore'], { label: 'Built on', optional: true, help: 'land (empty): dry ground. water: offshore, all of it over water at least 1 u deep. shore: straddling the waterline, part on land and part over water. A factory on the shore (a Shipyard) builds boats (units that move on water) and hover craft; one on land builds ground units and hover craft.' }),
@@ -78,6 +82,11 @@ export const buildingShape = {
   antiAir: bool({ label: 'Anti-air', optional: true, help: 'Shooters: can hit flyers (units that move on air). Nothing else can.' }),
   airOnly: bool({ label: 'Flyers only', optional: true, help: 'Shooters with Anti-air: fires only at flyers, never at anything on the ground (a Flak Tower).' }),
   airfield: bool({ label: 'Airfield', optional: true, help: 'Factories: builds flyers (units that move on air), and only flyers.' }),
+  shield: int({ label: 'Shield', min: 0, max: 100000, unit: 'hp', optional: true, help: 'Shield projectors (role shield): the dome soaks this much damage from predators outside it before it collapses. It recharges while powered; once down it comes back at 30%.' }),
+  shieldRadius: num({ label: 'Shield radius', min: 0, max: 120, step: 0.5, unit: 'u', optional: true, help: 'Shield projectors: the dome\'s radius. Anything of ours inside it (buildings, units, drones, people) is covered from attacks that start outside it.' }),
+  shieldRegen: num({ label: 'Shield recharge', min: 0, max: 1000, step: 0.5, unit: 'hp/s', optional: true, help: 'Shield projectors: while powered.' }),
+  restoreRate: num({ label: 'Restore rate', min: 0, max: 10, step: 0.005, unit: 'health/s', optional: true, help: 'Seed banks: planet health points of scarred land healed per second within Range, while powered (staff speed it up). With nothing to heal in reach it rewilds at half this rate, up to the colony rules\' cap.' }),
+  restoreCost: num({ label: 'Restore cost', min: 0, max: 1000, step: 0.5, unit: 'biomass/health', optional: true, help: 'Seed banks: biomass spent per health point restored. They only spend what is above a quarter of the colony\'s storage.' }),
   repairRate: num({ label: 'Repair rate', min: 0, max: 1000, unit: 'hp/s', optional: true, help: 'Repair pads: hit points per second for each unit in Range, while powered.' }),
   mineRate: num({ label: 'Mining rate', min: 0, max: 100, step: 0.01, unit: '/s', optional: true, help: 'Depots (alloys) and deep-core mines (isotopes), while powered.' }),
   fuelRate: num({ label: 'Fuel use', min: 0, max: 10, step: 0.005, unit: 'isotopes/s', optional: true, help: 'Reactors: isotopes burned per second while generating. No isotopes, no power.' }),
@@ -119,6 +128,13 @@ export const colonyRulesShape = {
   cryoRecover: num({ label: 'Cryo recovery', min: 0, max: 10, step: 0.01, unit: '%/s', help: 'When fully powered.' }),
   nightSolar: num({ label: 'Solar output at night', min: 0, max: 1, step: 0.01, help: 'Fraction of noon output (starlight, moons).' }),
   solSeconds: num({ label: 'Length of a sol', min: 10, max: 7200, unit: 's', help: 'Real seconds per game day.' }),
+  planetStart: num({ label: 'Planet health at landing', min: 0, max: 100, optional: true, help: 'Planet health (0–100) before the colony has done anything. The Biosphere Report sends it home every sol. Empty = 70.' }),
+  scarPerAlloy: num({ label: 'Scar per alloy mined', min: 0, max: 1, step: 0.0005, optional: true, help: 'Planet health lost per alloy a depot takes, as a scar at the deposit (a Seed Bank can heal it).' }),
+  scarPerIsotope: num({ label: 'Scar per isotope mined', min: 0, max: 1, step: 0.001, optional: true, help: 'The same for a deep-core mine\'s isotopes, at the seam.' }),
+  scarBuildingLost: num({ label: 'Scar per building lost', min: 0, max: 20, step: 0.1, optional: true, help: 'A destroyed building (a quarter for a wall segment) or nest leaves a scar this big where it stood.' }),
+  nestHarm: num({ label: 'Harm per nest destroyed', min: 0, max: 50, step: 0.5, optional: true, help: 'Lasting: no Seed Bank heals it.' }),
+  campHarm: num({ label: 'Harm per camp lost', min: 0, max: 100, step: 0.5, optional: true, help: 'Lasting: inhabitants driven off (or leaving) their land.' }),
+  rewildMax: num({ label: 'Rewilding cap', min: 0, max: 100, step: 0.5, optional: true, help: 'How far Seed Banks can raise planet health beyond healing scars (rewilding), in all.' }),
 } satisfies Shape;
 export type ColonyRules = Infer<typeof colonyRulesShape>;
 
@@ -152,6 +168,7 @@ export const peopleRulesShape = {
   specialtyBonus: num({ label: 'Specialty bonus', min: 0, max: 2, step: 0.01, help: 'Extra when their specialty is the building\'s best one.' }),
   colonistHp: int({ label: 'Colonist hit points', min: 1, max: 1000 }),
   walkSpeed: num({ label: 'Walking speed', min: 0.5, max: 20, step: 0.1, unit: 'u/s' }),
+  downSeconds: num({ label: 'Injured: time to live', min: 5, max: 3600, unit: 's', optional: true, help: 'Colonists hurt when their building falls are left lying by the ruins: they die after this long unless a Medevac (a unit with Rescues) brings them in. Empty = 60 s.' }),
   leadShare: num({ label: 'Leading bloc share', min: 0.34, max: 1, step: 0.01, help: 'A bloc with at least this share of the adults leads the colony and gives its boost (0.5 = half).' }),
   leadMin: int({ label: 'Leading bloc: adults needed', min: 1, max: 100, help: 'No bloc leads a colony smaller than this.' }),
   militiaRange: num({ label: 'Wardens: reach', min: 0, max: 60, step: 0.5, unit: 'u', help: 'Autonomist-led: buildings with Autonomists inside fight predators this close.' }),
@@ -194,6 +211,7 @@ export const SOUNDS = {
   spit: { label: 'Spitter glob', cat: 'combat' },
   emerge: { label: 'Burrower surfacing', cat: 'combat' },
   repair: { label: 'Repair beam', cat: 'combat' },
+  shieldHit: { label: 'Shield hit', cat: 'combat' },
   bite: { label: 'Predator bite', cat: 'combat' },
   deathSmall: { label: 'Small death', cat: 'combat' },
   deathBig: { label: 'Big death', cat: 'combat' },
@@ -340,7 +358,7 @@ export type InhabitantDef = Infer<typeof inhabitantShape>;
  * Conditions: what starts a story event (its trigger) and what completes a
  * mission objective. One evaluator (src/sim/conditions.ts) serves both.
  */
-export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'all', 'any', 'never'] as const;
+export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'planet', 'planetBelow', 'reports', 'all', 'any', 'never'] as const;
 export type Condition = (typeof CONDITIONS)[number];
 /** Conditions a group (all / any) can hold: everything but groups. */
 export const SUB_CONDITIONS = CONDITIONS.filter((c) => c !== 'all' && c !== 'any') as Exclude<Condition, 'all' | 'any'>[];
@@ -376,6 +394,9 @@ export const CONDITION_HELP: Record<Condition, string> = {
   after: 'when the Event has been answered (its card closed)',
   mission: 'when the Mission is complete',
   failed: 'when the Mission has failed',
+  planet: 'when planet health (0–100, the Biosphere Report\'s number) is Count or more',
+  planetBelow: 'when planet health is Count or less',
+  reports: 'when Count Biosphere Reports have been sent (one goes out as each sol ends)',
   all: 'when every condition in the group is true',
   any: 'when any condition in the group is true',
   never: 'only when another event starts it',
@@ -395,13 +416,14 @@ const PANEL_HELP: Record<HudPanel, string> = {
   speed: 'the pause or fast-forward buttons',
 };
 
-export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail'] as const;
+export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail'] as const;
 export type StoryEffect = (typeof STORY_EFFECTS)[number];
 export const EFFECT_HELP: Record<StoryEffect, string> = {
   log: 'a line in the log (Text)',
   alloys: 'add Amount alloys (negative takes)',
   isotopes: 'add Amount exotic isotopes (negative takes)',
   biomass: 'add Amount biomass',
+  planet: 'raise planet health by Amount for good (negative: lasting harm)',
   stance: 'shift every colonist\'s AI acceptance by Amount',
   wellbeing: 'shift every colonist\'s wellbeing by Amount',
   regard: 'change the Group\'s regard by Amount',
@@ -441,7 +463,7 @@ const conditionFields = <K extends string>(kindKey: K, label: string, kinds: rea
   [kindKey]: choice(kinds, { label, helps: CONDITION_HELP }),
   sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on(kindKey, ['time']) }),
   building: ref('buildings', { label: 'Building', optional: true, help: '"opened: select": empty = any building.', when: { ...on(kindKey, ['built', 'placed', 'opened']), need: false } }),
-  count: int({ label: 'Count', min: -10000, max: 10000, optional: true, help: 'Empty = 1 (0 for counters).', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'births', 'deaths', 'firstAge', 'acceptance', 'distrust', 'counter', 'counterBelow'], false) }),
+  count: int({ label: 'Count', min: -10000, max: 10000, optional: true, help: 'Empty = 1 (0 for counters).', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'births', 'deaths', 'firstAge', 'acceptance', 'distrust', 'counter', 'counterBelow', 'planet', 'planetBelow', 'reports'], false) }),
   site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site', 'explored']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on(kindKey, ['contact', 'trust']) }),
   flag: str({ label: 'Flag', optional: true, when: on(kindKey, ['flag']) }),
@@ -483,7 +505,7 @@ const conditionWithGroup = <K extends string>(kindKey: K, label: string) => ({
 
 const effectFields = {
   kind: choice(STORY_EFFECTS, { label: 'Effect', helps: EFFECT_HELP }),
-  amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'isotopes', 'biomass', 'stance', 'wellbeing', 'regard', 'counter', 'setCounter', 'countdown', 'reveal'], false) }),
+  amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'counter', 'setCounter', 'countdown', 'reveal'], false) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on('kind', ['regard']) }),
   flag: str({ label: 'Flag', optional: true, when: on('kind', ['flag', 'unflag']) }),
   counter: str({ label: 'Counter', optional: true, help: 'A name (lowercase, no spaces).', when: on('kind', ['counter', 'setCounter']) }),

@@ -188,6 +188,9 @@ export function condText(kind: Condition, c: ConditionDef): string {
     case 'after': return `after ${c.event ?? '?'}`;
     case 'mission': return `mission ${c.mission ?? '?'} done`;
     case 'failed': return `mission ${c.mission ?? '?'} failed`;
+    case 'planet': return `planet health ≥ ${c.count ?? 0}`;
+    case 'planetBelow': return `planet health ≤ ${c.count ?? 0}`;
+    case 'reports': return pl(n, 'Biosphere Report');
     case 'all': case 'any': return (c.of ?? []).map((x) => `${x.not ? 'not ' : ''}${condText(x.kind as Condition, x as ConditionDef)}`).join(kind === 'all' ? ' and ' : ' or ') || `(empty ${kind} group)`;
     case 'never': return 'only when started';
   }

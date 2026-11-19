@@ -1,0 +1,22 @@
+{
+  "name": "Shield Projector",
+  "description": "Throws a shield dome over everything near it. The dome stops bites, spit and claws that come from outside it, until it has soaked its fill; then it collapses and comes back once it has recharged to 30%. Anything that gets inside the dome is under it with you. Draws heavy power all the time.",
+  "role": "shield",
+  "buildable": true,
+  "cost": 180,
+  "isotopes": 30,
+  "research": "shield-lattice",
+  "hp": 600,
+  "powerMW": -5,
+  "buildSeconds": 24,
+  "clearance": 8,
+  "shield": 1200,
+  "shieldRadius": 22,
+  "shieldRegen": 15,
+  "staff": 1,
+  "specialty": "technician",
+  "lightColor": "#7fe8ff",
+  "lightRadius": 10,
+  "lightIntensity": 0.8,
+  "model": "exo-shield"
+}

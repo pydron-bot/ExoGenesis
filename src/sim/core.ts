@@ -15,6 +15,7 @@ import { PathGrid, moveOf, offLimits, straight, type Move } from './path';
 import { Buckets } from './spatial';
 import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
+import { Planet } from './planet';
 import { Story } from './story';
 import { Missions } from './missions';
 import type { Colonist } from './people-types';
@@ -74,6 +75,8 @@ const REPATH = 20;
 const STALL = 30;
 /** Building buckets cover each body plus this: more than any moving unit's radius (u). */
 const BODY_MARGIN = Math.max(2, ...Object.values(content.units).filter((u) => u.speed > 0).map((u) => u.radius)) + 1;
+/** A medevac picks up someone lying injured this close to its hull (u). */
+const PICKUP = 2.5;
 /** Ground units board a transport within this of its hull, across the shallows (u). */
 const BOARD_REACH = 7;
 /** A transport lands its cargo on dry ground within this of its hull (u). */
@@ -149,6 +152,10 @@ const PACK_EXTRAS = Object.entries(content.units)
 
 /** Flies (moves on air): only anti-air shooters can hit it, and nothing on the ground blocks it. */
 const flies = (u: UnitDef) => u.move === 'air';
+/** A collapsed shield comes back up once it has recharged to this share of its full charge. */
+const SHIELD_BACK = 0.3;
+/** A shield up this tick: centre, radius, and what holds its charge (a projector or an Aegis). */
+interface Dome { x: number; z: number; r: number; o: Building | Unit; max: number; name: string }
 
 export class Sim {
   s!: SimState;
@@ -174,11 +181,15 @@ export class Sim {
   private lastEmerge = -1e9;
   /** Tick of the last "nest is letting out its guards" warning. */
   private lastGuards = -1e9;
+  /** Shields up this tick (stepShields), for stepHostiles to check hits against. */
+  private domes: Dome[] = [];
   /** Power result of the last tick. */
   power = { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 };
 
   /** Colonists, embryos, pods, food and Trust. */
   readonly people: People = new People(this);
+  /** Planet health: scars, harm, Seed Banks, the Biosphere Report. */
+  readonly planet: Planet = new Planet(this);
   /** Inhabitant camps: regard, first contact, trust. */
   readonly inhabitants: Inhabitants = new Inhabitants(this);
   /** Story events: triggers, cards, effects. */
@@ -222,6 +233,7 @@ export class Sim {
     s.isotopes = 0;
     s.seams = this.regionSeams();
     s.research = { done: [], active: null };
+    s.planet = Planet.fresh();
     this.initNests();
     this.initRelics();
     this.exp.fill(0);
@@ -453,12 +465,14 @@ export class Sim {
       this.stepTurrets();
       this.stepRepairPads();
       this.stepUnits();
+      this.stepShields();
       this.stepHostiles();
       this.stepNests();
       this.stepRelics();
       this.stepWaves();
       this.stepCryo();
       this.people.step();
+      this.planet.step();
       this.inhabitants.step();
       this.story.step();
       this.stepEncounters();
@@ -500,7 +514,7 @@ export class Sim {
       if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
-        const rank = d.fireRange ? 0 : d.role === 'civic' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' ? 2 : 3;
+        const rank = d.fireRange || d.role === 'shield' ? 0 : d.role === 'civic' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' || d.role === 'seedbank' ? 2 : 3;
         const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
         loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw(), rank, battery: d.role !== 'depot' });
       } else b.powered = true;
@@ -798,6 +812,7 @@ export class Sim {
         sm.isotopes -= take;
         s.isotopes = (s.isotopes ?? 0) + take;
         s.stats.isotopesMined = (s.stats.isotopesMined ?? 0) + take;
+        this.planet.minedIsotopes(sm.x, sm.z, take);
         if (sm.isotopes <= 0) this.emit(`Isotope seam ${compass(sm.x, sm.z)} of the Core is exhausted`, 'warn');
         continue;
       }
@@ -809,6 +824,7 @@ export class Sim {
       dep.alloys -= take;
       s.alloys += take;
       s.stats.mined += take;
+      this.planet.mined(dep.x, dep.z, take);
       if (dep.alloys <= 0) this.emit(`Deposit ${compass(dep.x, dep.z)} of the Core is exhausted`, 'warn');
     }
     s.alloys += RULES.alloyTrickle * DT;
@@ -1122,6 +1138,7 @@ export class Sim {
       u.cd = Math.max(0, u.cd - DT);
       if (u.ride !== undefined) { if (this.stepBoarding(u, d)) boarded.push(u); continue; }
       if (u.drop) { this.stepLanding(u, d); continue; }
+      if (d.rescues) { this.stepMedevac(u, d); continue; }
       if (d.repairRate) { this.stepRepairer(u, d); continue; }
       const moving = u.order.kind === 'move';
       let tgt = u.target >= 0 ? s.hostiles.find((h) => h.id === u.target) : undefined;
@@ -1210,6 +1227,51 @@ export class Sim {
     });
   }
 
+  /**
+   * A medevac: picks up anyone lying injured it passes; idle, it drives to the nearest of them within
+   * its aggro radius while it has room, then takes everyone aboard in to the nearest home (or the Core).
+   * Move orders come first (it still picks up whoever it passes).
+   */
+  private stepMedevac(u: Unit, d: UnitDef) {
+    const P = this.people, cap = d.rescues ?? 0, pax = (u.pax ??= []);
+    u.target = -1;
+    const down = P.injured();
+    for (const c of down) {
+      if (pax.length >= cap) break;
+      if (Math.hypot(c.x - u.x, c.z - u.z) > d.radius + PICKUP) continue;
+      P.board(c, u.id);
+      pax.push(c.id);
+      this.emit(`${d.name}: ${c.name} is aboard${pax.length < cap && down.length > 1 ? '' : ' · taking them in'}`, 'info', 'unitReady');
+    }
+    for (let i = pax.length - 1; i >= 0; i--) if (!P.colonist(pax[i])) pax.splice(i, 1); // (died meanwhile)
+    if (u.order.kind === 'move') {
+      const o = u.order;
+      if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed)) this.arrive(u);
+    } else {
+      let want: { x: number; z: number } | null = null, bd = d.aggro;
+      if (pax.length < cap) for (const c of P.injured()) {
+        const dist = Math.hypot(c.x - u.x, c.z - u.z);
+        if (dist < bd) { bd = dist; want = c; }
+      }
+      if (want) this.goTo(u, want.x, want.z, d.speed);
+      else if (pax.length) {
+        // in to the nearest finished home, or the Core
+        let home: Building | null = null, hd = Infinity;
+        for (const b of this.s.buildings) {
+          if (b.progress < 1 || !(b.kind === 'core' || (def(b).housing ?? 0) > 0)) continue;
+          const dist = Math.hypot(b.x - u.x, b.z - u.z);
+          if (dist < hd) { hd = dist; home = b; }
+        }
+        if (home && hd <= bodyR(home) + d.radius + 3) {
+          const n = P.admit(pax, home);
+          u.pax = [];
+          if (n) this.emit(`${d.name}: ${n === 1 ? 'one' : n} brought in to the ${def(home).name}`, 'info', 'online');
+        } else if (home && !this.goTo(u, home.x, home.z, d.speed)) u.repath = this.s.tick;
+      } else if (Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5 && !this.goTo(u, u.gx, u.gz, d.speed)) this.arrive(u);
+    }
+    if (u.pax?.length) P.carry(u.pax, u.x, u.z);
+  }
+
   /** Hit points and alloy cost of a repair target (unit or building). */
   private patient(id: number): { e: Unit | Building; max: number; cost: number; r: number } | null {
     const u = this.units.find((x) => x.id === id);
@@ -1271,6 +1333,61 @@ export class Sim {
     }
   }
 
+  /**
+   * Shields: projectors (while powered) and Aegis units recharge; a collapsed one comes back at
+   * SHIELD_BACK of its charge. The ones up this tick are listed for stepHostiles.
+   */
+  private stepShields() {
+    const domes = this.domes;
+    domes.length = 0;
+    for (const b of this.s.buildings) {
+      const d = def(b);
+      if (!d.shield || !d.shieldRadius) continue;
+      if (b.progress < 1) { b.sh = 0; b.shDown = true; continue; }
+      if (b.sh === undefined) { b.sh = 0; b.shDown = true; }
+      if (b.powered) b.sh = Math.min(d.shield, b.sh + (d.shieldRegen ?? 0) * this.people.mult(b) * DT);
+      if (b.shDown && b.sh >= d.shield * SHIELD_BACK) {
+        b.shDown = false;
+        if (this.s.tick > 1) this.emit(`${d.name} dome up`, 'info', 'online');
+      }
+      if (b.powered && !b.shDown && b.sh > 0) domes.push({ x: b.x, z: b.z, r: d.shieldRadius, o: b, max: d.shield, name: d.name });
+    }
+    for (const u of this.units) {
+      const d = content.units[u.unit];
+      if (!d.shield || !d.shieldRadius) continue;
+      u.sh = Math.min(d.shield, (u.sh ?? d.shield) + (d.shieldRegen ?? 0) * DT);
+      if (u.shDown && u.sh >= d.shield * SHIELD_BACK) u.shDown = false;
+      if (!u.shDown && u.sh > 0) domes.push({ x: u.x, z: u.z, r: d.shieldRadius, o: u, max: d.shield, name: d.name });
+    }
+  }
+
+  /**
+   * A predator's hit on something at (tx, tz): a shield up over the target that the attacker is
+   * outside of takes it first (the fullest one, if several). Returns the damage left over for the
+   * target, and draws the hit (stopped at the shield's edge, or on the target).
+   */
+  private soak(h: Hostile, tx: number, tz: number, dmg: number, fxKind: number) {
+    let best: Dome | null = null;
+    for (const m of this.domes) {
+      if ((m.o.sh ?? 0) <= 0 || Math.hypot(tx - m.x, tz - m.z) > m.r || Math.hypot(h.x - m.x, h.z - m.z) <= m.r) continue;
+      if (!best || (m.o.sh ?? 0) > (best.o.sh ?? 0)) best = m;
+    }
+    if (!best) { this.fx.push(fxKind, h.x, h.z, tx, tz); return dmg; }
+    // where the blow meets the shield: on its edge, toward the attacker
+    const ax = h.x - best.x, az = h.z - best.z, ad = Math.max(1e-3, Math.hypot(ax, az));
+    const ix = best.x + (ax / ad) * best.r, iz = best.z + (az / ad) * best.r;
+    this.fx.push(fxKind, h.x, h.z, ix, iz, FX.SHIELD, ix, iz, best.x, best.z);
+    const took = Math.min(best.o.sh ?? 0, dmg);
+    best.o.sh = (best.o.sh ?? 0) - took;
+    if (best.o.sh <= 1e-6) {
+      best.o.sh = 0;
+      best.o.shDown = true;
+      this.domes.splice(this.domes.indexOf(best), 1);
+      this.emit(`${best.name}: shield down. It comes back at ${Math.round(SHIELD_BACK * 100)}% charge.`, 'warn', 'warning');
+    }
+    return dmg - took;
+  }
+
   private killHostile(h: Hostile) {
     const s = this.s;
     const i = s.hostiles.indexOf(h);
@@ -1283,6 +1400,7 @@ export class Sim {
       const secs = THREATS.nestRegrow ?? 600;
       if (n) { n.id = -1; n.regrow = s.tick + Math.round(secs * TICK_HZ); }
       s.stats.nestsDestroyed = (s.stats.nestsDestroyed ?? 0) + 1;
+      this.planet.nestDestroyed(h.x, h.z);
       if (this.story.s && !this.story.has('nest-destroyed')) this.story.s.flags.push('nest-destroyed');
       this.emit(`Nest destroyed ${compass(h.x, h.z)} of the Core: no packs from there for ${Math.round(secs / 60)} min`, 'info', 'packCleared');
     }
@@ -1372,7 +1490,7 @@ export class Sim {
         if (h.target !== was) { h.best = Infinity; h.stall = 0; }
       }
       // a colonist who made it indoors is out of reach
-      if (tgt && 'lineage' in tgt && tgt.at >= 0) { h.target = -1; tgt = undefined; }
+      if (tgt && 'lineage' in tgt && tgt.at !== -1) { h.target = -1; tgt = undefined; }
       if (!tgt) { if (h.guard) this.stepGuard(h, u); continue; }
       const isB = 'kind' in tgt, isU = 'order' in tgt, isC = 'lineage' in tgt;
       const tr = isB ? bodyR(tgt as Building) : isU ? content.units[(tgt as Unit).unit].radius : 1;
@@ -1397,8 +1515,9 @@ export class Sim {
         h.heading = Math.atan2(dx, dz);
         if (h.cd <= 0) {
           h.cd = u.cooldown;
-          tgt.hp -= u.damage * (isC ? this.people.harm() : 1);
-          this.fx.push(weaponFx(unitWeapon(u), false), h.x, h.z, tgt.x, tgt.z);
+          const left = this.soak(h, tgt.x, tgt.z, u.damage * (isC ? this.people.harm() : 1), weaponFx(unitWeapon(u), false));
+          if (left <= 0) continue;
+          tgt.hp -= left;
           if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : isC ? this.people.kill(tgt as Colonist, 'killed by predators') : this.destroyDrone(tgt as Drone);
         }
         continue;
@@ -1586,6 +1705,7 @@ export class Sim {
     s.stats.buildingsLost++;
     this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
     this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
+    this.planet.buildingLost(b.x, b.z, barrier(b));
     for (const u of this.units) if (u.fix === b.id) u.fix = -1;
     this.people.buildingLost(b);
     if (b.kind === 'core') this.lose('core');
@@ -1682,6 +1802,7 @@ export class Sim {
     s.stats.unitsLost = (s.stats.unitsLost ?? 0) + 1 + aboard;
     this.fx.push(dieFx(content.units[u.unit].radius), u.x, u.z, 0, 0);
     this.emit(`${content.units[u.unit].name} destroyed${aboard ? ` with ${aboard} aboard` : ''}`, 'bad', 'lost');
+    if (u.pax?.length) this.people.spill(u.pax, u.x, u.z);
     for (const o of this.units) if (o.ride === u.id) { o.ride = undefined; this.arrive(o); }
   }
 
@@ -2111,7 +2232,8 @@ export class Sim {
       const mv = u.order.kind === 'move' ? u.order : null;
       return {
         id: u.id, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0,
-        cargo: d.carries ? u.cargo?.length ?? 0 : undefined, boarding: u.ride !== undefined || undefined,
+        cargo: d.carries ? u.cargo?.length ?? 0 : undefined, boarding: u.ride !== undefined || undefined, pax: d.rescues ? u.pax?.length ?? 0 : undefined,
+        ...(d.shield && d.shieldRadius ? { sh: (u.sh ?? d.shield) / d.shield, shR: d.shieldRadius, shUp: !u.shDown && (u.sh ?? d.shield) > 0 } : {}),
       };
     });
     // effects in the fog stay hidden too
@@ -2153,7 +2275,7 @@ export class Sim {
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,
-      fab: { queued: s.fab.queued, progress: s.fab.progress }, people: this.people.snapshot(), over: s.over, overText: s.overText, stats: { ...s.stats },
+      fab: { queued: s.fab.queued, progress: s.fab.progress }, people: this.people.snapshot(), planet: this.planet.snapshot(), over: s.over, overText: s.overText, stats: { ...s.stats },
     };
   }
 }

@@ -1,0 +1,20 @@
+{
+  "name": "Seed Bank",
+  "description": "Stores the planet's own seeds and spores and puts them back: heals scarred land within its Range (strip-mined deposits and seams, burnt-out buildings, nest sites), spending surplus biomass. With nothing left to heal nearby it rewilds, slowly raising planet health. It never touches the colony's food reserve. Botanists speed it up.",
+  "role": "seedbank",
+  "buildable": true,
+  "cost": 110,
+  "hp": 300,
+  "powerMW": -1.5,
+  "buildSeconds": 16,
+  "clearance": 9,
+  "range": 34,
+  "restoreRate": 0.03,
+  "restoreCost": 3,
+  "staff": 1,
+  "specialty": "botanist",
+  "lightColor": "#9cff7a",
+  "lightRadius": 9,
+  "lightIntensity": 0.7,
+  "model": "exo-seedbank"
+}

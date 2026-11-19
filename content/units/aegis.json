@@ -1,0 +1,22 @@
+{
+  "name": "Aegis Crawler",
+  "faction": "accord",
+  "description": "A slow tracked shield generator. Its bubble soaks spit, bites and claws aimed at anything inside it from outside, then drops until it has recharged to 30%. Unarmed: park it among your guns or over a mining line.",
+  "hp": 260,
+  "speed": 4.2,
+  "range": 0,
+  "damage": 0,
+  "cooldown": 1,
+  "radius": 1.3,
+  "aggro": 0,
+  "sight": 26,
+  "shield": 400,
+  "shieldRadius": 9,
+  "shieldRegen": 10,
+  "modelScale": 1,
+  "cost": 140,
+  "isotopes": 10,
+  "research": "shield-lattice",
+  "buildSeconds": 22,
+  "model": "exo-aegis"
+}

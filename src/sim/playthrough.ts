@@ -129,6 +129,9 @@ function chase(sim: Sim, plan: Step[], tick: number) {
         if (camp && (kind === 'contact' ? !camp.met : false)) go(camp.x * 0.85, camp.z * 0.85);
         return;
       }
+      case 'planet':
+        if (!have('seedbank')) front(['seedbank']);
+        return;
       case 'opened':
         // the bot "opens" what a tutorial waits for
         if (c.panel) sim.command({ type: 'ui', what: c.panel === 'select' && c.building ? `select:${c.building}` : c.panel });

@@ -147,6 +147,7 @@ export class Inhabitants {
   private leave(c: Camp, text: string, level: 'info' | 'warn' | 'bad') {
     if (c.gone) return;
     c.gone = true;
+    this.sim.planet.campLost();
     c.trusted = false;
     c.pending = false;
     c.regard = 0;

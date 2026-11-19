@@ -976,6 +976,7 @@ function frame(now: number) {
       core: core && region.core.visible ? { x: core.x, z: core.z, beacon: Math.max(0, Math.sin(t * 4)) } : null,
       sun: shadowSun.copy(system.sunPos).normalize(),
       sizes: shadowSizes,
+      scars: live ? c.planet?.scars : undefined,
       drones: live ? c.drones.map((b) => {
         const a = p.drones.find((d) => d.id === b.id) ?? b;
         let dh = b.heading - a.heading;

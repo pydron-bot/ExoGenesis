@@ -19,7 +19,7 @@ import type { Sim } from './core';
 import { hourAt } from './daylight';
 import { GIVEN, LINEAGES, TRAITS, type Trait } from './names';
 import {
-  BLOCS, CURRICULA, POLICIES, blocOf,
+  AT_RIDE, BLOCS, CURRICULA, POLICIES, blocOf,
   type Bloc, type Colonist, type ColonistSnap, type PeopleCommand, type PeopleSnap, type PeopleState, type Pod, type PolicyKey,
 } from './people-types';
 import { TICK_HZ, type Building } from './types';
@@ -144,7 +144,42 @@ export class People {
   mult(b: Building) { return this.mults.get(b.id) ?? 1; }
 
   /** Colonists predators can reach (outdoors). */
-  outdoors(): Colonist[] { return this.s.colonists.filter((c) => c.at < 0); }
+  outdoors(): Colonist[] { return this.s.colonists.filter((c) => c.at === -1); }
+
+  // ---------- the injured and the medevac ----------
+  /** How long someone lying injured has (people rules). */
+  private downFor() { return P.downSeconds ?? 60; }
+  /** Colonists lying injured, outdoors. */
+  injured(): Colonist[] { return this.s.colonists.filter((c) => c.down !== undefined && c.at === -1); }
+  /** A medevac takes them aboard: they're safe (and stop getting worse) while they ride. */
+  board(c: Colonist, unit: number) {
+    c.at = AT_RIDE; c.ride = unit; c.goal = -1; c.path = undefined;
+  }
+  /** Riders follow their medevac about (for the roster and the camera). */
+  carry(ids: number[], x: number, z: number) {
+    for (const c of this.s.colonists) if (ids.includes(c.id)) { c.x = x; c.z = z; }
+  }
+  /** A medevac brings its riders in to a building: they're treated, and remember who came for them. */
+  admit(ids: number[], b: Building) {
+    let n = 0;
+    for (const c of this.s.colonists) {
+      if (!ids.includes(c.id) || c.at !== AT_RIDE) continue;
+      c.at = b.id; c.x = b.x; c.z = b.z; c.ride = undefined; c.down = undefined; c.goal = -1; c.path = undefined;
+      c.hp = Math.max(c.hp, P.colonistHp * 0.5);
+      c.stance = clamp(c.stance + 4, 0, 100);
+      n++;
+    }
+    return n;
+  }
+  /** The medevac was lost with them aboard: back on the ground, worse off. */
+  spill(ids: number[], x: number, z: number) {
+    for (const c of this.s.colonists) {
+      if (!ids.includes(c.id) || c.at !== AT_RIDE) continue;
+      const a = this.sim.rnd() * Math.PI * 2;
+      c.at = -1; c.ride = undefined; c.x = x + Math.sin(a) * 1.5; c.z = z + Math.cos(a) * 1.5;
+      c.down = Math.min(c.down ?? Infinity, Math.max(15, this.downFor() * 0.5));
+    }
+  }
 
   colonist(id: number) { return this.s.colonists.find((c) => c.id === id); }
 
@@ -186,6 +221,7 @@ export class People {
   /** A building is gone: its people spill out (hurt), its pods are lost. */
   buildingLost(b: Building, hurt = true) {
     const s = this.s;
+    let down = 0;
     for (const p of [...s.pods]) {
       if (p.b !== b.id) continue;
       s.pods.splice(s.pods.indexOf(p), 1);
@@ -203,8 +239,10 @@ export class People {
         c.at = -1; c.x = b.x + Math.sin(a) * (bodyR(b) + 1.5); c.z = b.z + Math.cos(a) * (bodyR(b) + 1.5);
         if (hurt) c.hp -= P.colonistHp * 0.6;
         if (c.hp <= 0) this.kill(c, `killed when the ${def(b).name} fell`);
+        else if (hurt) { c.down = this.downFor(); c.goal = -1; c.path = undefined; down++; }
       }
     }
+    if (down) this.emit(`${down === 1 ? 'Someone is' : `${down} people are`} lying injured by the ruins of the ${def(b).name}. A Medevac can bring them in: they have about ${Math.round(this.downFor())} s.`, 'bad', 'alarm');
   }
 
   /** A colonist dies (or leaves). */
@@ -299,7 +337,19 @@ export class People {
     const s = this.s, sim = this.sim.s;
     this.stepFood();
     this.stepPods();
-    for (const c of s.colonists) this.walk(c);
+    for (const c of [...s.colonists]) {
+      if (c.at === AT_RIDE) {
+        // their medevac is gone (a save from elsewhere): back on the ground
+        if (!this.sim.units.some((u) => u.id === c.ride || u.cargo?.some((v) => v.id === c.ride))) this.spill([c.id], c.x, c.z);
+        continue;
+      }
+      if (c.down !== undefined) {
+        c.down -= 1 / TICK_HZ;
+        if (c.down <= 0) this.kill(c, 'died of their injuries before help came');
+        continue;
+      }
+      this.walk(c);
+    }
     if (sim.tick % TICK_HZ === 0) {
       const dt = 1;
       this.housing();
@@ -346,6 +396,7 @@ export class People {
     for (const c of s.colonists) eaten += P.eat * r * (this.adult(c) ? 1 : 0.5);
     const podsFed = s.pods.filter((p) => this.podPowered(p)).length;
     eaten += podsFed * P.podBiomass;
+    eaten += this.sim.planet.use; // seed banks (src/sim/planet.ts), last tick
     this.food = { made, eaten };
     s.biomass = clamp(s.biomass + (made - eaten) * DT, 0, this.storage());
     if (s.biomass <= 0 && eaten > made) s.hungry += DT;
@@ -528,7 +579,7 @@ export class People {
     const near = (r: number) => {
       for (const h of this.sim.s.hostiles) {
         for (const b of this.sim.s.buildings) if (def(b)?.role !== 'wall' && Math.hypot(b.x - h.x, b.z - h.z) < r + bodyR(b)) return true;
-        for (const c of this.s.colonists) if (c.at < 0 && Math.hypot(c.x - h.x, c.z - h.z) < r) return true;
+        for (const c of this.s.colonists) if (c.at === -1 && Math.hypot(c.x - h.x, c.z - h.z) < r) return true;
       }
       return false;
     };
@@ -542,6 +593,7 @@ export class People {
 
   /** Where each colonist wants to be right now. */
   private decide(c: Colonist) {
+    if (c.down !== undefined || c.at === AT_RIDE) return; // they can't go anywhere by themselves
     const bs = this.sim.s.buildings;
     const core = bs.find((b) => b.kind === 'core');
     const shelter = () => {
@@ -673,7 +725,7 @@ export class People {
     }
     for (const c of [...s.colonists]) {
       const age = this.age(c);
-      if (s.hungry <= 0) c.hp = Math.min(P.colonistHp * (c.traits.includes('frail') ? 0.6 : 1), c.hp + 2 * dt);
+      if (s.hungry <= 0 && c.down === undefined) c.hp = Math.min(P.colonistHp * (c.traits.includes('frail') ? 0.6 : 1), c.hp + 2 * dt);
       const old = P.lifespan - 10 - (c.traits.includes('frail') ? 15 : 0);
       if (age > old && this.sim.rnd() < ((age - old) / 20) * per) { this.kill(c, 'old age'); continue; }
       // children come of age
@@ -831,15 +883,18 @@ export class People {
     for (const c of adults) blocs[blocOf(c.stance)]++;
     const avg = (f: (c: Colonist) => number) => (adults.length ? adults.reduce((m, c) => m + f(c), 0) / adults.length : 0);
     const name = (id: number) => { const b = this.building(id); return b ? def(b)?.name ?? null : null; };
-    const outdoors = s.colonists.filter((c) => c.at < 0);
+    const outdoors = s.colonists.filter((c) => c.at === -1);
     const walkers = new Float32Array(outdoors.length * 6);
     outdoors.forEach((c, i) => {
-      walkers.set([c.id, c.x, c.z, c.heading, BLOCS.indexOf(blocOf(c.stance)), this.adult(c) ? 0 : 1], i * 6);
+      // flags: 1 child, 2 lying injured
+      walkers.set([c.id, c.x, c.z, c.heading, BLOCS.indexOf(blocOf(c.stance)), (this.adult(c) ? 0 : 1) + (c.down !== undefined ? 2 : 0)], i * 6);
     });
     const living = this.livingPerLine();
     const roster: ColonistSnap[] = s.colonists.map((c) => {
       const g = this.building(c.goal), at = this.building(c.at);
-      const doing = c.strike && c.at >= 0 ? `On strike at ${at ? def(at).name : 'home'}`
+      const doing = c.at === AT_RIDE ? 'Aboard a Medevac'
+        : c.down !== undefined ? `Injured: needs a Medevac (${Math.ceil(c.down)} s)`
+        : c.strike && c.at >= 0 ? `On strike at ${at ? def(at).name : 'home'}`
         : c.at < 0 ? (this.alert ? `Running for shelter${g ? ` (${def(g).name})` : ''}` : `Walking to ${g ? (g.id === c.home ? 'home' : def(g).name) : '…'}`)
         : this.alert ? `Sheltering in ${at ? def(at).name : '…'}`
         : c.at === c.job ? `Working at ${at ? def(at).name : '…'}`
@@ -848,7 +903,7 @@ export class People {
       return {
         id: c.id, name: c.name, lineage: lineName(c.lineage), age: Math.floor(this.age(c)), specialty: c.specialty, traits: [...c.traits],
         origin: c.origin, imprint: c.imprint, wb: c.wb, stance: c.stance, bloc: blocOf(c.stance), hp: c.hp / P.colonistHp,
-        home: name(c.home), job: name(c.job), doing, strike: !!c.strike, partner: pt?.name ?? null, x: c.x, z: c.z, outdoors: c.at < 0, jobId: c.job, atId: c.at, why: (this.why.get(c.id) ?? []).slice(0, 6),
+        home: name(c.home), job: name(c.job), doing, strike: !!c.strike, partner: pt?.name ?? null, x: c.x, z: c.z, outdoors: c.at === -1, jobId: c.job, atId: c.at, why: (this.why.get(c.id) ?? []).slice(0, 6),
       };
     });
     const housing = bs.reduce((m, b) => m + (b.progress >= 1 && def(b)?.role === 'civic' ? def(b).housing ?? 0 : 0), 0);

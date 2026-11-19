@@ -424,6 +424,7 @@ export class ColonyLights {
       case 10: this.flash(x1, z1, 10, C.emerge, 1.0, 0.8); break; // burrower surfaces
       case 11: this.flash(x2, z2, 4, C.repair, 0.8, 0.2); break; // repair beam
       case 12: this.flash(x1, z1, 3.5, C.pd, 1.2, 0.05); break; // point-defense
+      case 14: this.flash(x1, z1, 6, C.shield, 1.4, 0.25); break; // a hit on a shield
     }
   }
 
@@ -439,6 +440,8 @@ export class ColonyLights {
     sun?: THREE.Vector3;
     /** Building sizes for their shadows: body radius and height per kind. */
     sizes?: Record<string, { r: number; h: number }>;
+    /** Scarred land (planet health): dark patches, bigger and darker the deeper the scar (a: health points). */
+    scars?: { x: number; z: number; a: number }[];
   }) {
     this.n = 0;
     if (src.sun) {
@@ -447,6 +450,10 @@ export class ColonyLights {
     }
     // shadows first: under the lights in draw order (it doesn't matter for the sums, but keeps the cap fair)
     if (this.shade) {
+      for (const sc of src.scars ?? []) {
+        const w = Math.min(14, 3 + Math.sqrt(sc.a) * 2.5);
+        this.shadowBlob(sc.x, sc.z, w, w * 1.15, (sc.x * 0.37 + sc.z * 0.61) % Math.PI, Math.min(0.55, 0.2 + sc.a * 0.05));
+      }
       for (const b of src.buildings ?? []) {
         const sz = src.sizes?.[b.kind];
         if (!sz) continue;
@@ -549,6 +556,7 @@ const FXC = {
   dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
   shell: new THREE.Color('#ff9a3d'), arc: new THREE.Color('#b9a6ff'), spit: new THREE.Color('#a6ff4d'),
   emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'), rail: new THREE.Color('#e8fbff'),
+  shield: new THREE.Color('#7fe8ff'),
 };
 
 /** The live instance (null with `?lights=0`). Renderers that make light (ArmyView) check this. */

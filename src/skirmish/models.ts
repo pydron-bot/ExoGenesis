@@ -263,6 +263,30 @@ export function skimmerwingGeo() {
   return merge(parts);
 }
 
+/** Aegis Crawler: a low wide tracked hull carrying a squat emitter drum with a dish of field vanes on top. */
+export function aegisGeo() {
+  const parts: THREE.BufferGeometry[] = [box(1.9, 0.6, 2.6, 0, 0.75, 0), box(0.55, 0.62, 2.8, -1.15, 0.42, 0), box(0.55, 0.62, 2.8, 1.15, 0.42, 0)];
+  parts.push(new THREE.CylinderGeometry(0.8, 0.95, 0.7, 8).translate(0, 1.4, -0.2));
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    parts.push(box(0.12, 0.7, 0.5).rotateZ(0.5).rotateY(a).translate(Math.sin(a) * 0.75, 2.0, -0.2 + Math.cos(a) * 0.75));
+  }
+  parts.push(box(1.0, 0.4, 0.6, 0, 1.15, 1.0));
+  return merge(parts);
+}
+export function aegisGlow() { return merge([ico(0.38).translate(0, 2.0, -0.2), box(1.95, 0.08, 0.08, 0, 1.08, -1.32)]); }
+
+/** Medevac: a tall six-wheeled ambulance box with a raised cab, a light bar and a rear hatch. */
+export function medevacGeo() {
+  const parts: THREE.BufferGeometry[] = [box(1.5, 1.1, 2.0, 0, 1.25, -0.35), box(1.4, 0.75, 0.9, 0, 1.05, 1.05)];
+  for (const z of [-1.0, -0.2, 0.95]) parts.push(cyl(0.34, 0.25, -0.78, 0.36, z), cyl(0.34, 0.25, 0.78, 0.36, z));
+  parts.push(box(1.0, 0.12, 0.3, 0, 1.9, 0.1), box(0.9, 0.7, 0.06, 0, 1.2, -1.37));
+  return merge(parts);
+}
+export function medevacGlow() {
+  return merge([box(0.9, 0.14, 0.24, 0, 2.0, 0.1), box(0.14, 0.5, 0.06, 0, 1.4, -1.41), box(0.5, 0.14, 0.06, 0, 1.4, -1.41), box(1.42, 0.1, 0.1, 0, 1.45, 1.52)]);
+}
+
 export interface BuiltinUnitLook { geo(): THREE.BufferGeometry; glow?(): THREE.BufferGeometry; material(): THREE.Material }
 
 /**
@@ -288,6 +312,8 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },
   burrower: { geo: burrowerGeo, material: () => faunaMaterial('#7a5a3a', '#2e1a08') },
   lancer: { geo: lancerGeo, glow: lancerGlow, material: () => accordMaterial(0.55) },
+  aegis: { geo: aegisGeo, glow: aegisGlow, material: () => accordMaterial(0.5) },
+  medevac: { geo: medevacGeo, glow: medevacGlow, material: () => accordMaterial(0.35) },
   nest: { geo: nestGeo, material: () => faunaMaterial('#8a5048', '#3a1410') },
   sentinel: { geo: sentinelGeo, material: () => faunaMaterial('#c9c0ae', '#4a3a8a') },
   gridnode: { geo: gridNodeGeo, material: () => faunaMaterial('#b9b0a0', '#5a3cff') },

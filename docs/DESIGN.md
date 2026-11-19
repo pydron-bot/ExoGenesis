@@ -269,7 +269,7 @@ visit. Each has its own expansion behavior and an attitude that reacts to events
 demands, raids, defections, joint defense. Contact by radio first, in person after you have
 interplanetary travel.
 
-### 5.8 Stewardship *(proposal)*
+### 5.8 Stewardship *(built in v0.37.0: planet health, the Seed Bank, the Biosphere Report; see TECH.md §6)*
 The experiment measures who **best cares for a planet**, so the game could track it: a
 **planet health** stat affected by strip mining, pollution, wiping out fauna, displacing or
 protecting the inhabitants, restoring land. It gives a reason to play carefully rather than

@@ -28,10 +28,11 @@ export const FX_STRIDE = 5;
  * chain discharge. SPIT: a spitter's glob. EMERGE: a burrower surfaces at x1,z1.
  * REPAIR: a repair beam (engineer or pad). PD_SHOT: rapid point-defense fire.
  * RAIL: a Lancer's rail slug (an instant white-hot line and a hard hit).
+ * SHIELD: a hit stopped by a shield (x1,z1 where it struck the shield, x2,z2 the shield's centre).
  */
 export const FX = {
   ROVER_SHOT: 0, TANK_SHOT: 1, BITE: 2, DIE_SMALL: 3, DIE_BIG: 4, CORE_HIT: 5, TURRET_SHOT: 6,
-  SHELL: 7, ARC: 8, SPIT: 9, EMERGE: 10, REPAIR: 11, PD_SHOT: 12, RAIL: 13,
+  SHELL: 7, ARC: 8, SPIT: 9, EMERGE: 10, REPAIR: 11, PD_SHOT: 12, RAIL: 13, SHIELD: 14,
 } as const;
 
 export const UT = { Rover: 0, Tank: 1, Swarmer: 2, Brute: 3 } as const;

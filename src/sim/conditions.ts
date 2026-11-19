@@ -62,6 +62,9 @@ export function conditionMet(sim: Sim, kind: Condition, c: ConditionDef, w: Cond
     case 'after': return !!c.event && !!st?.answered.includes(c.event);
     case 'mission': return !!c.mission && !!s.missions?.done.includes(c.mission);
     case 'failed': return !!c.mission && !!s.missions?.failed?.includes(c.mission);
+    case 'planet': return sim.planet.health() >= (c.count ?? 0);
+    case 'planetBelow': return sim.planet.health() <= (c.count ?? 0);
+    case 'reports': return (s.planet?.reports.length ?? 0) >= n;
     case 'all': return !!c.of?.length && c.of.every((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'any': return !!c.of?.some((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'never': return false;

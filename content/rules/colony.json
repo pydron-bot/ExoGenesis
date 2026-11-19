@@ -18,5 +18,12 @@
   "cryoLossPerMW": 0.12,
   "cryoRecover": 0.25,
   "nightSolar": 0.08,
-  "solSeconds": 360
+  "solSeconds": 360,
+  "planetStart": 70,
+  "scarPerAlloy": 0.004,
+  "scarPerIsotope": 0.02,
+  "scarBuildingLost": 1,
+  "nestHarm": 3,
+  "campHarm": 12,
+  "rewildMax": 20
 }

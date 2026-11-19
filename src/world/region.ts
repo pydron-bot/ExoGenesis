@@ -4,6 +4,8 @@
  */
 import * as THREE from 'three';
 import { buildAirpad, buildFlak } from './air-models';
+import { ShieldDomes, type ShieldLook } from './shields';
+import { buildSeedBank, buildShieldProjector } from './batchc-models';
 import { BATCHED_KINDS, BuildingBatch } from './batch';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
@@ -682,6 +684,7 @@ const KIND_MODELS: Record<string, () => THREE.Group> = {
   cannon: buildCannon, pointdefense: buildPointDefense, ...ROSTER_BUILDINGS,
   shipyard: buildShipyard, tidal: buildTidal, pier: buildPier, seaturret: buildSeaTurret,
   airpad: buildAirpad, flak: buildFlak,
+  shield: buildShieldProjector, seedbank: buildSeedBank,
 };
 
 /** Sea Turret: the Defense Turret on a platform over the water (its `head` still aims). */
@@ -796,7 +799,7 @@ class GroundRing {
   hide() { this.line.visible = false; }
 }
 
-export interface BuildingLook { role: string; name: string; hp: number; clearance: number; fireRange?: number; range?: number; storage?: number; site?: string }
+export interface BuildingLook { role: string; name: string; hp: number; clearance: number; fireRange?: number; range?: number; storage?: number; site?: string; shield?: number; shieldRadius?: number }
 export interface RegionRules { defs: Record<string, BuildingLook>; buildRadius: number }
 
 export type Selection = { kind: 'drone' | 'building' | 'colonist'; id: number } | { kind: 'units'; ids: number[] } | null;
@@ -832,6 +835,9 @@ interface Lod { near: THREE.Object3D; far: THREE.Object3D }
 export class RegionView {
   readonly patch: THREE.Mesh;
   readonly details = new THREE.Group();
+  /** Shield domes (projectors) and bubbles (Aegis units). */
+  private shields = new ShieldDomes((o, x, z) => orient(o, x, z, 0, 0));
+  private lastShieldT = 0;
   /** The first drone's model (the landing cinematic flies it out of the Core). */
   readonly drone: THREE.Group;
   readonly droneWorld = new THREE.Vector3();
@@ -1201,6 +1207,7 @@ export class RegionView {
     this.syncAreaRings(ui.build ? cur.buildings : []);
 
     this.syncBuildings(cur, t, ui, camera);
+    this.syncShields(prev, cur, alpha, t);
     this.syncDeposits(cur);
     this.syncWrecks(cur);
     this.syncSeams(cur);
@@ -1223,6 +1230,25 @@ export class RegionView {
       this.faunaMesh.setMatrixAt(i, m);
     }
     this.faunaMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Shield domes over powered projectors, bubbles round Aegis units (interpolated). */
+  private syncShields(prev: Snapshot, cur: Snapshot, alpha: number, t: number) {
+    if (!this.shields.group.parent) this.details.add(this.shields.group);
+    const list: ShieldLook[] = [];
+    for (const b of cur.buildings) {
+      const d = this.rules.defs[b.kind];
+      if (!d?.shield || !d.shieldRadius || b.progress < 1) continue;
+      list.push({ id: `b${b.id}`, x: b.x, z: b.z, r: d.shieldRadius, charge: (b.sh ?? 0) / d.shield, up: b.powered && !b.shDown && (b.sh ?? 0) > 0 });
+    }
+    for (const u of cur.units) {
+      if (!u.shR) continue;
+      const a = prev.units.find((x) => x.id === u.id) ?? u;
+      list.push({ id: `u${u.id}`, x: lerp(a.x, u.x, alpha), z: lerp(a.z, u.z, alpha), r: u.shR, charge: u.sh ?? 0, up: !!u.shUp });
+    }
+    const dt = Math.min(0.1, Math.max(0, t - this.lastShieldT));
+    this.lastShieldT = t;
+    this.shields.sync(list, this.gameT, dt);
   }
 
   /** Wall line preview: one ghost segment per point, green or red. */
@@ -1411,6 +1437,17 @@ export class RegionView {
         if (role === 'depot') this.hauler(b, cur, this.gameT);
         if (role === 'repair') {
           for (const ring of parts(e.obj, 'ring')) ring.rotation.z = lit && b.engaged ? this.gameT * 2.5 : ring.rotation.z;
+        }
+        if (role === 'shield' || role === 'seedbank') {
+          // the projector's ring turns while its dome is up; the Seed Bank's while it works
+          const on = lit && (role === 'shield' ? !b.shDown : !!b.engaged);
+          for (const ring of parts(e.obj, 'ring')) if (on) ring.rotation.y = this.gameT * (role === 'shield' ? 0.9 : 0.6);
+          const k = role === 'shield' && d?.shield ? 0.3 + ((b.sh ?? 0) / d.shield) * 2.4 : on ? 1.8 : 0.2;
+          // (a part with two materials comes out of the glTF as a group of meshes)
+          for (const c of parts(e.obj, 'charge')) c.traverse((o) => {
+            const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+            if (m && 'emissiveIntensity' in m) m.emissiveIntensity = lit ? k : 0.1;
+          });
         }
         if (role === 'geothermal') {
           for (const plume of parts(e.obj, 'plume')) { plume.visible = lit; plume.scale.set(1 + Math.sin(this.gameT * 1.7 + b.id) * 0.12, 1 + Math.sin(this.gameT * 1.1) * 0.15, 1); }

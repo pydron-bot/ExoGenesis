@@ -86,6 +86,13 @@ export const RECIPES: Record<Exclude<SoundId, 'wind'>, Recipe> = {
     tone(c, o, t + 0.04, 'sine', 160 * p, 50 * p, 0.25, 0.45, 0.002);
     return 0.3;
   },
+  shieldHit(c, o, t, p) {
+    // a glassy ping that rings off, with a soft electric fizz
+    tone(c, o, t, 'sine', 880 * p, 660 * p, 0.35, 0.22, 0.003);
+    tone(c, o, t, 'sine', 1320 * p, 1180 * p, 0.25, 0.1, 0.003);
+    hiss(c, o, t, 'bandpass', 5200 * p, 3600 * p, 0.1, 0.12, 2);
+    return 0.36;
+  },
   shell(c, o, t, p) {
     // a deep thump and a rolling boom
     tone(c, o, t, 'sine', 95 * p, 30 * p, 0.6, 0.6, 0.002);

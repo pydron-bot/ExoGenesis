@@ -44,7 +44,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 
 export class ColonyHud {
   private el = {
-    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), iso: $('r-iso'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'),
+    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), iso: $('r-iso'), planet: $('r-planet'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'),
     goals: $('goals'), goalsHead: $('goals-head'), goalsList: $('goals-list'), menu: $('build-menu'), card: $('card'), mini: $<HTMLCanvasElement>('minimap'),
     over: $('over'),
   };
@@ -166,6 +166,14 @@ export class ColonyHud {
     e.iso.innerHTML = isoOn ? `◇ <b>${Math.floor(s.isotopes ?? 0)}</b>` : '◇ <b>—</b>';
     e.iso.className = `r ${isoOn ? '' : 'dim'}`;
     e.iso.title = isoOn ? 'Exotic isotopes' : 'Exotic isotopes: a Deep-Core Mine on an isotope seam (research Deep Survey at a Tech Lab)';
+    // planet health: what the Biosphere Report sends home each sol
+    const pl = s.planet;
+    if (pl) {
+      const h = Math.round(pl.health), last = pl.reports.length ? pl.reports[pl.reports.length - 1] : null;
+      e.planet.innerHTML = `🌍 <b>${h}</b>`;
+      e.planet.className = `r ${h < 25 ? 'bad' : h < 45 ? 'warn' : ''}`;
+      e.planet.title = `Planet health ${h} / 100 (the Biosphere Report sends it home each sol)${last !== null ? ` · last report ${last}` : ''}${pl.scars.length ? ` · ${pl.scars.length} scarred place${pl.scars.length > 1 ? 's' : ''}: a Seed Bank heals them` : ''}`;
+    }
     this.people.renderBar(s);
     const sol = this.d.rules.solSeconds;
     const sl = Math.floor(s.secs / sol) + 1, h = hourAt(s.secs, sol);
@@ -242,6 +250,16 @@ export class ColonyHud {
     if (d.role === 'deepmine' && (b.mining === undefined || b.mining < 0)) return ['Idle: no isotope seam in reach', 'warn'];
     if (d.role === 'reactor' && !b.powered) return ['Out of isotopes', 'bad'];
     if (d.role === 'relay') return ['Relaying · build area extended', ''];
+    if (d.role === 'seedbank') {
+      if (!b.powered) return ['No power (load shed)', 'bad'];
+      const reach = d.range ?? 20, n = (s.planet?.scars ?? []).filter((x) => Math.hypot(x.x - b.x, x.z - b.z) <= reach).length;
+      if (!b.engaged) return !n && (s.planet?.restored ?? 0) >= (this.d.rules.rewildMax ?? 0) - 0.01 ? ['Idle: rewilded as far as it goes', ''] : ['Waiting for surplus biomass (over a quarter of storage)', 'warn'];
+      return n ? [`Restoring scarred land · ${n} place${n > 1 ? 's' : ''} in reach`, ''] : ['Rewilding', ''];
+    }
+    if (d.role === 'shield' && d.shield) {
+      const pct = Math.floor(((b.sh ?? 0) / d.shield) * 100);
+      return b.shDown ? [`Dome down · recharging ${pct}% (up at 30%)`, 'warn'] : [`Dome up · ${pct}%`, ''];
+    }
     if (d.role === 'factory') {
       if (!b.queue?.length) return ['Idle: queue a unit', ''];
       return [`Producing ${this.d.units[b.queue[0]]?.name ?? b.queue[0]} · ${Math.floor((b.prod ?? 0) * 100)}%`, ''];
@@ -268,7 +286,9 @@ export class ColonyHud {
       const rows: [string, string][] = [];
       if (us.length === 1) {
         const d = this.d.units[us[0].unit];
+        if (d.rescues) rows.push(['Aboard', `${us[0].pax ?? 0} / ${d.rescues} injured · finds anyone down within ${d.aggro} u`]);
         if (d.carries) rows.push(['Carrying', `${us[0].cargo ?? 0} / ${d.carries} ground units`]);
+        if (d.shield && d.shieldRadius) rows.push(['Shield', `${Math.floor((us[0].sh ?? 0) * d.shield)} / ${d.shield} · ${d.shieldRadius} u bubble${us[0].shUp ? '' : ' · down, recharging'}`]);
         if (d.repairRate) rows.push(['Repairs', `${d.repairRate} hp/s · reach ${d.range} u · costs alloys`]);
         else if (!d.damage) rows.push(['Weapon', 'unarmed']);
         else rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.minRange ? `${d.minRange}–` : ''}${d.range} u${d.splash ? ' · splash' : ''}${d.chain ? ` · arcs to ${d.chain} more` : ''}`]);
@@ -323,6 +343,16 @@ export class ColonyHud {
       }
       if (d.role === 'reactor') rows.push(['Burns', `${d.fuelRate} isotopes/s · ${Math.floor(s.isotopes ?? 0)} in store`]);
       if (d.role === 'relay' && d.range) rows.push(['Build area', `${d.range} u around it`]);
+      if (d.role === 'seedbank') {
+        const reach = d.range ?? 20, near = (s.planet?.scars ?? []).filter((x) => Math.hypot(x.x - b.x, x.z - b.z) <= reach);
+        rows.push(['Restores', `${d.restoreRate} health/s within ${reach} u · ${d.restoreCost} biomass each`]);
+        rows.push(['Scars in reach', near.length ? `${near.length} · ${near.reduce((m, x) => m + x.a, 0).toFixed(1)} health to heal` : 'none: rewilding']);
+        rows.push(['Planet health', `${Math.round(s.planet?.health ?? 0)} / 100`]);
+      }
+      if (d.shield && d.shieldRadius) {
+        rows.push(['Shield', `${Math.floor(b.sh ?? 0)} / ${d.shield} · ${d.shieldRadius} u dome`]);
+        rows.push(['Recharge', `${d.shieldRegen ?? 0} hp/s while powered`]);
+      }
       if (d.role === 'civic' && !d.pods && d.housing) rows.push(['Growth pods', 'none: housing only']);
       const pe = this.people.buildingRows(s, b, d);
       rows.push(...pe.rows);
@@ -508,7 +538,7 @@ export class ColonyHud {
     $('over-title').textContent = s.over === 'won' ? 'COLONY ENDURES' : 'COLONY LOST';
     $('over-sub').textContent = s.over === 'won' || s.over === 'story' ? (s.overText || (s.over === 'won' ? 'You won through.' : 'The colony is lost.')) : s.over === 'core' ? 'The Command Core was destroyed.' : s.over === 'cryo' ? 'The cryo bank failed. The last embryos are gone, and no one is left to carry on.' : 'No colonists are left, and the cryo bank is empty.';
     const sol = Math.floor(s.secs / this.d.rules.solSeconds) + 1;
-    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · missions ${s.missions?.done.length ?? 0}${s.people ? `\n${s.people.stats.grown} grown · ${s.people.stats.births} born · ${s.people.stats.deaths} lost · ${s.people.stats.departed} left · ${s.people.embryos} embryos left` : ''}`;
+    $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · missions ${s.missions?.done.length ?? 0}${s.planet ? ` · planet health ${Math.round(s.planet.health)}` : ''}${s.people ? `\n${s.people.stats.grown} grown · ${s.people.stats.births} born · ${s.people.stats.deaths} lost · ${s.people.stats.departed} left · ${s.people.embryos} embryos left` : ''}`;
   }
 
   /** Forget goal progress (new game). */

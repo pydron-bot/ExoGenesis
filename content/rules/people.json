@@ -24,6 +24,7 @@
   "specialtyBonus": 0.1,
   "colonistHp": 40,
   "walkSpeed": 3,
+  "downSeconds": 60,
   "leadShare": 0.5,
   "leadMin": 4,
   "militiaRange": 12,

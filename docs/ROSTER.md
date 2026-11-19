@@ -2,8 +2,9 @@
 
 Status: **batches A and B built (2026-11-18, v0.25.0–v0.28.0)**: Lancer, Sensor Mast, Habitat Block, Relay
 Tower, Nest, wrecks, Tech Lab + research, isotopes, Deep-Core Mine, Fusion Cell (added: an isotope sink),
-relic grids. From batch C, the Skimmerwing and the air layer are built (v0.36.0, see "Air layer" below).
-How each works: `TECH.md` §6. The rest of batch C and the rest of the lists below are still proposals. Each item lists what it is for, the story
+relic grids. **Batch C is built:** the Skimmerwing and the air layer (v0.36.0, see "Air layer" below), then shields
+(Aegis Crawler, Shield Projector), planet health with the Seed Bank, and the Medevac (v0.37.0).
+How each works: `TECH.md` §6. The rest of the lists below are still proposals. Each item lists what it is for, the story
 hook (if any), and **cost to build**:
 
 - **Data**: content JSON + a Blender model; the sim already supports the behaviour.
@@ -34,8 +35,8 @@ spawns, camps and sites.
 | **Lancer** | Slow-firing rail lance, long single-target damage, no splash. The anti-Brute pick | — | Data (`bolt` weapon, high damage, long cooldown) |
 | **Hauler drone** | Visible ore drones shuttling deposit ↔ depot (DESIGN §5.2 "with drones"). Pickable by packs, so mining lines need guarding | Makes the economy readable at a glance | Small |
 | **Envoy** | Unarmed. Parks near an inhabitant camp and raises regard over time; replaces "approach" with a unit you have to protect | Vell/Choir trust (E4, E5, E8) | Small |
-| **Medevac rover** | Picks up colonists from a destroyed building before they die; drives them home | "Losing a colonist hurts" (M2) | Small–System |
-| **Aegis crawler** | Mobile shield bubble that soaks spitter acid and shells | DESIGN "shields later" | System (shields) |
+| **Medevac rover** | Picks up colonists from a destroyed building before they die; drives them home | "Losing a colonist hurts" (M2) | Built (v0.37.0): people thrown out of a fallen building lie injured for 60 s |
+| **Aegis crawler** | Mobile shield bubble that soaks spitter acid and shells | DESIGN "shields later" | Built (v0.37.0, research Shield Lattice) |
 
 ## Buildings
 
@@ -47,9 +48,9 @@ spawns, camps and sites.
 | **Relay Tower** | Extends build radius; later links regions on the planet layer | M3 region links; E12 "Wrong Address" needs relay tech | Small now, System for region links |
 | **Deep-Core Mine** | Mines exotic isotopes, only on an isotope seam; noisy, so it draws packs | M3 resource | System (new resource) |
 | **Med Bay** | Treats injured colonists, raises wellbeing near it | M2 wellbeing | Small |
-| **Seed Bank / Rewilder** | Spends biomass to restore scarred land around it; raises planet health | Stewardship and the Biosphere Report (STORY §6). The trap: doing well is the danger | Small–System (needs a planet-health number) |
+| **Seed Bank / Rewilder** | Spends biomass to restore scarred land around it; raises planet health | Stewardship and the Biosphere Report (STORY §6). The trap: doing well is the danger | Built (v0.37.0), with planet health and the Biosphere Report |
 | **Memorial** | Names of the dead (memorial log, DESIGN §5.4); a small wellbeing aura | M4 memorial | Small |
-| **Shield Projector** | Base dome; heavy constant power draw | DESIGN "shields later" | System (shields) |
+| **Shield Projector** | Base dome; heavy constant power draw | DESIGN "shields later" | Built (v0.37.0, research Shield Lattice) |
 
 ## Fauna
 
@@ -145,7 +146,7 @@ Building on what's there:
 2. **Batch B, the M3 core:** Tech Lab + a first research tree, Relic Sentinel / Grid Node /
    Cache, Relay Tower, Deep-Core Mine + isotope seams.
 3. **Batch C, new systems:** shields (Aegis, Shield Projector), Skimmerwing + air layer,
-   Seed Bank + planet health, Medevac.
+   Seed Bank + planet health, Medevac. *(Built: v0.36.0 and v0.37.0.)*
 
 Blender models follow the existing set (`blender/`, `content/assets/exo-*.json`); each new item
 needs one, and buildings get a light colour like the others.

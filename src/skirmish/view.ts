@@ -70,6 +70,7 @@ const C = {
   dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
   shell: new THREE.Color('#ff9a3d'), arc: new THREE.Color('#b9a6ff'), spit: new THREE.Color('#a6ff4d'),
   emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'), rail: new THREE.Color('#e8fbff'),
+  shield: new THREE.Color('#7fe8ff'),
   glow: new THREE.Color('#5ff3ff'), glowSel: new THREE.Color('#ffd27a'), white: new THREE.Color('#e9eef2'), hurt: new THREE.Color('#ff5a4a'),
 };
 
@@ -326,6 +327,7 @@ export class ArmyView {
           break;
         case FX.REPAIR: this.tracer(x1, z1, 1.6, x2, z2, 0.1, 0.35, C.repair); break;
         case FX.EMERGE: this.flash(x1, z1, 3.4, 0.8, C.emerge); break;
+        case FX.SHIELD: this.flash(x1, z1, 2.2, 0.45, C.shield); break;
         case FX.DIE_SMALL: this.flash(x1, z1, 1.3, 0.4, C.dieSmall); break;
         case FX.DIE_BIG: this.flash(x1, z1, 2.6, 0.6, C.dieBig); break;
         case FX.CORE_HIT: this.flash(x1, z1, 0.9, 0.25, C.coreHit); break;

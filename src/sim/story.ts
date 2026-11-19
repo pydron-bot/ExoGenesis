@@ -129,6 +129,7 @@ export class Story {
       case 'alloys': s.alloys = Math.max(0, s.alloys + n); break;
       case 'isotopes': s.isotopes = Math.max(0, (s.isotopes ?? 0) + n); break;
       case 'biomass': if (s.people) sim.people.debug({ biomass: n }); break;
+      case 'planet': sim.planet.adjust(n); break;
       case 'stance': for (const c of s.people?.colonists ?? []) c.stance = clamp(c.stance + n, 0, 100); break;
       case 'wellbeing': for (const c of s.people?.colonists ?? []) c.wb = clamp(c.wb + n, 0, 100); break;
       case 'regard':

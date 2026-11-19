@@ -1971,6 +1971,138 @@ def drone(M):
     export("drone", [join(parts, "body")])
 
 
+# ---------------------------------------------------------------- set v10: roster batch C (2026-11-19)
+
+def shield(M):
+    """Shield Projector: a hex plinth, four raked buttress fins round a tall emitter column, a glowing
+    collar (`charge`), a floating three-clamp ring that turns while the dome is up (`ring`) and a
+    crystal core on top (`charge`). ~8 u footprint, ~7.5 u tall."""
+    ice = glow_mat("shieldglow", "#7fe8ff", 2.4)
+    parts, rng, chg = [], [], []
+    parts.append(cyl(3.9, 0.8, (0, 0, 0.4), M["dark"], verts=6, r2=3.6, bevel=0.1))
+    parts.append(cyl(3.0, 0.3, (0, 0, 0.95), M["hull2"], verts=6, bevel=0.04))
+    ring(12, 3.45, 0, lambda i, a, x, y, z: parts.append(box((0.6, 0.3, 0.06), (x, y, 0.82), M["accent"] if i % 2 else M["black"], bevel=0, rot=(0, 0, a + math.pi / 2))))
+    for k in range(4):
+        a = k / 4 * math.tau + math.pi / 4
+        c, s_ = math.cos(a), math.sin(a)
+        parts.append(poly([(c * 2.9 - s_ * 0.25, s_ * 2.9 + c * 0.25, 1.0), (c * 2.9 + s_ * 0.25, s_ * 2.9 - c * 0.25, 1.0),
+                           (c * 1.0 + s_ * 0.25, s_ * 1.0 - c * 0.25, 4.6), (c * 1.0 - s_ * 0.25, s_ * 1.0 + c * 0.25, 4.6),
+                           (c * 1.0 - s_ * 0.25, s_ * 1.0 + c * 0.25, 1.0), (c * 1.0 + s_ * 0.25, s_ * 1.0 - c * 0.25, 1.0)],
+                          [(0, 1, 2, 3), (0, 3, 4), (1, 5, 2), (4, 3, 2, 5), (0, 4, 5, 1)], M["hull"], "fin"))
+        parts.append(box((0.3, 0.3, 0.3), (c * 2.7, s_ * 2.7, 1.25), M["dark"], bevel=0.04, rot=(0, 0, a)))
+        parts.append(box((0.08, 0.5, 0.08), (c * 1.9, s_ * 1.9, 2.85), ice, bevel=0, rot=(0, 0, a)))
+    parts.append(cyl(1.1, 4.6, (0, 0, 3.3), M["hull2"], verts=8, r2=0.85, bevel=0.05))
+    for z in (2.0, 3.1):
+        parts.append(cyl(1.12, 0.12, (0, 0, z), M["dark"], verts=8, bevel=0))
+    chg.append(cyl(1.0, 0.3, (0, 0, 4.6), ice, verts=8, bevel=0))
+    parts.append(cyl(0.95, 0.3, (0, 0, 5.75), M["dark"], verts=8, bevel=0.03))
+    parts.append(cyl(0.3, 0.8, (0, 0, 6.1), M["hull"], verts=6, bevel=0))
+    bpy.ops.mesh.primitive_torus_add(major_radius=1.9, minor_radius=0.15, major_segments=24, minor_segments=4, location=(0, 0, 6.4))
+    rng.append(_finish(bpy.context.active_object, ice, 0))
+    ring(3, 1.9, 0, lambda i, a, x, y, z: rng.append(box((0.4, 0.9, 0.36), (x, y, 6.4), M["hull"], bevel=0.05, rot=(0, 0, a))))
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=0.75, location=(0, 0, 6.5))
+    o = bpy.context.active_object
+    o.scale = (1, 1, 1.4)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    chg.append(_finish(o, glow_mat("shieldcore", "#bff6ff", 3.0), 0))
+    parts.append(sphere(0.12, (2.6, -2.6, 1.3), M["red"], seg=6, rings=4))
+    export("shield", [join(parts, "body"), join(rng, "ring", pivot=(0, 0, 6.4)), join(chg, "charge")])
+
+
+def seedbank(M):
+    """Seed Bank: a squat vault half sunk in a planted berm, a glass seed dome with glowing racks under
+    it (`charge`), a sprinkler rotor on a mast that turns while it works (`ring`), masts round the berm.
+    ~9 u footprint."""
+    soil = mat("soil", "#4a5a32", 0.0, 0.95)
+    moss = mat("moss", "#6f8a3a", 0.0, 0.9)
+    sprout = glow_mat("sprout", "#9cff7a", 1.6)
+    glass = mat("seedglass", "#bfe8d0", 0.2, 0.12)
+    parts, rng, chg = [], [], []
+    parts.append(cyl(4.6, 1.0, (0, 0, 0.5), soil, verts=12, r2=4.1, bevel=0.1))
+    for k in range(14):
+        a = k / 14 * math.tau + 0.2
+        parts.append(blob(0.35 + 0.15 * (k % 3), (math.cos(a) * 3.6, math.sin(a) * 3.6, 1.05), moss, scale=(1, 1, 0.6)))
+    parts.append(cyl(3.2, 1.5, (0, 0, 1.45), M["hull"], verts=8, bevel=0.1))
+    parts.append(cyl(3.3, 0.2, (0, 0, 2.2), M["dark"], verts=8, bevel=0.03))
+    parts.append(box((1.6, 0.3, 1.1), (0, -3.15, 1.3), M["dark"], bevel=0.04))      # vault door
+    parts.append(box((1.2, 0.08, 0.1), (0, -3.32, 1.75), sprout, bevel=0))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=2.4, location=(0, 0, 2.3))
+    o = bpy.context.active_object
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for v in o.data.vertices:
+        v.select = v.co.z < -0.01
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.delete(type="VERT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    parts.append(_finish(o, glass, 0))
+    for k in range(6):   # dome ribs
+        a = k / 6 * math.tau
+        parts.append(strut((math.cos(a) * 2.4, math.sin(a) * 2.4, 2.3), (math.cos(a) * 1.2, math.sin(a) * 1.2, 4.38), 0.06, M["dark"], verts=4))
+    for k in range(5):
+        a = k / 5 * math.tau
+        chg.append(box((0.35, 0.35, 1.0), (math.cos(a) * 1.2, math.sin(a) * 1.2, 2.8), sprout, bevel=0))
+    parts.append(cyl(0.3, 2.4, (0, 0, 3.5), M["dark"], verts=6, bevel=0))
+    for k in range(3):
+        a = k / 3 * math.tau
+        rng.append(strut((0, 0, 4.7), (math.cos(a) * 2.6, math.sin(a) * 2.6, 4.6), 0.07, M["hull"], verts=4))
+        rng.append(sphere(0.2, (math.cos(a) * 2.6, math.sin(a) * 2.6, 4.6), sprout, seg=6, rings=4))
+    rng.append(cyl(0.3, 0.3, (0, 0, 4.7), M["hull2"], verts=6, bevel=0))
+    for k in range(6):
+        a = k / 6 * math.tau + 0.3
+        x, y = math.cos(a) * 3.9, math.sin(a) * 3.9
+        parts.append(box((0.16, 0.16, 1.6), (x, y, 1.7), M["dark"], bevel=0))
+        parts.append(box((0.3, 0.3, 0.2), (x, y, 2.55), sprout, bevel=0))
+    export("seedbank", [join(parts, "body"), join(rng, "ring", pivot=(0, 0, 4.7)), join(chg, "charge")])
+
+
+def aegis(M):
+    """Aegis Crawler: a low wide tracked hull carrying a squat emitter drum crowned with six raked
+    field vanes round a glowing node, a cab at the front (−Y). ~1.3 u body radius."""
+    ice = glow_mat("shieldglow", "#7fe8ff", 2.4)
+    parts = tracks((-1, 1), 2.8, 0.42, M, width=0.55, height=0.62, wheels_n=4, xoff=1.15)
+    parts.append(box((1.9, 2.6, 0.6), (0, 0, 0.8), M["hull"], bevel=0.12))
+    parts.append(box((1.1, 0.7, 0.45), (0, -1.05, 1.25), M["hull2"], bevel=0.08))
+    parts.append(box((0.9, 0.06, 0.25), (0, -1.41, 1.3), M["glass"], bevel=0))
+    parts.append(cyl(0.95, 0.7, (0, 0.25, 1.45), M["hull2"], verts=8, r2=0.8, bevel=0.05))
+    parts.append(cyl(0.98, 0.1, (0, 0.25, 1.6), ice, verts=8, bevel=0))
+    for k in range(6):
+        a = k / 6 * math.tau
+        c, s_ = math.cos(a), math.sin(a)
+        parts.append(strut((c * 0.55, 0.25 + s_ * 0.55, 1.8), (c * 0.95, 0.25 + s_ * 0.95, 2.4), 0.09, M["dark"], verts=4))
+        parts.append(box((0.1, 0.4, 0.5), (c * 0.95, 0.25 + s_ * 0.95, 2.45), M["hull"], bevel=0.02, rot=(0, 0.35, a)))
+    parts.append(sphere(0.38, (0, 0.25, 2.1), ice, seg=8, rings=5))
+    parts.append(box((1.95, 0.08, 0.08), (0, 1.32, 1.05), M["red"], bevel=0))
+    parts.append(box((0.08, 0.08, 0.08), (0.7, -1.32, 0.95), M["amber"], bevel=0))
+    parts.append(box((0.08, 0.08, 0.08), (-0.7, -1.32, 0.95), M["amber"], bevel=0))
+    export("aegis", [join(parts, "body")])
+
+
+def medevac(M):
+    """Medevac: a tall six-wheeled armoured ambulance: a raised cab at the front (−Y), a box body with
+    a red-cross panel on each side and the rear hatch, a light bar and a winch. ~1.1 u body radius."""
+    cross = glow_mat("medcross", "#ff5a5a", 2.2)
+    parts = wheels((-0.8, 0.8), (-1.0, -0.15, 0.95), 0.34, 0.26, 0.34, M)
+    parts.append(box((1.5, 2.0, 1.1), (0, 0.35, 1.25), M["hull"], bevel=0.1))
+    parts.append(box((1.4, 0.9, 0.75), (0, -1.05, 1.05), M["hull2"], bevel=0.1))
+    parts.append(box((1.2, 0.06, 0.4), (0, -1.48, 1.25), M["glass"], bevel=0, rot=(-0.3, 0, 0)))
+    parts.append(box((1.6, 0.14, 0.3), (0, -1.55, 0.6), M["dark"], bevel=0.04))      # bumper
+    parts.append(box((1.0, 0.3, 0.12), (0, -0.2, 1.88), M["dark"], bevel=0.02))      # light bar
+    parts.append(box((0.42, 0.24, 0.1), (-0.25, -0.2, 1.96), M["red"], bevel=0))
+    parts.append(box((0.42, 0.24, 0.1), (0.25, -0.2, 1.96), M["cyan"], bevel=0))
+    for sx in (-1, 1):   # red cross each side
+        parts.append(box((0.04, 0.5, 0.14), (sx * 0.76, 0.35, 1.35), cross, bevel=0))
+        parts.append(box((0.04, 0.14, 0.5), (sx * 0.76, 0.35, 1.35), cross, bevel=0))
+        parts.append(box((0.06, 1.8, 0.08), (sx * 0.77, 0.35, 0.82), M["dark"], bevel=0))
+    parts.append(box((0.9, 0.06, 0.8), (0, 1.37, 1.15), M["dark"], bevel=0.02))      # rear hatch
+    parts.append(box((0.5, 0.04, 0.14), (0, 1.41, 1.3), cross, bevel=0))
+    parts.append(box((0.14, 0.04, 0.5), (0, 1.41, 1.3), cross, bevel=0))
+    parts.append(box((1.5, 0.3, 0.1), (0, 1.5, 0.6), M["hull2"], bevel=0.02))       # step
+    parts.append(cyl(0.12, 0.5, (0.45, 1.0, 1.9), M["accent"], verts=6, rot=(0, math.pi / 2, 0), bevel=0))   # winch
+    export("medevac", [join(parts, "body")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
@@ -1984,7 +2116,8 @@ MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, 
           "sentinel": sentinel, "gridnode": gridnode, "cache": cache,
           "shipyard": shipyard, "tidal": tidal, "pier": pier, "seaturret": seaturret, "airpad": airpad, "flak": flak,
           "skiff": skiff, "strider": strider, "gunboat": gunboat, "barge": barge, "lurker": lurker,
-          "gunship": gunship, "skimmerwing": skimmerwing, "drone": drone}
+          "gunship": gunship, "skimmerwing": skimmerwing, "drone": drone,
+          "shield": shield, "seedbank": seedbank, "aegis": aegis, "medevac": medevac}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":

@@ -80,11 +80,18 @@ export interface Colonist {
   heading: number;
   /** Partner's colonist id (-1 none). */
   partner: number;
+  /** Lying injured by the ruins of their building: seconds until they die, unless a medevac comes. */
+  down?: number;
+  /** Aboard this medevac (unit id); `at` is AT_RIDE meanwhile. */
+  ride?: number;
   /** Not working: too unhappy. */
   strike?: boolean;
   /** Parents' ids (born colonists). */
   parents?: [number, number];
 }
+
+/** `Colonist.at` while aboard a medevac (-1 is outdoors, a building id is indoors). */
+export const AT_RIDE = -2;
 
 export interface Pod {
   /** Civic building id. */
@@ -182,7 +189,7 @@ export interface PeopleSnap {
   memorial: (Omit<Memorial, 'lineage'> & { lineage: string })[];
   /** Embryos per lineage name (for the cryo bank view). */
   bank: { name: string; embryos: number; living: number }[];
-  /** Outdoor colonists to draw: id, x, z, heading, bloc (0 partner, 1 autonomist, 2 devoted), child (0/1). */
+  /** Outdoor colonists to draw: id, x, z, heading, bloc (0 partner, 1 autonomist, 2 devoted), flags (1 child, 2 lying injured). */
   walkers: Float32Array;
   stats: { grown: number; births: number; deaths: number; departed: number };
 }
