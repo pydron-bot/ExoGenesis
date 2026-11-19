@@ -281,6 +281,8 @@ export const musicDrumShape = {
   level: num({ label: 'Level', min: 0, max: 1, step: 0.05 }),
   pan: num({ label: 'Pan', min: -1, max: 1, step: 0.1, optional: true, help: '−1 left … 1 right. Empty = centre.' }),
 } satisfies Shape;
+/** The parts of a mood a section can switch on (music.ts checks these names). */
+export const MUSIC_LAYERS = ['pad', 'choir', 'bass', 'bells', 'pulse', 'drums', 'bassline', 'arp', 'melody', 'calls'] as const;
 export const musicShape = {
   name: str({ label: 'Name' }),
   use: choice(MUSIC_USES, {
@@ -293,19 +295,25 @@ export const musicShape = {
       none: 'Never: a sketch, or switched off.',
     },
   }),
-  chords: list(musicChordShape, { label: 'Chords', max: 12, help: 'It drifts from chord to chord at random. The first is home: it comes back there often (Home pull).' }),
+  chords: list(musicChordShape, { label: 'Chords', max: 12, help: 'It drifts from chord to chord at random (or plays them in order: Chord order). The first is home: it comes back there often (Home pull).' }),
+  order: choice(['drift', 'cycle'] as const, {
+    label: 'Chord order', optional: true,
+    helps: { drift: 'A random walk that keeps coming home to the first chord: floating, ambient.', cycle: 'In order, first to last, then round again: a progression, like a song. Home pull is ignored.' },
+  }),
   homePull: num({ label: 'Home pull', min: 0, max: 1, step: 0.05, help: 'How often the next chord is the first one. 0 = any chord equally.' }),
   chordMin: num({ label: 'Chord length · shortest', min: 2, max: 60, step: 0.5, unit: 's' }),
   chordMax: num({ label: 'Chord length · longest', min: 2, max: 60, step: 0.5, unit: 's' }),
   swell: num({ label: 'Swell', min: 0.05, max: 20, step: 0.05, unit: 's', help: 'How long a chord takes to fade in. Long swells blur one chord into the next.' }),
   release: num({ label: 'Release', min: 0.1, max: 20, step: 0.1, unit: 's', help: 'How long a chord takes to fade out after the next one starts.' }),
   pad: num({ label: 'Pad · level', min: 0, max: 1, step: 0.05, help: '0 = no pads.' }),
-  padTone: choice(['warm', 'soft', 'hollow', 'glass', 'strings', 'choir-ah', 'choir-oo'] as const, {
+  padTone: choice(['warm', 'soft', 'hollow', 'glass', 'strings', 'choir-ah', 'choir-oo', 'organ', 'brass'] as const, {
     label: 'Pad · tone', default: 'warm',
     helps: {
       warm: 'Detuned saws: rich, analogue.', soft: 'Triangles: mellow.', hollow: 'Square-ish: reedy, distant.', glass: 'Pure sines: clean and cold.',
       strings: 'A bowed string section: many detuned voices with vibrato. Best with a slow swell.',
       'choir-ah': 'Wordless voices singing "aah": open and warm.', 'choir-oo': 'Wordless voices singing "ooh": dark and hushed.',
+      organ: 'A drawbar organ: steady, pure, a little churchy or retro.',
+      brass: 'Horns: dark at first, opening up as the chord swells. Heroic or grim; best with short swells.',
     },
   }),
   choir: num({ label: 'Choir · level', min: 0, max: 1, step: 0.05, optional: true, help: 'Wordless voices singing the top notes of each chord over the pad (say, a choir over strings). Empty or 0 = none.' }),
@@ -317,19 +325,31 @@ export const musicShape = {
   brightness: num({ label: 'Pad · brightness', min: 0.2, max: 3, step: 0.05, help: 'How open the pad filter is. 1 = as the title music.' }),
   bass: num({ label: 'Bass · level', min: 0, max: 1, step: 0.05 }),
   bells: num({ label: 'Bells · level', min: 0, max: 1, step: 0.05, help: '0 = no bells.' }),
-  bellTone: choice(['glass', 'soft', 'metal', 'pluck'] as const, {
+  bellTone: choice(['glass', 'soft', 'metal', 'pluck', 'marimba', 'kalimba', 'keys', 'harp'] as const, {
     label: 'Bells · tone', default: 'glass',
-    helps: { glass: 'Glassy, slightly out of tune shimmer.', soft: 'Round, like a struck bowl.', metal: 'Clangy and dissonant: uneasy.', pluck: 'Short and dry, like a muted string.' },
+    helps: {
+      glass: 'Glassy, slightly out of tune shimmer.', soft: 'Round, like a struck bowl.', metal: 'Clangy and dissonant: uneasy.', pluck: 'Short and dry, like a muted string.',
+      marimba: 'Wooden bars: a warm, quick knock.', kalimba: 'A thumb piano: small, bright and twangy.', keys: 'An electric piano: mellow, with a bell-like edge. Lounge, late night.',
+      harp: 'A plucked string (harp or guitar) that rings on.',
+    },
   }),
   bellGapMin: num({ label: 'Bells · gap shortest', min: 0.2, max: 60, step: 0.1, unit: 's' }),
   bellGapMax: num({ label: 'Bells · gap longest', min: 0.2, max: 60, step: 0.1, unit: 's' }),
   phrases: num({ label: 'Bells · phrases', min: 0, max: 1, step: 0.05, help: 'How often bells come as a run of 2 or 3 notes rather than one.' }),
   pulse: num({ label: 'Pulse · level', min: 0, max: 1, step: 0.05, help: 'A low, steady throb on the bass note: heartbeat tension. 0 = none.' }),
   pulseRate: num({ label: 'Tempo', min: 20, max: 200, step: 1, unit: 'bpm', optional: true, help: 'Beats a minute for the pulse and the drums (a beat is 4 drum steps). Empty = 70.' }),
+  barSteps: int({ label: 'Steps a bar', min: 4, max: 32, optional: true, help: 'Drum steps (16ths) in a bar, which sets the time signature: 16 = 4/4, 12 = 3/4 or 6/8, 20 = 5/4, 14 = 7/8. Chords on the beat change on bar lines. Empty = 16.' }),
   drums: num({ label: 'Drums · level', min: 0, max: 1, step: 0.05, optional: true, help: 'Percussion from the drum tracks below. Empty or 0 = no drums.' }),
   drumTracks: list(musicDrumShape, { label: 'Drum tracks', max: 8, optional: true, help: 'Each track is one drum playing a looping step pattern at the tempo above.' }),
   swing: num({ label: 'Drums · swing', min: 0, max: 0.5, step: 0.05, optional: true, help: 'Delays every other step for a lilting, uneven feel. Empty = straight.' }),
   drumsIn: int({ label: 'Drums · come in after', min: 0, max: 12, optional: true, help: 'Chords to wait before the drums start, so the music can settle first. Empty = straight away.' }),
+  sections: list({
+    chords: int({ label: 'Chords', min: 1, max: 32, help: 'How many chords this section lasts.' }),
+    layers: str({ label: 'Layers', help: `Which parts play, e.g. "pad bass drums". Any of: ${MUSIC_LAYERS.join(', ')}.` }),
+  }, {
+    label: 'Sections', max: 12, optional: true,
+    help: 'Gives the piece a shape: each section plays only the layers it names, for so many chords, then the next, then round again (say, a quiet start, a build, a full part, a breakdown). Empty = every part all the time.',
+  }),
   arp: num({ label: 'Arpeggio · level', min: 0, max: 1, step: 0.05, optional: true, help: 'A sequencer synth stepping through the chord\'s notes at the tempo: classic electronic sci-fi. Empty or 0 = none.' }),
   arpMode: choice(['up', 'down', 'updown', 'random', 'chord'] as const, {
     label: 'Arpeggio · order', optional: true,
@@ -338,9 +358,12 @@ export const musicShape = {
   arpRate: choice(['4ths', '8ths', 'triplets', '16ths'] as const, { label: 'Arpeggio · speed', optional: true, help: 'Notes per beat. Empty = 16ths.' }),
   arpOctaves: int({ label: 'Arpeggio · octaves', min: 1, max: 3, optional: true, help: 'How many octaves it climbs through. Empty = 1.' }),
   arpShift: int({ label: 'Arpeggio · octave shift', min: -2, max: 3, optional: true, help: 'Plays the chord this many octaves up (or down). Empty = 1 up.' }),
-  arpTone: choice(['pluck', 'square', 'glass', 'saw'] as const, {
+  arpTone: choice(['pluck', 'square', 'glass', 'saw', 'string', 'marimba'] as const, {
     label: 'Arpeggio · tone', optional: true,
-    helps: { pluck: 'A short, resonant synth pluck.', square: 'Hollow and retro, like an old computer.', glass: 'Clean sine blips.', saw: 'Buzzy and bright: aggressive.' },
+    helps: {
+      pluck: 'A short, resonant synth pluck.', square: 'Hollow and retro, like an old computer.', glass: 'Clean sine blips.', saw: 'Buzzy and bright: aggressive.',
+      string: 'A plucked guitar or harp string: fingerpicking.', marimba: 'Wooden bars: knocking, mechanical patterns.',
+    },
   }),
   arpGate: num({ label: 'Arpeggio · note length', min: 0.1, max: 1, step: 0.05, optional: true, help: 'How much of each step a note lasts: short = staccato, 1 = legato. Empty = 0.5.' }),
   arpBright: num({ label: 'Arpeggio · brightness', min: 0.2, max: 3, step: 0.05, optional: true, help: 'How open its filter is. Empty = 1.' }),
@@ -363,7 +386,11 @@ export const musicShape = {
   callGapMax: num({ label: 'Calls · gap longest', min: 0.5, max: 60, step: 0.5, unit: 's', optional: true, help: 'Empty = 12.' }),
   air: num({ label: 'Air · level', min: 0, max: 2, step: 0.05, help: 'A faint, sweeping hiss behind everything.' }),
   echo: num({ label: 'Echo', min: 0, max: 1, step: 0.05, help: 'How much the bells bounce left and right.' }),
-  space: num({ label: 'Reverb', min: 0, max: 1, step: 0.05, help: 'How big the room sounds.' }),
+  echoSync: bool({ label: 'Echo · on the beat', optional: true, help: 'Times the echo to the tempo (a dotted eighth, then a beat and a half) so repeats fall in the groove. Off = a loose, free-floating echo.' }),
+  space: num({ label: 'Reverb', min: 0, max: 1, step: 0.05, help: 'How much of the room you hear.' }),
+  room: num({ label: 'Reverb · room size', min: 0.4, max: 12, step: 0.1, unit: 's', optional: true, help: 'How long the reverb rings: 1 = a small, close room, 6.5 = a hall, 10+ = a cavern. Set when the music starts (in the editor: ■ Stop and ▶ Listen again). Empty = 6.5.' }),
+  grit: num({ label: 'Colour · grit', min: 0, max: 1, step: 0.05, optional: true, help: 'Saturation over the whole piece: a little warms and thickens, a lot is crunchy and distorted. Empty = clean.' }),
+  lofi: num({ label: 'Colour · worn', min: 0, max: 1, step: 0.05, optional: true, help: 'Rolls off the lows and highs: an old recording, or music on a far-off radio. Empty = full range.' }),
   level: num({ label: 'Overall level', min: 0, max: 2, step: 0.05, help: 'Balances this mood against the others. The Music volume in Rules → Sound sits on top.' }),
 } satisfies Shape;
 export type MusicDef = Infer<typeof musicShape>;

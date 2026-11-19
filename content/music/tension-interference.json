@@ -1,0 +1,102 @@
+{
+  "name": "Tension · Interference",
+  "use": "tension",
+  "chords": [
+    {
+      "notes": "B2 F#3 A3 D4",
+      "bass": "B1",
+      "bells": "D5 F#5 A5"
+    },
+    {
+      "notes": "C3 G3 B3 E4",
+      "bass": "C2",
+      "bells": "E5 G5 B5"
+    },
+    {
+      "notes": "G2 D3 F#3 B3",
+      "bass": "G1",
+      "bells": "D5 F#5 B5"
+    },
+    {
+      "notes": "A2 E3 G3 C4",
+      "bass": "A1",
+      "bells": "C5 E5 G5"
+    }
+  ],
+  "homePull": 0.4,
+  "chordMin": 3,
+  "chordMax": 6.5,
+  "swell": 0.3,
+  "release": 1,
+  "pad": 0.35,
+  "padTone": "warm",
+  "brightness": 0.8,
+  "glide": 30,
+  "bass": 0,
+  "bells": 0,
+  "bellTone": "glass",
+  "bellGapMin": 3,
+  "bellGapMax": 6,
+  "phrases": 0,
+  "pulse": 0.4,
+  "pulseRate": 132,
+  "barSteps": 14,
+  "arp": 0.55,
+  "arpMode": "random",
+  "arpRate": "16ths",
+  "arpOctaves": 2,
+  "arpShift": 1,
+  "arpTone": "square",
+  "arpGate": 0.3,
+  "arpBright": 1.2,
+  "bassline": "x.x...x.x...o.",
+  "basslineLevel": 0.6,
+  "drums": 0.8,
+  "drumTracks": [
+    {
+      "sound": "kick",
+      "steps": "x...x...x.....",
+      "level": 0.75
+    },
+    {
+      "sound": "clap",
+      "steps": "....x.......x.",
+      "level": 0.45,
+      "pan": 0.1
+    },
+    {
+      "sound": "hat",
+      "steps": "x.x.x.x.x.x.x.",
+      "level": 0.25,
+      "pan": 0.35
+    },
+    {
+      "sound": "zap",
+      "steps": "...... ..x.... .....x ........ ...x.",
+      "level": 0.35,
+      "pan": -0.4
+    }
+  ],
+  "sections": [
+    {
+      "chords": 2,
+      "layers": "pad arp drums"
+    },
+    {
+      "chords": 6,
+      "layers": "pad arp drums bassline"
+    },
+    {
+      "chords": 2,
+      "layers": "pad bassline pulse"
+    }
+  ],
+  "air": 0.4,
+  "echo": 0.3,
+  "echoSync": true,
+  "space": 0.35,
+  "room": 1.5,
+  "grit": 0.45,
+  "lofi": 0.3,
+  "level": 1
+}

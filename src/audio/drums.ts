@@ -6,7 +6,7 @@
  */
 import { noise } from './synth';
 
-export const DRUMS = ['kick', 'thud', 'tom', 'snare', 'rim', 'hat', 'shaker', 'clank'] as const;
+export const DRUMS = ['kick', 'thud', 'tom', 'snare', 'rim', 'hat', 'shaker', 'clank', 'taiko', 'hand', 'clap', 'block', 'zap'] as const;
 export type Drum = (typeof DRUMS)[number];
 
 /** What each drum sounds like, for the editor's help. */
@@ -19,6 +19,11 @@ export const DRUM_HELP: Record<Drum, string> = {
   hat: 'Closed hi-hat: a tiny tick of noise.',
   shaker: 'Shaker: a soft rattle, good for steady eighths or sixteenths.',
   clank: 'Metallic clank, like a struck pipe: industrial, uneasy.',
+  taiko: 'A huge war drum: a deep boom with a hard skin slap. Cinematic.',
+  hand: 'A hand drum: x a sharp slap, o a round open tone. Folk, earthy.',
+  clap: 'A hand clap: a few quick bursts and a short tail.',
+  block: 'Wood block: a dry, hollow knock. Mechanical, clockwork.',
+  zap: 'A falling laser blip: retro sci-fi.',
 };
 
 /** A step pattern: x = hit, o = soft hit (ghost note), . or - = rest; spaces and | are ignored. */
@@ -33,7 +38,8 @@ export function parseSteps(s: string | undefined): { steps: number[]; bad: strin
   return { steps, bad };
 }
 
-type Hit = (c: BaseAudioContext, out: AudioNode, t: number, v: number) => number;
+/** `step` is the pattern's mark: 1 for x, under 1 for o (a drum may play its soft hit differently). */
+type Hit = (c: BaseAudioContext, out: AudioNode, t: number, v: number, step?: number) => number;
 
 function env(c: BaseAudioContext, out: AudioNode, t: number, peak: number, attack: number, dur: number) {
   const g = c.createGain();
@@ -119,5 +125,35 @@ export const HITS: Record<Drum, Hit> = {
     }
     hiss(c, out, t, 'highpass', 4000, 0.7, v * 0.12, 0.03);
     return 0.45;
+  },
+  taiko: (c, out, t, v) => {
+    osc(c, out, t, 'sine', 95, 48, 0.4, v * 1.1, 1.6, 0.004);
+    osc(c, out, t, 'triangle', 150, 82, 0.25, v * 0.35, 0.7, 0.003);
+    hiss(c, out, t, 'lowpass', 900, 0.8, v * 0.45, 0.12, 0.002);
+    hiss(c, out, t, 'bandpass', 2400, 1.2, v * 0.12, 0.04);
+    return 1.6;
+  },
+  hand: (c, out, t, v, step = 1) => {
+    // 'o' is a round open tone (played louder, since the pattern softens it); 'x' a slap with more skin
+    const open = step < 1;
+    osc(c, out, t, 'sine', open ? 230 : 260, open ? 205 : 215, 0.08, v * (open ? 1.6 : 0.6), open ? 0.35 : 0.18);
+    hiss(c, out, t, 'bandpass', open ? 900 : 1700, open ? 1.5 : 1, v * (open ? 0.15 : 0.6), open ? 0.05 : 0.09, 0.001);
+    return 0.35;
+  },
+  clap: (c, out, t, v) => {
+    for (const dt of [0, 0.011, 0.023]) hiss(c, out, t + dt, 'bandpass', 1300, 1.1, v * 0.5, 0.025, 0.001);
+    hiss(c, out, t + 0.03, 'bandpass', 1200, 0.9, v * 0.4, 0.2, 0.002);
+    return 0.25;
+  },
+  block: (c, out, t, v) => {
+    osc(c, out, t, 'sine', 980, 960, 0.02, v * 0.55, 0.09, 0.001);
+    osc(c, out, t, 'sine', 1610, 1590, 0.02, v * 0.2, 0.05, 0.001);
+    hiss(c, out, t, 'bandpass', 2500, 3, v * 0.1, 0.015);
+    return 0.1;
+  },
+  zap: (c, out, t, v) => {
+    osc(c, out, t, 'square', 2200, 160, 0.13, v * 0.16, 0.16, 0.001);
+    osc(c, out, t, 'sine', 1100, 90, 0.16, v * 0.3, 0.2, 0.001);
+    return 0.2;
   },
 };

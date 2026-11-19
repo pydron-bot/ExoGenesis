@@ -758,6 +758,36 @@ First playtest build (2026-11-15).
       Lantern** (melodic), **Title · Accord** (strings and choir; the title now picks one of two) and **Night ·
       Vigil** (choir), **Night · Other Voices** and **Tension · Hive** (alien). Levels matched offline: day and
       night −27 LUFS, tension −26, title −25.
+  - **Variety (v0.47.0):** everything had been a pad piece in the same big hall with chords wandering at random, so
+    every mood sounded like the same piece in different colours. New mood parts, all optional (earlier moods
+    unchanged, except that the arpeggio now restarts its pattern on each chord and melody phrases are picked by
+    chord position, `floor((chord − 2) / leadEvery)`, so a tune written to a progression stays lined up with it):
+    - *Form:* **Chord order** `cycle` plays the chords first to last (a progression, like a song) instead of the
+      random walk. **Sections** (`sections`: chords + layer names from `MUSIC_LAYERS`: pad, choir, bass, bells,
+      pulse, drums, bassline, arp, melody, calls) give a piece a shape: each section plays only the layers it
+      names, then the next, round again. A queued chord carries its section's layer set; every part checks
+      `on(layer, t)` against the chord sounding then. Content checks flag unknown layer names. ▶ Listen shows
+      the section.
+    - *Time:* **Steps a bar** (`barSteps`, 4–32; 12 = 3/4 or 6/8, 20 = 5/4, 14 = 7/8) sets the bar length that
+      chords on the beat round to.
+    - *Space and colour:* **Room size** (`room`, 0.4–12 s; the hall's length, read when the music starts),
+      **Echo on the beat** (`echoSync`: both taps a dotted eighth at the tempo), **Grit** (a tanh waveshaper on
+      the whole mood, unity gain for quiet signals, drive 1–10) and **Worn** (`lofi`: high-pass up to 380 Hz,
+      low-pass down to 1.7 kHz: an old radio). Chain: level → grit → wear → out.
+    - *Instruments:* pads **organ** (drawbar sines) and **brass** (saws whose filter opens over the swell);
+      bells **marimba**, **kalimba**, **keys** (electric piano: FM plus a tine partial) and **harp**; arpeggio
+      **string** and **marimba**. Mallets and tines are the FM bell plus extra decaying sine partials
+      (`strike()`). Harp and string are Karplus–Strong plucks (`pluckBuffer()`: one period of softened noise
+      through an averaging loop, rendered once per note at 24 kHz and cached per context, tuned exactly with
+      playbackRate). Drums **taiko**, **hand** (x a slap, o an open tone: hits get the step's mark), **clap**,
+      **block** and **zap**.
+    - Pieces, each built to be unlike the rest: **Day · Prospector** (frontier folk: fingerpicked guitar in 6/8,
+      hand drum, a tin-whistle tune over an eight-chord D major progression; no pads, small room), **Day ·
+      Fabricator** (machine minimalism in 5/4: marimba patterns, kalimba, organ, wood block, a 15-step clank
+      drifting against the bar), **Night · Transmission** (a late-night jazz broadcast from home: electric piano
+      over a ii–V–I–vi in F, brushed swung drums, worn and gritty, static), **Tension · Warpath** (taiko war
+      drums in 6/8, brass, a string ostinato, choir; builds and breaks) and **Tension · Interference** (glitchy
+      7/8 electronics: random square arpeggio, zaps, clap, heavy grit). Levels matched offline (see below).
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min

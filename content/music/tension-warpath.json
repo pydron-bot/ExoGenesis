@@ -1,0 +1,105 @@
+{
+  "name": "Tension · Warpath",
+  "use": "tension",
+  "order": "cycle",
+  "chords": [
+    {
+      "notes": "A2 E3 A3 C4",
+      "bass": "A1",
+      "bells": "E5 A5 C6"
+    },
+    {
+      "notes": "F2 C3 F3 A3",
+      "bass": "F1",
+      "bells": "C5 F5 A5"
+    },
+    {
+      "notes": "G2 D3 G3 B3",
+      "bass": "G1",
+      "bells": "D5 G5 B5"
+    },
+    {
+      "notes": "E2 B2 E3 G#3",
+      "bass": "E1",
+      "bells": "B4 E5 G#5"
+    }
+  ],
+  "homePull": 0,
+  "chordMin": 3.5,
+  "chordMax": 3.7,
+  "swell": 0.4,
+  "release": 1.2,
+  "pad": 0.8,
+  "padTone": "brass",
+  "brightness": 1,
+  "vibrato": 0.15,
+  "bass": 0.6,
+  "choir": 0.45,
+  "choirVowel": "ah",
+  "bells": 0.3,
+  "bellTone": "metal",
+  "bellGapMin": 2,
+  "bellGapMax": 5,
+  "phrases": 0.3,
+  "pulse": 0,
+  "pulseRate": 100,
+  "barSteps": 12,
+  "arp": 0.45,
+  "arpMode": "updown",
+  "arpRate": "8ths",
+  "arpOctaves": 1,
+  "arpShift": 0,
+  "arpTone": "saw",
+  "arpGate": 0.35,
+  "arpBright": 0.8,
+  "drums": 0.9,
+  "drumTracks": [
+    {
+      "sound": "taiko",
+      "steps": "x.....x.x...",
+      "level": 0.9
+    },
+    {
+      "sound": "taiko",
+      "steps": "...o.o...o.x",
+      "level": 0.45,
+      "pan": -0.4
+    },
+    {
+      "sound": "tom",
+      "steps": "............ ............ ............ ......o.o.xx",
+      "level": 0.6,
+      "pan": 0.4
+    },
+    {
+      "sound": "shaker",
+      "steps": "x.ox.ox.ox.o",
+      "level": 0.25,
+      "pan": 0.3
+    }
+  ],
+  "sections": [
+    {
+      "chords": 2,
+      "layers": "drums pad bass"
+    },
+    {
+      "chords": 4,
+      "layers": "drums pad bass arp"
+    },
+    {
+      "chords": 4,
+      "layers": "drums pad bass arp choir bells"
+    },
+    {
+      "chords": 2,
+      "layers": "pad bass choir"
+    }
+  ],
+  "air": 0.3,
+  "echo": 0.2,
+  "space": 0.5,
+  "room": 3.5,
+  "grit": 0.15,
+  "level": 1
+}

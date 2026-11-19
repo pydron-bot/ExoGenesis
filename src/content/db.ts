@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, type WildlifeDef, locate, regionCells } from './defs';
+import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, MUSIC_LAYERS, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, type WildlifeDef, locate, regionCells } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 import { parseNotes } from '../audio/notes';
 import { parseSteps } from '../audio/drums';
@@ -143,6 +143,10 @@ function crossIssues(db: ContentDb): FileIssue[] {
     (m.melody ?? []).forEach((ph, i) => {
       const bad = (ph?.notes ?? '').split(/\s+/).filter((w) => w && !['-', '.', '|'].includes(w) && parseNotes(w).bad.length);
       if (bad.length) out.push({ path: at, field: `melody[${i}].notes`, msg: `not a note, - or .: ${bad.join(', ')}` });
+    });
+    (m.sections ?? []).forEach((sec, i) => {
+      const bad = (sec?.layers ?? '').toLowerCase().split(/[\s,]+/).filter((w) => w && !(MUSIC_LAYERS as readonly string[]).includes(w));
+      if (bad.length) out.push({ path: at, field: `sections[${i}].layers`, msg: `not a layer: ${bad.join(', ')} (use ${MUSIC_LAYERS.join(', ')})` });
     });
     if (m.bassline && /[^xXoO5.\-\s|]/.test(m.bassline)) out.push({ path: at, field: 'bassline', msg: 'use x (root), o (octave up), 5 (fifth) and . (rest)' });
     if (m.use !== 'none' && !(m.chords ?? []).length) out.push({ path: at, field: 'chords', msg: 'needs at least one chord' });

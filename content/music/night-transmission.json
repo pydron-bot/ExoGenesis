@@ -1,0 +1,87 @@
+{
+  "name": "Night · Transmission",
+  "use": "night",
+  "order": "cycle",
+  "chords": [
+    {
+      "notes": "G2 F3 Bb3 D4 A4",
+      "bass": "G1",
+      "bells": "A4 Bb4 D5 F5"
+    },
+    {
+      "notes": "C3 E3 Bb3 D4 A4",
+      "bass": "C2",
+      "bells": "E5 G5 A5 Bb5"
+    },
+    {
+      "notes": "F2 E3 A3 C4 G4",
+      "bass": "F1",
+      "bells": "E5 G5 A5 C6"
+    },
+    {
+      "notes": "D3 F3 C4 E4 A4",
+      "bass": "D2",
+      "bells": "E5 F5 A5 C6"
+    }
+  ],
+  "homePull": 0,
+  "chordMin": 6.6,
+  "chordMax": 6.7,
+  "swell": 1.2,
+  "release": 2.5,
+  "pad": 0.4,
+  "padTone": "soft",
+  "brightness": 0.8,
+  "warble": 0.08,
+  "bass": 0.6,
+  "bells": 0.8,
+  "bellTone": "keys",
+  "bellGapMin": 0.6,
+  "bellGapMax": 2.8,
+  "phrases": 0.7,
+  "pulse": 0,
+  "pulseRate": 72,
+  "drums": 0.45,
+  "drumTracks": [
+    {
+      "sound": "kick",
+      "steps": "x... .... ..x. ....",
+      "level": 0.6
+    },
+    {
+      "sound": "snare",
+      "steps": ".... x... .... x..o",
+      "level": 0.35,
+      "pan": 0.15
+    },
+    {
+      "sound": "hat",
+      "steps": "x.x. x.x. x.xo x.x.",
+      "level": 0.25,
+      "pan": 0.35
+    }
+  ],
+  "swing": 0.3,
+  "sections": [
+    {
+      "chords": 2,
+      "layers": "pad bells bass"
+    },
+    {
+      "chords": 12,
+      "layers": "pad bells bass drums"
+    },
+    {
+      "chords": 2,
+      "layers": "pad bells"
+    }
+  ],
+  "air": 0.9,
+  "echo": 0.35,
+  "echoSync": true,
+  "space": 0.4,
+  "room": 2.5,
+  "grit": 0.25,
+  "lofi": 0.65,
+  "level": 1
+}

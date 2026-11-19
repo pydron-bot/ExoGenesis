@@ -1,0 +1,135 @@
+{
+  "name": "Day · Prospector",
+  "use": "day",
+  "order": "cycle",
+  "chords": [
+    {
+      "notes": "D3 A3 D4 F#4",
+      "bass": "D2",
+      "bells": "F#5 A5 D6"
+    },
+    {
+      "notes": "G2 D3 G3 B3",
+      "bass": "G1",
+      "bells": "B4 D5 G5"
+    },
+    {
+      "notes": "D3 A3 D4 F#4",
+      "bass": "D2",
+      "bells": "F#5 A5 D6"
+    },
+    {
+      "notes": "A2 E3 A3 C#4",
+      "bass": "A1",
+      "bells": "C#5 E5 A5"
+    },
+    {
+      "notes": "B2 F#3 B3 D4",
+      "bass": "B1",
+      "bells": "D5 F#5 B5"
+    },
+    {
+      "notes": "G2 D3 G3 B3",
+      "bass": "G1",
+      "bells": "B4 D5 G5"
+    },
+    {
+      "notes": "D3 A3 D4 F#4",
+      "bass": "D2",
+      "bells": "F#5 A5 D6"
+    },
+    {
+      "notes": "A2 E3 A3 C#4",
+      "bass": "A1",
+      "bells": "C#5 E5 A5"
+    }
+  ],
+  "homePull": 0,
+  "chordMin": 3.4,
+  "chordMax": 3.5,
+  "swell": 0.4,
+  "release": 1.2,
+  "pad": 0,
+  "padTone": "soft",
+  "brightness": 1,
+  "bass": 0.45,
+  "bells": 0.35,
+  "bellTone": "harp",
+  "bellGapMin": 2.5,
+  "bellGapMax": 6,
+  "phrases": 0.5,
+  "pulse": 0,
+  "pulseRate": 104,
+  "barSteps": 12,
+  "arp": 0.75,
+  "arpMode": "updown",
+  "arpRate": "8ths",
+  "arpOctaves": 1,
+  "arpShift": 0,
+  "arpTone": "string",
+  "arpGate": 0.9,
+  "lead": 0.6,
+  "leadTone": "flute",
+  "leadStep": "8ths",
+  "leadEvery": 2,
+  "leadGlide": 0.03,
+  "leadVibrato": 0.25,
+  "melody": [
+    {
+      "notes": "B4 - A4 G4 - A4 | B4 - - D5 - - | A4 - F#4 D4 - E4 | F#4 - - - . ."
+    },
+    {
+      "notes": "E4 - F#4 A4 - B4 | C#5 - B4 A4 - - | B4 - A4 F#4 - D4 | F#4 - - - . ."
+    },
+    {
+      "notes": "D5 - - B4 - D5 | E5 - D5 B4 - A4 | A4 - F#4 A4 - D5 | D5 - - - . ."
+    },
+    {
+      "notes": "C#5 - B4 A4 - E4 | A4 - - B4 - C#5 | D5 - - - - - | . . . . . ."
+    }
+  ],
+  "drums": 0.5,
+  "drumTracks": [
+    {
+      "sound": "hand",
+      "steps": "x....o x..o..",
+      "level": 0.7,
+      "pan": -0.25
+    },
+    {
+      "sound": "shaker",
+      "steps": "x.o.o. x.o.o.",
+      "level": 0.3,
+      "pan": 0.4
+    },
+    {
+      "sound": "hand",
+      "steps": "...... ...... ...... ...o.o",
+      "level": 0.5,
+      "pan": 0.3
+    }
+  ],
+  "sections": [
+    {
+      "chords": 4,
+      "layers": "arp bass bells"
+    },
+    {
+      "chords": 8,
+      "layers": "arp bass bells drums"
+    },
+    {
+      "chords": 8,
+      "layers": "arp bass bells drums melody"
+    },
+    {
+      "chords": 4,
+      "layers": "arp bass bells"
+    }
+  ],
+  "air": 0.15,
+  "echo": 0.15,
+  "space": 0.35,
+  "room": 1.6,
+  "level": 1
+}
