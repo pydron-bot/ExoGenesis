@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.39.0',
+    date: '2026-11-19',
+    title: 'New ground',
+    notes: [
+      'Seven new regions to land in (REGION on the title screen): The Ridgeback, a spine of rock with two passes and a sleeping relic grid; Hearthsmoke Vale, the green heartland of the Vell; The Choir Field, a dead levelled plain round the Choir\'s pylon; Burrow Reach, burrower country with furrows too straight to be natural; Splinter Hollow, a quiet basin with one way in; The Deep Layer, a crater of stacked ruins and the richest caches yet; and Signal Heights, a snowbound plateau in the far north',
+      'Each has its own threats: from a long, quiet start in Splinter Hollow to big packs, nests and guarded relics in Burrow Reach and The Deep Layer',
+    ],
+  },
+  {
     version: '0.38.0',
     date: '2026-11-19',
     title: 'Care and remembrance',

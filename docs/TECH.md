@@ -1060,3 +1060,27 @@ destination in `stepMedevac` (`src/sim/core.ts`), cards in `src/colony-hud.ts`. 
   each; out of Range they die as before; switched off it does nothing; a Medevac takes its riders to the Med Bay over a
   nearer home, fully treated; comfort reasons in and out of Range; grief fades faster with a Memorial.
 
+
+### Act 1 regions on Home (v0.39.0)
+
+Seven new regions in `content/regions/`, laid out as starting points to tailor in the map editor. Each `description` says
+which STORY.md beat it is for, what its story sites are and which hooks would suit it; no story events or missions point
+at them yet. Generated once by a script (not kept in the repo, so it can't overwrite hand edits) from the map editor's own
+generators (`src/editor/terrain-gen.ts`) plus rings, bowls and cones; markers were snapped to dry ground gentle enough to
+build on. Flora is stored in steps of 10 and paint amounts in tenths, and the small bumps come from each region's Local
+relief (`detail`, `detailSize`, `detailSeed`) rather than the sculpt, which keeps the grids small (about 95 KB gzipped
+for all seven; all content is bundled).
+
+| Region | Site | Size | Beat | Story sites | Notes |
+|---|---|---|---|---|---|
+| `ridgeback` The Ridgeback | −10°, −10° | 280 | Beyond the Ridge, E1/E2 | `ridge-ruin`, `north-pass`, `south-pass`, `ridge-view` | A spine of rock east of the Core with two passes; relic grid `spine` on the crest; richest deposit and both seams beyond it; 2 Brutes guard the north pass |
+| `hearthsmoke` Hearthsmoke Vale | 10°, −20° | 280 | E4, E5 | `vale-smoke`, `keeper-stones`, `burned-field` | Two Vell camps (village NW, song-keeper NE by a stone circle), a stream bed, a burnt crater field with a hull (sky-fire); packs ×0.75; a 2,400 deposit on Vell land |
+| `choir-field` The Choir Field | 20°, 40° | 240 | E8 | `choir-loop`, `dead-mast`, `code-wall` | A levelled ash-and-rust plain (sculpt pulls the ground 65% toward its mean) ringed by mesas; the Choir's camp in the north inside a worn ritual loop; relic grid `litany`; 3 rich seams; Spitters at the code wall |
+| `burrow-reach` Burrow Reach | 40°, 10° | 280 | E9 | `furrow-grid`, `spitter-pans`, `brood-mound` | A perfect sine furrow grid (designer marks), terraces in the east, burrow pits, acid pans; 4 nests, packs ×1.3; Burrowers guard the furrows, Spitters patrol the pans, Brutes the mound |
+| `splinter-hollow` Splinter Hollow | 0°, 50° | 240 | E11 (and Act 2 Kindred) | `splinter-camp`, `hollow-gate`, `old-cellar` | A basin inside a ring of hills with one gap east; one spawn, outside it; packs ×0.6, 15 min grace; an old hull over a cellar (Survivors hint) |
+| `deep-layer` The Deep Layer | −40°, −50° | 320 | Deep Layer (optional), Survivors | `oldest-layer`, `enclave-cut`, `crater-rim` | A crater NE of the Core with terraces (the layers), relic grids `outer-ring` (rim) and `deep-ring` (floor, cache 800◆ 250◇), 3 rich seams; a cut through the NE rim; 10 Swarmers appear on the floor once a grid wakes (`relic-woke`); packs ×1.5, 900 starting alloys |
+| `signal-heights` Signal Heights | 50°, 20° | 240 | E12, E13 | `carrier-trace`, `listening-post` | A snowbound plateau above the snow line with a pinnacle (NW) and a hull at the old listening post (SE); 4 Skimmerwings guard the crags (bring anti-air) |
+
+Checks: the content check; `node tools/balance.mjs --region <id> --strategy balanced` for 25 minutes on each. The bot
+loses Touchdown at 19.7 min with that strategy; the new regions range from Burrow Reach (17.5) to Splinter Hollow
+(survives), as their threat levels intend. Every region loads in the game with no page errors.
