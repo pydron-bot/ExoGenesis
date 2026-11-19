@@ -1,0 +1,62 @@
+{
+  "name": "Night · Lantern",
+  "use": "night",
+  "chords": [
+    {
+      "notes": "E3 B3 D#4 F#4",
+      "bass": "E2",
+      "bells": "B5"
+    },
+    {
+      "notes": "C#3 G#3 B3 E4",
+      "bass": "C#2",
+      "bells": "G#5"
+    },
+    {
+      "notes": "A2 E3 G#3 C#4",
+      "bass": "A1",
+      "bells": "E5"
+    },
+    {
+      "notes": "B2 F#3 C#4 D#4",
+      "bass": "B1",
+      "bells": "F#5"
+    }
+  ],
+  "homePull": 0.35,
+  "chordMin": 14,
+  "chordMax": 15,
+  "swell": 5,
+  "release": 7,
+  "pad": 0.6,
+  "padTone": "glass",
+  "brightness": 0.9,
+  "bass": 0.6,
+  "bells": 0,
+  "bellTone": "soft",
+  "bellGapMin": 4,
+  "bellGapMax": 10,
+  "phrases": 0.3,
+  "pulse": 0,
+  "pulseRate": 66,
+  "lead": 0.85,
+  "leadTone": "glass",
+  "melody": [
+    {
+      "notes": "G#5 - F#5 E5 F#5 - B4 - | C#5 - E5 - F#5 - - -"
+    },
+    {
+      "notes": "G#5 - B5 - G#5 F#5 E5 - | C#5 - B4 - E5 - - -"
+    },
+    {
+      "notes": "B5 - G#5 - F#5 - E5 F#5 | G#5 - - - . . . ."
+    }
+  ],
+  "leadStep": "8ths",
+  "leadEvery": 2,
+  "leadVibrato": 0,
+  "air": 0.8,
+  "echo": 0.55,
+  "space": 0.85,
+  "level": 1.33
+}

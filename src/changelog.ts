@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.46.0',
+    date: '2026-11-19',
+    title: 'New sounds',
+    notes: [
+      'Eight new pieces of music in four new styles',
+      'Electronic: Relay, a pulsing synth arpeggio and bassline for the day, and Grid Fault, fast and driving for fights',
+      'Melodic: Homestead, a gentle flute tune for the day, and Lantern, a music-box lullaby for the night',
+      'Cinematic: Accord, strings and a wordless choir, a second theme for the title screen; and Vigil, hushed voices at night',
+      'Alien: Other Voices, sliding, warbling chords and strange calls in the dark; and Hive, a chattering, unsettled fight',
+    ],
+  },
+  {
     version: '0.45.0',
     date: '2026-11-19',
     title: 'More music',

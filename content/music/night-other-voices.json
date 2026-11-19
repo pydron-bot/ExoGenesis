@@ -1,0 +1,51 @@
+{
+  "name": "Night · Other Voices",
+  "use": "night",
+  "chords": [
+    {
+      "notes": "C3 E3 F#3 A#3",
+      "bass": "C2",
+      "bells": "E5 F#5 A#5 D6"
+    },
+    {
+      "notes": "D3 F#3 G#3 C4",
+      "bass": "D2",
+      "bells": "F#5 G#5 C6"
+    },
+    {
+      "notes": "A#2 D3 E3 G#3",
+      "bass": "A#1",
+      "bells": "D5 E5 G#5 C6"
+    },
+    {
+      "notes": "C3 D3 F#3 G#3",
+      "bass": "C2",
+      "bells": "D5 F#5 A#5"
+    }
+  ],
+  "homePull": 0.3,
+  "chordMin": 16,
+  "chordMax": 24,
+  "swell": 7,
+  "release": 9,
+  "pad": 0.8,
+  "padTone": "glass",
+  "brightness": 0.8,
+  "detune": 25,
+  "glide": 400,
+  "warble": 0.5,
+  "bass": 0.6,
+  "bells": 0,
+  "bellTone": "soft",
+  "bellGapMin": 4,
+  "bellGapMax": 10,
+  "phrases": 0.3,
+  "pulse": 0,
+  "calls": 0.7,
+  "callGapMin": 3,
+  "callGapMax": 9,
+  "air": 1.3,
+  "echo": 0.6,
+  "space": 0.95,
+  "level": 0.95
+}

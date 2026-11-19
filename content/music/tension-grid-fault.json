@@ -1,0 +1,82 @@
+{
+  "name": "Tension · Grid Fault",
+  "use": "tension",
+  "chords": [
+    {
+      "notes": "E3 B3 E4 G4",
+      "bass": "E2",
+      "bells": "B5 E6"
+    },
+    {
+      "notes": "F3 C4 F4 A4",
+      "bass": "F2",
+      "bells": "C6 F6"
+    },
+    {
+      "notes": "E3 B3 F4 G4",
+      "bass": "E2",
+      "bells": "F5 B5"
+    },
+    {
+      "notes": "E3 A3 D4 F4",
+      "bass": "E2",
+      "bells": "A5 D6"
+    }
+  ],
+  "homePull": 0.5,
+  "chordMin": 7,
+  "chordMax": 8,
+  "swell": 0.8,
+  "release": 2,
+  "pad": 0.45,
+  "padTone": "warm",
+  "brightness": 0.7,
+  "bass": 0,
+  "bells": 0,
+  "bellTone": "soft",
+  "bellGapMin": 4,
+  "bellGapMax": 10,
+  "phrases": 0.3,
+  "pulse": 0,
+  "pulseRate": 126,
+  "arp": 0.65,
+  "arpMode": "updown",
+  "arpRate": "16ths",
+  "arpOctaves": 2,
+  "arpShift": 1,
+  "arpTone": "saw",
+  "arpGate": 0.3,
+  "arpBright": 1.4,
+  "bassline": "x.xx x.o. x.xx x.5.",
+  "basslineLevel": 0.75,
+  "drums": 0.85,
+  "drumTracks": [
+    {
+      "sound": "kick",
+      "steps": "x... x... x... x...",
+      "level": 0.75
+    },
+    {
+      "sound": "snare",
+      "steps": ".... x... .... x...",
+      "level": 0.45
+    },
+    {
+      "sound": "hat",
+      "steps": "x.x. x.x. x.x. x.xo",
+      "level": 0.2,
+      "pan": 0.4
+    },
+    {
+      "sound": "clank",
+      "steps": ".... .... .... ..x. .... .... ..x. ....",
+      "level": 0.3,
+      "pan": -0.45
+    }
+  ],
+  "drumsIn": 0,
+  "air": 0.2,
+  "echo": 0.25,
+  "space": 0.4,
+  "level": 1.35
+}

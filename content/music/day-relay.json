@@ -1,0 +1,77 @@
+{
+  "name": "Day · Relay",
+  "use": "day",
+  "chords": [
+    {
+      "notes": "A2 E3 G3 B3 C4",
+      "bass": "A1",
+      "bells": "E5 G5 B5 C6"
+    },
+    {
+      "notes": "F2 C3 E3 A3",
+      "bass": "F1",
+      "bells": "E5 A5 C6"
+    },
+    {
+      "notes": "G2 D3 E3 B3",
+      "bass": "G1",
+      "bells": "D5 E5 B5"
+    },
+    {
+      "notes": "E2 B2 D3 G3",
+      "bass": "E1",
+      "bells": "D5 G5 B5"
+    }
+  ],
+  "homePull": 0.3,
+  "chordMin": 8,
+  "chordMax": 10,
+  "swell": 1.5,
+  "release": 3,
+  "pad": 0.45,
+  "padTone": "soft",
+  "brightness": 1,
+  "bass": 0,
+  "bells": 0.3,
+  "bellTone": "glass",
+  "bellGapMin": 4,
+  "bellGapMax": 9,
+  "phrases": 0.3,
+  "pulse": 0,
+  "pulseRate": 108,
+  "arp": 0.7,
+  "arpMode": "up",
+  "arpRate": "16ths",
+  "arpOctaves": 2,
+  "arpShift": 1,
+  "arpTone": "pluck",
+  "arpGate": 0.45,
+  "arpBright": 1.1,
+  "bassline": "x..x ..x. x..o ..x.",
+  "basslineLevel": 0.6,
+  "drums": 0.5,
+  "drumTracks": [
+    {
+      "sound": "kick",
+      "steps": "x... .... x... ....",
+      "level": 0.6
+    },
+    {
+      "sound": "hat",
+      "steps": "..x. ..x. ..x. ..x.",
+      "level": 0.3,
+      "pan": 0.35
+    },
+    {
+      "sound": "rim",
+      "steps": ".... .... .... ...x",
+      "level": 0.25,
+      "pan": -0.3
+    }
+  ],
+  "drumsIn": 2,
+  "air": 0.2,
+  "echo": 0.3,
+  "space": 0.45,
+  "level": 1.85
+}

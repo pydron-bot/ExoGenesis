@@ -140,6 +140,11 @@ function crossIssues(db: ContentDb): FileIssue[] {
       else if (!steps.length) out.push({ path: at, field: `drumTracks[${i}].steps`, msg: 'needs at least one step' });
       else if (steps.length > 64) out.push({ path: at, field: `drumTracks[${i}].steps`, msg: `${steps.length} steps; at most 64 (4 bars)` });
     });
+    (m.melody ?? []).forEach((ph, i) => {
+      const bad = (ph?.notes ?? '').split(/\s+/).filter((w) => w && !['-', '.', '|'].includes(w) && parseNotes(w).bad.length);
+      if (bad.length) out.push({ path: at, field: `melody[${i}].notes`, msg: `not a note, - or .: ${bad.join(', ')}` });
+    });
+    if (m.bassline && /[^xXoO5.\-\s|]/.test(m.bassline)) out.push({ path: at, field: 'bassline', msg: 'use x (root), o (octave up), 5 (fifth) and . (rest)' });
     if (m.use !== 'none' && !(m.chords ?? []).length) out.push({ path: at, field: 'chords', msg: 'needs at least one chord' });
     for (const [a, b] of [['chordMin', 'chordMax'], ['bellGapMin', 'bellGapMax']] as const) {
       if (m[a] > m[b]) out.push({ path: at, field: b, msg: `shorter than ${a === 'chordMin' ? 'the shortest chord' : 'the shortest gap'}` });

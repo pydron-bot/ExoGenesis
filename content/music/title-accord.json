@@ -1,0 +1,48 @@
+{
+  "name": "Title · Accord",
+  "use": "title",
+  "chords": [
+    {
+      "notes": "G2 D3 A3 Bb3 D4",
+      "bass": "G1",
+      "bells": "D5 G5 A5 Bb5"
+    },
+    {
+      "notes": "Eb3 Bb3 D4 G4",
+      "bass": "Eb2",
+      "bells": "G5 Bb5 D6"
+    },
+    {
+      "notes": "D3 Bb3 D4 F4",
+      "bass": "Bb1",
+      "bells": "F5 Bb5 D6"
+    },
+    {
+      "notes": "F2 C3 F3 A3 C4",
+      "bass": "F1",
+      "bells": "F5 A5 C6"
+    }
+  ],
+  "homePull": 0.35,
+  "chordMin": 12,
+  "chordMax": 18,
+  "swell": 6,
+  "release": 8,
+  "pad": 0.8,
+  "padTone": "strings",
+  "brightness": 0.9,
+  "choir": 0.6,
+  "choirVowel": "ah",
+  "vibrato": 0.4,
+  "bass": 0.8,
+  "bells": 0.3,
+  "bellTone": "soft",
+  "bellGapMin": 4,
+  "bellGapMax": 9,
+  "phrases": 0.3,
+  "pulse": 0,
+  "air": 0.3,
+  "echo": 0.3,
+  "space": 0.9,
+  "level": 1.6
+}

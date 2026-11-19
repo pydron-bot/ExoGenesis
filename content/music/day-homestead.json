@@ -1,0 +1,85 @@
+{
+  "name": "Day · Homestead",
+  "use": "day",
+  "chords": [
+    {
+      "notes": "G2 D3 F#3 B3",
+      "bass": "G1",
+      "bells": "D5 G5 B5"
+    },
+    {
+      "notes": "C3 G3 D4 E4",
+      "bass": "C2",
+      "bells": "E5 G5 D6"
+    },
+    {
+      "notes": "E2 B2 D3 G3",
+      "bass": "E1",
+      "bells": "B4 D5 G5"
+    },
+    {
+      "notes": "D3 A3 B3 E4",
+      "bass": "D2",
+      "bells": "A5 B5 E6"
+    }
+  ],
+  "homePull": 0.3,
+  "chordMin": 11,
+  "chordMax": 12,
+  "swell": 3,
+  "release": 4,
+  "pad": 0.6,
+  "padTone": "soft",
+  "brightness": 1.1,
+  "bass": 0.6,
+  "bells": 0.25,
+  "bellTone": "soft",
+  "bellGapMin": 5,
+  "bellGapMax": 10,
+  "phrases": 0.3,
+  "pulse": 0,
+  "pulseRate": 84,
+  "lead": 0.8,
+  "leadTone": "flute",
+  "melody": [
+    {
+      "notes": "B4 - D5 - E5 - D5 B4 | A4 - - - G4 - - -"
+    },
+    {
+      "notes": "B4 - D5 - E5 - G5 - | E5 - D5 - B4 - - -"
+    },
+    {
+      "notes": "B4 - D5 - E5 - D5 B4 | A4 - - - G4 - - -"
+    },
+    {
+      "notes": "D5 - E5 D5 B4 - A4 - | G4 - A4 - B4 - - -"
+    },
+    {
+      "notes": "E5 - D5 - B4 A4 G4 - | A4 - - - - - . ."
+    }
+  ],
+  "leadStep": "8ths",
+  "leadEvery": 1,
+  "leadGlide": 0.04,
+  "leadVibrato": 0.35,
+  "drums": 0.3,
+  "drumTracks": [
+    {
+      "sound": "shaker",
+      "steps": "x.o. x.o. x.o. x.o.",
+      "level": 0.4,
+      "pan": 0.35
+    },
+    {
+      "sound": "tom",
+      "steps": "x... .... .... .... .... .... ..o. ....",
+      "level": 0.35,
+      "pan": -0.3
+    }
+  ],
+  "drumsIn": 3,
+  "air": 0.3,
+  "echo": 0.3,
+  "space": 0.6,
+  "level": 1.27
+}

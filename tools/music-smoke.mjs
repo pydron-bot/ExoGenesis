@@ -72,7 +72,8 @@ try {
   check(s.music?.use === 'tension' && s.tense, `a fight brings in tension music (${s.music?.use})`);
   await page.waitForTimeout(4000);
   s = await stats();
-  check((s.music?.pulses ?? 0) > 0 && (s.music?.hits ?? 0) > 0, `tension has its pulse and drums (${s.music?.pulses} beats, ${s.music?.hits} hits)`);
+  // every tension piece has drums (not all have the pulse)
+  check((s.music?.hits ?? 0) > 0, `tension has its drums (${s.music?.mood}: ${s.music?.hits} hits)`);
   // the player's music volume: 0 is remembered
   await page.evaluate(() => { const el = document.getElementById('music-vol'); el.value = '0'; el.dispatchEvent(new Event('input')); });
   await page.reload();

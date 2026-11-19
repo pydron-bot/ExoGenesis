@@ -1,0 +1,79 @@
+{
+  "name": "Tension · Hive",
+  "use": "tension",
+  "chords": [
+    {
+      "notes": "C#3 D3 G#3",
+      "bass": "C#2",
+      "bells": "D5 G#5 A5"
+    },
+    {
+      "notes": "C#3 G3 G#3",
+      "bass": "C#2",
+      "bells": "G5 G#5 D6"
+    },
+    {
+      "notes": "C#3 E3 F3 B3",
+      "bass": "C#2",
+      "bells": "E5 F5 B5"
+    },
+    {
+      "notes": "C#3 D3 A3",
+      "bass": "C#2",
+      "bells": "D5 A5 C#6"
+    }
+  ],
+  "homePull": 0.4,
+  "chordMin": 8,
+  "chordMax": 12,
+  "swell": 3,
+  "release": 5,
+  "pad": 0.85,
+  "padTone": "hollow",
+  "brightness": 0.6,
+  "detune": 40,
+  "glide": 200,
+  "warble": 0.8,
+  "bass": 1,
+  "bells": 0,
+  "bellTone": "soft",
+  "bellGapMin": 4,
+  "bellGapMax": 10,
+  "phrases": 0.3,
+  "pulse": 0.5,
+  "pulseRate": 84,
+  "drums": 0.8,
+  "drumTracks": [
+    {
+      "sound": "thud",
+      "steps": "x... .... .... .... ..x. ....",
+      "level": 0.7
+    },
+    {
+      "sound": "shaker",
+      "steps": "x.o.o.o",
+      "level": 0.3,
+      "pan": 0.5
+    },
+    {
+      "sound": "clank",
+      "steps": ".... .... x... .... .... .... .... ...x .... ....",
+      "level": 0.35,
+      "pan": -0.4
+    },
+    {
+      "sound": "tom",
+      "steps": ".... ..x. .... ....",
+      "level": 0.4,
+      "pan": 0.2
+    }
+  ],
+  "drumsIn": 0,
+  "calls": 0.8,
+  "callGapMin": 1,
+  "callGapMax": 4,
+  "air": 0.8,
+  "echo": 0.4,
+  "space": 0.6,
+  "level": 1.0
+}

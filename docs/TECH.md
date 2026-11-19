@@ -735,6 +735,29 @@ First playtest build (2026-11-15).
     B, 60 bpm heartbeat, clock-tick rim, a 20-step thud, metal bells). Levels set so every day and night piece
     measures about −27 LUFS offline and tension about −26. The director now avoids picking the same mood twice
     in a row for a use (`lastMood`).
+  - **Styles (v0.46.0):** new mood parts, all optional (the earlier moods are unchanged in content):
+    - *Pads:* tones **strings** (six detuned saws, high-passed) and **choir-ah / choir-oo** (three saws through
+      parallel vowel band-passes, `VOWELS`); **vibrato** (≈5 Hz, up to 22 cents), **detune spread** (random cents
+      per voice), **slide in** (`glide`: notes start up to N cents off and slide into tune over the swell),
+      **warble** (slow, wide pitch wobble, up to 80 cents); and a **choir** layer singing a chord's top three notes
+      over any pad (`choir`, `choirVowel`).
+    - *Sequencer:* an **arpeggio** through the chord's notes (`arpMode` up/down/updown/random/chord, `arpRate`
+      4ths–16ths, `arpOctaves`, `arpShift`, `arpTone` pluck/square/glass/saw with a resonant filter envelope,
+      `arpGate`, `arpBright`; accents on the beat) and a **bassline** pattern on the chord's root (`x` root, `o`
+      octave, `5` fifth, 16 steps a bar, through the drum bus).
+    - *Melody:* a **lead** (`leadTone` flute with breath noise / soft / glass music box / saw) playing written
+      **phrases** (`melody`: one token per step, a note, `-` hold, `.` rest; `parsePhrase`) in order, one at the
+      start of every `leadEvery`-th chord from the second, with `leadStep`, `leadGlide` and delayed `leadVibrato`.
+    - *Calls:* creature-like cries (three sine partials sliding into or away from a bell note by 2–9
+      semitones, or trilling; sometimes repeated) every `callGapMin`–`callGapMax` s, through the bell echo.
+    - Moods with an arpeggio, bassline, melody or drums change chord on **bar lines** (chord lengths rounded to
+      whole bars at the tempo), and their beat now starts with the first chord.
+    - Content checks cover phrase tokens and bassline characters. The editor's ▶ Listen counts arp steps,
+      phrases and calls.
+    - Pieces: **Day · Relay** and **Tension · Grid Fault** (sequencer), **Day · Homestead** and **Night ·
+      Lantern** (melodic), **Title · Accord** (strings and choir; the title now picks one of two) and **Night ·
+      Vigil** (choir), **Night · Other Voices** and **Tension · Hive** (alien). Levels matched offline: day and
+      night −27 LUFS, tension −26, title −25.
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min

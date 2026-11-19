@@ -5,7 +5,10 @@
  * next (a random walk that keeps coming home to the first), a soft bass on
  * each chord's root, sparse FM bells picking chord tones through a ping-pong
  * echo, an optional low heartbeat pulse, step-sequenced drums, and a faint band of
- * filtered noise; all into one long synthetic hall reverb.
+ * filtered noise; all into one long synthetic hall reverb. Other styles add: a
+ * sequencer arpeggio and bassline (electronic), a lead playing written phrases
+ * (melodic), string and choir pads (cinematic), and sliding, detuned, warbling
+ * pads with creature-like calls (alien).
  *
  * The mood is read through a getter every time something is scheduled, so the
  * editor's ▶ Listen picks up edits as they're made (at the next chord or bell).
@@ -15,8 +18,9 @@
  * suspended (tab hidden, sound off) the clock stops and nothing piles up.
  */
 import type { MusicChord, MusicDef } from '../content/defs';
-import { midiHz, parseNotes } from './notes';
+import { midiHz, noteMidi, parseNotes } from './notes';
 import { HITS, parseSteps } from './drums';
+import { noise } from './synth';
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 /** A mood number, or `d` while it's blank or half-typed in the editor. */
@@ -28,6 +32,18 @@ const BASS_PEAK = 0.09;
 const BELL_PEAK = 0.07;
 const PULSE_PEAK = 0.11;
 const DRUM_PEAK = 0.35;
+const ARP_PEAK = 0.09;
+const BASSLINE_PEAK = 0.18;
+const LEAD_PEAK = 0.1;
+const CALL_PEAK = 0.05;
+/** Makeup gain for the choir's narrow vowel filters, and the strings' many voices. */
+const CHOIR_GAIN = 4.5;
+/** Vowel formants: [Hz, Q, level]. */
+const VOWELS: Record<'choir-ah' | 'choir-oo', [number, number, number][]> = {
+  'choir-ah': [[800, 7, 1], [1150, 8, 0.6], [2900, 14, 0.25], [3900, 18, 0.1]],
+  'choir-oo': [[330, 5, 1], [700, 7, 0.45], [2500, 12, 0.1]],
+};
+const STEPS_PER_BEAT = { '4ths': 1, '8ths': 2, triplets: 3, '16ths': 4 } as const;
 const AIR_PEAK = 0.024;
 const LOOKAHEAD = 1.2;
 
@@ -48,6 +64,9 @@ const PAD_TONES: Record<MusicDef['padTone'], [OscillatorType, number, number, nu
   soft: [['triangle', -4, 0.8, 0], ['triangle', 5, 0.8, 0], ['sine', 0, 0.5, -1]],
   hollow: [['square', -5, 0.3, 0], ['square', 4, 0.3, 0], ['triangle', 0, 0.7, 0]],
   glass: [['sine', -3, 0.9, 0], ['sine', 4, 0.9, 0], ['sine', 0, 0.2, 1]],
+  strings: [['sawtooth', -13, 0.3, 0], ['sawtooth', -6, 0.3, 0], ['sawtooth', 0, 0.3, 0], ['sawtooth', 7, 0.3, 0], ['sawtooth', 12, 0.3, 0], ['sawtooth', 3, 0.12, -1]],
+  'choir-ah': [['sawtooth', -9, 0.45, 0], ['sawtooth', 0, 0.45, 0], ['sawtooth', 8, 0.45, 0]],
+  'choir-oo': [['sawtooth', -9, 0.45, 0], ['sawtooth', 0, 0.45, 0], ['sawtooth', 8, 0.45, 0]],
 };
 /** Bell tones: FM ratio, brightness at the strike, how fast it mellows (s), ring length (s), attack (s). */
 const BELL_TONES: Record<MusicDef['bellTone'], { ratio: number; index: number; mellow: number; ring: [number, number]; attack: number }> = {
@@ -75,12 +94,18 @@ export class AmbientMusic {
   private nextStep = 0;
   private step = 0;
   private drumBus: GainNode;
+  private arpBus: GainNode;
+  private leadBus: GainNode;
+  private nextArp = 0;
+  private arpN = 0;
+  private nextCall = 0;
+  private phraseN = 0;
   /** Chords already queued, with their start times (bells and pulse follow whichever is sounding). */
   private queue: { t: number; c: Chord; i: number }[] = [];
   /** The chord being played and when it ends (its pads release then). */
   private chordEnd: { t: number; nodes: GainNode[] } | null = null;
   /** Test and editor hook: what has been queued, and the chord now sounding (index into the mood's chords). */
-  played = { chords: 0, bells: 0, pulses: 0, hits: 0, chord: -1 };
+  played = { chords: 0, bells: 0, pulses: 0, hits: 0, arps: 0, leads: 0, calls: 0, chord: -1 };
 
   constructor(private c: AudioContext, dest: AudioNode, private mood: () => MusicDef, volume = 1, fadeIn = 6) {
     const out = (this.out = c.createGain());
@@ -134,6 +159,18 @@ export class AmbientMusic {
     drumVerb.gain.value = 0.3;
     this.drumBus.connect(drumVerb).connect(verb);
     this.nodes.push(this.drumBus, drumVerb);
+    // arpeggio and melody: dry, with some hall and some of the echo
+    this.arpBus = c.createGain();
+    this.leadBus = c.createGain();
+    for (const [bus, rv, ec] of [[this.arpBus, 0.35, 0.5], [this.leadBus, 0.55, 0.45]] as const) {
+      bus.connect(lvl);
+      const r = c.createGain(), e = c.createGain();
+      r.gain.value = rv;
+      e.gain.value = ec;
+      bus.connect(r).connect(verb);
+      bus.connect(e).connect(dl);
+      this.nodes.push(bus, r, e);
+    }
 
     this.airGain = c.createGain();
     this.airGain.connect(this.pads);
@@ -144,8 +181,11 @@ export class AmbientMusic {
     const t = c.currentTime + 0.1;
     this.nextChord = t;
     this.nextBell = t + rand(3, 5);
-    this.nextPulse = t + 1;
-    this.nextStep = t + 1; // on the pulse's beat
+    // the beat starts with the first chord (chords on the beat change on bar lines)
+    this.nextPulse = t;
+    this.nextStep = t;
+    this.nextArp = t;
+    this.nextCall = t + rand(4, 8);
     this.tick();
     this.timer = window.setInterval(() => this.tick(), 200);
   }
@@ -189,6 +229,8 @@ export class AmbientMusic {
     while (this.nextBell < ahead) this.nextBell += this.bells(this.nextBell);
     while (this.nextPulse < ahead) this.nextPulse += this.pulse(this.nextPulse);
     while (this.nextStep < ahead) this.nextStep += this.drumStep(this.nextStep);
+    while (this.nextArp < ahead) this.nextArp += this.arpStep(this.nextArp);
+    while (this.nextCall < ahead) this.nextCall += this.call(this.nextCall);
     while (this.queue.length > 2 && this.queue[1].t < now) this.queue.shift();
     const q = [...this.queue].reverse().find((x) => x.t <= now);
     if (q) this.played.chord = q.i;
@@ -201,7 +243,11 @@ export class AmbientMusic {
   /** Queue the next chord at `t`; returns how long it holds. */
   private playChord(t: number): number {
     const m = this.mood(), all = this.chords();
-    const lo = Math.max(1, fin(m.chordMin, 12)), len = rand(lo, Math.max(lo, fin(m.chordMax, lo)));
+    const lo = Math.max(1, fin(m.chordMin, 12));
+    let len = rand(lo, Math.max(lo, fin(m.chordMax, lo)));
+    // anything on the beat (arpeggio, bassline, melody, drums): chords change on bar lines
+    const bar = 4 * 60 / Math.max(20, fin(m.pulseRate, 70));
+    if (fin(m.arp, 0) > 0 || m.bassline || fin(m.lead, 0) > 0 || (fin(m.drums, 0) > 0 && m.drumTracks?.length)) len = Math.max(1, Math.round(len / bar)) * bar;
     if (!all.length) return len;
     // a random walk that keeps coming home to the first chord
     let i: number;
@@ -218,8 +264,19 @@ export class AmbientMusic {
     const gains: GainNode[] = [];
     const stagger = Math.min(0.9, swell / 4);
     if (m.pad > 0) ch.pad.forEach((n, k) => gains.push(this.padVoice(midiHz(n), t + k * rand(0.2, 1) * stagger, end, release, swell, m, ch.pad.length > 1 ? (k / (ch.pad.length - 1)) * 1.2 - 0.6 : 0)));
+    // a choir singing the chord's top notes over the pad
+    if (fin(m.choir, 0) > 0) {
+      const top = ch.pad.slice(-3);
+      const sing = { ...m, padTone: m.choirVowel === 'oo' ? 'choir-oo' : 'choir-ah', pad: m.choir!, vibrato: Math.max(0.3, fin(m.vibrato, 0)), glide: 0 } as MusicDef;
+      top.forEach((n, k) => gains.push(this.padVoice(midiHz(n), t + 0.3 + k * rand(0.2, 0.8) * stagger, end, release, swell * 1.2, sing, top.length > 1 ? (k / (top.length - 1)) * 0.9 - 0.45 : 0)));
+    }
     if (m.bass > 0) gains.push(this.bass(midiHz(ch.bass), t, end, release, swell, m.bass));
     this.chordEnd = { t: end, nodes: gains };
+    // melody: a phrase at the start of every Nth chord, from the second on
+    const every = Math.max(1, fin(m.leadEvery, 2));
+    if (fin(m.lead, 0) > 0 && m.melody?.length && this.played.chords >= 2 && (this.played.chords - 2) % every === 0) {
+      this.phrase(m.melody[this.phraseN++ % m.melody.length]?.notes, t + 0.05, m);
+    }
     return len;
   }
 
@@ -232,9 +289,15 @@ export class AmbientMusic {
     }
   }
 
-  /** One pad note: a few oscillators softened by a slowly breathing low-pass. */
+  /**
+   * One pad note: a few oscillators softened by a slowly breathing low-pass (or,
+   * for a choir, a bank of vowel filters). Options: vibrato, detune spread, a
+   * slide into pitch, and a slow warble.
+   */
   private padVoice(f: number, t: number, end: number, release: number, swell: number, m: MusicDef, pan: number): GainNode {
-    const c = this.c, peak = PAD_PEAK * m.pad;
+    const c = this.c, tone = m.padTone ?? 'warm';
+    const choir = tone === 'choir-ah' || tone === 'choir-oo';
+    const peak = PAD_PEAK * m.pad * (choir ? CHOIR_GAIN : tone === 'strings' ? 1.5 : 1);
     const g = c.createGain();
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + swell);
@@ -244,27 +307,68 @@ export class AmbientMusic {
     const lp = c.createBiquadFilter();
     lp.type = 'lowpass';
     lp.Q.value = 0.6;
-    lp.frequency.value = Math.min(6000, (380 + f * 0.9) * Math.max(0.1, fin(m.brightness, 1)));
+    lp.frequency.value = Math.min(choir ? 5000 : 6000, (380 + f * 0.9) * Math.max(0.1, fin(m.brightness, 1)) * (choir ? 3 : 1));
     const lfo = c.createOscillator(), depth = c.createGain();
     lfo.frequency.value = rand(0.03, 0.09);
-    depth.gain.value = lp.frequency.value * 0.45;
+    depth.gain.value = lp.frequency.value * (choir ? 0.15 : 0.45);
     lfo.connect(depth).connect(lp.frequency);
     const p = c.createStereoPanner();
     p.pan.value = pan;
-    lp.connect(g).connect(p).connect(this.pads);
+    const extra: AudioNode[] = [];
+    if (choir) {
+      // the vowel: parallel band-passes at the formants
+      for (const [ff, q, lv] of VOWELS[tone]) {
+        const bp = c.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = ff * rand(0.97, 1.03);
+        bp.Q.value = q;
+        const bg = c.createGain();
+        bg.gain.value = lv;
+        lp.connect(bp).connect(bg).connect(g);
+        extra.push(bp, bg);
+      }
+    } else if (tone === 'strings') {
+      const hp = c.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 140;
+      lp.connect(hp).connect(g);
+      extra.push(hp);
+    } else lp.connect(g);
+    g.connect(p).connect(this.pads);
     const oscs: OscillatorNode[] = [lfo];
-    for (const [type, cents, lvl, oct] of PAD_TONES[m.padTone] ?? PAD_TONES.warm) {
+    // pitch movement shared by the note's oscillators (in cents): vibrato and warble
+    const mods: AudioNode[] = [];
+    const vib = fin(m.vibrato, 0), wob = fin(m.warble, 0);
+    const pitchMods: [number, number][] = [];
+    if (vib > 0) pitchMods.push([rand(4.8, 5.8), vib * 22]);
+    if (wob > 0) pitchMods.push([rand(0.15, 0.7), wob * 80]);
+    const spread = fin(m.detune, 0), glide = fin(m.glide, 0);
+    const from = glide > 0 ? 2 ** ((Math.random() < 0.5 ? -1 : 1) * glide * rand(0.6, 1) / 1200) : 1;
+    for (const [type, cents, lvl, oct] of PAD_TONES[tone] ?? PAD_TONES.warm) {
       const o = c.createOscillator();
       o.type = type;
-      o.frequency.value = f * 2 ** oct;
-      o.detune.value = cents + rand(-2, 2);
+      const fo = f * 2 ** oct;
+      if (from !== 1) {
+        o.frequency.setValueAtTime(fo * from, t);
+        o.frequency.exponentialRampToValueAtTime(fo, t + Math.max(0.1, swell * 0.9));
+      } else o.frequency.value = fo;
+      o.detune.value = cents + rand(-2, 2) + rand(-spread, spread);
       const og = c.createGain();
       og.gain.value = lvl;
       o.connect(og).connect(lp);
       oscs.push(o);
     }
+    for (const [rate, cents] of pitchMods) {
+      const l = c.createOscillator(), d = c.createGain();
+      l.frequency.value = rate;
+      d.gain.value = cents;
+      l.connect(d);
+      for (const o of oscs.slice(1)) d.connect(o.detune);
+      oscs.push(l);
+      mods.push(d);
+    }
     for (const o of oscs) { o.start(t); o.stop(stopAt); }
-    oscs[1].onended = () => { for (const n of [lfo, depth, lp, g, p, ...oscs]) n.disconnect(); };
+    oscs[1].onended = () => { for (const n of [lfo, depth, lp, g, p, ...oscs, ...mods, ...extra]) n.disconnect(); };
     return g;
   }
 
@@ -374,6 +478,7 @@ export class AmbientMusic {
   private drumStep(t: number): number {
     const m = this.mood(), dur = 60 / Math.max(20, fin(m.pulseRate, 70)) / 4;
     const n = this.step++;
+    if (m.bassline && fin(m.basslineLevel, 0.7) > 0) this.basslineStep(t, n, dur, m);
     const level = fin(m.drums, 0);
     if (!(level > 0) || !m.drumTracks?.length || this.played.chords <= fin(m.drumsIn, 0)) return dur;
     // swing: every other step a little late
@@ -398,6 +503,244 @@ export class AmbientMusic {
       this.played.hits++;
     }
     return dur;
+  }
+
+  /** The sequenced bassline's step `n` at `t`: x root, o octave up, 5 fifth, . rest. */
+  private basslineStep(t: number, n: number, dur: number, m: MusicDef) {
+    const pat = (m.bassline ?? '').replace(/[\s|]/g, '');
+    const ch = this.sounding(t);
+    if (!pat || !ch) return;
+    const k = pat[n % pat.length];
+    const off = k === 'x' || k === 'X' ? 0 : k === 'o' || k === 'O' ? 12 : k === '5' ? 7 : null;
+    if (off === null) return;
+    // the root an octave up if the chord's bass is very low (small speakers)
+    let root = ch.bass;
+    while (root < 36) root += 12;
+    const f = midiHz(root + off), c = this.c;
+    const len = dur * 1.7;
+    const g = c.createGain();
+    const peak = BASSLINE_PEAK * fin(m.basslineLevel, 0.7) * rand(0.9, 1.05);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.006);
+    g.gain.setTargetAtTime(peak * 0.6, t + 0.02, len * 0.4);
+    g.gain.setTargetAtTime(0.0001, t + len, 0.03);
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 4;
+    lp.frequency.setValueAtTime(f * 9, t);
+    lp.frequency.exponentialRampToValueAtTime(f * 2.2, t + Math.min(0.25, len));
+    lp.connect(g).connect(this.drumBus);
+    const os = [['sawtooth', 1, 0.6], ['square', 0.5, 0.45]].map(([type, mul, lv]) => {
+      const o = c.createOscillator();
+      o.type = type as OscillatorType;
+      o.frequency.value = f * (mul as number);
+      const og = c.createGain();
+      og.gain.value = lv as number;
+      o.connect(og).connect(lp);
+      o.start(t);
+      o.stop(t + len + 0.2);
+      return [o, og] as const;
+    });
+    os[0][0].onended = () => { for (const [o, og] of os) { o.disconnect(); og.disconnect(); } lp.disconnect(); g.disconnect(); };
+  }
+
+  /** One arpeggio step at `t`; returns the time to the next. */
+  private arpStep(t: number): number {
+    const m = this.mood();
+    const dur = 60 / Math.max(20, fin(m.pulseRate, 70)) / STEPS_PER_BEAT[m.arpRate ?? '16ths'];
+    const level = fin(m.arp, 0);
+    const ch = this.sounding(t);
+    if (!(level > 0) || !ch) return dur;
+    const shift = 12 * fin(m.arpShift, 1), octs = Math.max(1, Math.min(3, fin(m.arpOctaves, 1)));
+    const up: number[] = [];
+    for (let o = 0; o < octs; o++) for (const n of ch.pad) up.push(n + shift + 12 * o);
+    const mode = m.arpMode ?? 'up';
+    const i = this.arpN++;
+    let notes: number[];
+    if (mode === 'chord') notes = ch.pad.map((n) => n + shift);
+    else if (mode === 'random') notes = [up[Math.floor(Math.random() * up.length)]];
+    else {
+      const seq = mode === 'down' ? [...up].reverse() : mode === 'updown' ? [...up, ...up.slice(1, -1).reverse()] : up;
+      notes = [seq[i % seq.length]];
+    }
+    const gate = dur * Math.max(0.1, Math.min(1, fin(m.arpGate, 0.5)));
+    // a little accent on each beat
+    const accent = i % STEPS_PER_BEAT[m.arpRate ?? '16ths'] === 0 ? 1 : 0.75;
+    for (const n of notes) this.arpNote(midiHz(n), t, gate, ARP_PEAK * level * accent / Math.sqrt(notes.length), m);
+    this.played.arps++;
+    return dur;
+  }
+
+  private arpNote(f: number, t: number, gate: number, peak: number, m: MusicDef) {
+    const c = this.c, tone = m.arpTone ?? 'pluck', bright = Math.max(0.2, fin(m.arpBright, 1));
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.004);
+    g.gain.setTargetAtTime(peak * (tone === 'pluck' ? 0.35 : 0.8), t + 0.01, 0.08);
+    g.gain.setTargetAtTime(0.0001, t + gate, 0.04);
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = tone === 'pluck' ? 9 : tone === 'saw' ? 4 : 1.5;
+    const top = Math.min(16000, f * (tone === 'glass' ? 6 : 10) * bright);
+    lp.frequency.setValueAtTime(top, t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(80, f * 1.6 * bright), t + (tone === 'pluck' ? 0.12 : 0.3));
+    const p = c.createStereoPanner();
+    p.pan.value = rand(-0.25, 0.25);
+    lp.connect(g).connect(p).connect(this.arpBus);
+    const shapes: [OscillatorType, number, number][] = tone === 'glass' ? [['sine', 0, 1], ['sine', 1200, 0.15]]
+      : tone === 'square' ? [['square', 0, 0.5]] : tone === 'saw' ? [['sawtooth', -6, 0.45], ['sawtooth', 6, 0.45]] : [['sawtooth', 0, 0.6]];
+    const os = shapes.map(([type, cents, lv]) => {
+      const o = c.createOscillator();
+      o.type = type;
+      o.frequency.value = f;
+      o.detune.value = cents;
+      const og = c.createGain();
+      og.gain.value = lv;
+      o.connect(og).connect(lp);
+      o.start(t);
+      o.stop(t + gate + 0.3);
+      return [o, og] as const;
+    });
+    os[0][0].onended = () => { for (const [o, og] of os) { o.disconnect(); og.disconnect(); } lp.disconnect(); g.disconnect(); p.disconnect(); };
+  }
+
+  /** Play a written phrase from `t`: one token per step, a note, - (hold) or . (rest). */
+  private phrase(text: string | undefined, t: number, m: MusicDef) {
+    const step = 60 / Math.max(20, fin(m.pulseRate, 70)) / STEPS_PER_BEAT[m.leadStep ?? '8ths'];
+    const notes = parsePhrase(text);
+    let prev: number | null = null, prevEnd = -1;
+    for (const nt of notes) {
+      const at = t + nt.at * step, len = nt.steps * step;
+      const f = midiHz(nt.midi);
+      // glide from the note before when they touch
+      this.leadNote(f, at, len, prev !== null && Math.abs(prevEnd - nt.at) < 0.01 ? prev : null, m);
+      prev = f;
+      prevEnd = nt.at + nt.steps;
+    }
+    if (notes.length) this.played.leads++;
+  }
+
+  private leadNote(f: number, t: number, len: number, from: number | null, m: MusicDef) {
+    const c = this.c, tone = m.leadTone ?? 'flute';
+    const peak = LEAD_PEAK * fin(m.lead, 0) * rand(0.92, 1.03);
+    const attack = tone === 'flute' ? 0.07 : tone === 'glass' ? 0.005 : 0.035;
+    const end = t + len, ring = tone === 'glass' ? Math.max(len, 0.6) + 0.8 : len + 0.18;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + attack);
+    if (tone === 'glass') g.gain.exponentialRampToValueAtTime(0.0001, t + ring);
+    else {
+      g.gain.setTargetAtTime(peak * 0.82, t + attack, 0.15);
+      g.gain.setTargetAtTime(0.0001, end, 0.06);
+    }
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = Math.min(12000, f * (tone === 'saw' ? 5 : tone === 'soft' ? 3 : 8));
+    lp.Q.value = tone === 'saw' ? 1.5 : 0.7;
+    const p = c.createStereoPanner();
+    p.pan.value = rand(-0.12, 0.12);
+    lp.connect(g).connect(p).connect(this.leadBus);
+    const shapes: [OscillatorType, number, number][] = tone === 'flute' ? [['sine', 1, 1], ['triangle', 2, 0.12]]
+      : tone === 'soft' ? [['triangle', 1, 0.9], ['sine', 0.5, 0.3]]
+      : tone === 'glass' ? [['sine', 1, 1], ['sine', 3, 0.08], ['sine', 4.01, 0.05]]
+      : [['sawtooth', 1, 0.45], ['sawtooth', 1, 0.45]];
+    // vibrato that comes in once the note has settled
+    const vib = fin(m.leadVibrato, 0.3), glide = fin(m.leadGlide, 0);
+    const lfo = c.createOscillator(), vd = c.createGain();
+    lfo.frequency.value = rand(4.8, 5.6);
+    vd.gain.setValueAtTime(0, t);
+    vd.gain.linearRampToValueAtTime(vib * 30, t + Math.min(len, 0.25) + 0.15);
+    lfo.connect(vd);
+    const os = shapes.map(([type, mul, lv], k) => {
+      const o = c.createOscillator();
+      o.type = type;
+      if (from && glide > 0) {
+        o.frequency.setValueAtTime(from * mul, t);
+        o.frequency.exponentialRampToValueAtTime(f * mul, t + Math.min(glide, len * 0.8));
+      } else o.frequency.value = f * mul;
+      if (tone === 'saw') o.detune.value = k ? 6 : -6;
+      vd.connect(o.detune);
+      const og = c.createGain();
+      og.gain.value = lv;
+      o.connect(og).connect(lp);
+      return [o, og] as const;
+    });
+    const nodes: AudioNode[] = [];
+    if (tone === 'flute') {
+      // breath: a little band-passed noise riding on the note
+      const nz = c.createBufferSource();
+      nz.buffer = noise(c as AudioContext);
+      nz.loop = true;
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = f * 2;
+      bp.Q.value = 2;
+      const ng = c.createGain();
+      ng.gain.value = 0.12;
+      nz.connect(bp).connect(ng).connect(lp);
+      nz.start(t, Math.random() * 0.5);
+      nz.stop(t + ring);
+      nodes.push(nz, bp, ng);
+    }
+    for (const [o] of os) { o.start(t); o.stop(t + ring); }
+    lfo.start(t);
+    lfo.stop(t + ring);
+    os[0][0].onended = () => { for (const n of [...os.flat(), lfo, vd, lp, g, p, ...nodes]) n.disconnect(); };
+  }
+
+  /** A creature-like call from somewhere out there: a sliding, warbling cry, sometimes repeated. Returns the gap to the next. */
+  private call(t: number): number {
+    const m = this.mood(), level = fin(m.calls, 0);
+    const lo = Math.max(0.5, fin(m.callGapMin, 4)), gap = rand(lo, Math.max(lo, fin(m.callGapMax, 12)));
+    const ch = this.sounding(t);
+    if (!(level > 0) || !ch) return gap;
+    const c = this.c;
+    const base = ch.bells[Math.floor(Math.random() * ch.bells.length)] - 12 * Math.floor(rand(0, 2));
+    const f = midiHz(base), bend = rand(2, 9) * (Math.random() < 0.5 ? -1 : 1);
+    const shape = Math.floor(Math.random() * 3); // 0 rises into the note, 1 falls away from it, 2 trills
+    const n = Math.random() < 0.4 ? Math.floor(rand(2, 4)) : 1;
+    const pan = rand(-0.85, 0.85);
+    let at = t;
+    for (let k = 0; k < n; k++) {
+      const dur = rand(0.5, 1.6) * (k ? 0.7 : 1);
+      const g = c.createGain();
+      const peak = CALL_PEAK * level * (k ? 0.7 : 1);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.linearRampToValueAtTime(peak, at + 0.08);
+      g.gain.setTargetAtTime(peak * 0.6, at + 0.1, dur * 0.3);
+      g.gain.setTargetAtTime(0.0001, at + dur * 0.8, 0.08);
+      const p = c.createStereoPanner();
+      p.pan.value = pan;
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = f * 4;
+      lp.connect(g).connect(p).connect(this.bellBus);
+      const trill = c.createOscillator(), td = c.createGain();
+      trill.frequency.value = shape === 2 ? rand(9, 16) : rand(5, 8);
+      td.gain.value = shape === 2 ? rand(80, 200) : rand(15, 45);
+      trill.connect(td);
+      const os = [[1, 1], [1.5, 0.25], [2.01, 0.15]].map(([mul, lv]) => {
+        const o = c.createOscillator();
+        o.type = 'sine';
+        const f1 = f * mul, f0 = f1 * 2 ** (bend / 12);
+        if (shape === 0) { o.frequency.setValueAtTime(f0, at); o.frequency.exponentialRampToValueAtTime(f1, at + dur * 0.5); }
+        else if (shape === 1) { o.frequency.setValueAtTime(f1, at); o.frequency.exponentialRampToValueAtTime(f0, at + dur); }
+        else o.frequency.value = f1;
+        td.connect(o.detune);
+        const og = c.createGain();
+        og.gain.value = lv;
+        o.connect(og).connect(lp);
+        o.start(at);
+        o.stop(at + dur + 0.3);
+        return [o, og] as const;
+      });
+      trill.start(at);
+      trill.stop(at + dur + 0.3);
+      os[0][0].onended = () => { for (const nd of [...os.flat(), trill, td, lp, g, p]) nd.disconnect(); };
+      at += dur * rand(0.6, 1.1);
+    }
+    this.played.calls++;
+    return at - t + gap;
   }
 
   /** A faint, slowly sweeping band of noise: the hiss of distance. 11 s of it, played at a drifting speed, so it never audibly repeats. */
@@ -450,4 +793,19 @@ function hall(c: AudioContext, secs: number): AudioBuffer {
     }
   }
   return b;
+}
+
+/** A melody phrase: tokens of a note name, - (hold the last note) or . (rest); | is ignored. */
+export function parsePhrase(text: string | undefined): { midi: number; at: number; steps: number }[] {
+  const out: { midi: number; at: number; steps: number }[] = [];
+  let i = 0;
+  for (const tok of (text ?? '').split(/\s+/).filter((w) => w && w !== '|')) {
+    if (tok === '-') { if (out.length && out[out.length - 1].at + out[out.length - 1].steps === i) out[out.length - 1].steps++; }
+    else if (tok !== '.') {
+      const n = noteMidi(tok);
+      if (n !== null) out.push({ midi: n, at: i, steps: 1 });
+    }
+    i++;
+  }
+  return out;
 }

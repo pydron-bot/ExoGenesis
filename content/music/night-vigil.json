@@ -1,0 +1,46 @@
+{
+  "name": "Night · Vigil",
+  "use": "night",
+  "chords": [
+    {
+      "notes": "D3 A3 C4 E4 F4",
+      "bass": "D2",
+      "bells": "A5 C6 E6"
+    },
+    {
+      "notes": "Bb2 F3 A3 D4",
+      "bass": "Bb1",
+      "bells": "F5 A5 D6"
+    },
+    {
+      "notes": "G2 D3 F3 Bb3",
+      "bass": "G1",
+      "bells": "D5 F5 Bb5"
+    },
+    {
+      "notes": "A2 E3 G3 D4",
+      "bass": "A1",
+      "bells": "E5 G5 D6"
+    }
+  ],
+  "homePull": 0.4,
+  "chordMin": 18,
+  "chordMax": 26,
+  "swell": 8,
+  "release": 10,
+  "pad": 0.8,
+  "padTone": "choir-oo",
+  "brightness": 0.8,
+  "vibrato": 0.3,
+  "bass": 0.7,
+  "bells": 0.25,
+  "bellTone": "soft",
+  "bellGapMin": 6,
+  "bellGapMax": 14,
+  "phrases": 0.3,
+  "pulse": 0,
+  "air": 0.6,
+  "echo": 0.4,
+  "space": 1,
+  "level": 1.15
+}
