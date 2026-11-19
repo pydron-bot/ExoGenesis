@@ -250,6 +250,11 @@ export class ColonyHud {
     if (d.role === 'deepmine' && (b.mining === undefined || b.mining < 0)) return ['Idle: no isotope seam in reach', 'warn'];
     if (d.role === 'reactor' && !b.powered) return ['Out of isotopes', 'bad'];
     if (d.role === 'relay') return ['Relaying · build area extended', ''];
+    if (d.role === 'medbay') {
+      const c = s.people.care.find((x) => x.b === b.id);
+      return c?.waiting ? [`Bringing in the injured · ${c.waiting} waiting`, 'warn'] : ['Ready: no one injured in reach', ''];
+    }
+    if (d.role === 'memorial') return ['Remembering', ''];
     if (d.role === 'seedbank') {
       if (!b.powered) return ['No power (load shed)', 'bad'];
       const reach = d.range ?? 20, n = (s.planet?.scars ?? []).filter((x) => Math.hypot(x.x - b.x, x.z - b.z) <= reach).length;
@@ -354,6 +359,20 @@ export class ColonyHud {
         rows.push(['Recharge', `${d.shieldRegen ?? 0} hp/s while powered`]);
       }
       if (d.role === 'civic' && !d.pods && d.housing) rows.push(['Growth pods', 'none: housing only']);
+      let names = '';
+      if (d.role === 'medbay') {
+        const c = s.people.care.find((x) => x.b === b.id);
+        rows.push(['Treats', `injured within ${d.range} u: stabilised, one brought in per ${d.treatSeconds ?? 8} s`]);
+        if (c?.waiting) rows.push(['Stretcher', `${Math.floor(c.progress * 100)}% · ${c.waiting} in reach`]);
+        rows.push(['Care', `homes in reach: +${d.aura ?? 0} wellbeing, longer lives`]);
+      }
+      if (d.role === 'memorial') {
+        const dead = s.people.memorial.filter((m) => !m.cause.startsWith('left'));
+        rows.push(['Comfort', `homes within ${d.range} u: +${d.aura ?? 0} wellbeing`]);
+        rows.push(['Grief', 'fades faster while it stands']);
+        rows.push(['Names', dead.length ? `${s.people.stats.deaths} remembered` : 'none yet']);
+        if (dead.length) names = `<div class="names">${dead.slice(0, 8).map((m) => `<div class="row"><span>${esc(m.name)}${m.age ? `, ${m.age}` : ''}</span><span>${esc(m.cause)}</span></div>`).join('')}${dead.length > 8 ? '<div class="row tip"><span></span><span>the rest: Colony panel → Memorial</span></div>' : ''}</div>`;
+      }
       const pe = this.people.buildingRows(s, b, d);
       rows.push(...pe.rows);
       if (d.role === 'core') {
@@ -401,7 +420,7 @@ export class ColonyHud {
       if (d.role !== 'core') btn.push(`<button data-act="demolish">${b.progress < 1 ? 'Cancel' : 'Recycle'}</button>`);
       html = `<div class="t">${esc(d.name.toUpperCase())}</div><div class="s ${cls}">${esc(st)}</div>
         <div class="hp"><i style="width:${Math.min(100, (b.hp / d.hp) * 100).toFixed(0)}%;background:${b.hp / d.hp > 0.6 ? '#5bff9a' : b.hp / d.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${queue}${lab}${pe.html}
+        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${names}${queue}${lab}${pe.html}
         <div class="grp">${btn.join('')}</div>`;
     }
     card.classList.add('on');

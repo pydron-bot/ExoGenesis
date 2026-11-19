@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { buildAirpad, buildFlak } from './air-models';
 import { ShieldDomes, type ShieldLook } from './shields';
-import { buildSeedBank, buildShieldProjector } from './batchc-models';
+import { buildMedBay, buildMemorial, buildSeedBank, buildShieldProjector } from './batchc-models';
 import { BATCHED_KINDS, BuildingBatch } from './batch';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
@@ -684,7 +684,7 @@ const KIND_MODELS: Record<string, () => THREE.Group> = {
   cannon: buildCannon, pointdefense: buildPointDefense, ...ROSTER_BUILDINGS,
   shipyard: buildShipyard, tidal: buildTidal, pier: buildPier, seaturret: buildSeaTurret,
   airpad: buildAirpad, flak: buildFlak,
-  shield: buildShieldProjector, seedbank: buildSeedBank,
+  shield: buildShieldProjector, seedbank: buildSeedBank, medbay: buildMedBay, memorial: buildMemorial,
 };
 
 /** Sea Turret: the Defense Turret on a platform over the water (its `head` still aims). */
@@ -1448,6 +1448,17 @@ export class RegionView {
             const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
             if (m && 'emissiveIntensity' in m) m.emissiveIntensity = lit ? k : 0.1;
           });
+        }
+        if (role === 'medbay' || role === 'memorial') {
+          // the Med Bay's beacon flashes while its crews are out; the Memorial's flame flickers
+          const busy = role === 'medbay' && !!cur.people?.care?.some((c) => c.b === b.id && c.waiting > 0);
+          const k = role === 'memorial' ? 2 + Math.sin(this.gameT * 9 + b.id) * 0.5 + Math.sin(this.gameT * 23) * 0.3
+            : busy ? (Math.sin(this.gameT * 8) > 0 ? 3 : 0.4) : 1.2;
+          for (const c of parts(e.obj, 'charge')) c.traverse((o) => {
+            const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+            if (m && 'emissiveIntensity' in m) m.emissiveIntensity = lit || role === 'memorial' ? k : 0.1;
+          });
+          if (role === 'memorial') for (const c of parts(e.obj, 'charge')) c.scale.y = 1 + Math.sin(this.gameT * 7 + b.id) * 0.12;
         }
         if (role === 'geothermal') {
           for (const plume of parts(e.obj, 'plume')) { plume.visible = lit; plume.scale.set(1 + Math.sin(this.gameT * 1.7 + b.id) * 0.12, 1 + Math.sin(this.gameT * 1.1) * 0.15, 1); }

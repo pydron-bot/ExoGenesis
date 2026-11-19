@@ -1,7 +1,7 @@
 {
   "name": "Medevac",
   "faction": "accord",
-  "description": "A fast armoured ambulance. When a building falls, the people inside are left lying injured by the ruins with about a minute to live: the Medevac drives to them (anyone within its reach), takes up to four aboard and brings them in to the nearest home or the Core. Unarmed: send it in behind your guns.",
+  "description": "A fast armoured ambulance. When a building falls, the people inside are left lying injured by the ruins with about a minute to live: the Medevac drives to them (anyone within its reach), takes up to four aboard and brings them in to a Med Bay (where they are fully treated), or else the nearest home or the Core. Unarmed: send it in behind your guns.",
   "hp": 220,
   "speed": 8.5,
   "range": 0,

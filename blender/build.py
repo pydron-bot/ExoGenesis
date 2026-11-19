@@ -2103,6 +2103,76 @@ def medevac(M):
     export("medevac", [join(parts, "body")])
 
 
+def medbay(M):
+    """Med Bay: a long white ward block on a dark plinth, a raised treatment wing with a glazed roof
+    strip, red-cross panels on both sides and the wing, a stretcher bay with a roller door at the front
+    (−Y), a mast with a red beacon (`charge`, flashes while crews are out), lit ward windows. ~11 u footprint."""
+    white = mat("medwhite", "#e6eaee", 0.2, 0.5)
+    cross = glow_mat("medcross", "#ff5a5a", 2.2)
+    win = glow_mat("wardwin", "#bfe6ff", 0.8)
+    parts, chg = [], []
+    parts.append(box((9.2, 6.6, 0.5), (0, 0, 0.25), M["dark"], bevel=0.08))
+    parts.append(box((8.0, 5.4, 2.2), (0, -0.3, 1.6), white, bevel=0.12))
+    parts.append(box((8.2, 5.6, 0.22), (0, -0.3, 2.8), M["hull2"], bevel=0.04))
+    parts.append(box((4.2, 4.6, 1.5), (-1.6, -0.6, 3.6), M["hull"], bevel=0.1))
+    parts.append(box((3.6, 0.6, 0.12), (-1.6, -0.6, 4.4), M["glass"], bevel=0))
+    for sx in (-1, 1):
+        parts.append(box((0.08, 0.36, 1.2), (sx * 4.02, -0.3, 1.7), cross, bevel=0))
+        parts.append(box((0.08, 1.2, 0.36), (sx * 4.02, -0.3, 1.7), cross, bevel=0))
+        for y in (-2.2, 1.6):
+            parts.append(box((0.06, 0.9, 0.45), (sx * 4.02, y, 1.95), win, bevel=0))
+    parts.append(box((1.2, 0.08, 0.36), (-1.6, -2.95, 3.65), cross, bevel=0))
+    parts.append(box((0.36, 0.08, 1.2), (-1.6, -2.95, 3.65), cross, bevel=0))
+    for k in range(4):
+        parts.append(box((1.1, 0.06, 0.5), (-3 + k * 2, 2.45, 1.9), win, bevel=0))
+    parts.append(box((3.2, 1.6, 1.8), (1.8, -3.4, 1.0), M["hull2"], bevel=0.08))     # stretcher bay
+    parts.append(box((2.4, 0.08, 1.4), (1.8, -4.22, 0.9), M["dark"], bevel=0))
+    for z in (0.5, 0.8, 1.1, 1.4):
+        parts.append(box((2.4, 0.1, 0.04), (1.8, -4.27, z), M["black"], bevel=0))
+    parts.append(box((2.2, 0.2, 0.08), (1.8, -4.3, 1.75), M["amber"], bevel=0))
+    parts.append(box((3.6, 1.2, 0.12), (1.8, -4.8, 0.06), M["rust"], bevel=0.02))    # apron
+    parts.append(cyl(0.15, 1.8, (2.6, 1.2, 3.8), M["dark"], verts=6, bevel=0))
+    parts.append(cyl(0.45, 0.12, (2.6, 1.2, 4.7), M["hull"], verts=8, bevel=0))
+    chg.append(cyl(0.32, 0.45, (2.6, 1.2, 5.0), M["red"], verts=8, bevel=0))
+    parts.append(box((2.2, 2.2, 0.06), (2.0, -0.6, 2.94), white, bevel=0))      # roof cross on a white pad, for the top-down view
+    parts.append(box((1.8, 0.55, 0.06), (2.0, -0.6, 2.98), cross, bevel=0))
+    parts.append(box((0.55, 1.8, 0.06), (2.0, -0.6, 2.98), cross, bevel=0))
+    for x in (-3.4, 3.4):   # air units on the roof
+        parts.append(box((1.0, 1.0, 0.5), (x, 1.6, 3.15), M["hull2"], bevel=0.05))
+        parts.append(cyl(0.35, 0.08, (x, 1.6, 3.42), M["black"], verts=10, bevel=0))
+    export("medbay", [join(parts, "body"), join(chg, "charge")])
+
+
+def memorial(M):
+    """Memorial: nine standing name stones of three heights in a ring on a low terrace, each with carved
+    lines, round a stepped plinth with a bronze bowl and an eternal flame (`charge`, flickers). ~8 u."""
+    stone = mat("memstone", "#8d8a84", 0.0, 0.9)
+    stone2 = mat("memstone2", "#6c6964", 0.0, 0.95)
+    bronze = mat("bronze", "#8a6a3a", 0.8, 0.35)
+    flame = glow_mat("flame", "#ffb24a", 2.6)
+    parts, chg = [], []
+    parts.append(cyl(4.1, 0.3, (0, 0, 0.15), stone2, verts=18, r2=3.9, bevel=0.05))
+    parts.append(cyl(1.6, 0.4, (0, 0, 0.5), stone, verts=8, bevel=0.05))
+    parts.append(cyl(1.2, 0.4, (0, 0, 0.9), stone2, verts=8, bevel=0.05))
+    parts.append(cyl(0.75, 0.3, (0, 0, 1.25), bronze, verts=10, r2=0.55, bevel=0.03))
+    bpy.ops.mesh.primitive_cone_add(vertices=7, radius1=0.42, radius2=0.0, depth=1.3, location=(0, 0, 2.0))
+    chg.append(_finish(bpy.context.active_object, flame, 0))
+    bpy.ops.mesh.primitive_cone_add(vertices=5, radius1=0.25, radius2=0.0, depth=0.8, location=(0.12, 0.05, 2.25))
+    chg.append(_finish(bpy.context.active_object, glow_mat("flame2", "#fff0b0", 3.2), 0))
+    for k in range(9):
+        a = k / 9 * math.tau
+        h = 1.6 + (k % 3) * 0.35
+        x, y = math.sin(a) * 3.1, math.cos(a) * 3.1
+        parts.append(box((1.1, 0.35, h), (x, y, 0.3 + h / 2), stone if k % 2 else stone2, bevel=0.06, rot=(0, 0, -a)))
+        for j in range(3):   # carved name lines on the inner face
+            z = 0.3 + h - 0.35 - j * 0.28
+            ix, iy = math.sin(a) * 2.91, math.cos(a) * 2.91
+            parts.append(box((0.75, 0.04, 0.06), (ix, iy, z), M["black"], bevel=0, rot=(0, 0, -a)))
+    for k in range(4):   # path stones in from the front (−Y)
+        parts.append(box((1.2, 0.5, 0.08), (0, -4.4 - k * 0.8, 0.04), stone2, bevel=0.02))
+    export("memorial", [join(parts, "body"), join(chg, "charge")])
+
+
 MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, "radar": radar, "bay": bay, "wall": wall, "rover": rover, "tank": tank,
           "cannon": cannon, "pointdefense": pointdefense, "repairpad": repairpad, "gate": gate, "geothermal": geothermal,
           "artillery": artillery, "arc": arc, "engineer": engineer, "scout": scout,
@@ -2117,7 +2187,8 @@ MODELS = {"solar": solar, "depot": depot, "battery": battery, "turret": turret, 
           "shipyard": shipyard, "tidal": tidal, "pier": pier, "seaturret": seaturret, "airpad": airpad, "flak": flak,
           "skiff": skiff, "strider": strider, "gunboat": gunboat, "barge": barge, "lurker": lurker,
           "gunship": gunship, "skimmerwing": skimmerwing, "drone": drone,
-          "shield": shield, "seedbank": seedbank, "aegis": aegis, "medevac": medevac}
+          "shield": shield, "seedbank": seedbank, "aegis": aegis, "medevac": medevac,
+          "medbay": medbay, "memorial": memorial}
 V2 = ["cannon", "pointdefense", "repairpad", "gate", "geothermal", "artillery", "arc", "engineer", "scout", "swarmer", "brute", "spitter", "burrower"]
 
 if __name__ == "__main__":

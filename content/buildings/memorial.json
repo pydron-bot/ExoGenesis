@@ -1,0 +1,18 @@
+{
+  "name": "Memorial",
+  "description": "A stone ring carved with the names of everyone the colony has lost, round a flame that never goes out. Homes within its Range take comfort from it, and while one stands grief fades faster. Select it to read the names.",
+  "role": "memorial",
+  "buildable": true,
+  "cost": 60,
+  "hp": 600,
+  "powerMW": 0,
+  "buildSeconds": 14,
+  "clearance": 8,
+  "range": 44,
+  "aura": 4,
+  "lightColor": "#ffb070",
+  "lightRadius": 9,
+  "lightIntensity": 0.8,
+  "lightFlicker": true,
+  "model": "exo-memorial"
+}

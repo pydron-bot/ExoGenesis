@@ -83,3 +83,42 @@ export function buildSeedBank(): THREE.Group {
   }
   return g;
 }
+
+/** Med Bay (v0.38): a long low ward block with a raised treatment wing, red-cross panels, a stretcher bay at the front and a beacon (`charge`). */
+export function buildMedBay(): THREE.Group {
+  const g = new THREE.Group();
+  const hull = metal(HULL), hull2 = metal(HULL2), dark = metal(DARK), red = glow('#ff5a5a', 2.2);
+  const white = new THREE.MeshStandardMaterial({ color: '#e6eaee', roughness: 0.5, metalness: 0.2, flatShading: true });
+  g.add(mesh(box(9, 0.5, 6.4), dark, 0, 0.25, 0));
+  g.add(mesh(box(8, 2.2, 5.4), white, 0, 1.6, 0.3));
+  g.add(mesh(box(4.2, 1.6, 4.6), hull, -1.6, 3.5, 0.6));
+  g.add(mesh(box(8.2, 0.25, 5.6), hull2, 0, 2.8, 0.3));
+  for (const sx of [-1, 1]) {
+    g.add(mesh(box(0.1, 1.2, 0.36), red, sx * 4.05, 1.7, 0.3), mesh(box(0.1, 0.36, 1.2), red, sx * 4.05, 1.7, 0.3));
+  }
+  g.add(mesh(box(1.2, 0.36, 0.1), red, -1.6, 3.6, 2.95), mesh(box(0.36, 1.2, 0.1), red, -1.6, 3.6, 2.95));
+  g.add(mesh(box(3.2, 1.8, 1.6), hull2, 1.8, 1.0, -3.0), mesh(box(2.4, 1.4, 0.1), dark, 1.8, 0.9, -3.82));
+  g.add(mesh(cyl(0.15, 1.6, 6), dark, 2.6, 4.2, -1.2), mesh(cyl(0.35, 0.4, 8), red, 2.6, 5.1, -1.2, 'charge'));
+  for (let k = 0; k < 4; k++) g.add(mesh(box(1.1, 0.5, 0.08), glow('#bfe6ff', 0.8), -3 + k * 2, 1.9, 3.0));
+  g.add(mesh(box(2.2, 0.06, 2.2), white, 2.0, 2.95, 0.6), mesh(box(1.8, 0.06, 0.55), red, 2.0, 2.99, 0.6), mesh(box(0.55, 0.06, 1.8), red, 2.0, 2.99, 0.6));
+  return g;
+}
+
+/** Memorial (v0.38): a ring of standing name stones round a low plinth with an eternal flame (`charge`, flickers). */
+export function buildMemorial(): THREE.Group {
+  const g = new THREE.Group();
+  const stone = new THREE.MeshStandardMaterial({ color: '#8d8a84', roughness: 0.9, flatShading: true });
+  const stone2 = new THREE.MeshStandardMaterial({ color: '#6c6964', roughness: 0.95, flatShading: true });
+  const flame = glow('#ffb24a', 2.6);
+  g.add(mesh(cyl(3.9, 0.3, 12, 4.1), stone2, 0, 0.15, 0), mesh(cyl(1.3, 0.7, 8, 1.5), stone, 0, 0.6, 0));
+  g.add(mesh(cyl(0.7, 0.3, 8), metal(DARK), 0, 1.05, 0));
+  const f = mesh(new THREE.ConeGeometry(0.42, 1.3, 6), flame, 0, 1.8, 0, 'charge');
+  g.add(f);
+  for (let k = 0; k < 9; k++) {
+    const a = (k / 9) * Math.PI * 2, h = 1.6 + (k % 3) * 0.35;
+    const st = mesh(box(1.1, h, 0.35), k % 2 ? stone : stone2, Math.sin(a) * 3.1, h / 2 + 0.3, Math.cos(a) * 3.1);
+    st.rotation.y = a;
+    g.add(st);
+  }
+  return g;
+}

@@ -3,7 +3,8 @@
 Status: **batches A and B built (2026-11-18, v0.25.0–v0.28.0)**: Lancer, Sensor Mast, Habitat Block, Relay
 Tower, Nest, wrecks, Tech Lab + research, isotopes, Deep-Core Mine, Fusion Cell (added: an isotope sink),
 relic grids. **Batch C is built:** the Skimmerwing and the air layer (v0.36.0, see "Air layer" below), then shields
-(Aegis Crawler, Shield Projector), planet health with the Seed Bank, and the Medevac (v0.37.0).
+(Aegis Crawler, Shield Projector), planet health with the Seed Bank, and the Medevac (v0.37.0). **Med Bay and
+Memorial built (v0.38.0).**
 How each works: `TECH.md` §6. The rest of the lists below are still proposals. Each item lists what it is for, the story
 hook (if any), and **cost to build**:
 
@@ -47,9 +48,9 @@ spawns, camps and sites.
 | **Tech Lab** | Staffed by scientists; research unlocks (Lancer, Aegis, shields, mast upgrades) | E6 "Too Good" fires when it's built | System (research tree, DESIGN §5.9) |
 | **Relay Tower** | Extends build radius; later links regions on the planet layer | M3 region links; E12 "Wrong Address" needs relay tech | Small now, System for region links |
 | **Deep-Core Mine** | Mines exotic isotopes, only on an isotope seam; noisy, so it draws packs | M3 resource | System (new resource) |
-| **Med Bay** | Treats injured colonists, raises wellbeing near it | M2 wellbeing | Small |
+| **Med Bay** | Treats injured colonists, raises wellbeing near it | M2 wellbeing | Built (v0.38.0) |
 | **Seed Bank / Rewilder** | Spends biomass to restore scarred land around it; raises planet health | Stewardship and the Biosphere Report (STORY §6). The trap: doing well is the danger | Built (v0.37.0), with planet health and the Biosphere Report |
-| **Memorial** | Names of the dead (memorial log, DESIGN §5.4); a small wellbeing aura | M4 memorial | Small |
+| **Memorial** | Names of the dead (memorial log, DESIGN §5.4); a small wellbeing aura | M4 memorial | Built (v0.38.0) |
 | **Shield Projector** | Base dome; heavy constant power draw | DESIGN "shields later" | Built (v0.37.0, research Shield Lattice) |
 
 ## Fauna

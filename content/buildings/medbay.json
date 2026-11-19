@@ -1,0 +1,20 @@
+{
+  "name": "Med Bay",
+  "description": "A field hospital. While powered, anyone lying injured within its Range stops getting worse, and its stretcher crews bring them in one at a time (medics on staff make that quicker). Homes in Range get medical care, and the people living there live longer.",
+  "role": "medbay",
+  "buildable": true,
+  "cost": 100,
+  "hp": 380,
+  "powerMW": -1,
+  "buildSeconds": 16,
+  "clearance": 11,
+  "range": 36,
+  "treatSeconds": 8,
+  "aura": 6,
+  "staff": 2,
+  "specialty": "medic",
+  "lightColor": "#ff9a9a",
+  "lightRadius": 12,
+  "lightIntensity": 0.9,
+  "model": "exo-medbay"
+}

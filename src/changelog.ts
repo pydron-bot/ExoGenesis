@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.38.0',
+    date: '2026-11-19',
+    title: 'Care and remembrance',
+    notes: [
+      'New: the Med Bay. Anyone lying injured within its reach stops getting worse, and its stretcher crews bring them in one at a time, fully healed (medics on staff make it quicker). Homes near it get medical care, and the people living there live longer',
+      'The Medevac now takes the injured to a Med Bay when there is one not much further away than the nearest home',
+      'New: the Memorial, a ring of stones carved with the names of everyone the colony has lost, round a flame that never goes out. Homes near it take comfort from it, and grief fades faster while it stands. Select it to read the names',
+    ],
+  },
+  {
     version: '0.37.0',
     date: '2026-11-19',
     title: 'Shelter and stewardship',

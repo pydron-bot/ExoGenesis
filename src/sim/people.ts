@@ -62,6 +62,11 @@ const LIKES: Record<'council' | 'oversight', Record<string, Record<Bloc, number>
 /** Stance drift per sol from policy. */
 const PULL = { council: { directive: 3, joint: 0.5, assembly: -3 }, oversight: { light: 1, standard: 0, total: -2 } } as const;
 
+/** Grief fades this much faster while a Memorial stands. */
+const MEMORIAL_GRIEF = 1.75;
+/** A Med Bay caring for someone's home multiplies their yearly chance of dying of old age by this. */
+const MEDBAY_AGEING = 0.5;
+
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const def = (b: Building): BuildingDef => DEFS[b.kind];
 const bodyR = (b: Building) => def(b).clearance / 2;
@@ -81,6 +86,14 @@ export class People {
   /** Last cause of a loss: decides the game-over reason. */
   private lastLoss: 'cryo' | 'people' = 'cryo';
   private food = { made: 0, eaten: 0 };
+  /** Comfort from buildings with an aura (Med Bays, Memorials), refreshed every second. */
+  private auras: { b: Building; r: number; v: number; label: string; med: boolean }[] = [];
+  /** Memorials standing (grief fades faster). */
+  private memorials = 0;
+  /** Injured colonists a Med Bay has stabilised this second (their clock stops). */
+  private stable = new Set<number>();
+  /** Med Bay id → seconds towards bringing the next injured person in. */
+  private treat = new Map<number, number>();
 
   constructor(private sim: Sim) {}
 
@@ -165,7 +178,7 @@ export class People {
     for (const c of this.s.colonists) {
       if (!ids.includes(c.id) || c.at !== AT_RIDE) continue;
       c.at = b.id; c.x = b.x; c.z = b.z; c.ride = undefined; c.down = undefined; c.goal = -1; c.path = undefined;
-      c.hp = Math.max(c.hp, P.colonistHp * 0.5);
+      c.hp = Math.max(c.hp, def(b)?.role === 'medbay' ? this.maxHp(c) : P.colonistHp * 0.5);
       c.stance = clamp(c.stance + 4, 0, 100);
       n++;
     }
@@ -182,6 +195,40 @@ export class People {
   }
 
   colonist(id: number) { return this.s.colonists.find((c) => c.id === id); }
+  private maxHp(c: Colonist) { return P.colonistHp * (c.traits.includes('frail') ? 0.6 : 1); }
+
+  // ---------- Med Bays and Memorials ----------
+  /** Once a second: comfort auras, and each powered Med Bay stabilises and brings in the injured in its Range. */
+  private care(dt: number) {
+    this.auras = []; this.memorials = 0; this.stable.clear();
+    const down = this.injured();
+    for (const b of this.sim.s.buildings) {
+      const d = def(b);
+      if (!d || b.progress < 1 || !b.powered) continue;
+      if (d.role === 'memorial') this.memorials++;
+      if (d.aura && d.range) this.auras.push({ b, r: d.range, v: d.aura, med: d.role === 'medbay', label: d.role === 'medbay' ? 'Medical care' : d.role === 'memorial' ? 'Memorial' : d.name });
+      if (d.role !== 'medbay' || !d.range) continue;
+      const near = down.filter((c) => !this.stable.has(c.id) && Math.hypot(c.x - b.x, c.z - b.z) <= d.range!);
+      if (!near.length) { this.treat.delete(b.id); continue; }
+      for (const c of near) this.stable.add(c.id);
+      let t = (this.treat.get(b.id) ?? 0) + dt * this.mult(b);
+      if (t >= (d.treatSeconds ?? 8)) {
+        t = 0;
+        const c = near.sort((x, y) => (x.down ?? 0) - (y.down ?? 0))[0]; // the worst off first
+        c.at = b.id; c.x = b.x; c.z = b.z; c.down = undefined; c.goal = -1; c.path = undefined;
+        c.hp = this.maxHp(c);
+        c.stance = clamp(c.stance + 3, 0, 100);
+        this.stable.delete(c.id);
+        this.emit(`${d.name}: ${c.name} was brought in on a stretcher`, 'info', 'online');
+      }
+      this.treat.set(b.id, t);
+    }
+  }
+
+  /** Is this spot within the care of a powered Med Bay? */
+  private medCare(p: { x: number; z: number }) {
+    return this.auras.some((a) => a.med && Math.hypot(a.b.x - p.x, a.b.z - p.z) <= a.r);
+  }
 
   /** Biomass storage. */
   storage() {
@@ -344,7 +391,7 @@ export class People {
         continue;
       }
       if (c.down !== undefined) {
-        c.down -= 1 / TICK_HZ;
+        if (!this.stable.has(c.id)) c.down -= 1 / TICK_HZ;
         if (c.down <= 0) this.kill(c, 'died of their injuries before help came');
         continue;
       }
@@ -355,6 +402,7 @@ export class People {
       this.housing();
       if (sim.tick % (TICK_HZ * 5) === 0) this.jobs();
       this.alert = this.underAttack();
+      this.care(dt);
       for (const c of s.colonists) this.decide(c);
       this.mood(dt);
       this.staffing();
@@ -419,7 +467,7 @@ export class People {
         const was = p.dark;
         p.dark += DT;
         if (was < 5 && p.dark >= 5) this.emit(`Growth pod failing: ${b.powered ? 'no biomass' : 'no power'}`, 'bad', 'alarm');
-        const grace = P.podGrace * (this.hasMedic(b) ? 1.5 : 1);
+        const grace = P.podGrace * (this.hasMedic(b) || this.medCare(b) ? 1.5 : 1);
         if (p.dark >= grace) {
           s.pods.splice(s.pods.indexOf(p), 1);
           this.memorialise(`Unnamed (${lineName(p.lineage)} line)`, p.lineage, 0, 'growth pod failed');
@@ -674,7 +722,13 @@ export class People {
       add('Grief', -s.grief * hard);
       add('Fear', -s.fear * hard);
       if (c.traits.includes('optimist')) add('Optimist', 8);
-      if (home && this.hasMedic(home)) add('Medical care', 5);
+      if (home) {
+        // comfort from what's near home: a medic in the house, a Med Bay or a Memorial in reach (the best of each kind)
+        const best = new Map<string, number>();
+        if (this.hasMedic(home)) best.set('Medical care', 5);
+        for (const a of this.auras) if (Math.hypot(a.b.x - home.x, a.b.z - home.z) <= a.r) best.set(a.label, Math.max(best.get(a.label) ?? 0, a.v));
+        for (const [k, v] of best) add(k, v);
+      }
       if (c.partner >= 0) add('Partner', 5);
       if (s.surge > 0) add('Breakthrough', 6);
       if (c.hp < P.colonistHp * 0.5) add('Injured', -10);
@@ -700,7 +754,7 @@ export class People {
       if (adult && !c.strike && c.wb < P.strikeBelow) { c.strike = true; c.job = -1; }
       else if (c.strike && c.wb > P.strikeBelow + 10) c.strike = false;
     }
-    s.grief *= Math.exp(-2 * dt / SOL);
+    s.grief *= Math.exp(-2 * (this.memorials ? MEMORIAL_GRIEF : 1) * dt / SOL);
     s.fear = this.alert ? 12 : s.fear * Math.exp(-dt / SOL * 12);
     const striking = s.colonists.filter((c) => c.strike).length;
     // announce a strike when it starts and when it has grown by half again; and when it ends
@@ -725,9 +779,11 @@ export class People {
     }
     for (const c of [...s.colonists]) {
       const age = this.age(c);
-      if (s.hungry <= 0 && c.down === undefined) c.hp = Math.min(P.colonistHp * (c.traits.includes('frail') ? 0.6 : 1), c.hp + 2 * dt);
+      if (s.hungry <= 0 && c.down === undefined) c.hp = Math.min(this.maxHp(c), c.hp + 2 * dt);
       const old = P.lifespan - 10 - (c.traits.includes('frail') ? 15 : 0);
-      if (age > old && this.sim.rnd() < ((age - old) / 20) * per) { this.kill(c, 'old age'); continue; }
+      // a Med Bay looking after their home halves the yearly chance
+      const home = this.building(c.home), cared = !!home && this.medCare(home);
+      if (age > old && this.sim.rnd() < ((age - old) / 20) * per * (cared ? MEDBAY_AGEING : 1)) { this.kill(c, 'old age'); continue; }
       // children come of age
       if (!c.specialty && age >= P.adultAge) {
         c.specialty = this.neededSpecialty();
@@ -893,7 +949,7 @@ export class People {
     const roster: ColonistSnap[] = s.colonists.map((c) => {
       const g = this.building(c.goal), at = this.building(c.at);
       const doing = c.at === AT_RIDE ? 'Aboard a Medevac'
-        : c.down !== undefined ? `Injured: needs a Medevac (${Math.ceil(c.down)} s)`
+        : c.down !== undefined ? (this.stable.has(c.id) ? `Injured: stabilised, a Med Bay crew is coming (${Math.ceil(c.down)} s)` : `Injured: needs a Medevac (${Math.ceil(c.down)} s)`)
         : c.strike && c.at >= 0 ? `On strike at ${at ? def(at).name : 'home'}`
         : c.at < 0 ? (this.alert ? `Running for shelter${g ? ` (${def(g).name})` : ''}` : `Walking to ${g ? (g.id === c.home ? 'home' : def(g).name) : '…'}`)
         : this.alert ? `Sheltering in ${at ? def(at).name : '…'}`
@@ -923,6 +979,11 @@ export class People {
       memorial: s.memorial.slice(-40).reverse().map((m) => ({ ...m, lineage: lineName(m.lineage) })),
       bank: s.bank.map((n, l) => ({ name: lineName(l), embryos: n, living: living[l] })),
       walkers,
+      care: [...this.treat].map(([b, t]) => {
+        const bb = this.building(b), d = bb && def(bb);
+        const waiting = bb && d?.range ? this.injured().filter((c) => Math.hypot(c.x - bb.x, c.z - bb.z) <= d.range!).length : 0;
+        return { b, progress: Math.min(1, t / (d?.treatSeconds ?? 8)), waiting };
+      }),
       stats: { grown: s.grown, births: s.births, deaths: s.memorial.filter((m) => !m.cause.startsWith('left')).length, departed: s.departed },
     };
   }

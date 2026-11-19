@@ -418,6 +418,9 @@ How content is stored and edited in general (one JSON record per file, schemas i
   floating ring `ring` turns while the dome is up, collar and crystal core are `charge`), Seed Bank (1,122; sprinkler
   rotor `ring`, seed racks `charge`), Aegis Crawler (1,056), Medevac (1,232). A `charge` part with two materials comes
   out of the glTF as a group of meshes, so the glow code walks each `charge` node's meshes.
+- **Blender set v11 (2026-11-19, v0.38.0):** Med Bay (788 tris; beacon `charge` flashes while its stretcher crews
+  are out, a red cross on the roof for the top-down view) and Memorial (1,356; flame `charge` flickers and sways). Built-in
+  twins `buildMedBay`, `buildMemorial` in `src/world/batchc-models.ts`.
 
 - **Glow, ground shadows, printed construction (v0.32.0):**
   - **Glow** (`src/world/post.ts`): with glow on, the scene renders into a HalfFloat target, then `UnrealBloomPass`
@@ -1032,4 +1035,28 @@ Test: `tools/batch-c-smoke.mjs`.
   - a Biosphere Report goes out as the sol ends (flag set); the top bar shows 🌍;
   - the three people in a fallen Civilian Center lie injured (and are drawn so); a Medevac brings all three in
     to the Habitat Block; with no Medevac the injured die when their time runs out.
+
+### Med Bay and Memorial (v0.38.0)
+
+From `docs/ROSTER.md` (buildings: Med Bay, Memorial). Code: `People.care` in `src/sim/people.ts`, the Medevac's choice of
+destination in `stepMedevac` (`src/sim/core.ts`), cards in `src/colony-hud.ts`. Test: `tools/medbay-smoke.mjs` (headless).
+
+- **New building fields:** `aura` (Comfort: wellbeing for colonists whose home is within Range, while the building
+  stands and is powered; the best of each kind counts, two of a kind don't add up) and `treatSeconds` (Med Bays).
+- **Med Bay** (role `medbay`, 100◆, 380 hp, −1 MW, range 36, treatment 8 s, comfort 6, staff 2 medics). Once a second
+  (`care`), each powered Med Bay **stabilises** everyone lying injured within its Range (their clock stops: the
+  `stable` set, checked in `step`) and moves its stretcher on by 1 s × its staffing multiplier; at `treatSeconds` the
+  worst off is brought in (indoors there, full hit points, +3 acceptance, a log line). Two Med Bays over the same
+  person don't double up. Homes in its Range get *Medical care* (+6, the same reason as a medic in the house) and their
+  people's yearly chance of dying of old age is halved (`MEDBAY_AGEING`); growth pods in its Range get the medic's
+  ×1.5 grace. A **Medevac** with riders now takes them to the nearest finished home, Core or powered Med Bay, counting a
+  Med Bay's distance at 0.6× (so it prefers one that isn't much further); admitted at a Med Bay they're fully healed.
+  Power rank with the homes. Snapshot: `people.care` (Med Bay id, stretcher progress, how many wait); the roster says
+  "Injured: stabilised, a Med Bay crew is coming".
+- **Memorial** (role `memorial`, 60◆, 600 hp, no power, range 44, comfort 4). Homes in its Range get *Memorial* (+4).
+  While any stands, grief fades 1.75× faster (`MEMORIAL_GRIEF`). Its card lists the dead (latest eight from the
+  memorial log: name, age, cause; the Colony panel has the rest).
+- Test checks: four people from a fallen Habitat Block are stabilised in Range and all brought in alive, one log line
+  each; out of Range they die as before; switched off it does nothing; a Medevac takes its riders to the Med Bay over a
+  nearer home, fully treated; comfort reasons in and out of Range; grief fades faster with a Memorial.
 

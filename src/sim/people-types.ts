@@ -191,6 +191,8 @@ export interface PeopleSnap {
   bank: { name: string; embryos: number; living: number }[];
   /** Outdoor colonists to draw: id, x, z, heading, bloc (0 partner, 1 autonomist, 2 devoted), flags (1 child, 2 lying injured). */
   walkers: Float32Array;
+  /** Each powered Med Bay with injured people in its Range: how far along the next stretcher is (0..1) and how many wait. */
+  care: { b: number; progress: number; waiting: number }[];
   stats: { grown: number; births: number; deaths: number; departed: number };
 }
 

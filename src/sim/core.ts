@@ -514,7 +514,7 @@ export class Sim {
       if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
-        const rank = d.fireRange || d.role === 'shield' ? 0 : d.role === 'civic' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' || d.role === 'seedbank' ? 2 : 3;
+        const rank = d.fireRange || d.role === 'shield' ? 0 : d.role === 'civic' || d.role === 'medbay' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' || d.role === 'seedbank' ? 2 : 3;
         const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
         loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw(), rank, battery: d.role !== 'depot' });
       } else b.powered = true;
@@ -1255,12 +1255,13 @@ export class Sim {
       }
       if (want) this.goTo(u, want.x, want.z, d.speed);
       else if (pax.length) {
-        // in to the nearest finished home, or the Core
-        let home: Building | null = null, hd = Infinity;
+        // in to the nearest finished home, Med Bay (preferred: they're fully treated there) or the Core
+        let home: Building | null = null, hd = Infinity, best = Infinity;
         for (const b of this.s.buildings) {
-          if (b.progress < 1 || !(b.kind === 'core' || (def(b).housing ?? 0) > 0)) continue;
-          const dist = Math.hypot(b.x - u.x, b.z - u.z);
-          if (dist < hd) { hd = dist; home = b; }
+          const med = def(b)?.role === 'medbay' && b.powered;
+          if (b.progress < 1 || !(b.kind === 'core' || med || (def(b).housing ?? 0) > 0)) continue;
+          const dist = Math.hypot(b.x - u.x, b.z - u.z), score = med ? dist * 0.6 : dist;
+          if (score < best) { best = score; hd = dist; home = b; }
         }
         if (home && hd <= bodyR(home) + d.radius + 3) {
           const n = P.admit(pax, home);

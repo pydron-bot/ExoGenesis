@@ -110,11 +110,15 @@ BUILTINS.push(
 
 
 // Roster batch C (v0.37): built-in looks (zoomed out, and while the Blender files load)
-import { buildSeedBank, buildShieldProjector } from '../world/batchc-models';
+import { buildMedBay, buildMemorial, buildSeedBank, buildShieldProjector } from '../world/batchc-models';
 BUILTINS.push(
   ...([['shield', 'Shield Projector', buildShieldProjector], ['seedbank', 'Seed Bank', buildSeedBank]] as const).map(([id, name, build]): Builtin => ({
     id, name, group: 'Buildings', where: 'src/world/batchc-models.ts', usedBy: { coll: 'buildings', id }, swappable: true,
     note: id === 'shield' ? 'Its `ring` turns while the dome is up; `charge` parts glow with the charge.' : 'Its `ring` turns while it restores land; `charge` parts glow.', build,
+  })),
+  ...([['medbay', 'Med Bay', buildMedBay], ['memorial', 'Memorial', buildMemorial]] as const).map(([id, name, build]): Builtin => ({
+    id, name, group: 'Buildings', where: 'src/world/batchc-models.ts', usedBy: { coll: 'buildings', id }, swappable: true,
+    note: id === 'medbay' ? 'Its `charge` beacon flashes while stretcher crews are out.' : 'Its `charge` flame flickers.', build,
   })),
   ...([['aegis', 'Aegis Crawler'], ['medevac', 'Medevac']] as const).map(([id, name]): Builtin => ({
     id, name, group: 'Units', where: `src/skirmish/models.ts BUILTIN_UNITS.${id}`, usedBy: { coll: 'units', id }, swappable: true,
