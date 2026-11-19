@@ -1,6 +1,7 @@
 /**
- * Options: graphics toggles in a panel, opened from OPTIONS on the title screen or ⚙ Options in the
- * ⋯ menu. Each option is remembered by its owner (main.ts); this only draws the panel.
+ * Options: toggles in a panel, opened from OPTIONS on the title screen or ⚙ Options in the ⋯ menu.
+ * Rows come in sections (the title screen adds Region and Sound above Graphics). Each option is
+ * remembered by its owner (main.ts); this only draws the panel.
  */
 
 export interface Toggle {
@@ -12,6 +13,10 @@ export interface Toggle {
   set(on: boolean): void;
   /** Why it can't be changed right now (e.g. turned off in the URL), or nothing. */
   locked?: () => string | null;
+  /** The heading it sits under; a new heading starts where it changes. Empty = Graphics. */
+  section?: string;
+  /** What the state box says instead of ON / OFF (e.g. a pick list's "HERE" and ""). */
+  state?: (on: boolean) => string;
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -22,10 +27,10 @@ export function openOptions(toggles: Toggle[], tap?: () => void, onClose?: () =>
   el.id = 'options';
   el.innerHTML = `
     <div class="op-panel" role="dialog" aria-label="Options">
-      <div class="op-head"><b>OPTIONS</b><span>Graphics</span><button class="op-x" aria-label="Close">✕</button></div>
-      <div class="op-list">${toggles.map((t) => `
+      <div class="op-head"><b>OPTIONS</b><button class="op-x" aria-label="Close">✕</button></div>
+      <div class="op-list">${toggles.map((t, i) => `${(t.section ?? 'Graphics') !== (toggles[i - 1]?.section ?? (i ? 'Graphics' : '')) ? `<div class="op-sec">${esc(t.section ?? 'Graphics')}</div>` : ''}
         <button class="op-row" data-id="${esc(t.id)}" role="switch">
-          <span class="op-text"><b>${esc(t.label)}</b><small>${esc(t.help)}</small></span>
+          <span class="op-text"><b>${esc(t.label)}</b>${t.help ? `<small>${esc(t.help)}</small>` : ''}</span>
           <span class="op-state"></span>
         </button>`).join('')}
       </div>
@@ -38,7 +43,9 @@ export function openOptions(toggles: Toggle[], tap?: () => void, onClose?: () =>
       row.disabled = !!lock;
       row.setAttribute('aria-checked', String(on));
       row.classList.toggle('on', on);
-      row.querySelector('.op-state')!.textContent = lock ?? (on ? 'ON' : 'OFF');
+      const st = row.querySelector<HTMLElement>('.op-state')!;
+      st.textContent = lock ?? (t.state ? t.state(on) : on ? 'ON' : 'OFF');
+      st.hidden = !st.textContent;
     }
   };
   for (const t of toggles) {

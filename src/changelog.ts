@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.40.1',
+    date: '2026-11-19',
+    title: 'A tidier title screen',
+    notes: [
+      'Region and Sound have moved into Options on the title screen. Regions are now a list: tap the one you want to land in',
+    ],
+  },
+  {
     version: '0.40.0',
     date: '2026-11-19',
     title: 'Worlds up close',

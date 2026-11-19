@@ -136,14 +136,18 @@ fs.writeFileSync(tmp, JSON.stringify({ ...moved, name: 'Smoke Test Basin' }, nul
 try {
   await page.waitForTimeout(2500);
   await page.goto(`${url}?region=zz-smoke`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await page.waitForFunction(() => document.body.innerText.includes('REGION'), null, { timeout: 120000 });
+  await page.waitForFunction(() => document.body.innerText.includes('OPTIONS'), null, { timeout: 120000 });
   const t = await page.evaluate(() => document.body.innerText);
   check(/Your colony in Touchdown/i.test(t), 'title offers CONTINUE into the other region\'s colony');
   check(/Land in Smoke Test Basin/i.test(t), 'NEW GAME names the region it lands in');
-  check(/Smoke Test Basin · tap for the next one/i.test(t), 'title has a REGION choice');
-  await page.getByText('REGION', { exact: true }).click();
+  check(!/\bREGION\b|\bSOUND\b/.test(t), 'region and sound are not on the title screen itself');
+  await page.getByText('OPTIONS', { exact: true }).click();
+  await page.waitForSelector('#options');
+  const op = await page.evaluate(() => document.getElementById('options').innerText);
+  check(/Region/i.test(op) && /Sound/.test(op) && /Smoke Test Basin\s*HERE/i.test(op), 'Options lists the regions (this one HERE) and the sound');
+  await page.click('#options [data-id="region:touchdown"]');
   await page.waitForURL((u) => !u.searchParams.get('region'), { timeout: 20000 });
-  check(true, 'REGION cycles to the next region (back to Touchdown)');
+  check(true, 'picking a region in Options goes there (back to Touchdown)');
 } finally {
   fs.rmSync(tmp, { force: true });
 }

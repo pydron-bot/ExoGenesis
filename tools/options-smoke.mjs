@@ -27,11 +27,17 @@ async function run(viewport, name, mobile = false) {
   await page.waitForSelector('#options .op-row');
   const state = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#options .op-row')].map((r) => [r.dataset.id, r.getAttribute('aria-checked') === 'true'])));
   const live = () => page.evaluate(() => ({ glow: __exo.post.enabled, print: __exo.region.printing, water: __exo.region.waterDetail }));
-  const s0 = await state();
-  check(Object.keys(s0).join() === 'glow,shadows,print,water,lights', `${name}: five toggles (${Object.keys(s0).join()})`);
+  const all = await state();
+  const ids = Object.keys(all), regionIds = ids.filter((k) => k.startsWith('region:'));
+  check(ids.slice(-5).join() === 'glow,shadows,print,water,lights', `${name}: five graphics toggles (${ids.slice(-5).join()})`);
+  check(ids[0] === 'sound' && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, sound and the regions first (${regionIds.length} regions, Touchdown picked)`);
+  // the graphics toggles flip and are remembered (sound and the region list have their own checks)
+  const G = ['glow', 'shadows', 'print', 'water', 'lights'];
+  const pick = (o) => Object.fromEntries(G.map((k) => [k, o[k]]));
+  const s0 = pick(all);
   if (shots) await page.screenshot({ path: `${shots}/${name}-options.png` });
   for (const id of Object.keys(s0)) await page.click(`#options [data-id="${id}"]`);
-  const s1 = await state();
+  const s1 = pick(await state());
   check(Object.keys(s0).every((k) => s1[k] === !s0[k]), `${name}: each toggle flips (${JSON.stringify(s0)} → ${JSON.stringify(s1)})`);
   const l1 = await live();
   check(l1.glow === s1.glow && l1.print === s1.print && l1.water === s1.water, `${name}: the game follows (glow ${l1.glow}, print ${l1.print}, water ${l1.water})`);
@@ -40,7 +46,7 @@ async function run(viewport, name, mobile = false) {
   await open();
   await page.click('#title [data-id="options"]');
   await page.waitForSelector('#options .op-row');
-  const s2 = await state();
+  const s2 = pick(await state());
   check(JSON.stringify(s2) === JSON.stringify(s1), `${name}: remembered after a reload`);
   // put them back
   for (const id of Object.keys(s0)) if (s2[id] !== s0[id]) await page.click(`#options [data-id="${id}"]`);

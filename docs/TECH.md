@@ -1118,3 +1118,11 @@ and the editor's Worlds preview. The body being played is unchanged (its globe h
 - **Clouds**: a body with `clouds` that isn't the one being played (Verdance; Home when playing elsewhere) gets a lit,
   drifting cloud shell (`cloudShell`).
 - Checked with full-disk and close-up renders of all 22 bodies (no shader errors), the title tour and the system view.
+
+### Title screen: Region and Sound in Options (v0.40.1)
+
+The title's REGION and SOUND choices moved into Options (`openOptions` takes extra rows from the title: `Toggle` gained
+`section`, a heading where it changes, and `state`, the text in place of ON / OFF). Sound is a toggle; each region is a
+row (HERE on the current one) that reloads into it (`goRegion`). The in-game ⋯ Options stays graphics only. Tests:
+`tools/region-smoke.mjs` (pick a region in Options), `tools/options-smoke.mjs` (sound and regions first, graphics last).
+

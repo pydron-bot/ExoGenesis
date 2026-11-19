@@ -821,7 +821,7 @@ const graphicsToggles: Toggle[] = [
     locked: () => (!lights ? 'Off in URL' : null),
   },
 ];
-const showOptions = (onClose?: () => void) => openOptions(graphicsToggles, () => audio.play('tap'), onClose);
+const showOptions = (onClose?: () => void, extra: Toggle[] = []) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
 $('b-options').onclick = () => showOptions();
 // a soft tick for HUD buttons
 hudEl.addEventListener('pointerdown', (e) => { if ((e.target as Element).closest?.('button')) audio.play('tap'); });
@@ -842,7 +842,18 @@ function showTitle() {
   // Touchdown first, then the rest by name
   const regions = Object.keys(content.regions).sort((a, b) => (a === 'touchdown' ? -1 : b === 'touchdown' ? 1 : regionLabel(a).localeCompare(regionLabel(b))));
   const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
-  const soundSub = () => (audio.disabled ? 'Off (turned off in the URL)' : audio.on ? 'On · tap to mute' : 'Muted · tap to turn on');
+  // the title screen's Options also holds where to land and the sound
+  const titleOptions: Toggle[] = [
+    {
+      id: 'sound', section: 'Sound', label: 'Sound', help: 'Music, alarms and effects',
+      get: () => audio.on && !audio.disabled, set: (on) => { audio.setOn(on); syncSound(); },
+      locked: () => (audio.disabled ? 'OFF (URL)' : null),
+    },
+    ...(regions.length > 1 ? regions.map((id): Toggle => ({
+      id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: '',
+      get: () => id === regionId, set: () => { if (id !== regionId) goRegion(id); }, state: (on) => (on ? 'HERE' : ''),
+    })) : []),
+  ];
   const choices = [
     ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
     ...(elsewhere ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony in ${regionLabel(savedRegion)} · ${solTime(elsewhere.sim.tick)}`, run: () => goRegion(savedRegion) }] : []),
@@ -851,16 +862,8 @@ function showTitle() {
       ...(autosaved && !scratch ? { confirm: `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` } : {}),
       run: go(startLanding),
     },
-    ...(regions.length > 1 ? [{
-      id: 'region', label: 'REGION', sub: `${regionDef.name} · tap for the next one`,
-      run: () => goRegion(regions[(regions.indexOf(regionId) + 1) % regions.length]),
-    }] : []),
     { id: 'skirmish', label: 'SKIRMISH', sub: 'Hundreds of units, one battlefield (prototype)', run: () => $('b-skirmish').click() },
-    {
-      id: 'sound', label: 'SOUND', sub: soundSub(),
-      run: () => { if (!audio.disabled) { audio.setOn(!audio.on); syncSound(); } title?.setSub('sound', soundSub()); },
-    },
-    { id: 'options', label: 'OPTIONS', sub: 'Glow, shadows, printed construction, lights', run: () => showOptions() },
+    { id: 'options', label: 'OPTIONS', sub: regions.length > 1 ? 'Region, sound and graphics' : 'Sound and graphics', run: () => showOptions(undefined, titleOptions) },
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
   ];
   title = new TitleScreen(cam, camera, {
