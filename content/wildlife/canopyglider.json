@@ -1,0 +1,16 @@
+{
+  "name": "Canopy glider",
+  "body": "ray",
+  "behavior": "flyer",
+  "size": 1.4,
+  "sizeMax": 2.2,
+  "speed": 4.5,
+  "run": 8,
+  "flee": 14,
+  "spread": 30,
+  "height": 14,
+  "herdScale": 0.35,
+  "color": "#b8d04a",
+  "accent": "#4a5a1a",
+  "glow": "#fff38a"
+}

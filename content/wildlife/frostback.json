@@ -1,0 +1,15 @@
+{
+  "name": "Frostback",
+  "body": "shell",
+  "behavior": "lumber",
+  "size": 2,
+  "sizeMax": 2.8,
+  "speed": 1,
+  "run": 1.6,
+  "flee": 10,
+  "spread": 26,
+  "herdScale": 0.35,
+  "color": "#d8e4ec",
+  "accent": "#6a7a8a",
+  "glow": "#8ad8ff"
+}

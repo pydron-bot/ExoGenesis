@@ -1,0 +1,85 @@
+{
+  "name": "Arid",
+  "description": "Dry ground: barrel succulents, thorn scrub, dry grass and lichen in ochre and rust. Burrowers and long-legged striders.",
+  "plants": [
+    {
+      "plant": "barrel",
+      "amount": 1.2
+    },
+    {
+      "plant": "thorn",
+      "amount": 1.2
+    },
+    {
+      "plant": "crystal",
+      "chance": 0.7
+    },
+    {
+      "plant": "lichen",
+      "chance": 0.7
+    },
+    {
+      "plant": "reeds",
+      "chance": 0.6,
+      "amount": 0.7
+    },
+    {
+      "plant": "bulbs",
+      "chance": 0.35,
+      "amount": 0.6
+    }
+  ],
+  "extra": 1,
+  "density": 0.6,
+  "wind": 1.4,
+  "stems": [
+    {
+      "color": "#5d4828"
+    },
+    {
+      "color": "#534e28"
+    },
+    {
+      "color": "#4f2f22"
+    },
+    {
+      "color": "#424927"
+    },
+    {
+      "color": "#604c39"
+    }
+  ],
+  "glows": [
+    {
+      "color": "#f08b42"
+    },
+    {
+      "color": "#f042aa"
+    },
+    {
+      "color": "#f0ca42"
+    }
+  ],
+  "glow": 0.7,
+  "wildlife": [
+    {
+      "species": "duststrider",
+      "weight": 2
+    },
+    {
+      "species": "sandskipper",
+      "weight": 1.2
+    },
+    {
+      "species": "dunecrawler"
+    },
+    {
+      "species": "shellback",
+      "weight": 0.7
+    },
+    {
+      "species": "sandsnake",
+      "weight": 0.5
+    }
+  ]
+}

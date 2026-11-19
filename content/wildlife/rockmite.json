@@ -1,0 +1,15 @@
+{
+  "name": "Rock mite",
+  "body": "crawler",
+  "behavior": "burrow",
+  "size": 0.4,
+  "sizeMax": 0.55,
+  "speed": 1.5,
+  "run": 4,
+  "flee": 14,
+  "spread": 14,
+  "herdScale": 1.5,
+  "color": "#7a7670",
+  "accent": "#3a3836",
+  "glow": "#d8f0ff"
+}

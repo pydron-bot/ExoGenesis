@@ -1,0 +1,15 @@
+{
+  "name": "Dunecrawler",
+  "body": "crawler",
+  "behavior": "burrow",
+  "size": 0.8,
+  "sizeMax": 1.15,
+  "speed": 1.2,
+  "run": 3,
+  "flee": 16,
+  "spread": 16,
+  "herdScale": 0.6,
+  "color": "#a0703a",
+  "accent": "#4a3018",
+  "glow": "#ff9a4a"
+}

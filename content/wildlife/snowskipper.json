@@ -1,0 +1,15 @@
+{
+  "name": "Snowskipper",
+  "body": "hopper",
+  "behavior": "skittish",
+  "size": 0.5,
+  "sizeMax": 0.7,
+  "speed": 3,
+  "run": 11,
+  "flee": 24,
+  "spread": 16,
+  "herdScale": 1.2,
+  "color": "#eef4f8",
+  "accent": "#8a9aaa",
+  "glow": "#9ff6ff"
+}

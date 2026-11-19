@@ -1,0 +1,81 @@
+{
+  "name": "Frozen",
+  "description": "Frost ferns, ice prisms and lichen in pale blues; shaggy plodders and wings over the ice.",
+  "plants": [
+    {
+      "plant": "crystal",
+      "amount": 1.3
+    },
+    {
+      "plant": "lichen",
+      "amount": 1.2
+    },
+    {
+      "plant": "fan",
+      "chance": 0.8,
+      "amount": 0.8
+    },
+    {
+      "plant": "spire",
+      "chance": 0.5,
+      "amount": 0.7
+    },
+    {
+      "plant": "bulbs",
+      "chance": 0.5,
+      "amount": 0.7
+    }
+  ],
+  "extra": 1,
+  "density": 0.7,
+  "wind": 0.5,
+  "size": 0.85,
+  "stems": [
+    {
+      "color": "#4b788b"
+    },
+    {
+      "color": "#5c7499"
+    },
+    {
+      "color": "#478585"
+    },
+    {
+      "color": "#6a5c8a"
+    },
+    {
+      "color": "#7b8d9d"
+    }
+  ],
+  "glows": [
+    {
+      "color": "#5ff2f2"
+    },
+    {
+      "color": "#5fabf2"
+    },
+    {
+      "color": "#5f88f2"
+    },
+    {
+      "color": "#c35ff2"
+    }
+  ],
+  "glow": 1.2,
+  "wildlife": [
+    {
+      "species": "frostback",
+      "weight": 1.5
+    },
+    {
+      "species": "snowskipper",
+      "weight": 1.2
+    },
+    {
+      "species": "rimewing"
+    },
+    {
+      "species": "icecrawler"
+    }
+  ]
+}

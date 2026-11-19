@@ -9,6 +9,7 @@
   "relief": 60,
   "feature": 2.2,
   "seed": 51,
+  "biome": "arid",
   "ground": [
     {
       "color": "#7a4a33"

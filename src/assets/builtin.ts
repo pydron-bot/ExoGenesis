@@ -4,8 +4,9 @@
  * Editor only.
  */
 import * as THREE from 'three';
-import { buildBattery, buildCannon, buildCore, buildCreature, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPointDefense, buildRadar, buildBay, buildCivic, buildFarm, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
+import { buildBattery, buildCannon, buildCore, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPointDefense, buildRadar, buildBay, buildCivic, buildFarm, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
+import { BODY_PLAN_NAMES, buildCreatureLook, creatureMaterial } from '../world/fauna-models';
 import { STANDINS } from '../world/inhabitant-models';
 import { BUILTIN_UNITS, creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from '../skirmish/models';
 
@@ -71,10 +72,11 @@ export const BUILTINS: Builtin[] = [
     id, name: id[0].toUpperCase() + id.slice(1), group: 'Fauna', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
     build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material()),
   })),
-  {
-    id: 'grazer', name: 'Grazer', group: 'Fauna', where: 'src/world/region.ts buildCreature()', swappable: false, note: 'Not a content record yet.',
-    build: () => new THREE.Mesh(buildCreature(), new THREE.MeshStandardMaterial({ color: '#c78a5a', roughness: 0.8, flatShading: true, emissive: '#3a1a10', emissiveIntensity: 0.4 })),
-  },
+  ...BODY_PLAN_NAMES.map((body): Builtin => ({
+    id: `wild-${body}`, name: `Wildlife: ${body}`, group: 'Wildlife', where: 'src/world/fauna-models.ts PLANS', swappable: false,
+    note: 'A body plan for Nature → Wildlife species, shown in neutral colours; each species bakes in its own.',
+    build: () => new THREE.Mesh(buildCreatureLook({ body, color: '#b89a7a', accent: '#5a4a3a', glow: '#9ff6ff' }), creatureMaterial()),
+  })),
   ...([
     ['vell', 'Vell walker'], ['vellkeeper', 'Vell song-keeper'], ['vellhut', 'Vell stilt hut'], ['vellstones', 'Vell fire circle'],
     ['cantor', 'Choir cantor'], ['tender', 'Choir tender'], ['pylon', 'Choir pylon'],

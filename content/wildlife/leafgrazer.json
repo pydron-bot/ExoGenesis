@@ -1,0 +1,12 @@
+{
+  "name": "Leafgrazer",
+  "body": "hexapod",
+  "behavior": "herd",
+  "size": 1.1,
+  "sizeMax": 1.6,
+  "speed": 2,
+  "run": 7,
+  "color": "#7a9a4a",
+  "accent": "#3a4a22",
+  "glow": "#e8ff7a"
+}

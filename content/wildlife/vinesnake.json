@@ -1,0 +1,14 @@
+{
+  "name": "Vinesnake",
+  "body": "serpent",
+  "behavior": "herd",
+  "size": 1.2,
+  "sizeMax": 1.7,
+  "speed": 1.8,
+  "run": 6,
+  "flee": 12,
+  "spread": 18,
+  "herdScale": 0.4,
+  "color": "#3a6a4a",
+  "accent": "#c0d870"
+}

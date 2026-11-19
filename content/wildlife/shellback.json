@@ -1,0 +1,14 @@
+{
+  "name": "Shellback",
+  "body": "shell",
+  "behavior": "lumber",
+  "size": 1.8,
+  "sizeMax": 2.6,
+  "speed": 0.9,
+  "run": 1.5,
+  "flee": 10,
+  "spread": 24,
+  "herdScale": 0.3,
+  "color": "#b08a5a",
+  "accent": "#5a3a20"
+}

@@ -9,6 +9,7 @@
   "relief": 45,
   "feature": 2.2,
   "seed": 42,
+  "biome": "barren",
   "ground": [
     {
       "color": "#3a3633"

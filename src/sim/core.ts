@@ -7,6 +7,7 @@
  * (src/sim/people.ts) → grazers.
  */
 import { content } from '../content';
+import { biomeOf, herdCount, herdSpecies, wildlifeIds } from '../content/nature';
 import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
@@ -53,6 +54,26 @@ const DT = 1 / TICK_HZ;
 const WALK = 2.2;
 const RUN = 7.5;
 const FLEE_R = 14;
+/** Wildlife species in snapshot order, and how each moves (content/wildlife, with defaults filled in). */
+const WILD_IDS = wildlifeIds(content);
+const WILD_INDEX = new Map(WILD_IDS.map((id, i) => [id, i]));
+interface WildMove { idx: number; behavior: string; speed: number; run: number; flee: number; spread: number }
+const WILD_MOVES = new Map<string, WildMove>();
+function wildMove(id: string | undefined): WildMove {
+  const key = id && content.wildlife[id] ? id : content.wildlife.grazer ? 'grazer' : WILD_IDS[0];
+  let w = WILD_MOVES.get(key);
+  if (!w) {
+    const d = content.wildlife[key];
+    w = { idx: WILD_INDEX.get(key) ?? 0, behavior: d?.behavior ?? 'herd', speed: d?.speed ?? WALK, run: d?.run ?? RUN, flee: d?.flee ?? FLEE_R, spread: d?.spread ?? 22 };
+    WILD_MOVES.set(key, w);
+  }
+  return w;
+}
+/** The species of each of the region's herds (its own, or picked from the biome). */
+const regionHerdSpecies = () => {
+  const biome = biomeOf(content, REGION);
+  return REGION.herds.map((hd, i) => herdSpecies(content, biome, hd, i, REGION.floraSeed ?? 1));
+};
 const CORE_KEEP_OUT = 24;
 /** How far from the centre things may go (read per use: the region's size is set per region). */
 const limit = () => REGION_HALF - 6;
@@ -220,12 +241,15 @@ export class Sim {
     s.buildings.push({ id: 1, kind: 'core', x: 0, z: 0, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
     s.drones.push({ id: s.nextId++, x: 0, z: -14, heading: Math.PI, hp: RULES.droneHp, task: { kind: 'idle' } });
     // herds come from the region map (content/regions/<id>.json)
+    const kinds = regionHerdSpecies();
     REGION.herds.forEach((hd, herd) => {
-      s.herds.push({ x: hd.x, z: hd.z });
-      for (let i = 0; i < hd.grazers; i++) {
+      const sp = kinds[herd];
+      s.herds.push({ x: hd.x, z: hd.z, sp });
+      const n = herdCount(hd.grazers, content.wildlife[sp]);
+      for (let i = 0; i < n; i++) {
         const x = clamp(hd.x + (this.rnd() - 0.5) * 30, -limit(), limit());
         const z = clamp(hd.z + (this.rnd() - 0.5) * 30, -limit(), limit());
-        s.fauna.push({ x, z, heading: this.rnd() * Math.PI * 2, tx: x, tz: z, herd });
+        s.fauna.push({ x, z, heading: this.rnd() * Math.PI * 2, tx: x, tz: z, herd, sp, ang: this.rnd() * Math.PI * 2 });
       }
     });
     this.slotsUsed = 0;
@@ -248,6 +272,9 @@ export class Sim {
     state.stats.unitsLost ??= 0;
     for (const b of state.buildings) if (b.queue) b.queue = b.queue.filter((k) => content.units[k]);
     for (const b of state.buildings) b.hp = Math.min(b.hp, DEFS[b.kind]?.hp ?? b.hp);
+    // wildlife from before species: each creature takes its herd's
+    const kinds = regionHerdSpecies();
+    for (const f of state.fauna) if (!f.sp || !content.wildlife[f.sp]) f.sp = state.herds[f.herd]?.sp && content.wildlife[state.herds[f.herd].sp!] ? state.herds[f.herd].sp : kinds[f.herd];
     this.s = state;
     this.people.load();
     this.inhabitants.load(REGION.camps ?? []);
@@ -1890,37 +1917,84 @@ export class Sim {
     if (panic) s.panic--;
     if (s.herds.length && this.rnd() < 0.004) {
       const h = Math.floor(this.rnd() * s.herds.length);
-      s.herds[h] = this.herdSpot(h);
+      s.herds[h] = { ...this.herdSpot(h), sp: s.herds[h].sp };
     }
     const scary = [...s.drones, ...this.units, ...s.hostiles.filter((h) => !h.under)];
-    // what's near each grazer, in list order (as a check against everything would go)
+    // what's near each creature, in list order (as a check against everything would go)
     const sb = this.scaryBuckets, found = this.found;
     sb.clear();
     scary.forEach((o, i) => sb.add(i, o.x, o.z));
     const blds = this.buildingBuckets(), seen = this.seen;
     for (const f of s.fauna) {
-      let tx = f.tx, tz = f.tz, sp = WALK;
+      const w = wildMove(f.sp);
+      const beh = w.behavior;
+      const c = s.herds[f.herd] ?? { x: f.x, z: f.z };
+      if (f.wait) f.wait--;
+      // the nearest threat: the landing's engine noise, or something within the species' wariness
+      let thx = 0, thz = 0, threat = false;
       const rc0 = Math.hypot(f.x, f.z);
-      let fled = false;
-      if (panic && rc0 < PANIC_R && rc0 > 1e-3) {
-        // engine noise: bolt away from the landing site
-        tx = f.x + (f.x / rc0) * 30; tz = f.z + (f.z / rc0) * 30; sp = RUN; fled = true;
-      } else if (this.deployed) {
-        sb.near(f.x, f.z, FLEE_R, found);
+      if (panic && rc0 < PANIC_R && rc0 > 1e-3) { thx = f.x / rc0; thz = f.z / rc0; threat = true; }
+      else if (this.deployed && w.flee > 0) {
+        sb.near(f.x, f.z, w.flee, found);
         found.sort((p, q) => p - q);
         for (const k of found) {
           const o = scary[k];
           const dx = f.x - o.x, dz = f.z - o.z, dd = Math.hypot(dx, dz);
-          if (dd < FLEE_R && dd > 1e-3) { tx = f.x + (dx / dd) * 20; tz = f.z + (dz / dd) * 20; sp = RUN; fled = true; break; }
+          if (dd < w.flee && dd > 1e-3) { thx = dx / dd; thz = dz / dd; threat = true; break; }
         }
       }
-      if (!fled && (Math.hypot(f.tx - f.x, f.tz - f.z) < 1.5 || this.rnd() < 0.003)) {
-        const c = s.herds[f.herd];
-        f.tx = clamp(c.x + (this.rnd() - 0.5) * 44, -limit(), limit());
-        f.tz = clamp(c.z + (this.rnd() - 0.5) * 44, -limit(), limit());
+      let tx = f.tx, tz = f.tz, sp = w.speed, turn = 2.5;
+      const hidden = f.st === 2;
+      f.st = 0;
+      const newTarget = (r: number) => {
+        f.tx = clamp(c.x + (this.rnd() - 0.5) * 2 * r, -limit(), limit());
+        f.tz = clamp(c.z + (this.rnd() - 0.5) * 2 * r, -limit(), limit());
         tx = f.tx; tz = f.tz;
+      };
+      if (beh === 'flyer') {
+        // circle the herd's ground; wider and faster when disturbed. Flyers pass over buildings.
+        const rad = w.spread * (threat ? 1.6 : 0.6) + (f.herd % 3) * 3;
+        sp = threat ? w.run : w.speed;
+        f.ang = ((f.ang ?? 0) + (sp / Math.max(4, rad)) * DT) % (Math.PI * 2);
+        tx = clamp(c.x + Math.cos(f.ang) * rad, -limit(), limit());
+        tz = clamp(c.z + Math.sin(f.ang) * rad, -limit(), limit());
+        if (threat) f.st = 1;
+        this.approach(f, tx, tz, sp, 1.6);
+        continue;
       }
-      // keep grazers out of the base
+      if (beh === 'burrow') {
+        // duck underground and wait it out
+        if (threat) { f.st = 2; f.wait = Math.round((3 + this.rnd() * 4) * TICK_HZ); continue; }
+        if (hidden && f.wait) { f.st = 2; continue; }
+      }
+      if (threat && beh === 'lumber' && !panic) {
+        // stand and stare
+        const want = Math.atan2(-thx, -thz);
+        let dh = want - f.heading;
+        dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+        f.heading += clamp(dh, -1.2 * DT, 1.2 * DT);
+        continue;
+      }
+      let fled = false;
+      if (threat) {
+        tx = f.x + thx * 20; tz = f.z + thz * 20; sp = w.run; fled = true; f.st = 1; f.wait = 0;
+        turn = 9;
+      } else if (beh === 'skittish') {
+        // dash, pause, dash
+        if (f.wait) continue;
+        if (Math.hypot(f.tx - f.x, f.tz - f.z) < 1) {
+          f.wait = Math.round((0.8 + this.rnd() * 3) * TICK_HZ);
+          const a = this.rnd() * Math.PI * 2, r = 3 + this.rnd() * 8;
+          let nx = f.x + Math.cos(a) * r, nz = f.z + Math.sin(a) * r;
+          // drift back toward the herd's centre when strayed
+          if (Math.hypot(nx - c.x, nz - c.z) > w.spread) { nx = (nx + c.x) / 2; nz = (nz + c.z) / 2; }
+          f.tx = clamp(nx, -limit(), limit()); f.tz = clamp(nz, -limit(), limit());
+          continue;
+        }
+        sp = w.run * 0.6; turn = 12;
+      }
+      if (!fled && beh !== 'skittish' && (Math.hypot(f.tx - f.x, f.tz - f.z) < 1.5 || this.rnd() < 0.003)) newTarget(w.spread);
+      // keep out of the base
       seen.clear();
       blds.near(f.x, f.z, CORE_KEEP_OUT, found, seen);
       found.sort((p, q) => p - q);
@@ -1930,7 +2004,7 @@ export class Sim {
         const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
         if (d < r && d > 1e-3) { tx = b.x + (dx / d) * (r + 8); tz = b.z + (dz / d) * (r + 8); }
       }
-      if (Math.hypot(tx - f.x, tz - f.z) > 0.4) this.approach(f, tx, tz, sp, sp > WALK ? 9 : 2.5);
+      if (Math.hypot(tx - f.x, tz - f.z) > 0.4) this.approach(f, tx, tz, sp, sp > w.speed * 1.5 ? Math.max(turn, 9) : turn);
       f.x = clamp(f.x, -limit(), limit());
       f.z = clamp(f.z, -limit(), limit());
     }
@@ -2209,8 +2283,8 @@ export class Sim {
   // ---------- snapshot ----------
   snapshot(): Snapshot {
     const s = this.s;
-    const fa = new Float32Array(s.fauna.length * 3);
-    s.fauna.forEach((f, i) => { fa[i * 3] = f.x; fa[i * 3 + 1] = f.z; fa[i * 3 + 2] = f.heading; });
+    const fa = new Float32Array(s.fauna.length * 4);
+    s.fauna.forEach((f, i) => { fa[i * 4] = f.x; fa[i * 4 + 1] = f.z; fa[i * 4 + 2] = f.heading; fa[i * 4 + 3] = wildMove(f.sp).idx * 4 + (f.st ?? 0); });
     const slots = this.slotsUsed;
     const army = new Float32Array(Math.max(1, slots) * STRIDE);
     const radar = this.radarPowered();

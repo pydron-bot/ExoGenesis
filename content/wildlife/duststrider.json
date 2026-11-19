@@ -1,0 +1,15 @@
+{
+  "name": "Duststrider",
+  "body": "stilt",
+  "behavior": "herd",
+  "size": 1.3,
+  "sizeMax": 1.8,
+  "speed": 2.6,
+  "run": 10,
+  "flee": 18,
+  "spread": 26,
+  "herdScale": 0.8,
+  "color": "#c09a6a",
+  "accent": "#6a4a2a",
+  "glow": "#ffd08a"
+}

@@ -6,6 +6,7 @@ import { Input } from './input';
 import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
+import { biomeOf } from './content/nature';
 import { content, contentIssues, onContentHot, type RegionDef } from './content';
 import { PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
@@ -155,7 +156,10 @@ if (!skirmishMode && !scratch) {
 const savedRegion = autosaved?.sim.region ?? 'touchdown';
 const askedRegion = params.get('region');
 const regionId = preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : 'touchdown';
-const regionDef: RegionDef = preview?.def ?? content.regions[regionId];
+/** ?biome=<id> tries another biome's plants and wildlife on this region (the sim plays the region with it). */
+const biomeParam = params.get('biome');
+const biomeTest = !!biomeParam && !!content.biomes[biomeParam];
+const regionDef: RegionDef = biomeTest ? { ...(preview?.def ?? content.regions[regionId]), biome: biomeParam! } : preview?.def ?? content.regions[regionId];
 const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
 /** The region's terrain with its body (a planet, moon, asteroid or comet) looked up: every worker gets this. */
 const terrain = regionTerrain(regionDef, content.bodies);
@@ -171,7 +175,7 @@ const audio = new GameAudio(content.sound, content.assets, skirmishMode || param
 const sim = new SimClient((t, l, cue) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l); else early.push([t, l]);
-}, !skirmishMode, regionId, preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic);
+}, !skirmishMode, regionId, biomeTest ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic);
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
 if (preview?.mission) content.missions[preview.mission.id] = preview.mission.def;
@@ -257,6 +261,7 @@ const region = new RegionView(
   skirmishMode || floraParam === 'off' ? null : Number(floraParam ?? regionDef.floraSeed) || regionDef.floraSeed,
   regionDef.floraDensity,
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
+  { biome: biomeOf(content, regionDef), wildlife: content.wildlife },
 );
 if (!skirmishMode) region.setVents(regionDef.vents ?? []);
 region.printing = setting(PRINT_KEY, 'print', true);

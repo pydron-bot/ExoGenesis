@@ -182,17 +182,35 @@ export class Mesher {
 
 // ---------- palette ----------
 
-/** Alien palette anchors (hue, sat, light) for stems and for glowing parts. */
-const STEM_HUES = [0.75, 0.8, 0.47, 0.52, 0.9, 0.05, 0.62] as const;
-const GLOW_HUES = [0.5, 0.53, 0.83, 0.92, 0.3, 0.12] as const;
+/** A biome's plant look: stem and glow colours (content/biomes). Home's when none is given. */
+export interface FloraBiome {
+  plants?: { plant: string; chance?: number; amount?: number }[];
+  extra?: number;
+  stems?: { color: string }[];
+  glows?: { color: string }[];
+  glow?: number; density?: number; size?: number; wind?: number;
+}
+const hsl = (h: number, s: number, l: number) => '#' + new THREE.Color().setHSL(h, s, l).getHexString();
+/** Home's look, as it was before biomes (and the fallback when content has none). */
+export const HOME_FLORA: FloraBiome = {
+  plants: ['spire', 'parasol', 'fan', 'tubes', 'bulbs', 'crystal'].map((plant) => ({ plant })),
+  extra: 2,
+  stems: [0.75, 0.8, 0.47, 0.52, 0.9, 0.05, 0.62].map((h) => ({ color: hsl(h, 0.38, 0.19) })),
+  glows: [0.5, 0.53, 0.83, 0.92, 0.3, 0.12].map((h) => ({ color: hsl(h, 0.85, 0.62) })),
+};
 
 interface Palette { base: THREE.Color; tip: THREE.Color; glow: THREE.Color }
 
-export function palette(r: Rng): Palette {
-  const h = pick(r, STEM_HUES) + range(r, -0.03, 0.03);
-  const base = new THREE.Color().setHSL(h, range(r, 0.25, 0.5), range(r, 0.14, 0.24));
-  const tip = new THREE.Color().setHSL(h + range(r, -0.08, 0.08), range(r, 0.35, 0.6), range(r, 0.32, 0.5));
-  const glow = new THREE.Color().setHSL(pick(r, GLOW_HUES) + range(r, -0.02, 0.02), 0.85, range(r, 0.55, 0.68));
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+export function palette(r: Rng, biome: FloraBiome = HOME_FLORA): Palette {
+  const stems = biome.stems?.length ? biome.stems : HOME_FLORA.stems!;
+  const glows = biome.glows?.length ? biome.glows : HOME_FLORA.glows!;
+  const c = new THREE.Color(pick(r, stems).color).getHSL({ h: 0, s: 0, l: 0 });
+  const h = c.h + range(r, -0.03, 0.03);
+  const base = new THREE.Color().setHSL(h, clamp01(c.s * range(r, 0.7, 1.3)), clamp01(c.l * range(r, 0.75, 1.25)));
+  const tip = new THREE.Color().setHSL(h + range(r, -0.08, 0.08), clamp01(c.s * 1.3 + 0.05), clamp01(c.l + range(r, 0.12, 0.28)));
+  const g = new THREE.Color(pick(r, glows).color).getHSL({ h: 0, s: 0, l: 0 });
+  const glow = new THREE.Color().setHSL(g.h + range(r, -0.02, 0.02), g.s, clamp01(g.l + range(r, -0.06, 0.06)));
   return { base, tip, glow };
 }
 
@@ -207,7 +225,8 @@ export interface Archetype {
   /** Large plants use the coarse placement grid; small ones the fine grid. */
   big: boolean;
   habitat: Habitat;
-  /** Approximate footprint radius at scale 1 (spacing / clearing). */
+  /** Grows on steep ground too. */
+  cliff?: boolean;
   build: (r: Rng, pal: Palette, m: Mesher) => void;
 }
 
@@ -282,6 +301,52 @@ export const ARCHETYPES: Archetype[] = [
     },
   },
   {
+    name: 'canopy', big: true, habitat: { lush: 1, bare: 0.05, high: 0 },
+    build(r, pal, m) {
+      // forked trunk, a clump of foliage on each branch, glowing fruit hanging under
+      const H = range(r, 3.2, 5.5);
+      const lean = new THREE.Vector3(range(r, -0.5, 0.5), 0, range(r, -0.5, 0.5));
+      const trunk = [0, 0.5, 1].map((t) => new THREE.Vector3(lean.x * t * t, H * 0.6 * t, lean.z * t * t));
+      const r0 = range(r, 0.25, 0.4);
+      m.tube(trunk, 5, (t) => r0 * (1.35 - t * 0.5), (t) => mix(pal.base, pal.tip, t * 0.4), undefined, true);
+      const fork = trunk[2];
+      const n = Math.round(range(r, 2, 3.4));
+      const leaf = mix(pal.tip, pal.base, range(r, 0, 0.35));
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + range(r, -0.4, 0.4);
+        const out = range(r, 0.9, 1.6);
+        const end = fork.clone().add(new THREE.Vector3(Math.cos(a) * out, H * range(r, 0.3, 0.45), Math.sin(a) * out));
+        m.tube([fork, fork.clone().lerp(end, 0.5).add(new THREE.Vector3(0, 0.2, 0)), end], 4, (t) => r0 * 0.7 * (1 - t * 0.5), () => pal.base, undefined, true);
+        const cr = range(r, 1.1, 1.8);
+        m.blob(end.clone().add(new THREE.Vector3(0, cr * 0.25, 0)), cr, range(r, 0.55, 0.8), mix(leaf, pal.tip, r() * 0.3), 0);
+        if (r() < 0.7) m.blob(end.clone().add(new THREE.Vector3(Math.cos(a) * cr * 0.5, -cr * 0.3, Math.sin(a) * cr * 0.5)), range(r, 0.12, 0.2), 1.4, pal.glow, 1);
+      }
+      m.blob(fork.clone().add(new THREE.Vector3(0, H * 0.45, 0)), range(r, 1.2, 1.7), range(r, 0.6, 0.8), leaf, 0);
+    },
+  },
+  {
+    name: 'tendril', big: true, habitat: { lush: 0.7, bare: 0.15, high: 0.05 },
+    build(r, pal, m) {
+      // two or three giant whips from one root, curling over at the top, tips glowing
+      const n = Math.round(range(r, 1.6, 3.4));
+      for (let i = 0; i < n; i++) {
+        const H = range(r, 3.5, 7) * (i === 0 ? 1 : 0.7);
+        const a = r() * Math.PI * 2;
+        const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+        const curl = range(r, 1.4, 3.2);
+        const path: THREE.Vector3[] = [];
+        for (let k = 0; k <= 8; k++) {
+          const t = k / 8;
+          const ang = t * t * curl; // straight low down, curling at the top
+          path.push(dir.clone().multiplyScalar(i * 0.25 + Math.sin(ang) * H * 0.35).add(new THREE.Vector3(0, H * (0.15 + 0.85 * Math.sin(Math.min(Math.PI / 2, t * 1.7))) - (ang > 1.6 ? (ang - 1.6) * H * 0.12 : 0), 0)));
+        }
+        path[0].y = -0.2;
+        const r0 = range(r, 0.2, 0.32);
+        m.tube(path, 5, (t) => r0 * (1 - t * 0.85), (t) => mix(pal.base, pal.tip, t), (t) => smoothstep(0.8, 1, t), false);
+      }
+    },
+  },
+  {
     name: 'fan', big: false, habitat: { lush: 1, bare: 0.35, high: 0.05 },
     build(r, pal, m) {
       // rosette of curved, tapering fronds
@@ -337,7 +402,7 @@ export const ARCHETYPES: Archetype[] = [
     },
   },
   {
-    name: 'crystal', big: false, habitat: { lush: 0, bare: 0.12, high: 1 },
+    name: 'crystal', big: false, cliff: true, habitat: { lush: 0, bare: 0.12, high: 1 },
     build(r, pal, m) {
       // lithophyte: leaning hexagonal prisms with pointed, glowing tips
       const n = Math.round(range(r, 3, 7));
@@ -351,6 +416,108 @@ export const ARCHETYPES: Archetype[] = [
         const path = [base, base.clone().addScaledVector(dir, h)];
         const rad = range(r, 0.16, 0.32);
         m.tube(path, 6, () => rad, (t) => mix(pal.base, pale, t), (t) => t * 0.7);
+      }
+    },
+  },
+  {
+    name: 'reeds', big: false, habitat: { lush: 1, bare: 0.3, high: 0 },
+    build(r, pal, m) {
+      // a tuft of tall thin blades, leaning out, tips catching the glow
+      const n = Math.round(range(r, 6, 11));
+      const L = range(r, 1.2, 2.6);
+      for (let i = 0; i < n; i++) {
+        const a = r() * Math.PI * 2;
+        const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+        const side = new THREE.Vector3(-dir.z, 0, dir.x);
+        const len = L * range(r, 0.6, 1.1), bend = range(r, 0.1, 0.5);
+        const base = dir.clone().multiplyScalar(range(r, 0, 0.25));
+        const path = [0, 0.5, 1].map((t) => base.clone().addScaledVector(dir, len * bend * t * t).add(new THREE.Vector3(0, len * t, 0)));
+        path[0].y = -0.1;
+        m.blade(path, (t) => 0.07 * (1 - t * 0.8), side, (t) => mix(pal.base, pal.tip, t), (t) => (t > 0.9 ? 0.6 : 0));
+      }
+    },
+  },
+  {
+    name: 'cap', big: false, habitat: { lush: 0.7, bare: 0.4, high: 0.1 },
+    build(r, pal, m) {
+      // a cluster of mushroom caps on stalks, gills glowing underneath
+      const n = Math.round(range(r, 2, 5));
+      const capC = mix(pal.tip, pal.base, 0.2);
+      for (let i = 0; i < n; i++) {
+        const a = r() * Math.PI * 2, d = i === 0 ? 0 : range(r, 0.3, 0.8);
+        const h = range(r, 0.4, 1.4) * (i === 0 ? 1.2 : 1);
+        const base = new THREE.Vector3(Math.cos(a) * d, -0.1, Math.sin(a) * d);
+        const top = base.clone().add(new THREE.Vector3(Math.cos(a) * d * 0.2, h, Math.sin(a) * d * 0.2));
+        m.tube([base, top], 4, () => range(r, 0.06, 0.1) * (1 + h * 0.3), () => pal.base, undefined, true);
+        const cr = range(r, 0.3, 0.6) * (0.7 + h * 0.4), sides = 6;
+        const apex = top.clone().add(new THREE.Vector3(0, cr * range(r, 0.3, 0.7), 0));
+        const rim: THREE.Vector3[] = [];
+        for (let k = 0; k < sides; k++) {
+          const b = (k / sides) * Math.PI * 2;
+          rim.push(top.clone().add(new THREE.Vector3(Math.cos(b) * cr, -cr * 0.15, Math.sin(b) * cr)));
+        }
+        for (let k = 0; k < sides; k++) {
+          const j = (k + 1) % sides;
+          m.tri(apex, rim[j], rim[k], capC, capC, capC);
+          m.tri(top, rim[k], rim[j], pal.glow, pal.glow, pal.glow, 0.9, 0.5, 0.5);
+        }
+      }
+    },
+  },
+  {
+    name: 'barrel', big: false, habitat: { lush: 0.15, bare: 1, high: 0.1 },
+    build(r, pal, m) {
+      // ribbed succulent, maybe with arms; glowing flowers on top
+      const H = range(r, 0.9, 2.4), R0 = range(r, 0.3, 0.55);
+      const ribs = 7;
+      const path = [0, 0.33, 0.66, 1].map((t) => new THREE.Vector3(0, -0.15 + H * t, 0));
+      const body = (t: number) => R0 * (0.85 + 0.25 * Math.sin(Math.PI * Math.min(1, t * 1.1)));
+      m.tube(path, ribs, body, (t) => mix(pal.base, pal.tip, t * 0.7), undefined, false);
+      const arms = H > 1.5 ? Math.floor(range(r, 0, 2.99)) : 0;
+      for (let i = 0; i < arms; i++) {
+        const a = r() * Math.PI * 2, y = H * range(r, 0.35, 0.6);
+        const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+        const p0 = new THREE.Vector3(0, y, 0).addScaledVector(out, R0 * 0.6);
+        const p1 = p0.clone().addScaledVector(out, R0 * 1.3);
+        const p2 = p1.clone().add(new THREE.Vector3(0, H * range(r, 0.3, 0.5), 0));
+        m.tube([p0, p1, p2], 5, () => R0 * 0.45, (t) => mix(pal.base, pal.tip, t), undefined, false);
+      }
+      const fl = Math.floor(range(r, 1, 3.99));
+      for (let i = 0; i < fl; i++) {
+        const a = r() * Math.PI * 2;
+        m.blob(new THREE.Vector3(Math.cos(a) * R0 * 0.4, H + R0 * 0.2, Math.sin(a) * R0 * 0.4), range(r, 0.1, 0.18), 0.7, pal.glow, 1);
+      }
+    },
+  },
+  {
+    name: 'thorn', big: false, habitat: { lush: 0.2, bare: 1, high: 0.2 },
+    build(r, pal, m) {
+      // dry spiky scrub: thin forking twigs, a glint at each tip
+      const n = Math.round(range(r, 4, 7));
+      const L = range(r, 0.8, 1.8);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + range(r, -0.3, 0.3);
+        const up = range(r, 0.5, 1.2);
+        const dir = new THREE.Vector3(Math.cos(a), up, Math.sin(a)).normalize();
+        const len = L * range(r, 0.6, 1.1);
+        const p0 = new THREE.Vector3(0, -0.1, 0), p1 = dir.clone().multiplyScalar(len * 0.5), p2 = dir.clone().multiplyScalar(len).add(new THREE.Vector3(0, len * 0.15, 0));
+        m.tube([p0, p1, p2], 3, (t) => 0.06 * (1 - t * 0.7), (t) => mix(pal.base, pal.tip, t), (t) => (t > 0.95 ? 0.5 : 0), false);
+        const b = a + range(r, 0.5, 1) * (r() < 0.5 ? -1 : 1);
+        const twig = p1.clone().add(new THREE.Vector3(Math.cos(b) * len * 0.4, len * 0.35, Math.sin(b) * len * 0.4));
+        m.tube([p1, twig], 3, () => 0.035, (t) => mix(pal.base, pal.tip, 0.5 + t * 0.5), (t) => (t > 0.95 ? 0.5 : 0), false);
+      }
+    },
+  },
+  {
+    name: 'lichen', big: false, cliff: true, habitat: { lush: 0.1, bare: 0.6, high: 1 },
+    build(r, pal, m) {
+      // flat crusts hugging the ground, a few glowing spots
+      const n = Math.round(range(r, 3, 6));
+      for (let i = 0; i < n; i++) {
+        const a = r() * Math.PI * 2, d = i === 0 ? 0 : range(r, 0.3, 0.9);
+        const rad = range(r, 0.3, 0.75);
+        m.blob(new THREE.Vector3(Math.cos(a) * d, 0, Math.sin(a) * d), rad, range(r, 0.12, 0.22), mix(pal.base, pal.tip, r()), 0);
+        if (r() < 0.5) m.blob(new THREE.Vector3(Math.cos(a) * d, rad * 0.15, Math.sin(a) * d), rad * 0.3, 0.4, pal.glow, 0.8);
       }
     },
   },
@@ -428,7 +595,7 @@ interface Variant {
 const FULL_SMALL = 140;
 const FULL_BIG = 520;
 
-export interface FloraOptions { seed: number; flat: boolean; density?: number }
+export interface FloraOptions { seed: number; flat: boolean; density?: number; biome?: FloraBiome }
 
 const KEEP_OUT = 32; // landing pad + where the lander's petals fold down
 
@@ -437,18 +604,31 @@ export class Flora {
   readonly variants: Variant[] = [];
   readonly speciesNames: string[] = [];
   count = 0;
+  /** The biome's glow and wind strength. */
+  private glowK = 1;
+  private windK = 1;
 
   constructor(opts: FloraOptions) {
     this.group.name = 'flora';
     const r = mulberry(opts.seed * 7919 + 17);
     const mat = floraMaterial(opts.flat);
-    const density = opts.density ?? 1;
+    const biome = opts.biome ?? HOME_FLORA;
+    const density = (opts.density ?? 1) * (biome.density ?? 1);
+    const sizeK = biome.size ?? 1;
+    this.glowK = biome.glow ?? 1;
+    this.windK = biome.wind ?? 1;
 
-    // species: every archetype once, plus one or two repeats for variety
-    const archs = [...ARCHETYPES];
-    for (let i = 0; i < 2; i++) archs.push(pick(r, ARCHETYPES.slice(0, 5)));
-    const species = archs.map((arch, si) => {
-      const pal = palette(r);
+    // species: each of the biome's forms that this region rolls, plus a few look-alikes
+    const byName = new Map(ARCHETYPES.map((a) => [a.name, a]));
+    const rows = (biome.plants ?? []).filter((p) => byName.has(p.plant));
+    const grown = rows.filter((p) => r() < (p.chance ?? 1));
+    if (!grown.length && rows.length) grown.push(rows[0]);
+    const repeatable = grown.filter((p) => !byName.get(p.plant)!.cliff);
+    const extra = Math.min(biome.extra ?? 1, 12 - grown.length);
+    for (let i = 0; i < extra && repeatable.length; i++) grown.push(pick(r, repeatable));
+    const species = grown.map((row, si) => {
+      const arch = byName.get(row.plant)!;
+      const pal = palette(r, biome);
       const habitat = { ...arch.habitat };
       // shift each species' niche a little so repeats don't overlap exactly
       const nicheSeed = Math.floor(r() * 1e6);
@@ -458,8 +638,14 @@ export class Flora {
         return m.build(!opts.flat);
       });
       this.speciesNames.push(arch.name);
-      return { arch, habitat, nicheSeed, geos, si };
+      return { arch, habitat, nicheSeed, geos, si, amount: row.amount ?? 1 };
     });
+    // the same ground cover however many species share it (Home's mix was 3 big, 5 small)
+    const share = (big: boolean) => {
+      const n = species.filter((sp) => sp.arch.big === big).length;
+      return n ? Math.min(2, Math.max(0.6, (big ? 3 : 5) / n)) : 0;
+    };
+    const shareBig = share(true), shareSmall = share(false);
 
     // collect placements first so each InstancedMesh is sized exactly
     const placed: { x: number; z: number; s: number; v: number; h: number; tilt: number; sy: number; tint: number }[][] =
@@ -483,10 +669,10 @@ export class Flora {
         let total = 0;
         const w = species.map((sp) => {
           if (sp.arch.big !== big) return 0;
-          if (sp.arch.name !== 'crystal' && slope > 0.85) return 0;
+          if (!sp.arch.cliff && slope > 0.85) return 0;
           const hab = sp.habitat.lush * lush + sp.habitat.bare * bare + sp.habitat.high * high;
           const clump = smoothstep(-0.35, 0.35, fbm3(x * 0.05, sp.nicheSeed % 97, z * 0.05, 2, sp.nicheSeed));
-          const v = hab * clump;
+          const v = hab * clump * sp.amount;
           total += v;
           return v;
         });
@@ -494,14 +680,14 @@ export class Flora {
         const paint = Math.min(2, Math.max(0, 1 + fp));
         // a barren body (plant life −1) grows nothing, except where flora is painted on
         const life = Math.min(1, smoothstep(-0.9, -0.3, currentBody().plants) + Math.max(0, fp));
-        const p = Math.min(0.95, total * base * density * near * paint * life);
+        const p = Math.min(0.95, total * (big ? shareBig : shareSmall) * base * density * near * paint * life);
         if (r() > p) continue;
         let k = r() * total, si = 0;
         for (; si < w.length - 1; si++) { k -= w[si]; if (k <= 0) break; }
         if (w[si] === 0) continue;
         placed[si].push({
           x, z, h,
-          s: range(r, 0.7, 1.3) * (big ? 1 : range(r, 0.8, 1.2)),
+          s: range(r, 0.7, 1.3) * (big ? 1 : range(r, 0.8, 1.2)) * sizeK,
           v: r() < 0.5 ? 0 : 1,
           tilt: range(r, 0, 0.12),
           sy: range(r, 0.85, 1.2),
@@ -593,7 +779,8 @@ export class Flora {
    */
   update(t: number, night: number, camera: THREE.Camera) {
     floraUniforms.uTime.value = t;
-    floraUniforms.uGlow.value = 0.18 + night * 1.6;
+    floraUniforms.uGlow.value = (0.18 + night * 1.6) * this.glowK;
+    floraUniforms.uWind.value = this.windK;
     if (!this.group.visible) return;
     const cp = camera.position;
     const moved = cp.distanceToSquared(this.lastCam) > 0.04 || 1 - Math.abs(camera.quaternion.dot(this.lastQuat)) > 1e-6;

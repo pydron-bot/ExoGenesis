@@ -732,6 +732,7 @@ export const bodyShape = {
   seed: int({ label: 'Seed', min: 1, max: 999999, optional: true, default: 7, help: 'A different seed, a different landscape (or cloud bands).' }),
   ocean: bool({ label: 'Seas', optional: true, help: 'Water below height 0. Without seas the lowest ground is dry basin floor.', ...surface() }),
   plants: num({ label: 'Plant life', min: -1, max: 1, step: 0.05, optional: true, default: -1, help: '−1 = barren; 0 = as lush as Home; more = lusher. Moves the flora field.', ...surface() }),
+  biome: ref('biomes', { label: 'Biome', optional: true, help: 'Its plants and wildlife (Nature → Biomes). Empty = picked from its air, seas, frost and plant life.', ...surface() }),
   ground: list(bodyColorShape, { label: 'Ground colours', max: 6, optional: true, help: 'Low ground to high ground (2–6). Empty = Home\'s browns.', ...surface() }),
   deep: color({ label: 'Deep water', optional: true, default: '#0f2a3a', when: on('ocean', ['true'], false) }),
   shallow: color({ label: 'Shallow water', optional: true, default: '#1f5a6a', when: on('ocean', ['true'], false) }),
@@ -784,6 +785,7 @@ export const herdShape = {
   z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
   grazers: int({ label: 'Grazers', min: 0, max: 400 }),
   roam: num({ label: 'Roam radius', min: 0, max: 240, unit: 'u', help: 'How far the herd may wander from here. 0 = stays put.' }),
+  species: ref('wildlife', { label: 'Species', optional: true, help: 'Empty = picked from the biome\'s wildlife. Grazers is scaled by the species\' Herd size ×.' }),
 } satisfies Shape;
 export type HerdDef = Infer<typeof herdShape>;
 
@@ -887,6 +889,7 @@ export const regionShape = {
   detailSize: num({ label: 'Local feature size', min: 2, max: 60, step: 0.5, unit: 'u', optional: true, help: 'Roughly how far apart those bumps are. Empty = 10 u.' }),
   detailSeed: int({ label: 'Local relief seed', min: 1, max: 999999, optional: true, help: 'A different seed, a different pattern of bumps. Empty = 21.' }),
   floraSeed: int({ label: 'Flora seed', min: 1, max: 999999, help: 'Picks the plant species. ?flora=<seed> in the URL overrides it.' }),
+  biome: ref('biomes', { label: 'Biome', optional: true, help: 'Empty = the world\'s. ?biome=<id> in the URL overrides it for a test.' }),
   floraDensity: num({ label: 'Flora density', min: 0, max: 3, step: 0.05, default: 1, help: 'Multiplies the number of plants everywhere.' }),
   siteLat: num({ label: 'Site: degrees north', min: -80, max: 80, step: 1, unit: '°', optional: true, help: 'Where on the planet the region sits, from Touchdown. Moving it changes the generated ground under your sculpting (0, 0 = Touchdown\'s spot).' }),
   siteLon: num({ label: 'Site: degrees east', min: -180, max: 180, step: 1, unit: '°', optional: true, help: 'Degrees east of Touchdown.' }),
@@ -1055,6 +1058,86 @@ export type InterfaceDef = Infer<typeof interfaceShape>;
 /** localStorage key: the editor's Play test leaves { id, def } here for the game's ?preview=1. */
 export const PREVIEW_KEY = 'exo.preview';
 
+// ---------- nature: biomes and wildlife ----------
+
+/** Plant forms (src/world/flora.ts ARCHETYPES). */
+export const PLANT_FORMS = ['spire', 'parasol', 'canopy', 'tendril', 'fan', 'tubes', 'bulbs', 'crystal', 'reeds', 'cap', 'barrel', 'thorn', 'lichen'] as const;
+export type PlantForm = (typeof PLANT_FORMS)[number];
+const PLANT_HELPS: Record<PlantForm, string> = {
+  spire: 'Big: a tall ribbed stalk with a glowing bulb on top.',
+  parasol: 'Big: a leaning trunk under one to three drooping caps with glowing gills.',
+  canopy: 'Big: a broad tree, clumps of foliage on a forked trunk.',
+  tendril: 'Big: a giant curling whip, glowing at the tip.',
+  fan: 'A rosette of curling fronds.',
+  tubes: 'A clump of upright tubes with glowing mouths.',
+  bulbs: 'Spore pods on short stalks.',
+  crystal: 'Lithophyte prisms with glowing tips. Grows on cliffs and peaks.',
+  reeds: 'A tuft of tall thin blades.',
+  cap: 'A cluster of mushroom caps.',
+  barrel: 'A ribbed succulent, maybe with arms, flowering on top. Likes bare ground.',
+  thorn: 'Dry, spiky scrub. Likes bare ground.',
+  lichen: 'Flat crusts and mats, hugging the rock. Grows on cliffs.',
+};
+export const plantRowShape = {
+  plant: choice(PLANT_FORMS, { label: 'Form', helps: PLANT_HELPS }),
+  chance: num({ label: 'Chance', min: 0, max: 1, step: 0.05, optional: true, default: 1, help: 'Chance a region grows this form (1 = always).' }),
+  amount: num({ label: 'Amount', min: 0.1, max: 3, step: 0.05, optional: true, default: 1, help: 'How much of it, against the other forms.' }),
+} satisfies Shape;
+export const wildRowShape = {
+  species: ref('wildlife', { label: 'Species' }),
+  weight: num({ label: 'Weight', min: 0, max: 5, step: 0.1, optional: true, default: 1, help: 'How often an unassigned herd is this species.' }),
+} satisfies Shape;
+export const biomeShape = {
+  name: str({ label: 'Name' }),
+  description: str({ label: 'Notes', multiline: true, optional: true }),
+  plants: list(plantRowShape, { label: 'Plant forms', max: 13, help: 'Each form that a region rolls becomes one species there, with its own shape and colours.' }),
+  extra: int({ label: 'Extra species', min: 0, max: 4, optional: true, default: 1, help: 'More species of the forms that grew, so a region has look-alikes.' }),
+  stems: list(bodyColorShape, { label: 'Plant colours', max: 8, help: 'Stems and leaves (each species picks one and varies it).' }),
+  glows: list(bodyColorShape, { label: 'Glow colours', max: 8, help: 'Bioluminescent parts.' }),
+  glow: num({ label: 'Glow strength', min: 0, max: 3, step: 0.05, optional: true, default: 1, help: 'How brightly plants and wildlife glow at night.' }),
+  density: num({ label: 'Plant density', min: 0, max: 3, step: 0.05, optional: true, default: 1, help: 'Multiplies every region\'s Flora density here.' }),
+  size: num({ label: 'Plant size', min: 0.4, max: 2.5, step: 0.05, optional: true, default: 1 }),
+  wind: num({ label: 'Wind sway', min: 0, max: 3, step: 0.05, optional: true, default: 1 }),
+  wildlife: list(wildRowShape, { label: 'Wildlife', max: 12, help: 'Herds without a species pick from these.' }),
+} satisfies Shape;
+export type BiomeDef = Infer<typeof biomeShape>;
+
+export const BODY_PLANS = ['hexapod', 'stilt', 'hopper', 'ray', 'crawler', 'shell', 'serpent'] as const;
+export const BEHAVIORS = ['herd', 'skittish', 'lumber', 'flyer', 'burrow'] as const;
+export type Behavior = (typeof BEHAVIORS)[number];
+export const wildlifeShape = {
+  name: str({ label: 'Name' }),
+  description: str({ label: 'Notes', multiline: true, optional: true }),
+  body: choice(BODY_PLANS, { label: 'Body plan', helps: {
+    hexapod: 'Six legs under an oval body, a pointed head.',
+    stilt: 'A small body high on four long legs, head on a drooping neck.',
+    hopper: 'Round and small, big back legs and long feelers.',
+    ray: 'A flat flier with broad wings and a whip tail.',
+    crawler: 'Low and segmented, many short legs.',
+    shell: 'A domed shell on stubby legs.',
+    serpent: 'A long, legless body that winds along.',
+  } }),
+  behavior: choice(BEHAVIORS, { label: 'Behaviour', helps: {
+    herd: 'Wanders as a herd and bolts from anything that comes close.',
+    skittish: 'Darts about in short dashes with pauses; flees from far off.',
+    lumber: 'Slow and unbothered: stops and stares at what comes close, then plods on.',
+    flyer: 'Circles over the herd\'s ground; scatters wider when disturbed.',
+    burrow: 'Creeps about and ducks underground when something comes close.',
+  } }),
+  size: num({ label: 'Size', min: 0.2, max: 6, step: 0.05, help: 'Smallest adult, × the old grazer (about 1.5 u long).' }),
+  sizeMax: num({ label: 'Size (largest)', min: 0.2, max: 6, step: 0.05, optional: true, help: 'Empty = all the same size.' }),
+  speed: num({ label: 'Walk speed', min: 0, max: 20, step: 0.1, unit: 'u/s', optional: true, default: 2.2 }),
+  run: num({ label: 'Run speed', min: 0, max: 30, step: 0.1, unit: 'u/s', optional: true, default: 7.5 }),
+  flee: num({ label: 'Wariness', min: 0, max: 60, step: 0.5, unit: 'u', optional: true, default: 14, help: 'Reacts to drones, units and predators this close. 0 = never.' }),
+  spread: num({ label: 'Spread', min: 2, max: 80, step: 1, unit: 'u', optional: true, default: 22, help: 'How far from the herd\'s centre each one wanders.' }),
+  herdScale: num({ label: 'Herd size ×', min: 0.05, max: 3, step: 0.05, optional: true, default: 1, help: 'Multiplies a herd\'s Grazers count (big beasts come in fewer).' }),
+  height: num({ label: 'Flying height', min: 2, max: 40, step: 0.5, unit: 'u', optional: true, default: 10, when: on('behavior', ['flyer'], false) }),
+  color: color({ label: 'Colour' }),
+  accent: color({ label: 'Accent', help: 'Legs, head, shell markings.' }),
+  glow: color({ label: 'Glow', optional: true, help: 'Eyes and spots that light up at night. Empty = none.' }),
+} satisfies Shape;
+export type WildlifeDef = Infer<typeof wildlifeShape>;
+
 export interface Collection {
   /** Folder under /content, or a single file for a singleton. */
   path: string;
@@ -1074,6 +1157,8 @@ export const COLLECTIONS = {
   assets: { path: 'assets', kind: 'many', shape: assetShape, label: 'Assets', title: 'name', group: 'Assets' },
   regions: { path: 'regions', kind: 'many', shape: regionShape, label: 'Regions', title: 'name', group: 'Maps' },
   bodies: { path: 'bodies', kind: 'many', shape: bodyShape, label: 'Worlds', title: 'name', group: 'Maps' },
+  biomes: { path: 'biomes', kind: 'many', shape: biomeShape, label: 'Biomes', title: 'name', group: 'Nature' },
+  wildlife: { path: 'wildlife', kind: 'many', shape: wildlifeShape, label: 'Wildlife', title: 'name', group: 'Nature' },
   chapters: { path: 'chapters', kind: 'many', shape: chapterShape, label: 'Chapters', title: 'title', group: 'Story' },
   missions: { path: 'missions', kind: 'many', shape: missionShape, label: 'Missions', title: 'title', group: 'Story' },
   story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },

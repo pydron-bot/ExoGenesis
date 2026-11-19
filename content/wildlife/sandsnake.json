@@ -1,0 +1,15 @@
+{
+  "name": "Sandsnake",
+  "body": "serpent",
+  "behavior": "burrow",
+  "size": 1,
+  "sizeMax": 1.5,
+  "speed": 2,
+  "run": 5,
+  "flee": 18,
+  "spread": 20,
+  "herdScale": 0.4,
+  "color": "#c8a060",
+  "accent": "#7a4a2a",
+  "glow": "#ff6a4a"
+}

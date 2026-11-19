@@ -9,6 +9,7 @@
   "relief": 90,
   "feature": 2.2,
   "seed": 3,
+  "biome": "lush",
   "ocean": true,
   "plants": 0.15,
   "deep": "#1f4e79",

@@ -1,0 +1,39 @@
+{
+  "name": "Barren",
+  "description": "Airless rock: only lichen crusts and lithophyte crystals grow where painted; rock mites skitter about.",
+  "plants": [
+    {
+      "plant": "lichen"
+    },
+    {
+      "plant": "crystal"
+    }
+  ],
+  "extra": 0,
+  "density": 0.4,
+  "wind": 0,
+  "stems": [
+    {
+      "color": "#4a4a4e"
+    },
+    {
+      "color": "#5a5650"
+    },
+    {
+      "color": "#3e4048"
+    }
+  ],
+  "glows": [
+    {
+      "color": "#bfe8ff"
+    },
+    {
+      "color": "#d8c8ff"
+    }
+  ],
+  "wildlife": [
+    {
+      "species": "rockmite"
+    }
+  ]
+}

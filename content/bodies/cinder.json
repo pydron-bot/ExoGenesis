@@ -9,6 +9,7 @@
   "relief": 45,
   "feature": 2.2,
   "seed": 41,
+  "biome": "volcanic",
   "ground": [
     {
       "color": "#2a1410"
