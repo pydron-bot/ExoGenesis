@@ -787,7 +787,11 @@ First playtest build (2026-11-15).
       drifting against the bar), **Night · Transmission** (a late-night jazz broadcast from home: electric piano
       over a ii–V–I–vi in F, brushed swung drums, worn and gritty, static), **Tension · Warpath** (taiko war
       drums in 6/8, brass, a string ostinato, choir; builds and breaks) and **Tension · Interference** (glitchy
-      7/8 electronics: random square arpeggio, zaps, clap, heavy grit). Levels matched offline (see below).
+      7/8 electronics: random square arpeggio, zaps, clap, heavy grit). Levels matched offline: each mood
+      rendered 90 s in an OfflineAudioContext (ticking the scheduler every 0.2 s through `suspend()`) at master
+      0.8 × music 0.6, BS.1770 K-weighted and gated: day and night ≈ −26.5 to −27 LUFS, tension ≈ −26 to −27, as
+      the existing moods measure the same way. Plucks, mallets and the worn filter carry far less energy than
+      pads, so these need overall levels above 2 (the field now goes to 4).
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min
