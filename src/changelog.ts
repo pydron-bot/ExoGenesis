@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.47.0',
+    date: '2026-11-19',
+    title: 'A wider soundtrack',
+    notes: [
+      'Five new pieces of music, each unlike anything before it, and new instruments: guitar, harp, marimba, thumb piano, electric piano, organ, brass, war drums, hand drums and more',
+      'Day: Prospector, a frontier tune with fingerpicked guitar, hand drum and tin whistle; and Fabricator, a ticking, interlocking machine piece in five',
+      'Night: Transmission, a crackly late-night jazz broadcast from home',
+      'Fights: Warpath, thundering war drums and brass; and Interference, a glitchy, distorted electronic piece in seven',
+      'Music can now build and break down as it plays, with parts coming in and dropping out, so a piece changes over its length',
+    ],
+  },
+  {
     version: '0.46.0',
     date: '2026-11-19',
     title: 'New sounds',
