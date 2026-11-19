@@ -1,0 +1,50 @@
+{
+  "name": "Day · Long Light",
+  "use": "day",
+  "chords": [
+    {
+      "notes": "A2 E3 B3 C#4 E4",
+      "bass": "A1",
+      "bells": "C#5 E5 F#5 A5 B5"
+    },
+    {
+      "notes": "F#3 A3 C#4 E4 G#4",
+      "bass": "F#2",
+      "bells": "G#5 A5 C#6 E6"
+    },
+    {
+      "notes": "D3 A3 C#4 E4 G#4",
+      "bass": "D2",
+      "bells": "E5 F#5 G#5 A5 C#6"
+    },
+    {
+      "notes": "E3 B3 C#4 F#4 A4",
+      "bass": "E2",
+      "bells": "F#5 A5 B5 C#6 E6"
+    },
+    {
+      "notes": "C#3 G#3 B3 E4",
+      "bass": "C#2",
+      "bells": "E5 G#5 B5 C#6"
+    }
+  ],
+  "homePull": 0.3,
+  "chordMin": 10,
+  "chordMax": 16,
+  "swell": 4,
+  "release": 6,
+  "pad": 0.8,
+  "padTone": "soft",
+  "brightness": 1.3,
+  "bass": 0.7,
+  "bells": 0.9,
+  "bellTone": "soft",
+  "bellGapMin": 2,
+  "bellGapMax": 5,
+  "phrases": 0.5,
+  "pulse": 0,
+  "air": 0.4,
+  "echo": 0.3,
+  "space": 0.6,
+  "level": 1.25
+}

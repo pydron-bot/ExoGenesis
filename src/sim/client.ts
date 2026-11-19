@@ -1,10 +1,15 @@
 import type { CinematicDef, MissionDef, RegionDef, StoryDef } from '../content/defs';
 import { TICK_MS, type Command, type EventCue, type FromWorker, type SimState, type Snapshot } from './types';
 
+/** Most effect floats carried over between unseen snapshots (5 per effect). */
+const MAX_FX = 5 * 600;
+
 /** Main-thread handle on the simulation worker, with snapshot interpolation. */
 export class SimClient {
   prev: Snapshot | null = null;
   cur: Snapshot | null = null;
+  /** The snapshot tick the last frame drew and played (main.ts sets it); effects of a snapshot no frame saw carry over. */
+  seenTick = -1;
   private curAt = 0;
   private interval = TICK_MS;
   private worker: Worker;
@@ -22,6 +27,14 @@ export class SimClient {
         const now = performance.now();
         // a fresh snapshot after a load or a pause: don't interpolate across the gap
         const sameWorld = this.cur && this.cur.fauna.length === m.fauna.length && m.tick > this.cur.tick && m.tick - this.cur.tick <= 6;
+        // two snapshots in one frame (slow frames, ×3 speed): the first one's effects (shots, deaths and
+        // their sounds) would be lost, so they ride along with the next, newest kept if there are many
+        if (sameWorld && this.cur!.tick !== this.seenTick && this.cur!.fx.length) {
+          const both = new Float32Array(this.cur!.fx.length + m.fx.length);
+          both.set(this.cur!.fx);
+          both.set(m.fx, this.cur!.fx.length);
+          m.fx = both.length > MAX_FX ? both.slice(both.length - MAX_FX) : both;
+        }
         this.prev = sameWorld ? this.cur : m;
         if (this.cur) this.interval = Math.min(250, Math.max(TICK_MS * 0.8, now - this.curAt));
         this.cur = m;

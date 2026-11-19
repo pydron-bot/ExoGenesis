@@ -50,7 +50,8 @@ try {
   await page.waitForFunction(() => __exo.audio.stats().state === 'running', null, { timeout: 5000 }).catch(() => {});
   s = await stats();
   check(s.state === 'running', `context runs after a click (${s.state})`);
-  await wait(500);
+  // the wind starts on the next frame; headless frames can be slow
+  await page.waitForFunction(() => __exo.audio.stats().wind, null, { timeout: 5000, polling: 100 }).catch(() => {});
   check((await stats()).wind, 'wind bed started');
 
   // 2. HUD tap

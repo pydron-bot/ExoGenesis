@@ -1,0 +1,50 @@
+{
+  "name": "Night · Long Dark",
+  "use": "night",
+  "chords": [
+    {
+      "notes": "C3 G3 Bb3 D4 Eb4",
+      "bass": "C2",
+      "bells": "D5 Eb5 G5 Bb5 D6"
+    },
+    {
+      "notes": "F3 A3 D4 G4",
+      "bass": "F2",
+      "bells": "G5 A5 C6 D6"
+    },
+    {
+      "notes": "Bb2 F3 C4 D4",
+      "bass": "Bb1",
+      "bells": "D5 F5 Bb5 C6"
+    },
+    {
+      "notes": "G2 D3 F3 Bb3",
+      "bass": "G1",
+      "bells": "D5 F5 G5 Bb5"
+    },
+    {
+      "notes": "Eb3 G3 Bb3 D4",
+      "bass": "Eb2",
+      "bells": "F5 G5 Bb5 D6"
+    }
+  ],
+  "homePull": 0.4,
+  "chordMin": 18,
+  "chordMax": 28,
+  "swell": 8,
+  "release": 10,
+  "pad": 0.75,
+  "padTone": "glass",
+  "brightness": 0.8,
+  "bass": 0.8,
+  "bells": 0.6,
+  "bellTone": "glass",
+  "bellGapMin": 4,
+  "bellGapMax": 11,
+  "phrases": 0.25,
+  "pulse": 0,
+  "air": 1.4,
+  "echo": 0.55,
+  "space": 0.9,
+  "level": 0.9
+}

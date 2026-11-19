@@ -664,3 +664,10 @@ button.panel-toggle:hover { color: var(--accent); }
 .todo-m summary { cursor: pointer; }
 .todo-list { padding: 4px 0 4px 14px; line-height: 1.6; }
 .todo-v { padding: 2px 12px; font-size: 12px; }
+
+/* music mood ▶ Listen */
+.music-panel .actions { display: flex; gap: 8px; align-items: center; }
+.mp-chords { display: flex; flex-wrap: wrap; gap: 6px; }
+.mp-chip { font: 12px ui-monospace, monospace; padding: 3px 8px; border: 1px solid var(--line); border-radius: 3px; color: var(--dim); }
+.mp-chip.on { color: var(--text); border-color: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent); }
+.mp-chip.bad { border-color: var(--bad); }

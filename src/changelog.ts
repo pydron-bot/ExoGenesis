@@ -19,7 +19,11 @@ export const CHANGELOG: Release[] = [
     date: '2026-11-19',
     title: 'Music for the long view',
     notes: [
-      'The title screen has music: quiet, slow ambient that drifts through soft chords and distant bells while the camera tours the system. It never plays the same way twice, starts with your first tap and fades away as you land',
+      'Music: quiet, slow ambient that never plays the same way twice. The title screen has its own, drifting through soft chords and distant bells while the camera tours the system',
+      'In play, music comes in now and then: a warm daytime piece and a sparse, darker one at night, with long stretches of just the wind between',
+      'When a fight breaks out the music turns tense, with a low heartbeat pulse, and settles again once it is over',
+      'Music has its own volume (the ♫ slider next to Sound) and its own switch in Options',
+      'Shots, deaths and their sounds no longer go missing when the game runs slowly or at ×3 speed',
       'The region list in Options shows which world each region is on',
     ],
   },

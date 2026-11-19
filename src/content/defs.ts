@@ -245,14 +245,77 @@ export const soundRulesShape = {
   alerts: vol('Alerts', 'Predator warnings and alarms (cryo integrity, buildings destroyed).'),
   ui: vol('Interface', 'Button taps, refused orders.'),
   ambient: vol('Ambient', 'The wind bed.'),
-  music: vol('Music', 'The title screen music.'),
+  music: vol('Music', 'Title and in-game music (moods: Rules → Music). Players have their own music volume on top.'),
   titleMusic: ref('assets', {
     label: 'Title music · file', optional: true, assetKind: 'audio',
-    help: 'An audio asset to loop on the title screen instead of the built-in generative ambient music.',
+    help: 'An audio asset to loop on the title screen instead of the generative title mood.',
   }),
+  playMin: num({ label: 'Music stretch · shortest', min: 0.5, max: 30, step: 0.5, unit: 'min', help: 'In play, day and night music comes in stretches this long…' }),
+  playMax: num({ label: 'Music stretch · longest', min: 0.5, max: 30, step: 0.5, unit: 'min' }),
+  restMin: num({ label: 'Quiet spell · shortest', min: 0, max: 30, step: 0.5, unit: 'min', help: '…with only the wind between them for this long. 0 = music all the time.' }),
+  restMax: num({ label: 'Quiet spell · longest', min: 0, max: 30, step: 0.5, unit: 'min' }),
+  firstMusic: num({ label: 'First music after landing', min: 0, max: 600, step: 5, unit: 's', help: 'Quiet for this long after the landing (or loading a game) before the first stretch.' }),
+  tensionHold: num({ label: 'Tension hangs on', min: 0, max: 120, step: 1, unit: 's', help: 'Tension music keeps going this long after the last shot or bite.' }),
   ...(Object.fromEntries((Object.keys(SOUNDS) as SoundId[]).map((id) => [id, soundFile(id)])) as { [K in SoundId]: ReturnType<typeof soundFile> }),
 } satisfies Shape;
 export type SoundRules = Infer<typeof soundRulesShape>;
+
+/**
+ * Music moods (src/audio/music.ts): generative ambient music, synthesised live.
+ * A mood is a set of chords plus how the pads, bass, bells, pulse and air play
+ * them. `use` says when the game picks it: the title screen, calm day or night
+ * play, or a fight (tension). Several moods with the same use: one at random.
+ */
+export const MUSIC_USES = ['title', 'day', 'night', 'tension', 'none'] as const;
+export type MusicUse = (typeof MUSIC_USES)[number];
+const notes = (label: string, help: string, optional = false) => str({ label, help, optional });
+export const musicChordShape = {
+  notes: notes('Pad notes', 'Note names low to high, e.g. "D3 A3 C#4 E4 F#4". Octave 4 is middle C\'s.'),
+  bass: notes('Bass', 'One note, e.g. "D2". Empty = the lowest pad note an octave down.', true),
+  bells: notes('Bell notes', 'The notes bells may pick from, low to high, e.g. "F#5 A5 C#6". Empty = the pad notes two octaves up.', true),
+} satisfies Shape;
+export const musicShape = {
+  name: str({ label: 'Name' }),
+  use: choice(MUSIC_USES, {
+    label: 'Plays', default: 'day',
+    helps: {
+      title: 'On the title screen.',
+      day: 'During play in daylight, in stretches with quiet between (Rules → Sound sets how long).',
+      night: 'During play at night, in stretches with quiet between.',
+      tension: 'While a fight is on, and a little after. Comes in over day or night music, even during a quiet spell.',
+      none: 'Never: a sketch, or switched off.',
+    },
+  }),
+  chords: list(musicChordShape, { label: 'Chords', max: 12, help: 'It drifts from chord to chord at random. The first is home: it comes back there often (Home pull).' }),
+  homePull: num({ label: 'Home pull', min: 0, max: 1, step: 0.05, help: 'How often the next chord is the first one. 0 = any chord equally.' }),
+  chordMin: num({ label: 'Chord length · shortest', min: 2, max: 60, step: 0.5, unit: 's' }),
+  chordMax: num({ label: 'Chord length · longest', min: 2, max: 60, step: 0.5, unit: 's' }),
+  swell: num({ label: 'Swell', min: 0.05, max: 20, step: 0.05, unit: 's', help: 'How long a chord takes to fade in. Long swells blur one chord into the next.' }),
+  release: num({ label: 'Release', min: 0.1, max: 20, step: 0.1, unit: 's', help: 'How long a chord takes to fade out after the next one starts.' }),
+  pad: num({ label: 'Pad · level', min: 0, max: 1, step: 0.05, help: '0 = no pads.' }),
+  padTone: choice(['warm', 'soft', 'hollow', 'glass'] as const, {
+    label: 'Pad · tone', default: 'warm',
+    helps: { warm: 'Detuned saws: rich, analogue.', soft: 'Triangles: mellow.', hollow: 'Square-ish: reedy, distant.', glass: 'Pure sines: clean and cold.' },
+  }),
+  brightness: num({ label: 'Pad · brightness', min: 0.2, max: 3, step: 0.05, help: 'How open the pad filter is. 1 = as the title music.' }),
+  bass: num({ label: 'Bass · level', min: 0, max: 1, step: 0.05 }),
+  bells: num({ label: 'Bells · level', min: 0, max: 1, step: 0.05, help: '0 = no bells.' }),
+  bellTone: choice(['glass', 'soft', 'metal', 'pluck'] as const, {
+    label: 'Bells · tone', default: 'glass',
+    helps: { glass: 'Glassy, slightly out of tune shimmer.', soft: 'Round, like a struck bowl.', metal: 'Clangy and dissonant: uneasy.', pluck: 'Short and dry, like a muted string.' },
+  }),
+  bellGapMin: num({ label: 'Bells · gap shortest', min: 0.2, max: 60, step: 0.1, unit: 's' }),
+  bellGapMax: num({ label: 'Bells · gap longest', min: 0.2, max: 60, step: 0.1, unit: 's' }),
+  phrases: num({ label: 'Bells · phrases', min: 0, max: 1, step: 0.05, help: 'How often bells come as a run of 2 or 3 notes rather than one.' }),
+  pulse: num({ label: 'Pulse · level', min: 0, max: 1, step: 0.05, help: 'A low, steady throb on the bass note: heartbeat tension. 0 = none.' }),
+  pulseRate: num({ label: 'Pulse · rate', min: 20, max: 200, step: 1, unit: 'bpm', optional: true, help: 'Empty = 70.' }),
+  air: num({ label: 'Air · level', min: 0, max: 2, step: 0.05, help: 'A faint, sweeping hiss behind everything.' }),
+  echo: num({ label: 'Echo', min: 0, max: 1, step: 0.05, help: 'How much the bells bounce left and right.' }),
+  space: num({ label: 'Reverb', min: 0, max: 1, step: 0.05, help: 'How big the room sounds.' }),
+  level: num({ label: 'Overall level', min: 0, max: 2, step: 0.05, help: 'Balances this mood against the others. The Music volume in Rules → Sound sits on top.' }),
+} satisfies Shape;
+export type MusicDef = Infer<typeof musicShape>;
+export type MusicChord = Infer<typeof musicChordShape>;
 
 export const ASSET_KINDS = ['model', 'image', 'audio'] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
@@ -1021,6 +1084,7 @@ export const COLLECTIONS = {
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },
   sound: { path: 'rules/sound.json', kind: 'single', shape: soundRulesShape, label: 'Sound', group: 'Rules' },
+  music: { path: 'music', kind: 'many', shape: musicShape, label: 'Music', title: 'name', group: 'Rules' },
   interface: { path: 'rules/interface.json', kind: 'single', shape: interfaceShape, label: 'Interface', group: 'Rules' },
   cinematics: { path: 'cinematics', kind: 'many', shape: cinematicShape, label: 'Cinematics', title: 'title', group: 'Cinematics' },
 } satisfies Record<string, Collection>;

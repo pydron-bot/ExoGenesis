@@ -1,7 +1,8 @@
 /**
  * Game sound: one AudioContext, a small mixer (category gains → master →
  * limiter), synthesised sounds (./synth.ts) or audio assets named in
- * content/rules/sound.json, and a wind bed that follows day and night.
+ * content/rules/sound.json, a wind bed that follows day and night, and music
+ * (moods in content/music, played by ./music.ts; `musicFor()` picks which).
  *
  * Kept deliberately small. Loudness is tuned in content (Sound rules in the
  * editor); the player's own on/off and volume live in localStorage.
@@ -11,7 +12,7 @@
  * (iOS also suspends it again after calls, Siri, backgrounding...). Web Audio
  * is silent while the ringer switch is on silent; nothing can be done about that.
  */
-import { SOUND_CATS, SOUNDS, mediaUrl, type AssetDef, type SoundCat, type SoundId, type SoundRules } from '../content/defs';
+import { SOUND_CATS, SOUNDS, mediaUrl, type AssetDef, type MusicDef, type MusicUse, type SoundCat, type SoundId, type SoundRules } from '../content/defs';
 import { RECIPES, STEADY } from './synth';
 import { AmbientMusic } from './music';
 
@@ -38,6 +39,10 @@ const FX_SOUND: Record<number, SoundId | undefined> = {
   7: 'shell', 8: 'arc', 9: 'spit', 10: 'emerge', 11: 'repair', 12: 'pdShot', 13: 'rail', 14: 'shieldHit',
 };
 
+/** FX kinds that mean a fight is on (everything but repair beams). */
+const FIGHT_FX = new Set([0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 12, 13, 14]);
+const rand = (a: number, b: number) => a + Math.random() * (b - a);
+
 export type Spatial = (x: number, z: number) => { gain: number; pan: number } | null;
 
 export class GameAudio {
@@ -45,6 +50,8 @@ export class GameAudio {
   /** Player preference (⋯ menu), remembered. */
   on = true;
   volume = 0.8;
+  /** The player's own music volume (0 = no music), on top of the rest. */
+  musicVolume = 1;
   /** No world or event sounds (landing cinematic); the ambient bed keeps going. */
   quiet = false;
   /** Test hook: sounds actually started, by id; and ones dropped by caps or distance. */
@@ -59,13 +66,22 @@ export class GameAudio {
   private buffers = new Map<SoundId, AudioBuffer>();
   private wind: { src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode; gust: number; gustTo: number } | null = null;
   private lastTick = -1;
-  private music: { stop: (fade: number) => void; played?: AmbientMusic['played'] } | null = null;
+  private musicOut!: GainNode;
+  /** The music playing now: which use and mood, and how to stop it. */
+  private music: { use: MusicUse; mood: string; stop: (fade: number) => void; played?: AmbientMusic['played'] } | null = null;
+  /** In play: music comes in stretches with quiet spells between (s left in this one). */
+  private stretch: { play: boolean; left: number } | null = null;
+  private night = false;
+  /** Wall-clock seconds of recent ticks with fighting, and when tension music may stop. */
+  private fights: number[] = [];
+  private tenseUntil = -1;
 
-  constructor(private rules: SoundRules, private assets: Record<string, AssetDef>, readonly disabled: boolean) {
+  constructor(private rules: SoundRules, private assets: Record<string, AssetDef>, readonly disabled: boolean, private moods: Record<string, MusicDef> = {}) {
     try {
       const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? 'null');
       if (p && typeof p.on === 'boolean') this.on = p.on;
       if (p && typeof p.vol === 'number') this.volume = Math.min(1, Math.max(0, p.vol));
+      if (p && typeof p.music === 'number') this.musicVolume = Math.min(1, Math.max(0, p.music));
     } catch { /* private mode / bad JSON */ }
     if (disabled) return;
     const unlock = () => this.unlock();
@@ -123,6 +139,7 @@ export class GameAudio {
   worldFx(fx: Float32Array, tick: number, focusX: number, focusZ: number, spatial: Spatial) {
     if (tick === this.lastTick) return;
     this.lastTick = tick;
+    for (let i = 0; i < fx.length; i += 5) if (FIGHT_FX.has(fx[i])) { this.fought(); break; }
     if (this.quiet || !this.live()) return;
     // per kind: the one nearest the camera focus, plus how many there were
     const best = new Map<SoundId, { x: number; z: number; d: number; n: number }>();
@@ -159,25 +176,82 @@ export class GameAudio {
     w.gain.gain.setTargetAtTime(0.5 * (0.85 + 0.25 * night) * w.gust * air, t, 0.4);
   }
 
+  setMusicVolume(v: number) {
+    this.musicVolume = Math.min(1, Math.max(0, v));
+    this.save();
+    if (this.ctx) this.musicOut.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05);
+  }
+
   /**
-   * Title music on or off; call every frame. It starts once the context runs
-   * (the first tap: browsers won't play before one) and fades out when turned off.
-   * The sound rules can name an audio file to loop instead of the generative one.
+   * Music, every frame. `where`: 'title' on the title screen; 'play' in the
+   * game proper; null in cinematics and the landing (music fades out and the
+   * stretch clock waits). In play the director picks: tension while there's
+   * fighting (and `tensionHold` s after), otherwise day or night music in
+   * stretches of `playMin`–`playMax` minutes with `restMin`–`restMax` minutes
+   * of only wind between, the first after `firstMusic` s. Changes cross-fade.
+   * Nothing starts before the context runs (the first tap).
    */
-  titleMusic(on: boolean) {
-    if (on && !this.music && this.live()) {
-      const a = this.rules.titleMusic ? this.assets[this.rules.titleMusic] : undefined;
-      const stop = a ? this.clip(a, 1, true, this.cats.music) : null;
-      this.music = stop ? { stop } : new AmbientMusic(this.ctx!, this.cats.music);
-    } else if (!on && this.music) {
-      this.music.stop(4);
-      this.music = null;
+  musicFor(where: 'title' | 'play' | null, daylight: number, dt: number) {
+    const r = this.rules, now = performance.now() / 1000;
+    let want: MusicUse | null = null;
+    if (where === 'title') want = 'title';
+    else if (where === 'play') {
+      // day / night with a little hysteresis, so dusk doesn't flip it back and forth
+      if (daylight < 0.3) this.night = true;
+      else if (daylight > 0.5) this.night = false;
+      const st = (this.stretch ??= { play: false, left: r.firstMusic });
+      if ((st.left -= dt) <= 0) {
+        st.play = !st.play || r.restMax <= 0;
+        st.left = 60 * (st.play ? rand(r.playMin, r.playMax) : rand(r.restMin, r.restMax));
+      }
+      want = now < this.tenseUntil ? 'tension' : st.play ? (this.night ? 'night' : 'day') : null;
     }
+    if (want === (this.music?.use ?? null) || !this.live()) return;
+    // cross-fade: quick into a fight, slow out of one
+    const fade = want === 'tension' ? 2.5 : this.music?.use === 'tension' ? 8 : 6;
+    this.stopMusic(fade);
+    if (want) this.startMusic(want, want === 'title' ? 6 : fade);
+  }
+
+  /** Play a mood now, whatever the director wants (the editor's ▶ Listen). Stops whatever was playing. */
+  playMood(id: string, mood: () => MusicDef, fadeIn = 1.5): AmbientMusic | null {
+    if (!this.live()) return null;
+    this.stopMusic(1.5);
+    const m = new AmbientMusic(this.ctx!, this.cats.music, mood, 1, fadeIn);
+    this.music = { use: mood().use, mood: id, stop: (f) => m.stop(f), played: m.played };
+    return m;
+  }
+
+  stopMusic(fade = 4) {
+    this.music?.stop(fade);
+    this.music = null;
+  }
+
+  private startMusic(use: MusicUse, fadeIn: number) {
+    const a = use === 'title' && this.rules.titleMusic ? this.assets[this.rules.titleMusic] : undefined;
+    const stop = a ? this.clip(a, 1, true, this.cats.music) : null;
+    if (stop) { this.music = { use, mood: `file:${a!.file}`, stop }; return; }
+    const ids = Object.keys(this.moods).filter((id) => this.moods[id].use === use);
+    if (!ids.length) return;
+    const id = ids[Math.floor(Math.random() * ids.length)];
+    const m = new AmbientMusic(this.ctx!, this.cats.music, () => this.moods[id], 1, fadeIn);
+    this.music = { use, mood: id, stop: (f) => m.stop(f), played: m.played };
+  }
+
+  /** A tick with fighting in it (shots, bites, deaths): enough of them close together and tension music comes in. */
+  private fought() {
+    const now = performance.now() / 1000;
+    if (this.fights.length && now - this.fights[this.fights.length - 1] < 0.3) return;
+    this.fights.push(now);
+    while (this.fights.length && now - this.fights[0] > 8) this.fights.shift();
+    if (this.fights.length >= 3) this.tenseUntil = now + this.rules.tensionHold;
   }
 
   /** Test hook. */
   stats() {
-    return { state: this.state, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, music: this.music ? { ...(this.music.played ?? { file: true }) } : null };
+    return { state: this.state, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, musicVolume: this.musicVolume,
+      music: this.music ? { use: this.music.use, mood: this.music.mood, ...(this.music.played ?? {}) } : null,
+      stretch: this.stretch ? { ...this.stretch } : null, tense: performance.now() / 1000 < this.tenseUntil };
   }
 
   /** Play a sound now. `gain` 0..1 on top of the mixer, `pan` −1..1. */
@@ -263,7 +337,7 @@ export class GameAudio {
   private live() { return !!this.ctx && this.ctx.state === 'running' && !this.muted; }
 
   private save() {
-    try { localStorage.setItem(PREF_KEY, JSON.stringify({ on: this.on, vol: this.volume })); } catch { /* private mode */ }
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ on: this.on, vol: this.volume, music: this.musicVolume })); } catch { /* private mode */ }
   }
 
   private applyVolume() {
@@ -283,10 +357,14 @@ export class GameAudio {
     this.master = c.createGain();
     this.master.gain.value = 0;
     this.master.connect(limiter);
+    // the player's music volume sits between the Music category and the master
+    this.musicOut = c.createGain();
+    this.musicOut.gain.value = this.musicVolume;
+    this.musicOut.connect(this.master);
     for (const k of SOUND_CATS) {
       const g = c.createGain();
       g.gain.value = this.rules[k];
-      g.connect(this.master);
+      g.connect(k === 'music' ? this.musicOut : this.master);
       this.cats[k] = g;
     }
     this.applyVolume();

@@ -1,0 +1,46 @@
+{
+  "name": "Tension · Contact",
+  "use": "tension",
+  "chords": [
+    {
+      "notes": "E3 B3 F#4 G4",
+      "bass": "E2",
+      "bells": "G5 B5 E6 F#6"
+    },
+    {
+      "notes": "F3 C4 E4 B4",
+      "bass": "F2",
+      "bells": "B5 C6 E6 F6"
+    },
+    {
+      "notes": "E3 A3 C4 B4",
+      "bass": "E2",
+      "bells": "A5 B5 C6 E6"
+    },
+    {
+      "notes": "D3 A3 E4 G4",
+      "bass": "E2",
+      "bells": "G5 A5 D6 E6"
+    }
+  ],
+  "homePull": 0.5,
+  "chordMin": 8,
+  "chordMax": 12,
+  "swell": 2.5,
+  "release": 4,
+  "pad": 0.9,
+  "padTone": "hollow",
+  "brightness": 0.7,
+  "bass": 1,
+  "bells": 0.5,
+  "bellTone": "metal",
+  "bellGapMin": 3,
+  "bellGapMax": 8,
+  "phrases": 0.2,
+  "pulse": 0.9,
+  "pulseRate": 72,
+  "air": 0.6,
+  "echo": 0.4,
+  "space": 0.6,
+  "level": 1
+}

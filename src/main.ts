@@ -167,7 +167,7 @@ const bodyDef = content.bodies[bodyId];
 const early: [string, 'info' | 'warn' | 'bad'][] = [];
 let logFn: ((text: string, level: 'info' | 'warn' | 'bad') => void) | null = null;
 // sound (colony only; ?sound=0 turns it off for good, the ⋯ menu for now)
-const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0');
+const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0', content.music);
 const sim = new SimClient((t, l, cue) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l); else early.push([t, l]);
@@ -772,7 +772,13 @@ $('b-more').onclick = () => { document.body.classList.toggle('more'); $('b-more'
 // ---------- sound controls (⋯ on phones) ----------
 const soundBtn = $<HTMLButtonElement>('b-sound');
 const volEl = $<HTMLInputElement>('sound-vol');
+const musicEl = $<HTMLInputElement>('music-vol');
+/** The music volume to go back to when Options turns music on again. */
+let musicWas = audio.musicVolume || 1;
 function syncSound() {
+  musicEl.disabled = audio.disabled;
+  musicEl.value = String(Math.round(audio.musicVolume * 100));
+  $('snd').classList.toggle('nomusic', audio.musicVolume <= 0);
   soundBtn.textContent = audio.disabled ? '♪ Off (URL)' : audio.on ? '♪ Sound' : '♪ Muted';
   soundBtn.classList.toggle('on', audio.on && !audio.disabled);
   soundBtn.disabled = volEl.disabled = audio.disabled;
@@ -781,6 +787,20 @@ function syncSound() {
 }
 soundBtn.onclick = () => { audio.setOn(!audio.on); syncSound(); };
 volEl.oninput = () => { audio.setVolume(Number(volEl.value) / 100); if (!audio.on) audio.setOn(true); syncSound(); };
+musicEl.oninput = () => { audio.setMusicVolume(Number(musicEl.value) / 100); if (audio.musicVolume > 0) musicWas = audio.musicVolume; if (!audio.on) audio.setOn(true); syncSound(); };
+/** Sound and Music in Options (title screen and ⚙ Options). */
+const soundToggles: Toggle[] = [
+  {
+    id: 'sound', section: 'Sound', label: 'Sound', help: 'Music, alarms and effects',
+    get: () => audio.on && !audio.disabled, set: (on) => { audio.setOn(on); syncSound(); },
+    locked: () => (audio.disabled ? 'OFF (URL)' : null),
+  },
+  {
+    id: 'music', section: 'Sound', label: 'Music', help: 'Quiet ambient music on the title screen and now and then in play; tense when a fight starts. Volume: ⋯ menu.',
+    get: () => audio.musicVolume > 0 && !audio.disabled, set: (on) => { audio.setMusicVolume(on ? musicWas : 0); syncSound(); },
+    locked: () => (audio.disabled ? 'OFF (URL)' : null),
+  },
+];
 syncSound();
 const lightsBtn = $<HTMLButtonElement>('b-lights');
 function syncLights() {
@@ -821,7 +841,7 @@ const graphicsToggles: Toggle[] = [
     locked: () => (!lights ? 'Off in URL' : null),
   },
 ];
-const showOptions = (onClose?: () => void, extra: Toggle[] = []) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
+const showOptions = (onClose?: () => void, extra: Toggle[] = soundToggles) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
 $('b-options').onclick = () => showOptions();
 // a soft tick for HUD buttons
 hudEl.addEventListener('pointerdown', (e) => { if ((e.target as Element).closest?.('button')) audio.play('tap'); });
@@ -848,11 +868,7 @@ function showTitle() {
   const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
   // the title screen's Options also holds where to land and the sound
   const titleOptions: Toggle[] = [
-    {
-      id: 'sound', section: 'Sound', label: 'Sound', help: 'Music, alarms and effects',
-      get: () => audio.on && !audio.disabled, set: (on) => { audio.setOn(on); syncSound(); },
-      locked: () => (audio.disabled ? 'OFF (URL)' : null),
-    },
+    ...soundToggles,
     ...(regions.length > 1 ? regions.map((id): Toggle => ({
       id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: bodyName(id),
       get: () => id === regionId, set: () => { if (id !== regionId) goRegion(id); }, state: (on) => (on ? 'HERE' : ''),
@@ -964,9 +980,11 @@ function frame(now: number) {
     }
     // sound: only the wind (and the cinematic's own cues) during a cinematic
     audio.quiet = !!cine || !!title;
-    audio.titleMusic(!!title?.active);
+    // music: the title's, then the director's in play (not over cinematics or the landing)
+    audio.musicFor(title?.active ? 'title' : !title && !cine && sim.cur.deployed ? 'play' : null, sim.cur.daylight, dt);
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
     audio.ambient(sim.cur.daylight, air, dt);
+    sim.seenTick = sim.cur.tick;
     if (!ready) { ready = true; exo.ready = true; reveal(); }
   }
   if (lights) {

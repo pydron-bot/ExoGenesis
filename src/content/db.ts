@@ -2,8 +2,9 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, type AssetDef, BEATS, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, locate, regionCells } from './defs';
+import { ASSET_EXT, type AssetDef, BEATS, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, locate, regionCells } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
+import { parseNotes } from '../audio/notes';
 
 export interface ContentDb {
   units: Record<string, UnitDef>;
@@ -23,6 +24,8 @@ export interface ContentDb {
   threats: ThreatRules;
   people: PeopleRules;
   sound: SoundRules;
+  /** Music moods (src/audio/music.ts). */
+  music: Record<string, MusicDef>;
   interface: InterfaceDef;
   cinematics: Record<string, CinematicDef>;
   /** The opening landing (cinematics/landing.json). */
@@ -73,6 +76,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     threats: recs.threats.threats,
     people: recs.people.people,
     sound: recs.sound.sound,
+    music: recs.music,
     interface: recs.interface.interface,
     cinematics: recs.cinematics,
     landing: recs.cinematics.landing,
@@ -112,6 +116,26 @@ function crossIssues(db: ContentDb): FileIssue[] {
     }
   };
   modelRef('units', db.units);
+  // music moods: notes must be note names; shortest ≤ longest
+  for (const [id, m] of Object.entries(db.music ?? {})) {
+    if (!m || typeof m !== 'object') continue;
+    const at = `music/${id}.json`;
+    (m.chords ?? []).forEach((c, i) => {
+      for (const f of ['notes', 'bass', 'bells'] as const) {
+        const { bad } = parseNotes(c?.[f]);
+        if (bad.length) out.push({ path: at, field: `chords[${i}].${f}`, msg: `not a note: ${bad.join(', ')} (write e.g. C#4, Eb3)` });
+      }
+      if (c && !parseNotes(c.notes).notes.length) out.push({ path: at, field: `chords[${i}].notes`, msg: 'needs at least one note' });
+    });
+    if (m.use !== 'none' && !(m.chords ?? []).length) out.push({ path: at, field: 'chords', msg: 'needs at least one chord' });
+    for (const [a, b] of [['chordMin', 'chordMax'], ['bellGapMin', 'bellGapMax']] as const) {
+      if (m[a] > m[b]) out.push({ path: at, field: b, msg: `shorter than ${a === 'chordMin' ? 'the shortest chord' : 'the shortest gap'}` });
+    }
+  }
+  if (db.sound) {
+    if (db.sound.playMin > db.sound.playMax) out.push({ path: 'rules/sound.json', field: 'playMax', msg: 'shorter than the shortest stretch' });
+    if (db.sound.restMin > db.sound.restMax) out.push({ path: 'rules/sound.json', field: 'restMax', msg: 'shorter than the shortest quiet spell' });
+  }
   modelRef('buildings', db.buildings);
   for (const [id, g] of Object.entries(db.inhabitants ?? {})) {
     if (!g || typeof g !== 'object') continue;

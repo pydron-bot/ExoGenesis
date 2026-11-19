@@ -5,5 +5,11 @@
   "alerts": 0.8,
   "ui": 0.45,
   "ambient": 0.35,
-  "music": 0.6
+  "music": 0.6,
+  "playMin": 3,
+  "playMax": 6,
+  "restMin": 2,
+  "restMax": 5,
+  "firstMusic": 45,
+  "tensionHold": 25
 }

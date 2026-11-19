@@ -20,6 +20,7 @@ import { renderTodo } from './todo';
 import { playSetup, setupPanel } from './playsetup';
 import { timelinePanel } from './timeline';
 import { WorldPreview } from './world-preview';
+import { MusicPanel } from './music-panel';
 import { KINDS as BOARD_KINDS, renderBoard, tagsOf, type BoardItem } from './board';
 import { CinePreview } from './cine-preview';
 import { applyInterface } from '../ui-theme';
@@ -31,7 +32,7 @@ import { MapEditor } from './map';
 import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, uploadFiles, type AssetHost, type MediaInfo, type Usage } from './assets';
 import { BUILTINS } from '../assets/builtin';
 import { CHANGELOG } from '../changelog';
-import type { AssetDef } from '../content/defs';
+import type { AssetDef, MusicDef, SoundRules } from '../content/defs';
 import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef, type ChapterDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
 
@@ -71,6 +72,9 @@ let timeline: { el: HTMLElement; update(): void; stop(): void } | null = null;
 /** The cinematic preview under it. */
 let preview: CinePreview | null = null;
 let worldPv: WorldPreview | null = null;
+/** ▶ Listen for a music mood, and the record it's for (it keeps playing while that record re-renders). */
+let musicPv: MusicPanel | null = null;
+let musicPvFor: unknown = null;
 /** The record the preview shows (kept across form re-renders: every timeline edit re-renders). */
 let previewFor: Current | null = null;
 /** What the main pane shows when no record is open. */
@@ -810,6 +814,13 @@ function renderForm() {
     panel = worldPv.el;
   }
   if (cur.coll === 'characters') panel = h('div', { cls: 'story-panel' }, h('div', { cls: 'story-card', id: 'char-card' }), h('div', { cls: 'char-lines', id: 'char-lines' }));
+  if (cur.coll !== 'music' || musicPvFor !== cur) { musicPv?.dispose(); musicPv = null; musicPvFor = null; }
+  if (cur.coll === 'music') {
+    const at = cur;
+    musicPv ??= new MusicPanel(() => at.draft as unknown as MusicDef, () => files.get(pathOf('sound', 'sound'))?.data as SoundRules | undefined);
+    musicPvFor = cur;
+    panel = musicPv.el;
+  }
   if (cur.coll === 'assets') {
     assetPanel = new AssetPanel(cur.id, cur.draft as unknown as AssetDef, assetHost, async () => { await doSave(); return !dirty(); });
     panel = assetPanel.root;
@@ -863,6 +874,7 @@ function changed() {
   if (cur.coll === 'characters') renderCharacter();
   timeline?.update();
   worldPv?.refresh();
+  musicPv?.refresh();
   if (cur.coll === 'interface') { const m = document.getElementById('ui-mock'); if (m) applyInterface(cur.draft as unknown as InterfaceDef, m); }
   if (cur.coll === 'missions') document.getElementById('story-sum')?.replaceChildren(...missionSummary(cur.draft as Partial<MissionDef>).map((line) => h('div', { textContent: line })));
   if (isMap()) {

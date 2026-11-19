@@ -1,0 +1,50 @@
+{
+  "name": "Title · Drift",
+  "use": "title",
+  "chords": [
+    {
+      "notes": "D3 A3 C#4 E4 F#4",
+      "bass": "D2",
+      "bells": "F#5 G#5 A5 C#6 E6 F#6"
+    },
+    {
+      "notes": "D3 B3 E4 G#4 B4",
+      "bass": "D2",
+      "bells": "E5 G#5 B5 D6 E6 F#6"
+    },
+    {
+      "notes": "B2 F#3 A3 C#4 D4",
+      "bass": "B1",
+      "bells": "D5 F#5 A5 B5 C#6 D6"
+    },
+    {
+      "notes": "F#3 A3 C#4 E4 A4",
+      "bass": "F#2",
+      "bells": "F#5 A5 C#6 E6 F#6"
+    },
+    {
+      "notes": "A2 E3 B3 C#4 G#4",
+      "bass": "A1",
+      "bells": "G#5 B5 C#6 E6 G#6"
+    }
+  ],
+  "homePull": 0.35,
+  "chordMin": 14,
+  "chordMax": 22,
+  "swell": 6,
+  "release": 8,
+  "pad": 1,
+  "padTone": "warm",
+  "brightness": 1,
+  "bass": 1,
+  "bells": 1,
+  "bellTone": "glass",
+  "bellGapMin": 2.5,
+  "bellGapMax": 7,
+  "phrases": 0.4,
+  "pulse": 0,
+  "air": 1,
+  "echo": 0.35,
+  "space": 0.75,
+  "level": 1
+}

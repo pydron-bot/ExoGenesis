@@ -699,21 +699,44 @@ First playtest build (2026-11-15).
     the ringer switch is on silent — if there's no sound on the phone, check the switch first.
   - Tests: `tools/sound-smoke.mjs` (counts what started via `__exo.audio.stats()`; it can't judge how it sounds —
     the recipes in `src/audio/synth.ts` are first guesses for Derek to tune by ear).
-- **Title music (2026-11-19, v0.41.0):** `src/audio/music.ts` — generative ambient, synthesised live like the rest
-  of the sound. Pad chords (two detuned saws + a triangle per note under a slowly breathing low-pass, 6 s swells,
-  8 s releases so chords cross-fade) random-walk through five chords in D Lydian (Dmaj9, E/D, Bm9, F♯m7, Amaj9;
-  `NEXT` leans back to Dmaj9), each held 14–22 s; a sine bass with its octave holds the root; glassy FM bells
-  (ratio 3.507, index decaying over 1.6 s) pick chord tones singly or in 2–3 note phrases every 2.5–7 s, with
-  rests, through a dark ping-pong echo (0.63 / 0.95 s); a faint swept band of noise; all into a 6.5 s synthetic
-  hall (`hall()`: noise that darkens as it decays). A 200 ms timer queues notes 1.2 s ahead on the audio clock.
-  - `GameAudio.titleMusic(on)` is called every frame with `title.active`: starts once the context runs (the first
-    tap; browsers won't play sooner), fades out over 4 s when the title hides. It plays in a new mixer category,
-    **Music** (`music` in `content/rules/sound.json`, 0.6); `titleMusic` there can name an audio asset to loop
-    instead. Measured offline: about −25 LUFS at 0.6 before master, peak 0.22, so it sits under the UI.
+- **Music (2026-11-19, v0.41.0):** generative ambient, synthesised live like
+  the rest of the sound; it never loops, so there's no seam. `src/audio/music.ts` (`AmbientMusic`) plays a
+  **mood**: pad chords (per-note oscillators under a slowly breathing low-pass; long swells and releases so chords
+  cross-fade) random-walk through the mood's chords (`homePull`: how often it goes back to the first), each held
+  `chordMin`–`chordMax` s; a sine bass with its octave on the root; FM bells picking from the chord's bell notes,
+  singly or in 2–3 note phrases, with rests, through a dark ping-pong echo (0.63 / 0.95 s); an optional heartbeat
+  pulse on the bass (tension); a faint swept band of noise (11 s of noise at a drifting speed, so it never
+  audibly repeats); all into a 6.5 s synthetic hall (`hall()`). A 200 ms timer queues notes 1.2 s ahead on the
+  audio clock. The mood is read through a getter at every chord/bell/beat, and bus levels are re-read each tick,
+  so edits are heard live; blank or half-typed numbers fall back to defaults (`fin()`).
+  - **Moods are content:** `content/music/*.json` (editor: Rules → **Music**). Chords are note names
+    ("D3 A3 C#4", `src/audio/notes.ts`; content checks flag anything that isn't a note). Tones: pads warm / soft /
+    hollow / glass, bells glass / soft / metal / pluck. `use`: title, day, night, tension or none (several with the
+    same use: one at random). Shipped: **Title · Drift** (D Lydian), **Day · Long Light** (A major, soft pads and
+    bells), **Night · Long Dark** (C Dorian, glass pads, sparse, more echo and air), **Tension · Contact** (E
+    Phrygian, hollow pads, metal bells, 72 bpm pulse, 8–12 s chords). The editor's **▶ Listen** (`src/editor/
+    music-panel.ts`) plays the draft with its own AudioContext, lights the chord sounding, ⏭ moves on now.
+  - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
+    and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
+    (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min
+    (2–5) of only wind between (`restMax` 0 = always on). **Tension:** combat FX (shots, bites, deaths; not repair
+    beams) on 3 separate ticks within 8 s, from anywhere on the map, brings in the tension mood, even in a quiet
+    spell; it holds `tensionHold` s (25) after the last. Cross-fades: 2.5 s into tension, 8 s out, 6 s otherwise.
+    The title can loop an audio file instead (`titleMusic` in the sound rules).
+  - **Levels:** the **Music** mixer category (`music` in `content/rules/sound.json`, 0.6), then the player's own
+    music volume (♫ slider next to Sound in the bar, behind ⋯ on phones; **Music** switch in Options on the title
+    and in ⚙ Options; remembered in `exo.sound` as `music`), then master. Each mood's `level` balances them;
+    measured offline at the game's default levels (before the player's volume): title −25 LUFS, day ≈ −27, night
+    −27, tension −27, peaks under 0.2, so they sit under the UI and effects.
+  - **Lost effects fix:** the sim sends 10 snapshots a second; when two arrived in one frame (slow frames, ×3
+    speed) the first one's `fx` were dropped, so shots, deaths and their sounds went missing (headless tests saw
+    110 of 770 ticks and heard 0–1 of 7 deaths). `SimClient` now carries an unseen snapshot's `fx` into the next
+    (`seenTick`, set by main.ts each frame; newest 600 kept). Now 7 of 7.
   - The title's Options region list shows each region's world (the region's `body`, Home if empty) under its
     name, Home's regions first.
-  - Tests: `tools/music-smoke.mjs` (6 checks: silent before a tap, chords and bells queue, every region row names
-    its world, stops when the title closes). The voicings and levels are first guesses to tune by ear.
+  - Tests: `tools/music-smoke.mjs` (14 checks: silent before a tap, title chords and bells, Options' Music switch
+    and region worlds, stops when the title closes; quiet after landing, a calm stretch, tension in a fight with
+    its pulse, music volume remembered; the editor's ▶ Listen and ⏭). The moods are first passes to tune by ear.
 - **More units and buildings (2026-11-16, v0.10.0):** from Derek's playtest ("challenging but engaging"), a
   wider roster. All numbers are content (`content/units`, `content/buildings`); the editor shows the new fields.
   - **Roster is data now:** any unit record is drawn (`src/skirmish/types.ts` ROSTER: the skirmish's four keep
