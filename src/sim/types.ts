@@ -205,6 +205,11 @@ export interface Unit {
   /** A shield unit (Aegis): charge, and whether its bubble has dropped (back up at 30%). */
   sh?: number;
   shDown?: boolean;
+  /** Its ability (UnitDef.ability): seconds of cooldown left, and of the effect left. */
+  ab?: number;
+  abT?: number;
+  /** An instant ability (pulse, mend) armed by a command, to go off in the next fight step. */
+  abFire?: boolean;
 }
 
 /** One of the inhabitants at a camp (walker, or the elder who keeps to the centre). */
@@ -368,6 +373,7 @@ export interface PlanetSnap {
 
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
 
+import type { Chronicle } from './chronicle';
 export interface SimState {
   /** Region id (content/regions/<id>.json); older saves are Touchdown. */
   region?: string;
@@ -425,6 +431,8 @@ export interface SimState {
   frontier?: import('./frontier').FrontierState;
   /** Colonists, embryos, pods, food, Trust (absent in saves from before people existed). */
   people?: PeopleState;
+  /** The Chronicle's record (campaign; src/sim/chronicle.ts). */
+  chronicle?: Chronicle;
   /** Set when the game ends: lost ('core', 'cryo', 'people', 'story': a fail effect or mission), or won (a win effect). */
   over: null | 'core' | 'cryo' | 'people' | 'story' | 'won';
   /** The end screen's text for 'story' and 'won'. */
@@ -519,6 +527,8 @@ export type Command =
   | { type: 'board'; ids: number[]; transport: number }
   | { type: 'unload'; ids: number[] }
   | { type: 'stop'; ids: number[] }
+  /** Combat units: use their ability (UnitDef.ability), each that has one ready. */
+  | { type: 'ability'; ids: number[] }
   /** Skirmish: give up (your side loses you; the game goes on for the others). */
   | { type: 'surrender' }
   | { type: 'landing'; stage: LandingStage }
@@ -582,6 +592,9 @@ export interface UnitSnap {
   sh?: number;
   shR?: number;
   shUp?: boolean;
+  /** Its ability: seconds until ready (0 = ready), and seconds the effect has left (absent when none). */
+  abCd?: number;
+  abOn?: number;
 }
 
 export interface CampSnap {

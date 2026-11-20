@@ -34,6 +34,10 @@ export interface PlaythroughOptions {
   policy?: ChoicePolicy;
   /** Fixed answers for some events: event id → choice index (0-based). */
   answers?: Record<string, number>;
+  /** Seconds between the bot's build steps (see BalanceOptions.pace). */
+  pace?: number;
+  /** Called every tick after the story bookkeeping (measurements). */
+  onTick?: (sim: Sim, tick: number, plan: Step[]) => void;
 }
 
 export type BeatKind = 'mission' | 'objective' | 'done' | 'failed' | 'event' | 'choice' | 'flag' | 'unflag' | 'counter' | 'countdown' | 'cinematic' | 'end';
@@ -166,6 +170,7 @@ export function runPlaythrough(o: PlaythroughOptions = {}): PlaythroughResult {
 
   const hook = (sim: Sim, tick: number, plan: Step[]) => {
     last = sim;
+    o.onTick?.(sim, tick, plan);
     if (tick % TICK_HZ) return;
     if (tick % (5 * TICK_HZ) === 0) chase(sim, plan, tick);
     const s = sim.s, st = s.story, t = sim.secs;
@@ -209,7 +214,7 @@ export function runPlaythrough(o: PlaythroughOptions = {}): PlaythroughResult {
       sim.command({ type: 'story', id, choice: k });
     }
   };
-  const r = runBalance(strategy, { minutes, seed, region: o.region, peaceful: o.peaceful, hook });
+  const r = runBalance(strategy, { minutes, seed, region: o.region, peaceful: o.peaceful, hook, pace: o.pace });
   const sim = last as Sim | null;
   const st = sim?.s.story, ppl = sim?.s.people;
   const avg = (f: (c: { stance: number; wb: number }) => number) => (ppl?.colonists.length ? ppl.colonists.reduce((m, c) => m + f(c), 0) / ppl.colonists.length : null);

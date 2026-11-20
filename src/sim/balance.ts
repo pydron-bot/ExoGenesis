@@ -28,6 +28,8 @@ export interface BalanceOptions {
   trace?: (line: string) => void;
   /** Called every tick before the sim steps (the story playthrough answers cards here). */
   hook?: (sim: Sim, tick: number, plan: Step[]) => void;
+  /** Seconds between the bot's build steps (1: as fast as it can; a human takes longer to read and place). */
+  pace?: number;
 }
 
 export interface BalanceRow {
@@ -89,7 +91,7 @@ export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult 
     const s = sim.s as S;
     if (s.over) break;
     // the bot: every second, try the next item in its plan
-    if (tick % TICK_HZ === 0 && plan.length) {
+    if (tick % Math.round(TICK_HZ * (o.pace ?? 1)) === 0 && plan.length) {
       const [kind, where] = plan[0];
       if (kind === 'fab') {
         if (s.alloys >= RULES.droneCost) { sim.command({ type: 'fab' } as never); plan.shift(); }
@@ -132,7 +134,7 @@ export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult 
     }
     const ppl = s.people;
     // people plan: when the plan runs out, grow the base with the colony
-    if (name === 'people' && !plan.length && tick % (30 * TICK_HZ) === 0 && ppl) {
+    if ((name === 'people' || name === 'opening') && !plan.length && tick % (30 * TICK_HZ) === 0 && ppl) {
       const n = ppl.colonists.length, farms = count(s, 'hydroponics'), homes = count(s, 'civic');
       if (n * 0.04 > farms * 0.16) plan.push(['hydroponics'], ['solar']);
       else if (n >= homes * (DEFS.civic?.housing ?? 0) - 2) plan.push(['civic'], ['solar'], ['battery']);

@@ -14,5 +14,10 @@
   "model": "exo-gunship",
   "modelScale": 1,
   "cost": 130,
-  "buildSeconds": 22
+  "buildSeconds": 22,
+  "ability": "overdrive",
+  "abilityName": "Strafe",
+  "abilityPower": 2,
+  "abilitySeconds": 5,
+  "abilityCooldown": 25
 }

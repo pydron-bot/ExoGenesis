@@ -1615,11 +1615,11 @@ Quality of life in the colony (and the skirmish built on it; the old `?mode=skir
   the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
 - **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.
 
-### Research tree (campaign depth 1)
+### Research tree (v0.58.0)
 
 DESIGN §5.9's compact Act 1 tree: 4 projects became 32, in four branches, gated C&C-style and by the colony's people and
 finds. Code: `src/sim/mods.ts` (pure, shared by sim and HUD), `Sim.mod` in `src/sim/core.ts`, `src/research-hud.ts`.
-Test: `tools/tree-smoke.mjs` (`--headless-only`; the browser half wants a dev server, default `:5186`).
+Test: `tools/tree-smoke.mjs` (`--headless-only`; the browser half wants a dev server, default `:5176`).
 
 - **Content** (`researchShape`): `branch` (economy, defence, people, relic = the tree's tabs), `requires` and a second
   prerequisite `also`, `building` (a finished one must stand), `specialist` (an adult colonist with that specialty),
@@ -1656,12 +1656,12 @@ Test: `tools/tree-smoke.mjs` (`--headless-only`; the browser half wants a dev se
   Low-Scar scars ×0.60; Tracking Arrays takes 35 s at an unstaffed lab. Also: each gate refuses then allows, modifiers
   survive a save, and at 390 × 780 the tree fills the width with no sideways scroll and starts a project from a node.
 
-### Colony dilemmas (campaign depth 2)
+### Colony dilemmas (v0.58.0)
 
 Small choices that come out of what the colony is going through, each leaving something behind. They are ordinary
 story events (`content/story/`, the story HUD) with a few additions. Code: `src/sim/story.ts`, `src/sim/conditions.ts`,
 `People.castFor` / `carryIn` in `src/sim/people.ts`. Test: `tools/dilemma-smoke.mjs` (`--headless-only`; the browser
-half wants a dev server, default `:5186`).
+half wants a dev server, default `:5176`).
 
 - **Story fields:** `dilemma` (waits its turn), `again` (seconds after its answer that a dilemma can fire again, its
   trigger met again; `StoryState.again` re-arms it by taking it off `fired`), and `cast` (`CASTS`: adult, a bloc, the
@@ -1691,12 +1691,12 @@ half wants a dev server, default `:5186`).
   running out, a promised line reaching the next pod, a rescue, a policy change, coming again, saves, and (browser) the
   card naming its colonist and the Colony panel listing the boost.
 
-### Inhabitant relations (campaign depth 3)
+### Inhabitant relations (v0.58.0)
 
 Past first contact, the Vell and the Choir are neighbours to deal with: trade, favours, fighting beside us, and
 grudges. Data-driven in `content/inhabitants/` (`inhabitantShape`); code in `src/sim/inhabitants.ts`
 (`tradeProblem`, `ask`, `hunt`, `fight`, `mined`, `nestCleared`), `Sim.nativeStrike` in `src/sim/core.ts`, the
-Neighbours tab in `src/people-hud.ts`. Test: `tools/relations-smoke.mjs` (`--headless-only`; browser half on `:5186`).
+Neighbours tab in `src/people-hud.ts`. Test: `tools/relations-smoke.mjs` (`--headless-only`; browser half on `:5176`).
 
 - **Trade** (`trades`: label, give / giveAmount, get / getAmount, minimum regard; `tradeEvery`): once they trust us,
   or once we can speak their language (the `trade` ability: Translation Matrix). Each trade adds 1 regard; the camp
@@ -1724,7 +1724,7 @@ Neighbours tab in `src/people-hud.ts`. Test: `tools/relations-smoke.mjs` (`--hea
   a minute (both killed); a trusted Vell camp killed the swarmers that came onto its land; a depot on the Vell's deposit
   cost 3.1 regard a quarter sol (108 alloys) against 1.5 for encroaching alone.
 
-### The frontier: threats to held territory (campaign depth 4)
+### The frontier: threats to held territory (v0.58.0)
 
 DESIGN §4 "Persistent territory" within the region being played (the campaign plays one region at a time; there is no
 second held region to go back to yet): the colony's outlying **holdings** come under escalating, telegraphed threats,
@@ -1733,7 +1733,7 @@ so the player has to go back out to them, and **standing orders** let a holding 
 `buildingHarm` and turret damage in `src/sim/core.ts`, Evacuate in `People.decide`, the building card in
 `src/colony-hud.ts`. Numbers: threat rules `frontierFrom` (1,500 s), `frontierEvery` (420 s) ± `frontierJitter` (90),
 `frontierWarn` (90 s), `frontierSize` (6), `frontierGrowth` (3), `holdFrom` (55 u). Test: `tools/frontier-smoke.mjs`
-(`--headless-only`; browser half on `:5186`).
+(`--headless-only`; browser half on `:5176`).
 
 - **Holdings:** every finished building (walls, gates and the Core aside) at least `holdFrom` from the Core, grouped by
   compass sector ("the east holding"). Snapshot `frontier.holdings` (sector, centre, building ids, standing order).
@@ -1762,14 +1762,14 @@ so the player has to go back out to them, and **standing orders** let a holding 
   on the holding. The balance bots still lose Touchdown before 25 min with predators on, so the frontier (from 25 min)
   doesn't change those runs.
 
-### Colonists as people (campaign depth 5)
+### Colonists as people (v0.58.0)
 
 Named colonists get a backstory, a voice, their own grief, and moments where one of them matters. Content:
 `content/voices/<id>.json` (new collection, editor: Story → Colonist voices; `voiceShape`): `on` (a moment from
 `VOICE_EVENTS`), optional filters (`bloc`, `trait`, `specialty`, `origin`) and `lines` (`{name}`, `{other}`,
 `{building}`). Code: the voices section of `src/sim/people.ts` (`say`, `bio`, `struck`, `heroGuard`, `moments`),
 hooks in `core.ts`, `inhabitants.ts`, `frontier.ts`; the colonist card and Colony panel in `src/people-hud.ts`.
-Test: `tools/voices-smoke.mjs` (`--headless-only`; browser half on `:5186`).
+Test: `tools/voices-smoke.mjs` (`--headless-only`; browser half on `:5176`).
 
 - **Backstory** (`Colonist.bio`): "Okafor line, donor stock from the Niger delta." (`LINEAGE_FROM` in `names.ts`) or
   "Born in the colony to Ada and Kofi.", then a line from the `bio` voices that fit their trait or origin, picked by
@@ -1794,3 +1794,160 @@ Test: `tools/voices-smoke.mjs` (`--headless-only`; browser half on `:5186`).
 - **Measured** (headless): every colonist has a different backstory; one remark, then nothing within the gap; a quiet
   sol gives 0–2 remarks; a partner's death: sorrow 30, a line, "mourned by" three names; a Brute's blow on a held
   Civilian Center 48 → 24.
+### Opening pace: the first 20 minutes (v0.59.0)
+
+DESIGN §7's M1 exit test. Measured headless with `tools/opening.mjs`: the story playthrough bot (strategy `opening`, a
+first-timer's build with a turret by each depot) plays Touchdown at a human pace (`pace`: one build step every 8 s,
+`BalanceOptions.pace`), chasing each mission's objectives, and records when things first happen. A second is **dead
+waiting** when nothing is being built, no fight is on, no card or objective landed in the last 15 s and the bot can't
+afford its next step.
+
+- **What was wrong:** 200 starting alloys went on a solar, a battery and the second drone, and the depot came at ~2:45,
+  just as the first night stopped it (depots run on live power only), so alloys crawled in at the Core's 0.4/s until
+  ~5:30. Two waits of 91 s and 104 s before the first pack at 5:10. The tutorial colony never got its first colonist:
+  the pod takes a sol (6 min) and most runs fell to the third or fourth pack at 10–17 min.
+- **Changes** (content only, plus one rule):
+  - Touchdown region: `startAlloys` 360 (was 200 from the colony rules), `graceSeconds` 240 (300), `packScale` 0.8,
+    `waveInterval` 130 (110). Other regions and the skirmish keep the global numbers.
+  - Missions: Touchdown pays 50 alloys; Groundwork asks for **two** depots and pays 120 (60); First Night pays 150 (80).
+    Each finished tutorial mission puts up a hint (a `hint` reward) saying what comes next: depots on the deposits,
+    a turret by each depot, then Hydroponics and a Civilian Center.
+  - People rules `firstPodSols` 0.5: the colony's first pod (`Pod.first`, only while no one has been grown, born or
+    lost) matures in half a sol. Later pods take the full sol.
+- **Before → after** (5 seeds, pace 8 s):
+
+  | | before | after |
+  |---|---|---|
+  | first building up | 0:09 | 0:09 |
+  | Groundwork done | 2:43 | 0:57 |
+  | first fight / first kill | 5:10 / 5:25 | 4:05 / 4:08 |
+  | First Night done | 7:36 (3 of 5) | 4:10 |
+  | first pod (imprint choice) | 9:35–10:05 (2 of 5) | 4:35 |
+  | first colonist (Firstborn done) | never | 7:47 |
+  | first story choice | 5:23–9:07 (2 of 5) | 8:05 |
+  | longest wait | 1:44–1:50 | 1:06–1:46 |
+  | waiting in the first 10 min | 3:16–5:21 (most runs dead by 10–11 min) | ~4:05 (all alive) |
+  | standing at 20 min | 0 of 5 (fell at 10–17 min) | 5 of 5 |
+
+  The waits left are the first night (~3:15–5:45, when depots stop) and, after the tutorial, alloys for the bot's
+  next step while a human would be exploring for Beyond the Ridge.
+- **Balance harness** (`tools/balance.mjs`, Touchdown, 20 min): with seeds 1337 / 7 / 42, `balanced` and `mixed`
+  survive 3 / 3, `opening` 2 / 3, `people` falls at 17–20 min (was 16).
+- **Test:** `tools/opening-smoke.mjs` (headless: the tutorial beats in time, only the first pod primed; browser,
+  desktop and phone: the opening alloys, Touchdown's payout and hint, Groundwork's goals). `mission-smoke` follows the
+  new Groundwork. Smoke tools touched here take `PORT` (or `--url`).
+
+### Units that feel different: abilities and counters (v0.59.0)
+
+Every armed Accord unit has one ability the player triggers, on a cooldown; computer players use theirs too.
+
+- **Data** (`content/units/*.json`, schema `unitShape`): `ability` (a kind), `abilityName`, `abilityPower`,
+  `abilitySeconds`, `abilityRadius`, `abilityCooldown` (empty = 30 s), plus `vsBuildings` (damage to buildings ×).
+  Kinds (`ABILITIES` in `src/content/defs.ts`): **overdrive** (fire rate × power), **boost** (speed × power), **siege**
+  (dug in: can't move, range and damage × power, takes 70% damage; a move order ends it), **charge** (the next shot ×
+  power), **pulse** (power damage to every enemy within the radius, flyers too), **mend** (power hp to everything of
+  ours within the radius), **shield** (our units within the radius take power less damage).
+
+  | Unit | Ability | Numbers |
+  |---|---|---|
+  | Rover | Overdrive | 2× fire rate, 4 s, every 20 s |
+  | Scout Skimmer | Afterburner | 1.8× speed, 6 s, every 25 s |
+  | Tank | Dig in | siege 1.35× (range 22 → 29.7, past a turret's 28), 12 s, every 30 s |
+  | Arc Caster | Discharge | 60 damage within 9 u, every 20 s |
+  | Artillery | Barrage | 3× fire rate, 6 s, every 40 s; 2× damage to buildings |
+  | Lancer | Overcharge | next slug 3× (330), within 10 s, every 20 s |
+  | Field Engineer | Patch up | +120 hp within 10 u, every 30 s |
+  | Aegis Crawler | Hardlight | half damage within 10 u, 6 s, every 35 s |
+  | Hover Skiff / Medevac | Skim / Sirens | 1.6× speed, 5–6 s |
+  | Gunship | Strafe | 2× fire rate, 5 s |
+  | Gunboat | Anchor | siege 1.3×, 10 s |
+
+- **Sim** (`src/sim/core.ts`): `Unit.ab` (cooldown left), `abT` (effect left), `abFire` (an instant kind armed).
+  Command `{ type: 'ability', ids }` uses each listed unit's ability if ready ("Not ready yet" if none was).
+  `armour()` scales every hit on a unit (`strike`, splash, chains and predator bites): siege and shield auras
+  (`auras`, rebuilt each tick). Commands run inside the player's own view (`withTeam`), so **pulse and mend only arm
+  there and go off in the shared fight** (`fireAbility` at the top of `stepUnits`): first written to strike directly,
+  a Discharge killed other players' units from inside one player's view and left the lists wrong (it was why Hard
+  started losing to Easy, 0 / 3). The snapshot carries `abCd` and `abOn` per unit.
+- **Computer players** (`abilities()` in `src/sim/ai.ts`, Normal and Hard): guns in a fight use overdrive and charge;
+  tanks dig in out on the attack, against a building; a discharge with three or more in reach or a flyer; a shield
+  in a fight or with hurt friends near; repairs when a friend is under 60%; a speed boost on a drive over 50 u.
+- **Controls:** the unit card has a wide ⚡ button per kind of selected unit (ready, "· 4 s" while on, "· 12 s" while
+  cooling down) and an Ability row; **G** uses the ability of everything selected; the Controls panel lists it.
+- **Counters** (`tools/unit-duel.mjs`: each ground combat unit against each other at 700 alloys a side on a
+  skirmish map, no fog, abilities used as the computer players use them, units holding to shoot once in range; then
+  each against three Defense Turrets and a Siege Cannon). Before, with or without abilities, the **Tank beat every
+  other unit** (6–0). Changes: Tank 110 → 120 alloys; Lancer 220 → 250 hp, 100 → 110 damage. After (W–L): Tank 5–1
+  and Lancer 5–1 (Lancer beats Tank, Rover beats Lancer, Tank beats Rover), Rover 4–2, Arc 4–2, Artillery 2–4 (but
+  takes the gun line with 84% left, the best of any), Skiff 1–5, Scout 0–6 (it scouts). The gun line holds against
+  Scouts, Skiffs and Arc Casters; Rovers (with Overdrive), Tanks, Lancers and Artillery break it.
+- **AI vs AI** (`tools/ai-sim.mjs`): `--check` passes (each level beats an idle player; Hard beats Easy 3 / 3 at
+  22–32 min; the four-way Normal free-for-all ends at 38.7 min; its limit is now 80 min, as one ordering ran 69).
+  New AI against the last release's (`--match old:normal,normal` and swapped, 3 seeds each): 4–1 with a draw. New
+  options: `--no-abilities`, `--seed`, `--size`.
+- **Test:** `tools/ability-smoke.mjs` (headless: each kind measured on the real sim, the cooldown, a Discharge killing
+  another player's Scouts cleanly, a computer player using Overdrive; browser, desktop and phone: a button per kind,
+  touch-sized, it fires only that kind, counts down, and G). `tools/unit-duel.mjs --check`.
+- Known: `tools/roster-smoke.mjs` "packs bring spitters and burrowers" fails before this change too (the test clears
+  every hostile, nests included, so later packs have no open spawn).
+
+### Daily Planet (v0.59.0)
+
+DESIGN §5.10 A. `src/daily.ts`, wired in `main.ts` (`daily`, `finishDaily`, `dailyChoice`). No server.
+
+- **Today's planet** (`dailyRules(date)`): everything follows from the UTC date (FNV hash of `exo-daily:<date>`): the
+  skirmish seed, the world (one of `SKIRMISH_WORLDS`), one or two computer rivals, map size, sea (only worlds with
+  one), ground, starting alloys (400 / 600 / 800); predator packs on; rivals Normal on weekdays and Hard at weekends.
+  Numbered from #1 on 2026-11-20; a new one at midnight UTC. It plays as an ordinary skirmish link with
+  `daily=<date>` (`dailyLink`), so the generator, the computer players and the end screen are the skirmish's own;
+  the seeded sim makes it the same planet for everyone (14 days checked: each map generates, twice over the same).
+- **One scored try:** opening today's link claims the day in `localStorage` (`exo-daily`: date → `{ started,
+  result }`, last 60 days). A reload, a Rematch, an old date or `practice=1` is practice (the log says which). A try
+  left unfinished stays unscored.
+- **Score** (`dailyScore`): a win 1,000 plus speed (2,400 s − time) / 4; a loss the time held / 3 (to 40 min); +5 a kill
+  of a rival's unit, drone or building; + alloys mined / 20; −8 a unit lost, −20 a building lost; never below 0.
+- **The shared line** (`DailyTracker`, fed every frame): one square per 2 minutes of play, 🟩 quiet, 🟨 a fight (any
+  loss or kill), 🟥 heavy (two buildings or six units lost), folded to at most 15 squares, then 🏆 or 💀. Share text:
+  `Exo Genesis · Daily Planet #N`, the world, rivals and level, the line, "Victory at mm:ss · N pts", the game's link:
+  nothing about the map. Share uses the Web Share sheet on touch devices and the clipboard elsewhere (a hidden
+  textarea copy as the last resort).
+- **Where:** title → **DAILY PLANET** ("#N · world · rivals · one scored try a day"; once played "Today: victory /
+  fell · N pts · tap to share", which opens the card with Share, the streak and a practice button). The end screen
+  adds the score card (score, line, how it was made, Share, days in a row) under the skirmish table.
+- **Test:** `tools/daily-smoke.mjs` (headless: same date same planet, next day another, numbering, weekends, the UTC
+  day boundary, links, a fortnight of maps, score order, the timeline and folding, the share text; browser, desktop
+  and phone: the title entry, claiming the try, surrender → the card and Share copying the text, the result kept, a
+  reload is practice, the title's look back).
+
+### The Chronicle (v0.59.0)
+
+DESIGN §5.10 C. A colony history from what the campaign already tracks. The skirmish end screen already has its
+battle summary (each player's units built, kills, losses, buildings lost and alloys mined), so the Chronicle is
+campaign only.
+
+- **Record** (`src/sim/chronicle.ts`, `SimState.chronicle`, saved with the game): once a second (`recordChronicle`,
+  from `Sim.step` while deployed) it diffs the colonists: anyone new is added (name, lineage, pod or born, imprint,
+  parents, when they appeared, partner); anyone gone gets an end, *died* with the memorial's cause and age, or *walked
+  out* (a walkout's memorial line, or no line at all). Every 30 s a sample of Partners / Autonomists / Devoted
+  (adults, by stance), children and embryos (480 kept; a long game keeps every other). Key moments: player 0's log
+  lines by cue (`chronicleEvent` in `Sim.emit`: births and pods, deaths and lines gone, partners and comings of age,
+  contact and discoveries, research done, the first pack beaten, nests, relic grids, Breakthroughs, the end), plus
+  missions done, story events fired, a change of leading bloc and walkouts, found by diffing. 600 moments kept
+  (everyday ones dropped first). No hooks in the people system, and no random numbers: balance runs are unchanged.
+  A save from before this starts its record when loaded (everyone living then counts from that moment).
+- **Page** (`src/chronicle.ts`: `chronicleModel` from a `sim.save()` copy, `openChronicle`): title and outcome; the
+  numbers (lived, grown, born, living, died, walked out, lines left of 24, generations, embryos); **how the blocs
+  shifted** (stacked areas on a canvas, sol ticks); the **family tree** (`treeLayout`: a row per generation, pod-grown
+  first in the order they came out with partners side by side, children under their parents, a curve to each parent;
+  borders cyan living, red died, amber walked out; an SVG that scrolls sideways on its own); **key moments** grouped by
+  sol with the time of day; the **memorial** (named dead, with cause and when; unnamed pod losses as one line), lines
+  that ended and walkouts. Game menu → **Chronicle** at any time (the game stays paused), and **Read the Chronicle**,
+  the first button on a campaign's end screen. Esc or × closes it (back to the end screen). It doesn't open by itself:
+  over the end screen it hid New game and Load (`smoke.mjs` caught it).
+- **Save image** (`chronicleCanvas`, `saveChronicleImage`): the same on one 1200 px wide canvas (the tree scaled to
+  fit, the last 18 key moments, 14 names) as `exo-chronicle-sol-N.png`; on a touch device that can share files, the
+  share sheet, otherwise a download.
+- **Test:** `tools/chronicle-smoke.mjs` (headless: a 55-minute peaceful colony recorded, children with both parents,
+  samples, moments, a death with its cause, a walkout, a save, the model's totals, the tree's rows and links, the
+  memorial; browser, desktop and phone: that colony loaded, the menu's page with tree, chart, moments and memorial,
+  fitting the screen, Save image as a 1200 px PNG, ×, and after a fallen Core the end screen's button).

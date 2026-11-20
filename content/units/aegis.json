@@ -18,5 +18,11 @@
   "isotopes": 10,
   "research": "shield-lattice",
   "buildSeconds": 22,
-  "model": "exo-aegis"
+  "model": "exo-aegis",
+  "ability": "shield",
+  "abilityName": "Hardlight",
+  "abilityPower": 0.5,
+  "abilityRadius": 10,
+  "abilitySeconds": 6,
+  "abilityCooldown": 35
 }

@@ -2,7 +2,7 @@
  * The research tree: headless (the real sim) checks the tree's shape, every kind of gate (earlier research, a
  * building, a specialist, a discovery) and that projects change the sim; then the browser opens the tree from the
  * Tech Lab at phone size and starts a project from it.
- *   node tools/tree-smoke.mjs [--headless-only] [--url http://localhost:5186/]
+ *   node tools/tree-smoke.mjs [--headless-only] [--url http://localhost:5176/]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -131,7 +131,7 @@ if (process.argv.includes('--headless-only')) { console.log(failed ? `\n${failed
 
 // ---------- the tree in the browser (phone size) ----------
 const { chromium } = await import('playwright');
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5186/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
 const errors = [];

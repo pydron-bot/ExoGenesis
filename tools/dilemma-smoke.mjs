@@ -149,7 +149,7 @@ check(!(sim.s.story.mods ?? []).some((b) => b.text === boost?.text) && g.log.som
 if (!process.argv.includes('--headless-only')) {
   // ---------- the card in the browser ----------
   const { chromium } = await import('playwright');
-  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5186/';
+  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
   const errors = [];

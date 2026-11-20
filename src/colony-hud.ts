@@ -322,6 +322,7 @@ export class ColonyHud {
         else rows.push(['Weapon', `${(d.damage / d.cooldown).toFixed(0)} dmg/s · range ${d.minRange ? `${d.minRange}–` : ''}${d.range} u${d.splash ? ' · splash' : ''}${d.chain ? ` · arcs to ${d.chain} more` : ''}`]);
         if (d.sight && d.sight > 40) rows.push(['Sight', `${d.sight} u`]);
         rows.push(['Speed', `${d.speed} u/s`]);
+        if (d.ability) rows.push(['Ability', `${d.abilityName ?? 'Ability'}: ${abilityText(d)}`]);
       }
       rows.push(['Move', this.coarse() ? 'tap ground or drag from a unit' : 'click ground or drag from a unit']);
       const transport = us.length === 1 && this.d.units[us[0].unit].carries;
@@ -331,6 +332,7 @@ export class ColonyHud {
       html = `<div class="t">${esc(title)}</div><div class="s ${fighting ? 'warn' : ''}">${st}</div>
         <div class="hp"><i style="width:${(hp * 100).toFixed(0)}%;background:${hp > 0.6 ? '#5bff9a' : hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
         ${rows.map(([k, v]) => `<div class="row ${k === 'Move' || k === 'Select' || k === 'Load' ? 'tip' : ''}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+        ${this.abilityButtons(us)}
         <div class="grp"><button data-act="stop" title="Stop and guard here (X)">Stop</button>${us.some((u) => u.cargo) ? '<button data-act="unload" title="Land everyone aboard on the nearest shore">Unload</button>' : ''}<button data-act="deselect">Done</button></div>`;
     } else if (sel.kind === 'colonist') {
       const c = this.people.colonistCard(s, sel.id);
@@ -460,6 +462,20 @@ export class ColonyHud {
     if (html !== this.cardKey) { card.innerHTML = html; this.cardKey = html; }
   }
 
+  /** One button per kind of selected unit with an ability: ready, on (seconds left) or cooling down. */
+  private abilityButtons(us: Snapshot['units']) {
+    const kinds = [...new Set(us.filter((u) => this.d.units[u.unit]?.ability).map((u) => u.unit))];
+    if (!kinds.length) return '';
+    const key = kinds.length === 1 ? ' (G)' : '';
+    return `<div class="grp abil">${kinds.map((k) => {
+      const d = this.d.units[k], mine = us.filter((u) => u.unit === k);
+      const ready = mine.filter((u) => !u.abCd).length, on = Math.max(0, ...mine.map((u) => u.abOn ?? 0));
+      const name = esc(d.abilityName ?? 'Ability');
+      const label = on > 0 ? `${name} · ${Math.ceil(on)} s` : ready ? `⚡ ${name}${mine.length > 1 ? ` ×${ready}` : ''}` : `${name} · ${Math.ceil(Math.min(...mine.map((u) => u.abCd ?? 0)))} s`;
+      return `<button data-act="ability" data-unit="${esc(k)}" class="${ready ? 'go' : 'wait'}${on > 0 ? ' armed' : ''}" title="${esc(abilityText(d))}${key}">${label}</button>`;
+    }).join('')}</div>`;
+  }
+
   private act(e: PointerEvent) {
     const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
     const sel = this.d.ui.sel;
@@ -473,6 +489,11 @@ export class ColonyHud {
     }
     if (sel.kind === 'units') {
       if (act === 'stop') this.d.command({ type: 'stop', ids: sel.ids });
+      if (act === 'ability') {
+        const kind = (e.target as HTMLElement).closest<HTMLElement>('[data-unit]')?.dataset.unit;
+        const ids = this.cur.units.filter((u) => sel.ids.includes(u.id) && (!kind || u.unit === kind)).map((u) => u.id);
+        if (ids.length) this.d.command({ type: 'ability', ids });
+      }
       if (act === 'unload') this.d.command({ type: 'unload', ids: sel.ids });
       if (act === 'deselect') this.d.ui.sel = null;
       this.cardKey = '';
@@ -632,4 +653,19 @@ export class ColonyHud {
 
   /** Forget goal progress (new game). */
   reset() { this.goalsKey = ''; this.cardKey = ''; this.menuKey = ''; this.contact.reset(); }
+}
+
+/** What a unit's ability does, for its card and button tip. */
+export function abilityText(d: UnitDef) {
+  const p = d.abilityPower ?? 1, t = d.abilitySeconds ?? 5, r = d.abilityRadius ?? 0, cd = d.abilityCooldown ?? 30;
+  const what = {
+    overdrive: `fires ${p}× as fast for ${t} s`,
+    boost: `${p}× the speed for ${t} s`,
+    siege: `digs in for ${t} s: ${p}× range and damage, takes less damage, can't move`,
+    charge: `the next shot does ${p}× the damage`,
+    pulse: `${p} damage to every enemy within ${r} u`,
+    mend: `repairs ${p} hp on everything of ours within ${r} u`,
+    shield: `our units within ${r} u take ${Math.round(p * 100)}% less damage for ${t} s`,
+  }[d.ability ?? 'overdrive'];
+  return `${what} · every ${cd} s`;
 }

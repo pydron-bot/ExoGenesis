@@ -111,6 +111,8 @@ export interface Pod {
   progress: number;
   /** Seconds without power or biomass. */
   dark: number;
+  /** The colony's first pod: grows in `firstPodSols` instead of `podSols`. */
+  first?: boolean;
 }
 
 export interface Memorial {

@@ -88,6 +88,38 @@ export function think(h: AiHost, level: Level) {
   const inA = Math.atan2(-home.z, -home.x);
   economy(h, L, inA);
   army(h, L, level, brain, inA);
+  if (level !== 'easy' && !(globalThis as { exoNoAbilities?: boolean }).exoNoAbilities) abilities(h);
+}
+
+/**
+ * Unit abilities (UnitDef.ability), each when it pays: guns in a fight fire theirs (a tank digs in only
+ * standing), a discharge with three or more in reach (or a flyer), a shield or repairs when friends
+ * near it are hurt, a speed boost on a long drive.
+ */
+function abilities(h: AiHost) {
+  const s = h.s, ids: number[] = [];
+  let foes: ReturnType<AiHost['foes']> | null = null;
+  const all = () => (foes ??= h.foes());
+  const near = (u: Unit, r: number) => all().filter((f) => f.hp > 0 && dist(f, u) <= r);
+  const home = s.players![h.team].home;
+  for (const u of s.units ?? []) {
+    const d = UNITS[u.unit];
+    if (!d?.ability || (u.ab ?? 0) > 0 || u.ride !== undefined) continue;
+    const r = d.abilityRadius ?? 0;
+    const hurt = (k: number) => (s.units ?? []).some((o) => o !== u && dist(o, u) <= r && o.hp < UNITS[o.unit].hp * k);
+    let go = false;
+    switch (d.ability) {
+      case 'overdrive': case 'charge': go = u.target >= 0; break;
+      // dig in against guns (out on the attack), where the reach counts
+      case 'siege': go = u.target >= 0 && u.order.kind === 'idle' && dist(u, home) > 70 && !!all().find((f) => f.id === u.target)?.kind; break;
+      case 'pulse': { const n = near(u, r); go = n.length >= 3 || n.some((f) => f.unit && UNITS[f.unit]?.move === 'air'); break; }
+      case 'shield': go = u.target >= 0 || (near(u, r + 12).length > 0 && hurt(0.8)); break;
+      case 'mend': go = hurt(0.6); break;
+      case 'boost': go = u.order.kind === 'move' && Math.hypot(u.order.x - u.x, u.order.z - u.z) > 50; break;
+    }
+    if (go) ids.push(u.id);
+  }
+  if (ids.length) h.run({ type: 'ability', ids });
 }
 
 // ---------- building ----------

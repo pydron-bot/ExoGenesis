@@ -3,10 +3,26 @@
   "summary": "Tutorial 1: power. The cryo bank is on reserve power from the moment you land.",
   "region": "touchdown",
   "objectives": [
-    { "text": "Build a Solar Array to power the cryo bank", "kind": "built", "building": "solar" }
+    {
+      "text": "Build a Solar Array to power the cryo bank",
+      "kind": "built",
+      "building": "solar"
+    }
   ],
   "rewards": [
-    { "kind": "log", "text": "The cryo bank is stable. Now we need alloys to build anything else." }
+    {
+      "kind": "log",
+      "text": "The cryo bank is stable. Now we need alloys to build anything else."
+    },
+    {
+      "kind": "alloys",
+      "amount": 50
+    },
+    {
+      "kind": "hint",
+      "target": "build",
+      "text": "Mining Depots go next to the glowing deposits. Two of them, before dark."
+    }
   ],
   "chapter": "touchdown"
 }

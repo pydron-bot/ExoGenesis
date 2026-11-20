@@ -3,7 +3,7 @@
  * us or we speak their language), favours from a camp that trusts us (guides, lookouts, hunters who fight beside us),
  * a trusted camp defending its land, and what wears regard down or builds it (mining their deposits, loud buildings,
  * clearing a nest, a grievance). Then the Neighbours tab in the browser.
- *   node tools/relations-smoke.mjs [--headless-only] [--url http://localhost:5186/]
+ *   node tools/relations-smoke.mjs [--headless-only] [--url http://localhost:5176/]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -158,7 +158,7 @@ check(C.inhabitants.choir.trades?.length >= 2, 'so does the Choir, in its own wa
 
 if (!process.argv.includes('--headless-only')) {
   const { chromium } = await import('playwright');
-  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5186/';
+  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1000, height: 760 } });
   const errors = [];

@@ -1,7 +1,7 @@
 {
   "name": "Artillery",
   "faction": "accord",
-  "description": "Lobs heavy shells far beyond turret range, with a wide blast. Can't hit anything close: keep it behind walls or other units.",
+  "description": "Lobs heavy shells far beyond turret range, with a wide blast; twice as hard on buildings. Can't hit anything close: keep it behind walls or other units. Barrage: three times the fire rate for a few seconds.",
   "hp": 140,
   "speed": 3.6,
   "range": 46,
@@ -16,5 +16,11 @@
   "model": "exo-artillery",
   "modelScale": 1,
   "cost": 140,
-  "buildSeconds": 28
+  "buildSeconds": 28,
+  "ability": "overdrive",
+  "abilityName": "Barrage",
+  "abilityPower": 3,
+  "abilitySeconds": 6,
+  "abilityCooldown": 40,
+  "vsBuildings": 2
 }

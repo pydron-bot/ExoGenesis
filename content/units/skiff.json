@@ -14,5 +14,10 @@
   "model": "exo-skiff",
   "modelScale": 1,
   "cost": 75,
-  "buildSeconds": 15
+  "buildSeconds": 15,
+  "ability": "boost",
+  "abilityName": "Skim",
+  "abilityPower": 1.6,
+  "abilitySeconds": 5,
+  "abilityCooldown": 20
 }

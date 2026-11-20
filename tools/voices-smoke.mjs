@@ -2,7 +2,7 @@
  * Colonists as people (headless, the real sim): a one-line backstory each, short remarks on events (throttled), a
  * hero who holds a building under attack, mourning when someone they loved dies (and the memorial says who mourned).
  * Then the colonist card and the Colony panel's voices in the browser.
- *   node tools/voices-smoke.mjs [--headless-only] [--url http://localhost:5186/]
+ *   node tools/voices-smoke.mjs [--headless-only] [--url http://localhost:5176/]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -132,7 +132,7 @@ function siege(withPeople) {
 
 if (!process.argv.includes('--headless-only')) {
   const { chromium } = await import('playwright');
-  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5186/';
+  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1000, height: 760 } });
   const errors = [];

@@ -39,6 +39,8 @@ import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
 import { TitleScreen } from './title';
 import { VERSION } from './changelog';
+import { chronicleModel, openChronicle } from './chronicle';
+import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';
 import { registerServiceWorker } from './pwa';
 import { updateWater } from './world/water';
@@ -573,6 +575,8 @@ function restartGame() {
   ui.sel = null; setBuild(null);
   selectFirstDrone = true;
   if (rts) { const h = rts.setup.homes![0]; cam.fx = h.x; cam.fz = h.z; }
+  // a daily's rematch is practice
+  if (daily) { dailyScored = false; dailyTracker = new DailyTracker(); dailyDone = false; document.getElementById('over-daily')?.remove(); log('Daily Planet: practice (not scored)'); }
 }
 const hud = new ColonyHud({
   defs: content.buildings, units: content.units, research: content.research, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
@@ -716,6 +720,48 @@ function showSkirmishSetup(onClose?: () => void) {
 }
 if (rts) document.body.classList.add('rts');
 
+// ---------- Daily Planet (src/daily.ts): a skirmish link with ?daily=<date> ----------
+const oceanWorld = (w: string) => !!(content.bodies[w] as { ocean?: boolean } | undefined)?.ocean;
+const worldName = (w: string) => (content.bodies[w]?.name ?? w).replace(/\b[A-Z]{2,}\b/g, (x) => x[0] + x.slice(1).toLowerCase());
+const daily: DailyRules | null = rts && params.get('daily') ? dailyRules(params.get('daily')!, oceanWorld) : null;
+/** Today's scored try (only one a day, only today's date; a reload or a rematch is practice). */
+let dailyScored = !!daily && !params.has('practice') && daily.date === dailyDate() && claimDaily(daily.date);
+let dailyTracker = daily ? new DailyTracker() : null;
+let dailyDone = false;
+if (daily) {
+  document.body.classList.add('daily');
+  log(`Daily Planet #${daily.day} · ${worldName(daily.world)} against ${dailyRivals(daily)} · ${dailyScored ? 'your scored try: win, and sooner is better' : 'practice (not scored)'}`);
+}
+const dailyUrl = () => `${location.origin}${import.meta.env.BASE_URL}`;
+/** Wire a score card's Share button. */
+function wireShare(root: HTMLElement, d: DailyRules, r: DailyResult) {
+  const btn = root.querySelector<HTMLButtonElement>('.dl-share'), said = root.querySelector<HTMLElement>('.dl-said');
+  if (!btn) return;
+  btn.onclick = async () => {
+    audio.play('tap');
+    const how = await shareResult(shareText(d, r, worldName(d.world), dailyUrl()));
+    if (said) said.textContent = how === 'copied' ? 'Copied: paste it anywhere.' : how === 'shared' ? 'Shared.' : 'Could not copy here.';
+  };
+}
+/** The game is over: score it (if it's the scored try), keep it, and show the card on the end screen. */
+function finishDaily(s: NonNullable<typeof sim.cur>) {
+  if (!daily || !dailyTracker || !s.players) return;
+  dailyDone = true;
+  const won = s.over === 'won';
+  const { score, parts } = dailyScore(won, s.secs, s.players[0].stats);
+  const result: DailyResult = { won, secs: s.secs, score, parts, line: dailyTracker.line(won) };
+  if (dailyScored) saveDaily(daily.date, result);
+  const over = $('over');
+  let box = document.getElementById('over-daily');
+  if (!box) { box = document.createElement('div'); box.id = 'over-daily'; over.insertBefore(box, over.querySelector('.grp')); }
+  box.innerHTML = resultHtml(daily, result, worldName(daily.world), !dailyScored);
+  if (dailyScored) {
+    const n = dailyStreak(daily.date);
+    if (n > 1) box.insertAdjacentHTML('beforeend', `<div class="dl-note">${n} days in a row.</div>`);
+  }
+  wireShare(box, daily, result);
+}
+
 const help = $('help');
 let helped = false;
 const army = skirmish ? null : new ArmyView(scene);
@@ -791,6 +837,8 @@ if (!skirmish) addEventListener('keydown', (e) => {
   if ((e.key === 'h' || e.key === 'H') && lastAt && !(e.target instanceof HTMLInputElement)) goTo(lastAt);
   // X: selected combat units stop and guard where they stand
   if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) { audio.play('order'); sim.command({ type: 'stop', ids: ui.sel.ids }); }
+  // G: selected units use their ability (those that have one ready)
+  if ((e.key === 'g' || e.key === 'G') && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement) && !e.ctrlKey && !e.metaKey) { audio.play('order'); sim.command({ type: 'ability', ids: ui.sel.ids }); }
 });
 /** Where the selection is (or the Command Core, with nothing selected): F / Home glides the camera there. */
 function centreOnSelection() {
@@ -866,6 +914,7 @@ function showControls(onClose?: () => void) {
     row('<kbd>Ctrl</kbd>/<kbd>Shift</kbd> + <kbd>4</kbd>–<kbd>9</kbd>', 'make the selected units a group'),
     row('<kbd>4</kbd>–<kbd>9</kbd>', 'select a group (twice: look at it)'),
     row('<kbd>X</kbd>', 'selected units stop and guard'),
+    row('<kbd>G</kbd>', 'selected units use their ability (also the ⚡ button on the unit card)'),
     row('<kbd>B</kbd>', 'build menu · <kbd>R</kbd> rotates while placing'),
     row('<kbd>Esc</kbd>', 'close the build menu, stop placing, deselect · then the menu'),
   ].join('');
@@ -913,6 +962,7 @@ let fpsAcc = 0, fpsN = 0, fpsShown = 0;
 function updateHud(dt: number, now: number) {
   const s = sim.cur;
   if (s && !skirmish) { hud.update(s, speed, now); if (s.deployed) storyHud.update(s.story); inspector?.update(now); }
+  if (s && dailyTracker && !dailyDone) { if (s.over) finishDaily(s); else dailyTracker.sample(s); }
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
   el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
     ? `${provinces.landCount} REGIONS · ALT ${fmtAlt(cam.altitude())}`
@@ -1053,6 +1103,7 @@ function openGameMenu() {
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'chronicle', label: 'Chronicle', sub: 'The colony\'s story so far: moments, blocs, the family tree, the memorial', run: keep(() => void showChronicle(() => { menuOpen = false; reopen(); })) },
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
     { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },
@@ -1061,9 +1112,18 @@ function openGameMenu() {
   el.querySelector('.op-foot')?.classList.add('dim');
 }
 $('b-menu').onclick = () => openGameMenu();
+
+// ---------- the Chronicle (src/chronicle.ts) ----------
+/** The colony's history from a fresh copy of the sim's state. */
+async function showChronicle(onClose?: () => void) {
+  const st = await sim.save();
+  openChronicle(chronicleModel(st, { region: regionDef.name, solSeconds: content.colony.solSeconds, lineages: content.people.lineages }), content.colony.solSeconds, { tap: () => audio.play('tap'), onClose });
+}
+$('over-chronicle').onclick = () => { audio.play('tap'); void showChronicle(); };
+
 // Esc opens the menu when there's nothing else for it to do (no selection, not placing, no panel open)
 addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape' || e.repeat || cine || title || panelOpen() || document.getElementById('whatsnew')) return;
+  if (e.key !== 'Escape' || e.repeat || cine || title || panelOpen() || document.getElementById('whatsnew') || document.getElementById('chronicle')) return;
   if (ui.sel || ui.build || document.querySelector('#build-menu.open')) return;
   e.preventDefault();
   openGameMenu();
@@ -1083,6 +1143,26 @@ const spatial: Spatial = (x, z) => {
 };
 
 // ---------- title screen ----------
+/** The title's DAILY PLANET: today's world, or today's result once played (with Share, and practice). */
+function dailyChoice() {
+  const d = dailyRules(dailyDate(), oceanWorld), rec = dailyRecord(d.date);
+  const base = import.meta.env.BASE_URL;
+  const what = `${worldName(d.world)} · ${d.players - 1} rival${d.players > 2 ? 's' : ''}${d.ai === 'hard' ? ' · Hard' : ''}`;
+  const sub = rec?.result ? `Today: ${rec.result.won ? 'victory' : 'fell'} · ${rec.result.score.toLocaleString('en')} pts · tap to share`
+    : rec ? `Today's try was left unfinished · ${what} · practice`
+    : `#${d.day} · ${what} · one scored try a day`;
+  return {
+    id: 'daily', label: 'DAILY PLANET', sub,
+    run: () => {
+      if (!rec) { location.href = dailyLink(d, base); return; }
+      const body = rec.result ? resultHtml(d, rec.result, worldName(d.world)) : '<div class="dl-note">Today\'s scored try was started but not finished. A new planet comes at midnight UTC.</div>';
+      openInfo('Daily Planet', `<div id="dl-card">${body}<div class="dl-note">${dailyStreak(d.date) > 1 ? `${dailyStreak(d.date)} days in a row · ` : ''}A new planet at midnight UTC.</div><button class="dl-practice">Practice today's planet (not scored)</button></div>`);
+      const card = document.getElementById('dl-card');
+      if (card && rec.result) wireShare(card, d, rec.result);
+      card?.querySelector<HTMLButtonElement>('.dl-practice')?.addEventListener('click', () => { location.href = dailyLink(d, base, true); });
+    },
+  };
+}
 function showTitle() {
   // Touchdown first, then the rest by name
   // which world each region is on: Home first, then the others by name
@@ -1107,6 +1187,7 @@ function showTitle() {
       ...(autosaved && !scratch ? { confirm: `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` } : {}),
       run: go(startLanding),
     },
+    dailyChoice(),
     { id: 'skirmish', label: 'SKIRMISH', sub: 'You against the computer: pick a map and players', run: () => showSkirmishSetup() },
     { id: 'options', label: 'OPTIONS', sub: regions.length > 1 ? 'Region, sound and graphics' : 'Sound and graphics', run: () => showOptions(undefined, titleOptions) },
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },

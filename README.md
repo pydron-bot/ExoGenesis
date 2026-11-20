@@ -54,6 +54,7 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 | Control groups | | Ctrl/Shift + 4–9 to save, 4–9 to select (twice: look) · Ctrl+A all units |
 | Save | menu → Save | Ctrl+S |
 | Latest alert | tap a ◎ log line | H |
+| Unit ability | ⚡ button on the unit card | G |
 | Every key | menu → Controls | ? |
 
 ## Run
@@ -65,6 +66,8 @@ npm run build
 node tools/qol-smoke.mjs   # controls: held-key pan, F, idle drones, right-click, groups, speed keys, PAUSED, Controls, Recycle, zoom to cursor
 node tools/smoke.mjs   # colony end-to-end: orders, build menu, placement, power switch, a fight, save/load, game over
 node tools/balance.mjs # headless 20-minute runs with scripted strategies (balance numbers)
+node tools/opening.mjs # headless: the campaign's first 20 minutes at a human pace (first build, fight, colonist, waiting)
+node tools/unit-duel.mjs --check # headless: every combat unit against every other at equal cost, and against a gun line
 node tools/roster-smoke.mjs # headless checks for every unit, building and predator mechanic
 node tools/shot.mjs    # headless screenshots of each zoom level → shots/
 npm run content:check  # validate content/ against src/content/defs.ts

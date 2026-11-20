@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.59.0',
+    date: '2026-11-20',
+    title: 'Daily Planet and the Chronicle',
+    notes: [
+      'New: Daily Planet. The same world for everyone each day, with one scored try and a result to share',
+      'New: the Chronicle. Your colony\'s story, with the family tree, the memorial and how the blocs shifted, saved as an image if you like (game menu, or the end screen)',
+      'Every combat unit has its own ability: tap the ⚡ button or press G. Tanks no longer beat everything: Lancers counter them, and Artillery breaks gun lines',
+      'The opening moves faster: more alloys to start, an earlier first fight, a hint after each tutorial mission, and your first colonist arrives in about 8 minutes',
+    ],
+  },
+  {
     version: '0.58.0',
     date: '2026-11-20',
     title: 'A colony with a life of its own',

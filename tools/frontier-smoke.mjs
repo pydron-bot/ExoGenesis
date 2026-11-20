@@ -2,7 +2,7 @@
  * The frontier (headless, the real sim): outlying holdings come under escalating, telegraphed threats (warning →
  * countdown → attack): fauna migrations, relic surges and inhabitant raids; standing orders (Muster, Fortify,
  * Evacuate) let a holding partly look after itself. Then the building card's standing orders in the browser.
- *   node tools/frontier-smoke.mjs [--headless-only] [--url http://localhost:5186/]
+ *   node tools/frontier-smoke.mjs [--headless-only] [--url http://localhost:5176/]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -160,7 +160,7 @@ const until = (sim, fn, secs) => { for (let i = 0; i < secs * 10 && !fn(); i++) 
 
 if (!process.argv.includes('--headless-only')) {
   const { chromium } = await import('playwright');
-  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5186/';
+  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1000, height: 760 } });
   const errors = [];

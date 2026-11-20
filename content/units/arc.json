@@ -1,7 +1,7 @@
 {
   "name": "Arc Caster",
   "faction": "accord",
-  "description": "Short-range discharge that jumps between targets. Shreds swarms, and arcs up into flyers; struggles against single big beasts.",
+  "description": "Short-range discharge that jumps between targets. Shreds swarms, and arcs up into flyers; struggles against single big beasts. Discharge: hits everything close at once.",
   "hp": 320,
   "speed": 5.5,
   "range": 10,
@@ -16,5 +16,10 @@
   "modelScale": 1,
   "cost": 95,
   "buildSeconds": 18,
-  "antiAir": true
+  "antiAir": true,
+  "ability": "pulse",
+  "abilityName": "Discharge",
+  "abilityPower": 60,
+  "abilityRadius": 9,
+  "abilityCooldown": 20
 }

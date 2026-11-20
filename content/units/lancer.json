@@ -1,11 +1,11 @@
 {
   "name": "Lancer",
   "faction": "accord",
-  "description": "Rail lance on a heavy chassis. Slow to charge, but each slug hits hard and far: the answer to Brutes and anything big. Wasted on swarms.",
-  "hp": 220,
+  "description": "Rail lance on a heavy chassis. Slow to charge, but each slug hits hard and far: the answer to Brutes, tanks and anything big. Wasted on swarms. Overcharge: the next slug does triple damage.",
+  "hp": 250,
   "speed": 4.6,
   "range": 30,
-  "damage": 100,
+  "damage": 110,
   "cooldown": 2.8,
   "weapon": "rail",
   "radius": 1.1,
@@ -14,5 +14,10 @@
   "model": "exo-lancer",
   "modelScale": 1,
   "cost": 140,
-  "buildSeconds": 26
+  "buildSeconds": 26,
+  "ability": "charge",
+  "abilityName": "Overcharge",
+  "abilityPower": 3,
+  "abilitySeconds": 10,
+  "abilityCooldown": 20
 }

@@ -1,7 +1,7 @@
 {
   "name": "Rover",
   "faction": "accord",
-  "description": "Fast light skirmisher.",
+  "description": "Fast light skirmisher: quick to build, quick to get there. Catches artillery and lancers before they can line up a shot. Overdrive doubles its fire rate for a few seconds.",
   "hp": 150,
   "speed": 7.5,
   "range": 14,
@@ -13,5 +13,10 @@
   "model": "exo-rover",
   "modelScale": 1,
   "cost": 50,
-  "buildSeconds": 12
+  "buildSeconds": 12,
+  "ability": "overdrive",
+  "abilityName": "Overdrive",
+  "abilityPower": 2,
+  "abilitySeconds": 4,
+  "abilityCooldown": 20
 }

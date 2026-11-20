@@ -1,7 +1,7 @@
 {
   "name": "Tank",
   "faction": "accord",
-  "description": "Slow, long-range, splash damage.",
+  "description": "Slow, tough, splash damage: the front line. Dig in and it stops, takes less damage, and reaches past a Defense Turret's range.",
   "hp": 450,
   "speed": 4.2,
   "range": 22,
@@ -13,6 +13,11 @@
   "aggro": 26,
   "model": "exo-tank",
   "modelScale": 1,
-  "cost": 110,
-  "buildSeconds": 24
+  "cost": 120,
+  "buildSeconds": 24,
+  "ability": "siege",
+  "abilityName": "Dig in",
+  "abilityPower": 1.35,
+  "abilitySeconds": 12,
+  "abilityCooldown": 30
 }

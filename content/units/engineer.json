@@ -1,7 +1,7 @@
 {
   "name": "Field Engineer",
   "faction": "accord",
-  "description": "Unarmed. Repairs damaged units and buildings nearby so the army can stay in the field. Repairs cost alloys.",
+  "description": "Unarmed. Repairs damaged units and buildings nearby so the army can stay in the field. Repairs cost alloys. Patch up: a free burst of repairs on everything close.",
   "hp": 200,
   "speed": 6,
   "range": 8,
@@ -13,5 +13,10 @@
   "model": "exo-engineer",
   "modelScale": 1,
   "cost": 80,
-  "buildSeconds": 16
+  "buildSeconds": 16,
+  "ability": "mend",
+  "abilityName": "Patch up",
+  "abilityPower": 120,
+  "abilityRadius": 10,
+  "abilityCooldown": 30
 }

@@ -1,7 +1,7 @@
 {
   "name": "Scout Skimmer",
   "faction": "accord",
-  "description": "Very fast, sees far, barely armed. Skims over water as well as land. Clears the fog and finds where packs come from.",
+  "description": "Very fast, sees far, barely armed. Skims over water as well as land. Clears the fog and finds where packs come from. Afterburner: nearly twice as fast for a few seconds.",
   "hp": 80,
   "speed": 13,
   "range": 10,
@@ -14,5 +14,10 @@
   "model": "exo-scout",
   "modelScale": 1,
   "cost": 35,
-  "buildSeconds": 8
+  "buildSeconds": 8,
+  "ability": "boost",
+  "abilityName": "Afterburner",
+  "abilityPower": 1.8,
+  "abilitySeconds": 6,
+  "abilityCooldown": 25
 }

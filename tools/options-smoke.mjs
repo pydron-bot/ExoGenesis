@@ -18,7 +18,7 @@ async function run(viewport, name, mobile = false) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   const open = async () => {
-    await page.goto('http://localhost:5176/?sw=0');
+    await page.goto(`http://localhost:${process.env.PORT ?? 5176}/?sw=0`);
     await page.waitForFunction(() => window.__exo?.ready && document.querySelector('#title [data-id="options"]'), null, { timeout: 300000 });
     await page.waitForTimeout(1500);
   };
@@ -58,7 +58,7 @@ async function menu(viewport, name, mobile = false) {
   const ctx = await browser.newContext({ viewport, ...(mobile ? { deviceScaleFactor: 2, isMobile: true, hasTouch: true } : {}) });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('http://localhost:5176/?sw=0&intro=0&new=1');
+  await page.goto(`http://localhost:${process.env.PORT ?? 5176}/?sw=0&intro=0&new=1`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
   await page.waitForTimeout(1500);
   const bar = await page.$$eval('#bar button', (bs) => bs.filter((b) => b.offsetParent).length);

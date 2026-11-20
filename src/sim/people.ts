@@ -411,7 +411,8 @@ export class People {
     const lineage = c.lineage !== undefined && c.lineage >= 0 ? c.lineage : this.rarestLine();
     if (lineage < 0 || !(s.bank[lineage] > 0)) { this.emit('No embryos left in the cryo bank', 'warn', 'deny'); return; }
     s.bank[lineage]--;
-    s.pods.push({ b: b.id, lineage, specialty: c.specialty, curriculum: c.curriculum, progress: 0, dark: 0 });
+    const first = !s.grown && !s.colonists.length && !s.pods.some((p) => p.first) && !s.memorial.length ? true : undefined;
+    s.pods.push({ b: b.id, lineage, specialty: c.specialty, curriculum: c.curriculum, progress: 0, dark: 0, first });
     this.emit(`Growth pod started · ${lineName(lineage)} line · ${cap(c.specialty)}, ${CURRICULA[c.curriculum].name} imprint`, 'info', 'confirm');
   }
 
@@ -538,7 +539,7 @@ export class People {
         continue;
       }
       p.dark = Math.max(0, p.dark - DT * 2);
-      p.progress += (DT * Math.max(0.1, 1 + this.sim.mod('podSpeed'))) / (P.podSols * SOL);
+      p.progress += (DT * Math.max(0.1, 1 + this.sim.mod('podSpeed'))) / ((p.first ? P.firstPodSols ?? P.podSols : P.podSols) * SOL);
       if (p.progress >= 1) {
         s.pods.splice(s.pods.indexOf(p), 1);
         this.decant(p, b);
