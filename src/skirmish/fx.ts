@@ -271,7 +271,7 @@ export class BattleFx {
     this.glows.mesh.renderOrder = 2;
     this.beams = instanced(streakGeometry(), additive(streakVert, streakFrag), 400, false);
     this.bolts = instanced(streakGeometry(), additive(streakVert, streakFrag), this.nB, false);
-    this.rings = instanced(new THREE.RingGeometry(0.82, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({
+    this.rings = instanced(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({
       color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false, side: THREE.DoubleSide,
     }), this.nR, false);
     this.scorch = instanced(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
@@ -535,10 +535,10 @@ export class BattleFx {
       this.rLife[j] -= dt;
       const k = Math.max(0, this.rLife[j] / this.rMax[j]);
       const s = this.rS[j] * (0.15 + 0.85 * Math.sqrt(1 - k));
-      placeMatrix(this.rX[j], this.rZ[j], 0, 0.2, s, this.m);
+      placeMatrix(this.rX[j], this.rZ[j], 0, 0.45, s, this.m);
       if (k <= 0) this.m.makeScale(0, 0, 0);
       this.rings.setMatrixAt(j, this.m);
-      const f = k * k * 0.9;
+      const f = k * k * k * 0.55;
       C[j * 3] = this.rRgb[j * 3] * f; C[j * 3 + 1] = this.rRgb[j * 3 + 1] * f; C[j * 3 + 2] = this.rRgb[j * 3 + 2] * f;
       if (k > 0) hi = j;
     }
@@ -663,7 +663,7 @@ export class BattleFx {
     this.upv.copy(p).normalize();
     for (let i = 0; i < n; i++) {
       this.v3.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(speed * rnd(0.3, 1)).addScaledVector(this.upv, rnd(0.6, 1.6));
-      this.smoke.add(p, this.v3.x, this.v3.y, this.v3.z, life * rnd(0.7, 1.2), size * 0.5, size * rnd(1.4, 2.2), c, -0.4, 1.6, rnd(0.45, 0.7));
+      this.smoke.add(p, this.v3.x, this.v3.y, this.v3.z, life * rnd(0.7, 1.2), size * 0.5, size * rnd(1.4, 2.2), c, -0.4, 1.6, rnd(0.3, 0.5));
     }
   }
 
@@ -710,6 +710,6 @@ const COL = {
   shield: new THREE.Color('#7fe8ff'), coreHit: new THREE.Color('#ff4d5e'), dieSmall: new THREE.Color('#ff8a3d'),
   fireball: new THREE.Color('#ff8a2e'), spark: new THREE.Color('#ffd28a'), white: new THREE.Color('#ffffff'),
   ichor: new THREE.Color('#9be04a'), ichorMist: new THREE.Color('#5d7a2e'), acidMist: new THREE.Color('#6f8f3a'),
-  smokeDark: new THREE.Color('#2a2724'), smokeLight: new THREE.Color('#77726b'), debris: new THREE.Color('#1c1a18'),
+  smokeDark: new THREE.Color('#3d3833'), smokeLight: new THREE.Color('#77726b'), debris: new THREE.Color('#1c1a18'),
   dirt: new THREE.Color('#7a5f43'), clod: new THREE.Color('#4a3a2a'),
 };
