@@ -16,7 +16,7 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue) => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup) {
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue, at?: { x: number; z: number }) => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup) {
     // disabled (skirmish mode): a stub that never produces snapshots
     this.worker = enabled
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
@@ -43,7 +43,7 @@ export class SimClient {
         this.pending.get(m.reqId)?.(m.state);
         this.pending.delete(m.reqId);
       } else if (m.type === 'event') {
-        this.onEvent(m.text, m.level, m.cue);
+        this.onEvent(m.text, m.level, m.cue, m.at);
       }
     };
     // the region comes first: the sim starts its first game from it

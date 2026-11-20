@@ -676,3 +676,7 @@ html.app #options { height: var(--app-h, 100%); bottom: auto; }
 #over .sk-stats small { opacity: 0.6; }
 /* a skirmish has no colony: no cryo bank, people, biomass, planet health or story goals */
 body.rts #r-cryo, body.rts #r-food, body.rts #r-planet, body.rts #r-people, body.rts #r-mood, body.rts #goals { display: none !important; }
+/* log lines with a place on the map: tap to look there (H: the latest alert) */
+#log .ev.go { pointer-events: auto; cursor: pointer; }
+#log .ev.go::after { content: ' ◎'; opacity: 0.6; }
+#log .ev.go:hover { filter: brightness(1.25); }

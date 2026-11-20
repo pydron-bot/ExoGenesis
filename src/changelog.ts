@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.55.0',
+    date: '2026-11-20',
+    title: 'Matter Printer and alerts',
+    notes: [
+      'New building, the Matter Printer (after Isotope Cells): turns spare power into alloys, slowly. It only takes power nothing else is using and never drains your batteries, so feed it geothermal or fusion. No deposit needed and no scars on the land: a way to keep going when the deposits run dry',
+      'Computer players build Matter Printers too once their deposits run low',
+      'Under attack alerts: when something of yours is hit, you hear it and the log says what and where',
+      'Alerts, losses and contacts now show where they happened: the map pings the spot, tap the line to look there, or press H for the latest alert',
+    ],
+  },
+  {
     version: '0.54.0',
     date: '2026-11-20',
     title: 'Computer players',

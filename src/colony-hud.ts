@@ -243,6 +243,7 @@ export class ColonyHud {
   private status(s: Snapshot, b: Snapshot['buildings'][number], d: BuildingDef): [string, string] {
     if (b.progress < 1) return [`Under construction · ${Math.floor(b.progress * 100)}%`, s.drones.some((x) => x.task === 'build') ? '' : 'warn'];
     if (!b.on) return ['Switched off', 'warn'];
+    if (d.role === 'printer') return b.powered ? [`Printing · +${(d.mineRate ?? 0).toFixed(1)} alloys/s`, ''] : [`Waiting for spare power (needs ${-d.powerMW} MW nothing else is using)`, 'warn'];
     if (!b.powered && d.powerMW < 0) return ['No power (load shed)', 'bad'];
     if (d.role === 'depot' && (b.mining === undefined || b.mining < 0)) return ['Idle: no deposit in reach', 'warn'];
     if (d.role === 'repair') return b.engaged ? ['Repairing units', ''] : ['Idle: park damaged units here', ''];
@@ -487,6 +488,14 @@ export class ColonyHud {
     return (this.terrain = cv);
   }
 
+  /** Rings on the minimap where something happened (events with a place), for a few seconds. */
+  private pings: { x: number; z: number; color: string; at: number }[] = [];
+  ping(x: number, z: number, color: string) {
+    this.pings.push({ x, z, color, at: performance.now() });
+    if (this.pings.length > 8) this.pings.shift();
+    this.last = 0; // redraw now
+  }
+
   private renderMini(s: Snapshot) {
     const cv = this.el.mini;
     const rv = this.radarView(s);
@@ -537,6 +546,15 @@ export class ColonyHud {
     g.fillStyle = '#ff4d5e';
     const bl = rv.offline ? new Float32Array(0) : s.blips ?? new Float32Array(0);
     for (let i = 0; i < bl.length; i += 2) g.fillRect(px(bl[i]) - 1.5, pz(bl[i + 1]) - 1.5, 3, 3);
+    // pings: rings that grow and fade over 4 s
+    const now = performance.now();
+    this.pings = this.pings.filter((p) => now - p.at < 4000);
+    for (const p of this.pings) {
+      const k = (now - p.at) / 4000;
+      g.strokeStyle = p.color; g.globalAlpha = 1 - k; g.lineWidth = 2;
+      g.beginPath(); g.arc(px(p.x), pz(p.z), 3 + ((k * 3) % 1) * 9, 0, 7); g.stroke();
+    }
+    g.globalAlpha = 1;
     // story waypoints
     const pulse = 3 + Math.sin(performance.now() / 200) * 1.2;
     g.strokeStyle = '#ffb547'; g.lineWidth = 2;

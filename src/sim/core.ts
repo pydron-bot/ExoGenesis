@@ -164,7 +164,7 @@ function crosses(px: number, pz: number, qx: number, qz: number, ax: number, az:
 }
 
 export type Level = 'info' | 'warn' | 'bad';
-export type EventSink = (text: string, level: Level, cue?: EventCue) => void;
+export type EventSink = (text: string, level: Level, cue?: EventCue, at?: { x: number; z: number }) => void;
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const def = (b: Building): BuildingDef => DEFS[b.kind];
@@ -260,7 +260,23 @@ export class Sim {
   readonly missions: Missions = new Missions(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
 
   /** Events for the local player (skirmish: what other players' economies do stays quiet). */
-  readonly emit: EventSink = (text, level, cue) => { if (this.team === 0) this.sink(text, level, cue); };
+  readonly emit: EventSink = (text, level, cue, at) => { if (this.team === 0) this.sink(text, level, cue, at); };
+  /** The last "under attack" alert (not saved: a load just alerts again). */
+  private lastAlert = { tick: -1e9, x: 0, z: 0 };
+  /**
+   * One of the local player's things has been hit by an enemy: an "under attack" alert with where, at most once every
+   * 20 s for the same place (a new place, 60 u away or more, can alert after 6 s).
+   */
+  private underAttack(o: Building | Unit | Drone) {
+    if ((o.team ?? 0) !== 0) return;
+    const s = this.s, a = this.lastAlert, near = Math.hypot(o.x - a.x, o.z - a.z) < 60;
+    if (s.tick - a.tick < (near ? 20 : 6) * TICK_HZ) return;
+    this.lastAlert = { tick: s.tick, x: o.x, z: o.z };
+    const home = s.players?.[0]?.home ?? { x: 0, z: 0 };
+    const what = 'kind' in o ? def(o).name : 'task' in o ? 'a worker drone' : content.units[o.unit]?.name ?? 'a unit';
+    const where = Math.hypot(o.x - home.x, o.z - home.z) < 20 ? 'at the Core' : `${compass(o.x - home.x, o.z - home.z)} of the Core`;
+    this.emit(`Under attack: ${what}, ${where}`, 'bad', 'warning', { x: o.x, z: o.z });
+  }
 
   constructor(private readonly sink: EventSink, seed = 1337) {
     this.newGame(seed);
@@ -806,9 +822,10 @@ export class Sim {
       if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
-        const rank = d.fireRange || d.role === 'shield' ? 0 : d.role === 'civic' || d.role === 'medbay' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' || d.role === 'seedbank' ? 2 : 3;
+        // a matter printer only gets what nothing else wants (rank 4, live power only)
+        const rank = d.role === 'printer' ? 4 : d.fireRange || d.role === 'shield' ? 0 : d.role === 'civic' || d.role === 'medbay' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' || d.role === 'seedbank' ? 2 : 3;
         const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
-        loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw(), rank, battery: d.role !== 'depot' });
+        loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw(), rank, battery: d.role !== 'depot' && d.role !== 'printer' });
       } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
@@ -1116,6 +1133,15 @@ export class Sim {
         if (sm.isotopes <= 0) this.emit(`Isotope seam ${compass(sm.x, sm.z)} of the Core is exhausted`, 'warn', 'exhausted');
         continue;
       }
+      if (d.role === 'printer') {
+        // alloys from spare power: no deposit, no scars
+        if (b.progress >= 1 && b.powered) {
+          const made = (d.mineRate ?? 0) * this.people.mult(b) * DT;
+          s.alloys += made;
+          s.stats.printed = (s.stats.printed ?? 0) + made;
+        }
+        continue;
+      }
       if (d.role !== 'depot' || b.progress < 1) continue;
       if (b.mining === undefined || b.mining < 0 || !s.deposits[b.mining] || s.deposits[b.mining].alloys <= 0) b.mining = depositFor(s, d, b.x, b.z);
       if (!b.powered || b.mining < 0) continue;
@@ -1157,6 +1183,7 @@ export class Sim {
     const air = this.foeAir(tgt);
     this.fx.push(fxKind, fx, fz, tx, tz);
     tgt.hp -= dmg;
+    if (team && !isHostile(tgt)) this.underAttack(tgt);
     if (o.splash) {
       for (const h of [...foes]) {
         if (h !== tgt && h.hp > 0 && !(isHostile(h) && h.under) && this.foeAir(h) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.kill(h, team); }
@@ -1847,6 +1874,7 @@ export class Sim {
           const left = this.soak(h, tgt.x, tgt.z, u.damage * (isC ? this.people.harm() : 1), weaponFx(unitWeapon(u), false));
           if (left <= 0) continue;
           tgt.hp -= left;
+          if (!isC) this.underAttack(tgt as Building | Unit | Drone);
           if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : isC ? this.people.kill(tgt as Colonist, 'killed by predators') : this.destroyDrone(tgt as Drone);
         }
         continue;
@@ -1934,7 +1962,11 @@ export class Sim {
     for (const p of s.packs) {
       if (p.announced) continue;
       const near = hs.some((h) => h.pack === p.id && s.buildings.some((b) => Math.hypot(b.x - h.x, b.z - h.z) < THREATS.sightRange));
-      if (near) { p.announced = true; this.emit(`Contact! Predators at the ${p.from} perimeter`, 'bad', 'warning'); }
+      if (near) {
+        p.announced = true;
+        const m = hs.find((h) => h.pack === p.id);
+        this.emit(`Contact! Predators at the ${p.from} perimeter`, 'bad', 'warning', m ? { x: m.x, z: m.z } : undefined);
+      }
     }
   }
 
@@ -2037,12 +2069,12 @@ export class Sim {
     this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
     for (const u of this.units) if (u.fix === b.id) u.fix = -1;
     if (s.players) {
-      if (t === 0) this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
-      else if (!this.allied(0, t) && b.kind !== 'core' && def(b).role !== 'wall') this.emit(`${s.players[t].name}'s ${def(b).name} destroyed`, 'info');
+      if (t === 0) this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm', { x: b.x, z: b.z });
+      else if (!this.allied(0, t) && b.kind !== 'core' && def(b).role !== 'wall') this.emit(`${s.players[t].name}'s ${def(b).name} destroyed`, 'info', undefined, { x: b.x, z: b.z });
       if (b.kind === 'core') this.falling.push(t);
       return;
     }
-    this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
+    this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm', { x: b.x, z: b.z });
     this.planet.buildingLost(b.x, b.z, barrier(b));
     this.people.buildingLost(b);
     if (b.kind === 'core') this.lose('core');

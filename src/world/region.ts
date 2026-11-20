@@ -554,6 +554,36 @@ export function buildGeothermal(): THREE.Group {
   return g;
 }
 
+/** Matter Printer: a squat drum on a hex plinth, a glowing print bed and a gantry ring turning over it. */
+export function buildPrinter(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#353b44'), hull = metal('#8f9aa3');
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.9, 6), dark);
+  base.position.y = 0.45;
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.2, 2.6, 12), hull);
+  drum.position.y = 2.2;
+  const bed = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.25, 12), glow('#7cf0c8', 2.6));
+  bed.position.y = 3.6;
+  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.9), glow('#c8fff0', 3));
+  core.position.y = 4.8;
+  g.add(base, drum, bed, core);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.18, 6, 24), dark);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 5.6;
+  for (const a of [0, 2.09, 4.19]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.4, 0.35), dark);
+    post.position.set(Math.cos(a) * 2.7, 4.4, Math.sin(a) * 2.7);
+    g.add(post);
+  }
+  g.add(ring);
+  for (const a of [0.5, 2.6, 4.7]) {
+    const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.6, 8), metal('#b07a3a'));
+    coil.position.set(Math.cos(a) * 3.6, 1.4, Math.sin(a) * 3.6);
+    g.add(coil);
+  }
+  return g;
+}
+
 /** Geothermal vent: a scorched patch with glowing cracks, a rim of rocks and a column of steam. */
 export function buildVent(seed: number): THREE.Group {
   const g = new THREE.Group();
@@ -712,6 +742,7 @@ export function buildForKind(kind: string, role: string): THREE.Group {
 export function buildForRole(role: string): THREE.Group {
   switch (role) {
     case 'core': return buildCore();
+    case 'printer': return buildPrinter();
     case 'gate': return buildGate();
     case 'repair': return buildRepairPad();
     case 'geothermal': return buildGeothermal();

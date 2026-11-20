@@ -1535,3 +1535,24 @@ sent, the raid under way, its rally point) is in the save.
   ~7.5, Hard ~9: its first wave waits until it's bigger), Hard beats Easy (3 / 3, 28–32 min), and a four-way
   free-for-all of Normals ends (40 min on seed 100: the winner had 9 depots, a Deep-Core Mine and a Fusion Cell).
   In the browser a Hard computer built its base, expanded through a relay and took out an idle player's Core at 7.5 min.
+
+### Matter Printer and alerts (v0.55.0)
+
+- **Matter Printer** (`content/buildings/printer.json`, role `printer`, campaign and skirmish): 160 alloys + 20
+  isotopes, needs Isotope Cells, draws 8 MW and makes `mineRate` 0.4 alloys/s while powered (staff multiply it as for
+  depots; `stats.printed`). It's last in line for power (rank 4, after depots) and live power only, never the
+  battery, so it runs on surplus: geothermal, fusion, or solar on a good afternoon. A depot makes 1.2/s for 2 MW, so
+  deposits stay ten times better per MW; the printer is the late-game floor when they run dry, and makes no scars
+  (planet health). Card: "Printing · +0.4 alloys/s" or "Waiting for spare power". Model `buildPrinter()` (in the
+  asset library as built-in `printer`). Computer players build one after 15 min, two once the deposits their depots
+  reach hold under 2,500; their power planning counts its draw. With printers the four-way Normal free-for-all
+  ended at 45 min (57 before); campaign balance outcomes unchanged.
+- **Alerts** (`Sim.underAttack`): when an enemy player's shot or a predator's bite hits one of your buildings, units
+  or drones: "Under attack: <what>, <compass> of the Core" (or "at the Core"), at most every 20 s for the same place
+  (6 s for a place 60 u away). Events can carry a place now (`EventSink(text, level, cue, at)`, the worker's `event`
+  message has `at`): alerts, your buildings destroyed, other players' buildings destroyed, predator contact. Such a
+  log line is tappable (◎) and takes the camera there; the minimap pings it (a ring that grows and fades over 4 s,
+  red for trouble, cyan for news); **H** goes to the latest alert.
+- Tests: `tools/skirmish-sim.mjs` checks the printer (waits with no spare power, never touches the battery, 0.4/s on
+  spare power); `tools/skirmish-play-smoke.mjs` checks a tappable alert and H. `tools/balance.mjs` shows at most 60
+  events per run, so the new alerts push some old lines out of its listing; compare outcomes (`===`, `end:`, tables).

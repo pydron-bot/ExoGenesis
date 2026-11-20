@@ -4,7 +4,7 @@
  * Editor only.
  */
 import * as THREE from 'three';
-import { buildBattery, buildCannon, buildCore, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPointDefense, buildRadar, buildBay, buildCivic, buildFarm, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
+import { buildBattery, buildCannon, buildCore, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPrinter, buildPointDefense, buildRadar, buildBay, buildCivic, buildFarm, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
 import { BODY_PLAN_NAMES, buildCreatureLook, creatureMaterial } from '../world/fauna-models';
 import { STANDINS } from '../world/inhabitant-models';
@@ -54,6 +54,7 @@ export const BUILTINS: Builtin[] = [
   { id: 'wall', name: 'Wall segment', group: 'Buildings', where: 'src/world/region.ts buildWall()', usedBy: { coll: 'buildings', id: 'wall' }, swappable: true, note: 'Runs along local Z, one Clearance long.', build: buildWall },
   { id: 'gate', name: 'Gate', group: 'Buildings', where: 'src/world/region.ts buildGate()', usedBy: { coll: 'buildings', id: 'gate' }, swappable: true, note: 'Runs along local Z, one Clearance long.', build: buildGate },
   { id: 'geothermal', name: 'Geothermal Tap', group: 'Buildings', where: 'src/world/region.ts buildGeothermal()', usedBy: { coll: 'buildings', id: 'geothermal' }, swappable: true, build: buildGeothermal },
+  { id: 'printer', name: 'Matter Printer', group: 'Buildings', where: 'src/world/region.ts buildPrinter()', usedBy: { coll: 'buildings', id: 'printer' }, swappable: true, build: buildPrinter },
   { id: 'civic', name: 'Civilian Center', group: 'Buildings', where: 'src/world/region.ts buildCivic()', usedBy: { coll: 'buildings', id: 'civic' }, swappable: true, note: 'Growth pods are parts named "gpod" (lit while a child grows); drawn instead of exo-civic when zoomed out.', build: buildCivic },
   { id: 'hydroponics', name: 'Hydroponics', group: 'Buildings', where: 'src/world/region.ts buildFarm()', usedBy: { coll: 'buildings', id: 'hydroponics' }, swappable: true, build: buildFarm },
   { id: 'vent', name: 'Geothermal vent', group: 'Terrain', where: 'src/world/region.ts buildVent()', swappable: false, note: 'Placed with the map editor (Vents).', build: () => buildVent(1) },
