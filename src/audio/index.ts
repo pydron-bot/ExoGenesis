@@ -86,6 +86,7 @@ export class GameAudio {
       if (p && typeof p.music === 'number') this.musicVolume = Math.min(1, Math.max(0, p.music));
     } catch { /* private mode / bad JSON */ }
     if (disabled) return;
+    if (this.on) this.tryAutoplay();
     const unlock = () => this.unlock();
     for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) addEventListener(ev, unlock, { capture: true, passive: true });
     document.addEventListener('visibilitychange', () => {
@@ -97,6 +98,30 @@ export class GameAudio {
 
   get state() { return this.disabled ? 'disabled' : this.ctx?.state ?? 'locked'; }
   get muted() { return this.disabled || !this.on || this.volume <= 0; }
+
+  /**
+   * Browsers only let sound start after a tap or key, unless they allow autoplay for the site (Chrome does for
+   * sites you use a lot; Firefox when autoplay is allowed). So at load, try: a context that's running (or
+   * soon is) is kept, and the title music plays straight away; otherwise it's closed and the first tap makes
+   * the context as before (iOS wants it made inside the gesture). The title says to click while it's locked.
+   */
+  private tryAutoplay() {
+    const policy = (navigator as Navigator & { getAutoplayPolicy?: (kind: string) => string }).getAutoplayPolicy?.('audiocontext');
+    if (policy === 'disallowed' || policy === 'allowed-muted') return;
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    let c: AudioContext;
+    try { c = new AC(); } catch { return; }
+    const settle = () => {
+      if (this.ctx) { if (c !== this.ctx) void c.close().catch(() => {}); return; }
+      if (c.state === 'running') { this.ctx = c; this.build(); this.autoplayed = true; }
+      else void c.close().catch(() => {});
+    };
+    if (c.state === 'running' || policy === 'allowed') settle();
+    else setTimeout(settle, 300);
+  }
+  /** Test hook: sound started at load, without a tap. */
+  autoplayed = false;
 
   /** Create/resume the context. Must run inside a user gesture the first time (iOS). */
   unlock() {
@@ -257,7 +282,7 @@ export class GameAudio {
 
   /** Test hook. */
   stats() {
-    return { state: this.state, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, musicVolume: this.musicVolume,
+    return { state: this.state, autoplayed: this.autoplayed, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, musicVolume: this.musicVolume,
       music: this.music ? { use: this.music.use, mood: this.music.mood, ...(this.music.played ?? {}) } : null,
       stretch: this.stretch ? { ...this.stretch } : null, tense: performance.now() / 1000 < this.tenseUntil };
   }

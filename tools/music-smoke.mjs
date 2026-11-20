@@ -1,6 +1,6 @@
 /**
- * Music and the region picker. Title: no music until a tap (browsers forbid it),
- * then the title mood starts and keeps queuing chords and bells; Options lists
+ * Music and the region picker. Title: where autoplay is blocked, no music until a click (the title says
+ * so); where it's allowed it starts by itself; either way it keeps queuing chords and bells. Options lists
  * each region with the world it's on and a Music switch; leaving the title (New
  * Game) fades the music out. Play: quiet at first, then a day (or night) stretch,
  * tension when a fight starts; the player's music volume is remembered.
@@ -24,14 +24,26 @@ try {
   await page.goto(`${url}?sw=0`);
   await page.waitForFunction(() => window.__exo?.ready && document.querySelector('#title .t-item'), null, { timeout: 120000 });
   await page.evaluate(() => localStorage.removeItem('exo.sound'));
-  await page.waitForTimeout(800);
-  check((await stats()).music === null, 'no music before a tap');
-
-  // OPTIONS is a harmless first tap
-  await page.click('#title [data-id="options"]');
+  // autoplay blocked (a first visit): nothing until a click, and the title says so; a click anywhere starts it
+  {
+    const b2 = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+    const p2 = await b2.newPage({ viewport: { width: 1100, height: 750 } });
+    await p2.goto(`${url}?sw=0`);
+    await p2.waitForFunction(() => window.__exo?.ready && document.querySelector('#title .t-item'), null, { timeout: 120000 });
+    await p2.waitForTimeout(3000);
+    const hint = await p2.textContent('#title .t-status');
+    check((await p2.evaluate(() => __exo.audio.stats().music)) === null && /ANYWHERE FOR SOUND/.test(hint), `autoplay blocked: no music, and the title says to click (${hint})`);
+    await p2.mouse.click(900, 650);
+    await p2.waitForFunction(() => __exo.audio.stats().music, null, { timeout: 5000 }).catch(() => {});
+    const m = await p2.evaluate(() => __exo.audio.stats().music);
+    check(m?.use === 'title' && (await p2.textContent('#title .t-status')) === '', `a click anywhere starts the title music and clears the hint (${m?.mood})`);
+    await b2.close();
+  }
+  // autoplay allowed (this browser): the title music starts by itself
   await page.waitForFunction(() => __exo.audio.stats().music, null, { timeout: 5000 }).catch(() => {});
   const m0 = (await stats()).music;
-  check(!!m0 && m0.use === 'title' && m0.chords >= 1, `title music starts after a tap (${JSON.stringify(m0)})`);
+  check(!!m0 && m0.use === 'title' && (await stats()).autoplayed, `autoplay allowed: title music starts without a tap (${JSON.stringify(m0)})`);
+  await page.click('#title [data-id="options"]');
   check(await page.$('#options .op-row[data-id="music"]') !== null, 'Options has a Music switch');
 
   const rows = await page.$$eval('#options .op-row[data-id^="region:"]', (els) => els.map((e) => [e.querySelector('b').textContent, e.querySelector('small')?.textContent ?? '']));

@@ -910,6 +910,8 @@ function showTitle() {
     choices,
     foot: `<button class="t-ver" title="What's new">v${VERSION}${hasUnseen() ? '<span class="badge">NEW</span>' : ''}</button> · M1 · <a href="https://deeek.org/">deeek.org</a>`,
     tap: () => audio.play('tap'),
+    // browsers hold sound back until a tap or key (unless they allow autoplay): say so, until it runs
+    status: () => (audio.disabled || !audio.on || audio.state === 'running' ? '' : `♪ ${matchMedia('(pointer: coarse)').matches ? 'TAP' : 'CLICK'} ANYWHERE FOR SOUND`),
   });
   const ver = title.root.querySelector<HTMLButtonElement>('.t-ver')!;
   ver.onclick = () => { audio.play('tap'); openWhatsNew(() => ver.querySelector('.badge')?.remove()); };

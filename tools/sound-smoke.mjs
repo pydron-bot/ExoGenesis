@@ -1,5 +1,5 @@
 /**
- * Sound end to end: no AudioContext until a user gesture, then it runs; the wind
+ * Sound end to end: no running AudioContext until a user gesture (autoplay blocked), then it runs; the wind
  * bed starts; building, turret and predator activity play the expected sounds;
  * HUD taps tick; the on/off toggle survives a reload; ?sound=0 plays nothing;
  * nothing but wind during the landing cinematic.
@@ -45,7 +45,8 @@ try {
 
   // 1. locked until a gesture
   let s = await stats();
-  check(s.state === 'locked' && await page.evaluate(() => window.__acs) === 0, `no AudioContext before a gesture (${s.state})`);
+  // (at load it tries for autoplay; where the browser blocks it, that context is closed again)
+  check(s.state === 'locked' && !s.autoplayed && await page.evaluate(() => window.__acs) <= 1, `no running AudioContext before a gesture (${s.state})`);
   await gesture();
   await page.waitForFunction(() => __exo.audio.stats().state === 'running', null, { timeout: 5000 }).catch(() => {});
   s = await stats();

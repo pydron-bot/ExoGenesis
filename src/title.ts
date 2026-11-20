@@ -166,7 +166,8 @@ export class TitleScreen {
   }
 
   refresh() {
-    this.statusEl.textContent = this.opts.status?.() ?? '';
+    const t = this.opts.status?.() ?? '';
+    if (this.statusEl.textContent !== t) this.statusEl.textContent = t;
   }
 
   /** Relabel a choice's subtitle (e.g. the sound state). */
@@ -184,6 +185,7 @@ export class TitleScreen {
 
   /** Each frame while active: drift the camera, type the tagline, update the readout. */
   update(dt: number, alt: number, clock: string) {
+    this.refresh();
     if (!this.active) return;
     this.t += dt;
     const t = this.t;
