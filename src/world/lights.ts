@@ -415,9 +415,9 @@ export class ColonyLights {
       case 3: this.flash(x1, z1, 8, C.dieSmall, 2.2, 0.4, true); break; // small death
       case 4: this.flash(x1, z1, 16, C.dieBig, 3.0, 0.7, true); break; // big death
       case 5: this.flash(x1, z1, 7, C.coreHit, 1.6, 0.25); break; // core hit
-      case 7: // shell: gun flash, then a wide burst
-        this.flash(x1, z1, 8, C.shell, 2.2, 0.12);
-        this.flash(x2, z2, 14, C.shell, 3.0, 0.6, true);
+      case 7: // shell: the gun flash when fired; the wide burst comes when it lands (the battle effects send x1 = x2 then)
+        if (x1 === x2 && z1 === z2) this.flash(x2, z2, 14, C.shell, 3.0, 0.6, true);
+        else this.flash(x1, z1, 8, C.shell, 2.2, 0.12);
         break;
       case 8: this.flash(x2, z2, 9, C.arc, 2.2, 0.15, true); this.flash(x1, z1, 5, C.arc, 1.2, 0.1); break; // arc
       case 9: this.flash(x2, z2, 5, C.spit, 1.2, 0.3); break; // spit

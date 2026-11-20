@@ -27,8 +27,8 @@ const MIN_GAP: Record<SoundId, number> = {
   wind: 0, surf: 0, camp: 0, build: 0.12, critter: 0.8,
 };
 /** Most sounds playing at once (alerts always get through). */
-const MAX_VOICES = 12;
-const MAX_COMBAT = 7;
+const MAX_VOICES = 14;
+const MAX_COMBAT = 10;
 /** Random pitch spread (±). */
 const PITCH_SPREAD = 0.05;
 /** Quieter than this after distance and zoom: don't bother. */
@@ -193,7 +193,8 @@ export class GameAudio {
       // a crowd of the same sound is a bit louder, never a wall of noise
       const g = s ? s.gain * Math.min(1.5, 1 + 0.2 * Math.log2(b.n)) : 0;
       if (g < MIN_GAIN) { this.dropped++; continue; }
-      this.play(id, g, s!.pan);
+      // far away (or zoomed out) is duller and more echo than dry sound
+      this.play(id, g, s!.pan, Math.max(0, Math.min(1, 1 - s!.gain / 0.75)));
     }
   }
 
@@ -420,8 +421,11 @@ export class GameAudio {
       stretch: this.stretch ? { ...this.stretch } : null, tense: performance.now() / 1000 < this.tenseUntil };
   }
 
-  /** Play a sound now. `gain` 0..1 on top of the mixer, `pan` −1..1. */
-  play(id: SoundId, gain = 1, pan = 0) {
+  /**
+   * Play a sound now. `gain` 0..1 on top of the mixer, `pan` −1..1; `far` 0..1 (combat): how distant it
+   * is, which takes the top end off it and sends more of it to the echo.
+   */
+  play(id: SoundId, gain = 1, pan = 0, far = 0) {
     if (!this.live()) return;
     const c = this.ctx!, now = c.currentTime;
     const cat = SOUNDS[id].cat;
@@ -436,9 +440,23 @@ export class GameAudio {
       pn.connect(out);
       out = pn;
     }
+    let lp: BiquadFilterNode | null = null;
+    if (far > 0.05) {
+      lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 16000 * Math.pow(1100 / 16000, far);
+      lp.connect(out);
+      out = lp;
+    }
     const g = c.createGain();
     g.gain.value = gain;
     g.connect(out);
+    let send: GainNode | null = null;
+    if (cat === 'combat' && this.echo) {
+      send = c.createGain();
+      send.gain.value = 0.18 + 0.5 * far;
+      g.connect(send).connect(this.echo);
+    }
     const p = STEADY.has(id) ? 1 : 1 + (Math.random() * 2 - 1) * PITCH_SPREAD;
     const t = now + 0.005;
     let dur: number;
@@ -460,6 +478,8 @@ export class GameAudio {
       if (cat === 'combat') this.combatVoices--;
       g.disconnect();
       pn?.disconnect();
+      lp?.disconnect();
+      send?.disconnect();
     }, (dur + 0.1) * 1000);
   }
 
@@ -500,6 +520,8 @@ export class GameAudio {
     };
   }
   private clips = new Map<string, AudioBuffer | Promise<AudioBuffer>>();
+  /** Combat's echo: an outdoor slap off hills and a short tail (a convolver on a made-up impulse). */
+  private echo: AudioNode | null = null;
 
   // ---------- internals ----------
   private live() { return !!this.ctx && this.ctx.state === 'running' && !this.muted; }
@@ -536,6 +558,7 @@ export class GameAudio {
       this.cats[k] = g;
     }
     this.applyVolume();
+    this.echo = this.makeEcho(c);
     // audio files named in the sound rules replace the synthesised sounds once loaded
     for (const id of Object.keys(SOUNDS) as SoundId[]) {
       const a = this.rules[id] ? this.assets[this.rules[id]!] : undefined;
@@ -549,6 +572,35 @@ export class GameAudio {
         })
         .catch((e) => console.warn(`sound ${id}: ${a.file} failed to load; using the built-in`, e));
     }
+  }
+
+  /** A stereo impulse: a few discrete slaps (40–260 ms) over a darkening 1.4 s noise tail. */
+  private makeEcho(c: AudioContext): AudioNode | null {
+    try {
+      const len = Math.round(c.sampleRate * 1.4), ir = c.createBuffer(2, len, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = ir.getChannelData(ch);
+        let lp = 0;
+        for (let i = 0; i < len; i++) {
+          const k = i / len;
+          lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.42 * k); // duller as it dies away
+          d[i] = lp * Math.pow(1 - k, 3) * 0.5;
+        }
+        for (const [ms, a] of [[45, 0.5], [110, 0.35], [170, 0.25], [260, 0.18]]) {
+          const at = Math.round(((ms + (ch ? 13 : 0)) / 1000) * c.sampleRate);
+          for (let j = 0; j < 60 && at + j < len; j++) d[at + j] += (Math.random() * 2 - 1) * a * (1 - j / 60);
+        }
+      }
+      const conv = c.createConvolver();
+      conv.buffer = ir;
+      const tone = c.createBiquadFilter();
+      tone.type = 'lowpass';
+      tone.frequency.value = 3500;
+      const level = c.createGain();
+      level.gain.value = 0.5;
+      conv.connect(tone).connect(level).connect(this.cats.combat);
+      return conv;
+    } catch { return null; }
   }
 
   private startWind() {

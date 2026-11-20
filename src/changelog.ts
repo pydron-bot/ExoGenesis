@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.60.0',
+    date: '2026-11-20',
+    title: 'Battles you can feel',
+    notes: [
+      'Shots now fly: bolts, cannon rounds and point-defense bursts travel to their targets, and artillery shells arc through the air and land with a blast',
+      'Hits throw sparks, explosions burst into fire, smoke and debris with a shockwave, and leave scorch marks that fade; creatures splatter rather than burn',
+      'Units flash when they are hit. Railguns leave a glowing trail, arc weapons fork like lightning, and repair beams carry motes of light',
+      'Combat sounds rebuilt: punchier guns, deeper booms with debris raining down, and a shell whistle that lands with its explosion. Distant fights sound duller and echo off the hills',
+    ],
+  },
+  {
     version: '0.59.0',
     date: '2026-11-20',
     title: 'Daily Planet and the Chronicle',

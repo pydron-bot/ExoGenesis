@@ -14,22 +14,10 @@ import { placeMatrix, regionPoint, sampleRaw } from '../world/heightGrid';
 import { WATER_LIFT } from '../world/water';
 import { flattenForInstancing, loadModel } from '../assets/models';
 import { builtinUnitLook } from './models';
+import { content } from '../content';
 import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, type SkSnapshot } from './types';
 import { colonyLights } from '../world/lights';
-
-interface Pool { mesh: THREE.InstancedMesh; life: Float32Array; max: Float32Array; next: number; color: THREE.Color[]; size: Float32Array; pos: Float32Array }
-
-function pool(geo: THREE.BufferGeometry, n: number): Pool {
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({
-    color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false,
-  }), n);
-  mesh.frustumCulled = false;
-  // only draw up to the highest live slot (tickPool / spawns keep this current); 0 = no draw
-  mesh.count = 0;
-  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-  for (let i = 0; i < n; i++) { mesh.setMatrixAt(i, zero); mesh.setColorAt(i, new THREE.Color(0, 0, 0)); }
-  return { mesh, life: new Float32Array(n), max: new Float32Array(n), next: 0, color: Array.from({ length: n }, () => new THREE.Color()), size: new Float32Array(n), pos: new Float32Array(n * 3) };
-}
+import { BattleFx } from './fx';
 
 /** Camera distance below which asset models draw (hysteresis: switch back beyond LOD_FAR). */
 export const LOD_NEAR = 90, LOD_FAR = 105; // the colony's default view is 75, the skirmish's 150
@@ -66,13 +54,13 @@ const barFrag = /* glsl */ `
 const FLY_HEIGHT = 9;
 
 const C = {
-  roverShot: new THREE.Color('#7ff8ff'), tankShot: new THREE.Color('#ffc46b'), bite: new THREE.Color('#ff6a4d'),
-  dieSmall: new THREE.Color('#ff8a3d'), dieBig: new THREE.Color('#ffb547'), coreHit: new THREE.Color('#ff4d5e'),
-  shell: new THREE.Color('#ff9a3d'), arc: new THREE.Color('#b9a6ff'), spit: new THREE.Color('#a6ff4d'),
-  emerge: new THREE.Color('#c08a4a'), repair: new THREE.Color('#5bff9a'), pd: new THREE.Color('#fff07a'), rail: new THREE.Color('#e8fbff'),
-  shield: new THREE.Color('#7fe8ff'),
   glow: new THREE.Color('#5ff3ff'), glowSel: new THREE.Color('#ffd27a'), white: new THREE.Color('#e9eef2'), hurt: new THREE.Color('#ff5a4a'),
+  hit: new THREE.Color('#fff4e0'),
 };
+/** How long a unit glows after it's hit (s). */
+const HIT_GLOW = 0.14;
+/** Unit types that are creatures (fauna) rather than machines. */
+const ORGANIC = DEFS.map((d) => (content.units[d.id]?.faction === 'fauna' ? 1 : 0));
 
 export class ArmyView {
   /** Interpolated per-slot world positions this frame (for screen-space picking). */
@@ -101,17 +89,16 @@ export class ArmyView {
   private aHp: THREE.InstancedBufferAttribute;
   private aTeam: THREE.InstancedBufferAttribute;
   private rings: THREE.InstancedMesh;
-  private tracers: Pool;
-  private flashes: Pool;
+  /** Projectiles, sparks, smoke, shockwaves and scorch marks. */
+  readonly fx: BattleFx;
+  /** Per slot: seconds of hit glow left. */
+  private hit = new Float32Array(MAX_UNITS);
+  /** Per slot: 1 if the unit last drawn there was a creature (its death splatters rather than burns). */
+  private creature = new Uint8Array(MAX_UNITS);
   private lastTick = -1;
   private clock = 0;
-  /** Flyer heights at the ends of the effect being spawned (0 on the ground). */
-  private up1 = 0;
-  private up2 = 0;
   private m = new THREE.Matrix4();
   private v1 = new THREE.Vector3();
-  private v2 = new THREE.Vector3();
-  private up = new THREE.Vector3();
   private col = new THREE.Color();
   /** Skirmish: each player's colour (index = team); units of players other than 0 are drawn in theirs. */
   private teamCols: THREE.Color[] = [];
@@ -177,9 +164,7 @@ export class ArmyView {
     this.rings.frustumCulled = false;
     this.group.add(this.rings);
 
-    this.tracers = pool(new THREE.BoxGeometry(1, 1, 1).translate(0, 0, -0.5), 900);
-    this.flashes = pool(new THREE.IcosahedronGeometry(1, 1), 500);
-    this.group.add(this.tracers.mesh, this.flashes.mesh);
+    this.fx = new BattleFx(this.group);
   }
 
   /**
@@ -247,12 +232,18 @@ export class ArmyView {
       // another skirmish player's unit counts as hostile here (red bar, never selected)
       const team = owner ? 1 : DEFS[t].team;
       const sel = team === 0 && selected.get(s) === b[o + F.GEN];
+      // a unit that was just hit flashes bright for a moment
+      if (this.hit[s] > 0) this.hit[s] = Math.max(0, this.hit[s] - dt);
+      const hk = this.hit[s] / HIT_GLOW;
+      this.creature[s] = !tc && ORGANIC[t] ? 1 : 0;
       if (tc) {
-        body.setColorAt(i, this.col.copy(tc).multiplyScalar(1.5).lerp(C.hurt, Math.max(0, 1 - hp * 1.3) * 0.6));
+        body.setColorAt(i, this.flashed(this.col.copy(tc).multiplyScalar(1.5).lerp(C.hurt, Math.max(0, 1 - hp * 1.3) * 0.6), hk));
         const g = model ? null : this.glows[t];
         if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, tc); }
-      } else if (team === 0) {
-        body.setColorAt(i, this.col.copy(C.hurt).lerp(C.white, Math.min(1, hp * 1.3)));
+      } else if (team === 1) {
+        body.setColorAt(i, this.flashed(this.col.setRGB(1, 1, 1), hk));
+      } else {
+        body.setColorAt(i, this.flashed(this.col.copy(C.hurt).lerp(C.white, Math.min(1, hp * 1.3)), hk));
         const g = model ? null : this.glows[t];
         if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, sel ? C.glowSel : C.glow); }
         if (sel) {
@@ -296,122 +287,46 @@ export class ArmyView {
       this.lastTick = cur.tick;
       this.spawnFx(cur.fx);
     }
-    this.tickPool(this.tracers, dt, false);
-    this.tickPool(this.flashes, dt, true);
+    this.fx.update(dt);
   }
 
-  /** How high a flyer is at (x, z) (within 1.5 u), else 0: shots to and from flyers go up to them. */
-  private airAt(x: number, z: number) {
+  private flashed(c: THREE.Color, k: number) {
+    return k > 0 ? c.lerp(C.hit, k * 0.7).multiplyScalar(1 + 1.8 * k) : c;
+  }
+
+  /** The live unit nearest (x, z) within 1.6 u, or −1. */
+  private slotAt(x: number, z: number) {
+    let best = -1, bd = 1.6 * 1.6;
     for (let s = 0; s < this.slots; s++) {
-      if (this.visible[s] && DEFS[this.type[s]].move === 'air' && Math.abs(this.lx[s] - x) < 1.5 && Math.abs(this.lz[s] - z) < 1.5) return this.lift[s];
+      if (!this.visible[s]) continue;
+      const dx = this.lx[s] - x, dz = this.lz[s] - z, d = dx * dx + dz * dz;
+      if (d < bd) { bd = d; best = s; }
     }
-    return 0;
+    return best;
+  }
+
+  /** Was the unit that just died at (x, z) a creature? (Its slot is no longer drawn, but remembers where it was.) */
+  private creatureDied(x: number, z: number) {
+    let best = -1, bd = 2.5 * 2.5;
+    for (let s = 0; s < this.slots; s++) {
+      if (this.visible[s]) continue;
+      const dx = this.lx[s] - x, dz = this.lz[s] - z, d = dx * dx + dz * dz;
+      if (d < bd) { bd = d; best = s; }
+    }
+    return best >= 0 && this.creature[best] === 1;
   }
 
   private spawnFx(fx: Float32Array) {
     for (let i = 0; i < fx.length; i += FX_STRIDE) {
       const k = fx[i], x1 = fx[i + 1], z1 = fx[i + 2], x2 = fx[i + 3], z2 = fx[i + 4];
-      this.up1 = this.airAt(x1, z1); this.up2 = this.airAt(x2, z2);
+      // flyers at either end: shots go up to them
+      const a = this.slotAt(x1, z1), b = k === FX.DIE_SMALL || k === FX.DIE_BIG || k === FX.EMERGE ? -1 : this.slotAt(x2, z2);
+      const h1 = a >= 0 && DEFS[this.type[a]].move === 'air' ? this.lift[a] : 0;
+      const h2 = b >= 0 && DEFS[this.type[b]].move === 'air' ? this.lift[b] : 0;
+      if (b >= 0 && k !== FX.REPAIR) this.hit[b] = HIT_GLOW;
       colonyLights?.fx(k, x1, z1, x2, z2);
-      switch (k) {
-        case FX.ROVER_SHOT: this.tracer(x1, z1, 1.3, x2, z2, 0.14, 0.12, C.roverShot); break;
-        case FX.TANK_SHOT: case FX.TURRET_SHOT:
-          this.tracer(x1, z1, 1.45, x2, z2, 0.32, 0.22, C.tankShot);
-          this.flash(x2, z2, 1.0, 0.25, C.tankShot);
-          break;
-        case FX.BITE: this.tracer(x1, z1, 1.3, x2, z2, 0.25, 0.12, C.bite, 1.2); break;
-        case FX.SHELL: {
-          // a lobbed round: two segments up to a peak and down, then a wide burst
-          const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2, peak = 4 + Math.hypot(x2 - x1, z2 - z1) * 0.18;
-          this.tracer(x1, z1, 2.4, mx, mz, 0.36, 0.3, C.shell, Infinity, peak);
-          this.tracer(mx, mz, peak, x2, z2, 0.36, 0.3, C.shell, Infinity, 1.0);
-          this.flash(x2, z2, 4.2, 0.55, C.shell);
-          break;
-        }
-        case FX.ARC: {
-          // a jagged bolt: two segments through a jittered midpoint
-          const mx = (x1 + x2) / 2 + (Math.random() - 0.5) * 2.2, mz = (z1 + z2) / 2 + (Math.random() - 0.5) * 2.2;
-          this.tracer(x1, z1, 1.6, mx, mz, 0.18, 0.16, C.arc, Infinity, 1.8);
-          this.tracer(mx, mz, 1.8, x2, z2, 0.18, 0.16, C.arc, Infinity, 1.0);
-          this.flash(x2, z2, 0.9, 0.2, C.arc);
-          break;
-        }
-        case FX.PD_SHOT: this.tracer(x1, z1, 2.0, x2, z2, 0.1, 0.07, C.pd); break;
-        case FX.RAIL:
-          // the whole line at once, thin and white-hot, then a hard flash on the target
-          this.tracer(x1, z1, 1.7, x2, z2, 0.12, 0.3, C.rail);
-          this.flash(x2, z2, 1.6, 0.3, C.rail);
-          break;
-        case FX.SPIT:
-          this.tracer(x1, z1, 1.9, x2, z2, 0.3, 0.3, C.spit);
-          this.flash(x2, z2, 1.1, 0.35, C.spit);
-          break;
-        case FX.REPAIR: this.tracer(x1, z1, 1.6, x2, z2, 0.1, 0.35, C.repair); break;
-        case FX.EMERGE: this.flash(x1, z1, 3.4, 0.8, C.emerge); break;
-        case FX.SHIELD: this.flash(x1, z1, 2.2, 0.45, C.shield); break;
-        case FX.DIE_SMALL: this.flash(x1, z1, 1.3, 0.4, C.dieSmall); break;
-        case FX.DIE_BIG: this.flash(x1, z1, 2.6, 0.6, C.dieBig); break;
-        case FX.CORE_HIT: this.flash(x1, z1, 0.9, 0.25, C.coreHit); break;
-      }
-    }
-    if (fx.length) {
-      this.tracers.mesh.instanceMatrix.needsUpdate = true;
-      this.flashes.mesh.instanceMatrix.needsUpdate = true;
-    }
-  }
-
-  /** A glowing streak from (x1, z1) at height h1 to (x2, z2) at h2, `max` long at most. */
-  private tracer(x1: number, z1: number, h1: number, x2: number, z2: number, w: number, life: number, color: THREE.Color, max = Infinity, h2 = 1.0) {
-    h1 += this.up1; h2 += this.up2;
-    regionPoint(x1, z1, h1, this.v1);
-    regionPoint(x2, z2, h2, this.v2);
-    const len = this.v1.distanceTo(this.v2);
-    if (len < 0.01) return;
-    const p = this.tracers;
-    const j = p.next; p.next = (j + 1) % p.life.length;
-    p.mesh.count = Math.max(p.mesh.count, j + 1);
-    this.m.lookAt(this.v1, this.v2, this.up.copy(this.v1).normalize());
-    this.m.scale(this.v2.set(w, w, Math.min(len, max)));
-    this.m.setPosition(regionPoint(x1, z1, h1, this.v1));
-    p.mesh.setMatrixAt(j, this.m);
-    p.life[j] = p.max[j] = life;
-    p.color[j].copy(color);
-  }
-
-  private flash(x: number, z: number, size: number, life: number, color: THREE.Color) {
-    const p = this.flashes;
-    const j = p.next; p.next = (j + 1) % p.life.length;
-    p.mesh.count = Math.max(p.mesh.count, j + 1);
-    regionPoint(x, z, 1 + this.airAt(x, z), this.v1);
-    p.pos[j * 3] = this.v1.x; p.pos[j * 3 + 1] = this.v1.y; p.pos[j * 3 + 2] = this.v1.z;
-    p.size[j] = size;
-    this.m.makeScale(size * 0.4, size * 0.4, size * 0.4).setPosition(this.v1);
-    p.mesh.setMatrixAt(j, this.m);
-    p.life[j] = p.max[j] = life;
-    p.color[j].copy(color);
-  }
-
-  private tickPool(p: Pool, dt: number, grow: boolean) {
-    let any = false, hi = -1;
-    for (let j = 0; j < p.life.length; j++) {
-      if (p.life[j] <= 0) continue;
-      any = true;
-      p.life[j] -= dt;
-      const k = Math.max(0, p.life[j] / p.max[j]);
-      p.mesh.setColorAt(j, this.col.copy(p.color[j]).multiplyScalar(k * k * (grow ? 0.9 : 1.6)));
-      if (grow) {
-        // expand from 40% to 100% of the burst size over its life
-        const sz = p.size[j] * (0.4 + 0.6 * Math.sqrt(1 - k));
-        this.m.makeScale(sz, sz, sz).setPosition(p.pos[j * 3], p.pos[j * 3 + 1], p.pos[j * 3 + 2]);
-        p.mesh.setMatrixAt(j, this.m);
-      }
-      if (p.life[j] <= 0) p.mesh.setColorAt(j, this.col.setRGB(0, 0, 0));
-      else hi = j;
-    }
-    p.mesh.count = hi + 1;
-    if (any) {
-      p.mesh.instanceColor!.needsUpdate = true;
-      if (grow) p.mesh.instanceMatrix.needsUpdate = true;
+      const organic = (k === FX.DIE_SMALL || k === FX.DIE_BIG) && this.creatureDied(x1, z1);
+      this.fx.spawn(k, x1, z1, x2, z2, h1, h2, organic);
     }
   }
 }

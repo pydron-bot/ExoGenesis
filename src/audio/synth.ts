@@ -64,94 +64,175 @@ function note(c: AudioContext, out: AudioNode, t: number, f: number, dur: number
   tone(c, out, t, 'sine', f * 2, f * 2, dur * 0.6, peak * 0.18, 0.012);
 }
 
+/** Soft-clipping saturation into `out` (cached curves): gives booms weight without more volume. */
+const curves = new Map<number, Float32Array<ArrayBuffer>>();
+function drive(c: AudioContext, out: AudioNode, amount: number) {
+  let curve = curves.get(amount);
+  if (!curve) {
+    curve = new Float32Array(1024);
+    for (let i = 0; i < curve.length; i++) { const x = (i / 511.5) - 1; curve[i] = Math.tanh(x * amount) / Math.tanh(amount); }
+    curves.set(amount, curve);
+  }
+  const w = c.createWaveShaper();
+  w.curve = curve;
+  w.oversample = '2x';
+  w.connect(out);
+  return w;
+}
+
+/** A broadband click a few ms long: the leading edge that makes a shot read as a shot. */
+function click(c: AudioContext, out: AudioNode, t: number, f: number, peak: number, dur = 0.012) {
+  hiss(c, out, t, 'highpass', f, f, dur, peak, 0.7, 0.0008);
+}
+
+/** Debris: `n` little ticks scattered over `dur` s, getting quieter (shrapnel, gravel, crackle). */
+function crackle(c: AudioContext, out: AudioNode, t: number, dur: number, n: number, peak: number, f: number, p: number) {
+  for (let i = 0; i < n; i++) {
+    const k = Math.random();
+    const dt = k * k * dur;
+    hiss(c, out, t + dt, 'bandpass', f * p * (0.6 + Math.random() * 0.9), f * p * 0.7, 0.012 + Math.random() * 0.02, peak * (1 - k * 0.8), 3 + Math.random() * 4, 0.001);
+  }
+}
+
+/** A deep boom: a pitch-dropping sine through saturation, plus a filtered noise body. */
+function boom(c: AudioContext, out: AudioNode, t: number, f0: number, f1: number, dur: number, peak: number, body: number, bodyF: number, sat = 2.5) {
+  const d = drive(c, out, sat);
+  tone(c, d, t, 'sine', f0, f1, dur, peak, 0.002);
+  hiss(c, d, t, 'lowpass', bodyF, bodyF * 0.12, dur * 0.9, body, 0.7, 0.002);
+}
+
 /** Sounds that loop (made in ./index.ts, not here). */
 export type LoopId = 'wind' | 'surf' | 'camp';
 
 export const RECIPES: Record<Exclude<SoundId, LoopId>, Recipe> = {
   // ----- combat -----
+  // Each shot: a click (the leading edge), a body (its pitch says the calibre) and a short tail.
+  // index.ts adds distance (duller, more echo far away) on top.
   turretShot(c, o, t, p) {
-    hiss(c, o, t, 'bandpass', 2400 * p, 900 * p, 0.09, 0.45, 1.4);
-    tone(c, o, t, 'triangle', 520 * p, 170 * p, 0.08, 0.35);
-    return 0.1;
+    // a heavy autocannon: crack, thump, and the clack of the breech cycling
+    click(c, o, t, 3500 * p, 0.5);
+    boom(c, o, t, 210 * p, 70 * p, 0.16, 0.5, 0.35, 2600 * p, 2);
+    hiss(c, o, t + 0.005, 'bandpass', 1900 * p, 700 * p, 0.12, 0.28, 1.2);
+    hiss(c, o, t + 0.11, 'bandpass', 3200 * p, 3000 * p, 0.018, 0.12, 8, 0.001);
+    return 0.2;
   },
   roverShot(c, o, t, p) {
-    tone(c, o, t, 'square', 1100 * p, 620 * p, 0.045, 0.08);
-    hiss(c, o, t, 'highpass', 3000 * p, 3000 * p, 0.03, 0.18);
-    return 0.06;
+    // a plasma bolt: a bright falling zip with a short buzz
+    click(c, o, t, 5000 * p, 0.22, 0.006);
+    tone(c, o, t, 'sawtooth', 1900 * p, 420 * p, 0.07, 0.07);
+    tone(c, o, t, 'sine', 1400 * p, 300 * p, 0.09, 0.16);
+    hiss(c, o, t, 'bandpass', 4200 * p, 1600 * p, 0.06, 0.14, 2);
+    return 0.11;
   },
   tankShot(c, o, t, p) {
-    tone(c, o, t, 'sine', 120 * p, 42 * p, 0.32, 0.55, 0.002);
-    hiss(c, o, t, 'lowpass', 1400 * p, 160 * p, 0.28, 0.4, 0.7, 0.002);
-    return 0.34;
+    // a main gun: sharp report, saturated low boom, a rolling tail
+    click(c, o, t, 2500 * p, 0.7, 0.015);
+    boom(c, o, t, 150 * p, 38 * p, 0.38, 0.7, 0.55, 1800 * p, 3);
+    hiss(c, o, t + 0.01, 'bandpass', 1300 * p, 380 * p, 0.2, 0.3, 1);
+    hiss(c, o, t + 0.08, 'lowpass', 600 * p, 120 * p, 0.45, 0.16, 0.7, 0.04);
+    return 0.55;
   },
   rail(c, o, t, p) {
-    // a capacitor whine snapping into a sharp crack and a low thud
-    tone(c, o, t, 'sawtooth', 2400 * p, 5200 * p, 0.05, 0.12);
-    hiss(c, o, t + 0.04, 'highpass', 5000 * p, 2500 * p, 0.12, 0.35, 0.8, 0.001);
-    tone(c, o, t + 0.04, 'sine', 160 * p, 50 * p, 0.25, 0.45, 0.002);
-    return 0.3;
-  },
-  shieldHit(c, o, t, p) {
-    // a glassy ping that rings off, with a soft electric fizz
-    tone(c, o, t, 'sine', 880 * p, 660 * p, 0.35, 0.22, 0.003);
-    tone(c, o, t, 'sine', 1320 * p, 1180 * p, 0.25, 0.1, 0.003);
-    hiss(c, o, t, 'bandpass', 5200 * p, 3600 * p, 0.1, 0.12, 2);
-    return 0.36;
-  },
-  shell(c, o, t, p) {
-    // a deep thump and a rolling boom
-    tone(c, o, t, 'sine', 95 * p, 30 * p, 0.6, 0.6, 0.002);
-    hiss(c, o, t, 'lowpass', 900 * p, 90 * p, 0.55, 0.45, 0.6, 0.002);
-    hiss(c, o, t + 0.04, 'bandpass', 2200 * p, 600 * p, 0.12, 0.2, 1.2);
-    return 0.62;
-  },
-  arc(c, o, t, p) {
-    // a crackling zap: buzzy saw with a fast wobble, plus sizzle
-    tone(c, o, t, 'sawtooth', 1600 * p, 380 * p, 0.12, 0.12);
-    tone(c, o, t + 0.03, 'square', 900 * p, 2400 * p, 0.06, 0.06);
-    hiss(c, o, t, 'highpass', 4200 * p, 2400 * p, 0.14, 0.22, 0.8);
-    return 0.16;
-  },
-  pdShot(c, o, t, p) {
-    // a short burst of three ticks
-    for (let i = 0; i < 3; i++) hiss(c, o, t + i * 0.022, 'bandpass', 3200 * p, 1800 * p, 0.02, 0.3, 2);
-    return 0.08;
-  },
-  spit(c, o, t, p) {
-    // a wet hock and a bubbling hiss
-    hiss(c, o, t, 'bandpass', 600 * p, 1400 * p, 0.09, 0.6, 3);
-    tone(c, o, t + 0.02, 'sine', 300 * p, 520 * p, 0.12, 0.12);
-    hiss(c, o, t + 0.08, 'highpass', 2600 * p, 5000 * p, 0.2, 0.12, 0.7);
-    return 0.3;
-  },
-  emerge(c, o, t, p) {
-    // ground breaking open: rumble rising into a crunch
-    hiss(c, o, t, 'lowpass', 120 * p, 700 * p, 0.45, 0.5, 1, 0.08);
-    tone(c, o, t, 'sine', 40 * p, 70 * p, 0.5, 0.4, 0.08);
-    hiss(c, o, t + 0.35, 'bandpass', 1500 * p, 600 * p, 0.2, 0.4, 1.5);
+    // a capacitor whine snapping into a supersonic crack, a thud and a metallic ring
+    tone(c, o, t, 'sawtooth', 1800 * p, 6200 * p, 0.07, 0.07, 0.04);
+    tone(c, o, t, 'sine', 3000 * p, 7000 * p, 0.07, 0.05, 0.04);
+    click(c, o, t + 0.07, 6000 * p, 0.6, 0.01);
+    hiss(c, o, t + 0.07, 'highpass', 6000 * p, 2200 * p, 0.16, 0.38, 0.8, 0.001);
+    boom(c, o, t + 0.07, 180 * p, 45 * p, 0.3, 0.5, 0.2, 1200 * p, 2);
+    tone(c, o, t + 0.07, 'sine', 2350 * p, 2330 * p, 0.5, 0.035, 0.002);
+    tone(c, o, t + 0.07, 'sine', 3710 * p, 3700 * p, 0.35, 0.02, 0.002);
     return 0.6;
   },
+  shieldHit(c, o, t, p) {
+    // a glassy ping that rings off, with a soft electric fizz and a flutter
+    tone(c, o, t, 'sine', 880 * p, 660 * p, 0.4, 0.2, 0.003);
+    tone(c, o, t, 'sine', 1320 * p, 1180 * p, 0.3, 0.1, 0.003);
+    tone(c, o, t, 'triangle', 220 * p, 180 * p, 0.25, 0.08, 0.003);
+    hiss(c, o, t, 'bandpass', 5200 * p, 3600 * p, 0.12, 0.12, 2);
+    crackle(c, o, t + 0.02, 0.2, 4, 0.06, 6000, p);
+    return 0.42;
+  },
+  shell(c, o, t, p) {
+    // artillery: the thoomp of the gun, the round's falling whistle, and the blast when it lands
+    // (the battle effects keep a shell in the air SHELL_FLIGHT = 0.5 s; this lands with it)
+    const land = t + 0.5;
+    click(c, o, t, 1800 * p, 0.35, 0.02);
+    boom(c, o, t, 110 * p, 45 * p, 0.25, 0.45, 0.3, 900 * p, 2);
+    tone(c, o, t + 0.15, 'sine', 2200 * p, 900 * p, 0.37, 0.03, 0.15);
+    click(c, o, land, 1500 * p, 0.6, 0.02);
+    boom(c, o, land, 95 * p, 26 * p, 0.8, 0.8, 0.7, 1400 * p, 3.5);
+    hiss(c, o, land + 0.02, 'bandpass', 2200 * p, 500 * p, 0.2, 0.25, 1);
+    hiss(c, o, land + 0.15, 'lowpass', 500 * p, 80 * p, 0.9, 0.2, 0.7, 0.1);
+    crackle(c, o, land + 0.15, 0.7, 10, 0.12, 2400, p);
+    return 1.75;
+  },
+  arc(c, o, t, p) {
+    // a crackling zap: buzzy saws with a wobble, a hum, and sparks spitting off
+    tone(c, o, t, 'sawtooth', 1600 * p, 380 * p, 0.14, 0.11);
+    tone(c, o, t + 0.02, 'square', 900 * p, 2400 * p, 0.06, 0.05);
+    tone(c, o, t, 'sawtooth', 120 * p, 100 * p, 0.18, 0.08, 0.002);
+    hiss(c, o, t, 'highpass', 4200 * p, 2400 * p, 0.16, 0.2, 0.8);
+    crackle(c, o, t, 0.22, 9, 0.18, 4500, p);
+    return 0.26;
+  },
+  pdShot(c, o, t, p) {
+    // a short burst of three hard ticks with a little body each
+    for (let i = 0; i < 3; i++) {
+      click(c, o, t + i * 0.022, 4200 * p, 0.25, 0.008);
+      hiss(c, o, t + i * 0.022, 'bandpass', 2600 * p, 1500 * p, 0.03, 0.22, 2);
+    }
+    return 0.1;
+  },
+  spit(c, o, t, p) {
+    // a wet hock, a gurgle, and the acid fizzing where it lands
+    hiss(c, o, t, 'bandpass', 600 * p, 1400 * p, 0.09, 0.6, 3);
+    tone(c, o, t + 0.02, 'sine', 300 * p, 520 * p, 0.12, 0.12);
+    for (let i = 0; i < 3; i++) tone(c, o, t + 0.05 + i * 0.03, 'sine', (400 + Math.random() * 300) * p, 250 * p, 0.03, 0.06);
+    hiss(c, o, t + 0.18, 'highpass', 3000 * p, 6000 * p, 0.35, 0.12, 0.7, 0.03);
+    return 0.55;
+  },
+  emerge(c, o, t, p) {
+    // ground breaking open: rumble rising into a crunch, and stones falling back
+    hiss(c, o, t, 'lowpass', 120 * p, 700 * p, 0.45, 0.5, 1, 0.08);
+    tone(c, o, t, 'sine', 40 * p, 70 * p, 0.5, 0.4, 0.08);
+    boom(c, o, t + 0.33, 80 * p, 35 * p, 0.35, 0.4, 0.4, 1000 * p, 2.5);
+    hiss(c, o, t + 0.35, 'bandpass', 1500 * p, 600 * p, 0.2, 0.4, 1.5);
+    crackle(c, o, t + 0.45, 0.6, 12, 0.14, 1600, p);
+    return 1.1;
+  },
   repair(c, o, t, p) {
-    // a soft rising whirr
+    // a soft rising whirr and a tiny weld fizz
     tone(c, o, t, 'triangle', 600 * p, 1100 * p, 0.25, 0.07, 0.04);
     tone(c, o, t + 0.05, 'sine', 1200 * p, 1800 * p, 0.2, 0.04, 0.04);
+    hiss(c, o, t + 0.05, 'highpass', 7000 * p, 6000 * p, 0.18, 0.04, 0.8, 0.02);
     return 0.3;
   },
   bite(c, o, t, p) {
-    hiss(c, o, t, 'bandpass', 900 * p, 500 * p, 0.05, 1.6, 2);
-    hiss(c, o, t + 0.06, 'bandpass', 760 * p, 420 * p, 0.06, 1.3, 2);
-    tone(c, o, t, 'sawtooth', 150 * p, 90 * p, 0.1, 0.1);
-    return 0.13;
+    // a snarl and two snaps of the jaws
+    tone(c, o, t, 'sawtooth', 140 * p, 95 * p, 0.16, 0.12, 0.01);
+    tone(c, o, t, 'sawtooth', 147 * p, 92 * p, 0.16, 0.08, 0.01);
+    click(c, o, t + 0.02, 1800 * p, 0.5, 0.02);
+    hiss(c, o, t + 0.02, 'bandpass', 900 * p, 500 * p, 0.05, 1.2, 2);
+    click(c, o, t + 0.09, 1500 * p, 0.4, 0.02);
+    hiss(c, o, t + 0.09, 'bandpass', 760 * p, 420 * p, 0.06, 1.0, 2);
+    return 0.18;
   },
   deathSmall(c, o, t, p) {
-    hiss(c, o, t, 'lowpass', 1800 * p, 200 * p, 0.2, 0.35, 2);
-    tone(c, o, t, 'sine', 340 * p, 70 * p, 0.18, 0.25);
-    return 0.22;
+    // a crunching pop and bits pattering down
+    click(c, o, t, 2000 * p, 0.5, 0.015);
+    boom(c, o, t, 220 * p, 60 * p, 0.22, 0.4, 0.4, 2400 * p, 2.5);
+    crackle(c, o, t + 0.05, 0.45, 7, 0.12, 2800, p);
+    return 0.55;
   },
   deathBig(c, o, t, p) {
-    hiss(c, o, t, 'lowpass', 1100 * p, 80 * p, 0.7, 0.45, 0.8, 0.003);
-    tone(c, o, t, 'sine', 80 * p, 28 * p, 0.55, 0.5, 0.003);
-    return 0.72;
+    // a blast: crack, a saturated boom that rolls on, a second pop, and debris raining down
+    click(c, o, t, 1500 * p, 0.8, 0.02);
+    boom(c, o, t, 85 * p, 24 * p, 0.9, 0.85, 0.75, 1600 * p, 4);
+    hiss(c, o, t + 0.01, 'bandpass', 1800 * p, 400 * p, 0.25, 0.35, 1);
+    hiss(c, o, t + 0.12, 'lowpass', 400 * p, 60 * p, 1.1, 0.25, 0.7, 0.12);
+    boom(c, o, t + 0.16 + Math.random() * 0.1, 160 * p, 50 * p, 0.25, 0.3, 0.25, 2200 * p, 2);
+    crackle(c, o, t + 0.1, 1.0, 16, 0.14, 2200, p);
+    return 1.4;
   },
   // ----- colony events -----
   placed(c, o, t, p) {

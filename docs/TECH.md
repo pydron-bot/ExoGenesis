@@ -1951,3 +1951,40 @@ campaign only.
   samples, moments, a death with its cause, a walkout, a save, the model's totals, the tree's rows and links, the
   memorial; browser, desktop and phone: that colony loaded, the menu's page with tree, chart, moments and memorial,
   fitting the screen, Save image as a 1200 px PNG, ×, and after a fallen Core the end screen's button).
+
+### Battle effects and combat sound (v0.60.0)
+
+**Visuals** (`src/skirmish/fx.ts`, `BattleFx`, owned by `ArmyView` in `src/skirmish/view.ts`, so it serves
+the campaign and skirmish alike). The sim's FX events (`skirmish/types` `FX`) used to draw a full-length
+box tracer and a solid additive sphere. Now each event spawns layered effects from pooled, instanced
+ring buffers (the oldest effect is overwritten when a pool fills; nothing is allocated per frame):
+
+- **Projectiles** (500): bolt, cannon, PD (a 3-round burst), spit (a lob) and shell (a high arc that
+  takes exactly `SHELL_FLIGHT` = 0.5 s, so the synthesised boom lands with it) fly from muzzle to target
+  and land with their own impact. Direct fire is capped at 0.12–0.15 s of flight, so a shot still
+  lands about when the sim applies its damage. Shells trail smoke; the shell's impact light is sent
+  to `colonyLights.fx(FX.SHELL, x, z, x, z)` on landing (x1 = x2 means "impact only").
+- **Beams** (400): rails (white core + wide glow + drifting motes), arcs (4 jittered segments with
+  a fork), bite slashes, repair beams (with motes travelling along them).
+- **Glows** (2200 sprites, additive): muzzle flashes, impact flashes, fireballs and sparks (with gravity
+  and drag). **Smoke** (900 sprites, normal blending): smoke, dust, debris chunks.
+- **Shockwave rings** (120) on the ground, and **scorch marks** (160) that darken the ground
+  (multiply blend: works by day and night) for 7–14 s.
+- Deaths look up the slot that was just at that spot (`ArmyView.creatureDied`): fauna splatter
+  (green ichor, stain), machines burn (fireball, sparks, debris, smoke, scorch). Units flash bright
+  for 0.14 s when hit (`ArmyView.hit`, matched to the FX target point within 1.6 u).
+
+Sprites are camera-facing quads built in the vertex shader. The renderer uses a **logarithmic depth
+buffer**, so every custom shader here includes `<common>`, `<logdepthbuf_pars_*>` and
+`<logdepthbuf_*>` (without them they draw nothing). `BattleFx.detail` (0..1) scales particle counts.
+
+Checking it: `__exo.army.fx.spawn(kind, x1, z1, x2, z2, h1, h2, organic)` fires any effect in the
+running campaign; with software GL, wrap `fx.update` to scale dt down to see short-lived sparks.
+
+**Sound** (`src/audio/synth.ts`, `src/audio/index.ts`). Combat recipes are layered: a click (the
+leading edge), a body whose pitch says the calibre (often through `drive()` soft-clip saturation for
+weight), and a tail (`crackle()` debris, rumble). The shell recipe carries its own launch, whistle and
+landing boom 0.5 s later. In the mixer, world sounds get a distance factor `far` from the spatial
+gain: a low-pass from 16 kHz down to ~1.1 kHz and a larger send to a shared **echo** (a convolver on a
+generated 1.4 s stereo impulse with four early slaps, low-passed, into the Combat category). Combat
+voice caps rose to 10 (14 overall) since tails are longer.
