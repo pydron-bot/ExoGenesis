@@ -174,6 +174,13 @@ function nextBuilding(h: AiHost, L: LevelRules, have: (k: string) => number, rol
     if (seam && dist(seam, home) < 70) for (const [dx, dz] of [[0, 0], [1.5, 0], [-1.5, 0], [0, 1.5], [0, -1.5]]) if (!h.place('deepmine', seam.x + dx, seam.z + dz)) return { kind: 'deepmine', at: { x: seam.x + dx, z: seam.z + dz } };
   }
   if (h.researched('isotope-cells') && have('fusion') < 1 && (s.isotopes ?? 0) >= 40) return { kind: 'fusion' };
+  // a Matter Printer on spare power: one late on, two once the deposits in reach are nearly mined out
+  const pd = DEFS.printer;
+  if (pd && h.researched(pd.research) && (s.isotopes ?? 0) >= (pd.isotopes ?? 0)) {
+    const inReach = s.deposits.filter((d) => depots.some((b) => dist(b, d) <= (DEFS.depot.range ?? 30))).reduce((m, d) => m + d.alloys, 0);
+    const wantPrinters = inReach < 2500 ? 2 : secs > 900 ? 1 : 0;
+    if (have('printer') < wantPrinters) return { kind: 'printer' };
+  }
   return null;
 }
 

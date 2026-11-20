@@ -15,7 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.55.0',
+    version: '0.56.0',
     date: '2026-11-20',
     title: 'Smoother controls',
     notes: [
@@ -26,12 +26,23 @@ export const CHANGELOG: Release[] = [
       'A drones chip by the resources shows how many are idle: click it, or press ., to jump to the next idle drone',
       'Control groups: Ctrl or Shift + 4 to 9 saves the selected units, the number selects them again, twice looks at them. Ctrl+A selects every combat unit',
       '[ and ] change the game speed; a PAUSED banner shows while you\'re paused (tap it to carry on)',
-      'Ctrl+S saves; ? or H (and Controls in the menu) lists every key and gesture',
+      'Ctrl+S saves; ? (and Controls in the menu) lists every key and gesture',
       'While placing, the reason a building can\'t go somewhere shows right by the cursor',
       'Esc closes the build menu first; the radar map can be dragged across to sweep the camera',
       'Recycle asks for a second tap (showing what you\'ll get back) instead of a browser pop-up',
       'The game pauses when you switch to another tab or app, and tells you when you come back (Options → Pause in the background)',
       'Fixed: selecting units that had only just been made could drop the selection straight away',
+    ],
+  },
+  {
+    version: '0.55.0',
+    date: '2026-11-20',
+    title: 'Matter Printer and alerts',
+    notes: [
+      'New building, the Matter Printer (after Isotope Cells): turns spare power into alloys, slowly. It only takes power nothing else is using and never drains your batteries, so feed it geothermal or fusion. No deposit needed and no scars on the land: a way to keep going when the deposits run dry',
+      'Computer players build Matter Printers too once their deposits run low',
+      'Under attack alerts: when something of yours is hit, you hear it and the log says what and where',
+      'Alerts, losses and contacts now show where they happened: the map pings the spot, tap the line to look there, or press H for the latest alert',
     ],
   },
   {

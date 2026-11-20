@@ -172,13 +172,14 @@ const bodyDef = content.bodies[bodyId];
 // Start both workers first so their work overlaps everything below: the sim
 // (boots its module graph and a new game) and the globe/province generator.
 /** Sim events that arrive before the HUD exists wait here. */
-const early: [string, 'info' | 'warn' | 'bad'][] = [];
-let logFn: ((text: string, level: 'info' | 'warn' | 'bad') => void) | null = null;
+type At = { x: number; z: number } | undefined;
+const early: [string, 'info' | 'warn' | 'bad', At][] = [];
+let logFn: ((text: string, level: 'info' | 'warn' | 'bad', at?: At) => void) | null = null;
 // sound (colony only; ?sound=0 turns it off for good, the ⋯ menu for now)
 const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0', content.music);
-const sim = new SimClient((t, l, cue) => {
+const sim = new SimClient((t, l, cue, at) => {
   if (cue) audio.event(cue);
-  if (logFn) logFn(t, l); else early.push([t, l]);
+  if (logFn) logFn(t, l, at); else early.push([t, l, at]);
 }, !skirmishMode, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup);
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
@@ -323,13 +324,26 @@ const logEl = $('log');
 // the HUD's look (Rules → Interface; the editor's preview hands over an unsaved one)
 const ui_ = preview?.interface ?? content.interface;
 applyInterface(ui_);
-const heldLog: [string, 'info' | 'warn' | 'bad'][] = [];
-function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
+const heldLog: [string, 'info' | 'warn' | 'bad', At][] = [];
+/** Pings the minimap (set once the HUD exists: early events come before it). */
+let pingFn: ((x: number, z: number, color: string) => void) | null = null;
+/** Where the latest event with a place happened (H takes the camera there). */
+let lastAt: At;
+const goTo = (at: { x: number; z: number }) => { cam.lookAtGround(at.x, at.z); if (cam.a > 0.5) cam.setView('surface'); };
+function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At) {
   // a cinematic hides the log; keep events for when it ends
-  if (cine) { heldLog.push([text, level]); return; }
+  if (cine) { heldLog.push([text, level, at]); return; }
   const el = document.createElement('div');
   el.className = `ev ${level === 'info' ? '' : level}`;
   el.textContent = text;
+  if (at) {
+    // somewhere on the map: tap the line to look there; the radar pings it
+    el.classList.add('go');
+    el.title = 'Show me (H)';
+    el.onclick = () => goTo(at);
+    if (level !== 'info') lastAt = at;
+    pingFn?.(at.x, at.z, level === 'info' ? '#5ff3ff' : '#ff4d5e');
+  }
   logEl.appendChild(el);
   while (logEl.children.length > ui_.logLines) logEl.firstElementChild!.remove();
   setTimeout(() => el.classList.add('fade'), Math.max(500, ui_.logSeconds * 1000 - 1500));
@@ -337,7 +351,7 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info') {
 }
 
 logFn = log;
-for (const [t, l] of early.splice(0)) log(t, l);
+for (const [t, l, at] of early.splice(0)) log(t, l, at);
 const ui: RegionUi = { sel: null, drag: null, build: null, ghost: null };
 /** Select the first drone once the landing hands over control. */
 let selectFirstDrone = true;
@@ -439,7 +453,7 @@ function endCine() {
   document.body.classList.remove('cine', 'cine-world', 'cine-bars');
   cineEl.classList.add('gone');
   cine = null;
-  for (const [text, level] of heldLog.splice(0)) log(text, level);
+  for (const [text, level, at] of heldLog.splice(0)) log(text, level, at);
 }
 function startLanding() {
   document.body.classList.add('cine');
@@ -576,6 +590,7 @@ const hud = new ColonyHud({
   nextIdleDrone: () => nextIdleDrone(),
   cardOpened: () => audio.event('message'),
 });
+pingFn = (x, z, c) => hud.ping(x, z, c);
 /** Tutorial hints, waypoints and camera moves the story asks for. */
 const storyHud = new StoryHud({
   cam, command: (c) => sim.command(c),
@@ -771,6 +786,8 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
 $('pl-rotate').onclick = () => input?.rotate();
 $('pl-done').onclick = () => setBuild(null);
 if (!skirmish) addEventListener('keydown', (e) => {
+  // H: to the latest alert (under attack, something lost, contact)
+  if ((e.key === 'h' || e.key === 'H') && lastAt && !(e.target instanceof HTMLInputElement)) goTo(lastAt);
   // X: selected combat units stop and guard where they stand
   if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) { audio.play('order'); sim.command({ type: 'stop', ids: ui.sel.ids }); }
 });
@@ -817,7 +834,7 @@ function placeHint(text: string | null, x: number, y: number) {
   if (hintEl.textContent !== text) hintEl.textContent = text;
   hintEl.style.transform = `translate(${Math.round(x + 16)}px, ${Math.round(y + 18)}px)`;
 }
-/** Every key and gesture, in one panel (? or H, and the menu's Controls). */
+/** Every key and gesture, in one panel (?, and the menu's Controls). */
 function showControls(onClose?: () => void) {
   const row = (k: string, v: string) => `<div class="kb"><span>${k}</span><span>${v}</span></div>`;
   const sec = (t: string) => `<div class="op-sec">${t}</div>`;
@@ -855,7 +872,8 @@ function showControls(onClose?: () => void) {
     row('<kbd>Space</kbd>', 'pause'),
     row('<kbd>[</kbd> <kbd>]</kbd>', 'slower · faster'),
     row('<kbd>Ctrl</kbd> <kbd>S</kbd>', 'save'),
-    row('<kbd>?</kbd> / <kbd>H</kbd>', 'this list'),
+    row('<kbd>H</kbd>', 'look at the latest alert (or tap a log line with ◎)'),
+    row('<kbd>?</kbd>', 'this list'),
   ].join('');
   openInfo('Controls', coarse
     ? `${sec('Touch')}${touch}${sec('Keyboard')}${keys}${orders}${game}`
@@ -1022,7 +1040,7 @@ function openGameMenu() {
   const { el } = openMenu('Menu', rts ? [
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
-    { id: 'controls', label: 'Controls', sub: 'Every key and gesture (? or H)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
     { id: 'rematch', label: 'Rematch', sub: 'The same map and players, from the start', confirm: 'This game will be lost · tap again', run: () => restartGame() },
     { id: 'skirmish', label: 'New skirmish', sub: 'Pick another map and players', run: setup },
     { id: 'surrender', label: 'Surrender', sub: 'Give up this game', confirm: 'Your Command Core will fall · tap again', run: () => sim.command({ type: 'surrender' }) },
@@ -1033,7 +1051,7 @@ function openGameMenu() {
     { id: 'save', label: 'Save', sub: 'To this browser (the game also autosaves)', run: () => void saveGame() },
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
-    { id: 'controls', label: 'Controls', sub: 'Every key and gesture (? or H)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
     { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },

@@ -53,7 +53,8 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 | Next idle drone | | . or the ⛭ chip |
 | Control groups | | Ctrl/Shift + 4–9 to save, 4–9 to select (twice: look) · Ctrl+A all units |
 | Save | menu → Save | Ctrl+S |
-| Every key | menu → Controls | ? or H |
+| Latest alert | tap a ◎ log line | H |
+| Every key | menu → Controls | ? |
 
 ## Run
 

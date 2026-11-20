@@ -530,7 +530,7 @@ export class Input {
       case '.': this.h.nextIdleDrone?.(); break;
       case ']': this.h.speedStep?.(1); break;
       case '[': this.h.speedStep?.(-1); break;
-      case '?': case 'h': case 'H': this.h.showControls?.(); break;
+      case '?': this.h.showControls?.(); break;
       case 'Escape':
         if (this.h.closeBuildMenu?.()) break;
         this.h.setBuild(null); this.h.placeHint?.(null, 0, 0); this.ui.sel = null; this.h.select(); break;

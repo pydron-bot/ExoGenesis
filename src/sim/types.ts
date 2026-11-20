@@ -430,7 +430,7 @@ export interface SkirmishSetup {
   deposits?: { x: number; z: number; alloys: number; max: number }[];
 }
 
-export type SimStats = { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number; unitsBuilt?: number; enemyKills?: number };
+export type SimStats = { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number; unitsBuilt?: number; enemyKills?: number; printed?: number };
 
 /** A computer player's memory: waves sent, the raid under way (unit ids, whose base, when, how big), its rally point. */
 export interface AiBrain { wave: number; attack: number[]; target: number; launched: number; size: number; rally: { x: number; z: number } | null }
@@ -632,4 +632,5 @@ export type EventCue = 'placed' | 'online' | 'unitReady' | 'droneReady' | 'packC
 export type FromWorker =
   | Snapshot
   | { type: 'saved'; reqId: number; state: SimState }
-  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue };
+  /** `at`: where it happened (the minimap pings it; the log line jumps the camera there). */
+  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue; at?: { x: number; z: number } };

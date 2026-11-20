@@ -1536,15 +1536,36 @@ sent, the raid under way, its rally point) is in the save.
   free-for-all of Normals ends (40 min on seed 100: the winner had 9 depots, a Deep-Core Mine and a Fusion Cell).
   In the browser a Hard computer built its base, expanded through a relay and took out an idle player's Core at 7.5 min.
 
-### Smoother controls (v0.55.0)
+### Matter Printer and alerts (v0.55.0)
+
+- **Matter Printer** (`content/buildings/printer.json`, role `printer`, campaign and skirmish): 160 alloys + 20
+  isotopes, needs Isotope Cells, draws 8 MW and makes `mineRate` 0.4 alloys/s while powered (staff multiply it as for
+  depots; `stats.printed`). It's last in line for power (rank 4, after depots) and live power only, never the
+  battery, so it runs on surplus: geothermal, fusion, or solar on a good afternoon. A depot makes 1.2/s for 2 MW, so
+  deposits stay ten times better per MW; the printer is the late-game floor when they run dry, and makes no scars
+  (planet health). Card: "Printing · +0.4 alloys/s" or "Waiting for spare power". Model `buildPrinter()` (in the
+  asset library as built-in `printer`). Computer players build one after 15 min, two once the deposits their depots
+  reach hold under 2,500; their power planning counts its draw. With printers the four-way Normal free-for-all
+  ended at 45 min (57 before); campaign balance outcomes unchanged.
+- **Alerts** (`Sim.underAttack`): when an enemy player's shot or a predator's bite hits one of your buildings, units
+  or drones: "Under attack: <what>, <compass> of the Core" (or "at the Core"), at most every 20 s for the same place
+  (6 s for a place 60 u away). Events can carry a place now (`EventSink(text, level, cue, at)`, the worker's `event`
+  message has `at`): alerts, your buildings destroyed, other players' buildings destroyed, predator contact. Such a
+  log line is tappable (◎) and takes the camera there; the minimap pings it (a ring that grows and fades over 4 s,
+  red for trouble, cyan for news); **H** goes to the latest alert.
+- Tests: `tools/skirmish-sim.mjs` checks the printer (waits with no spare power, never touches the battery, 0.4/s on
+  spare power); `tools/skirmish-play-smoke.mjs` checks a tappable alert and H. `tools/balance.mjs` shows at most 60
+  events per run, so the new alerts push some old lines out of its listing; compare outcomes (`===`, `end:`, tables).
+
+### Smoother controls (v0.56.0)
 
 Quality of life in the colony (and the skirmish built on it; the old `?mode=skirmish` battlefield keeps its own input).
 
 - **Keys** (`src/input.ts` `key`): camera keys go by `e.code` (layout-proof) into a held set; `Input.update(dt, active)`
   runs each frame from `main.ts` and pans 700 px/s (1,500 with Shift) and turns 1.8 rad/s, so a held key is smooth
   instead of riding the OS key repeat. `active` is false under the title, cinematics, the menu and panels (the set
-  clears; window blur clears it too). `F`/`Home` centre, `.` next idle drone, `[` `]` speed (0 / 1 / 3), `?`/`H`
-  Controls, `Ctrl+S` save (`Ctrl+A` all combat units). Digits 4–9 are control groups (1–3 stay the views): Ctrl or
+  clears; window blur clears it too). `F`/`Home` centre, `.` next idle drone, `[` `]` speed (0 / 1 / 3), `?`
+  Controls (`H` stays the latest alert), `Ctrl+S` save (`Ctrl+A` all combat units). Digits 4–9 are control groups (1–3 stay the views): Ctrl or
   Shift + digit saves the selected units, the digit recalls (dead ones dropped), twice within 400 ms glides there.
   Typing in an input, textarea, select or contenteditable is never a shortcut.
 - **Camera** (`src/camera.ts`): `glideTo(x, z)` eases the focus there (a pan cancels it); `lookAtGround` jumps.
@@ -1562,7 +1583,7 @@ Quality of life in the colony (and the skirmish built on it; the old `?mode=skir
   running game; coming back logs it; never under webdriver), Zoom to the cursor (`exo.zoomcursor`, on), Edge scrolling
   (`exo.edgescroll`, off). The last two are desktop only. `?bgpause=`, `?zoomcursor=`, `?edgescroll=` override.
 - **Controls panel** (`openInfo` in `src/options.ts`): every key and gesture; touch devices list touch first. From
-  `?`/`H` or the menu's Controls (closing it goes back to the menu).
+  `?` or the menu's Controls (closing it goes back to the menu).
 - **Fix:** the selection card read the HUD's snapshot, which is refreshed by the frame loop and can be a frame behind
   the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
 - **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.

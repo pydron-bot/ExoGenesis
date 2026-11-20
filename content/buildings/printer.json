@@ -1,0 +1,17 @@
+{
+  "name": "Matter Printer",
+  "description": "Turns spare power into alloys, slowly: no deposit, no mining scars. It takes only power nothing else needs, never from the batteries, so it runs on surplus: geothermal, fusion, or a sunny afternoon.",
+  "role": "printer",
+  "buildable": true,
+  "cost": 160,
+  "isotopes": 20,
+  "research": "isotope-cells",
+  "hp": 520,
+  "powerMW": -8,
+  "buildSeconds": 24,
+  "clearance": 10,
+  "mineRate": 0.4,
+  "lightColor": "#7cf0c8",
+  "lightRadius": 12,
+  "lightIntensity": 0.9
+}

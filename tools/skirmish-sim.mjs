@@ -143,5 +143,26 @@ run(sim, 30);
 check(s.units.length === 8 && s.units.every((u) => u.hp === content.units.tank.hp), 'allies side by side hold their fire');
 check(!s.over, 'a game with two sides left goes on');
 
+// ---------- 6. the Matter Printer: alloys from spare power only ----------
+sim = setup(2);
+s = sim.s;
+const P0 = s.players[0].home;
+const put = (kind, dx, dz) => { const b = { id: s.nextId++, kind, x: P0.x + dx, z: P0.z + dz, progress: 1, hp: content.buildings[kind].hp, on: true, powered: false }; s.buildings.push(b); return b; };
+s.research.done.push('deep-survey', 'isotope-cells');
+const printer = put('printer', 0, 16);
+s.alloys = 0;
+run(sim, 10);
+check(!printer.powered && s.alloys < 6, `with no spare power it waits (${s.alloys.toFixed(1)} alloys in 10 s: only the trickle)`);
+const bat = put('battery', -14, 0);
+s.stored = 600;
+run(sim, 10);
+check(!printer.powered && s.stored > 590, `it never runs on the battery (${Math.round(s.stored)} MJ left)`);
+put('geothermal', 14, 0); put('geothermal', 14, 14);
+const pa0 = s.alloys;
+run(sim, 20);
+const made = s.stats.printed ?? 0;
+check(printer.powered && made > 7.5 && made < 8.5, `on spare power it prints ${content.buildings.printer.mineRate}/s (${made.toFixed(1)} in 20 s; alloys +${(s.alloys - pa0).toFixed(1)})`);
+check(bat && content.buildings.printer.research === 'isotope-cells', 'it needs Isotope Cells');
+
 console.log(failed ? `\n${failed} failed` : '\nall skirmish sim checks passed');
 process.exit(failed ? 1 : 0);

@@ -1,5 +1,5 @@
 /**
- * Quality-of-life controls (v0.55.0), end to end in the colony:
+ * Quality-of-life controls (v0.56.0), end to end in the colony:
  * held-key panning, F centre, the drones chip and . (next idle drone), right-click orders and
  * cancelling placement, the placement hint by the cursor, Esc closing the build menu, control
  * groups, Ctrl+A, [ ] speed and the PAUSED banner, the Controls panel, two-tap Recycle,
@@ -151,12 +151,12 @@ await wait(200);
   check(await page.waitForFunction(() => getComputedStyle(document.getElementById('paused')).display === 'none', null, { timeout: 5000 }).then(() => true, () => false), 'and it goes');
 }
 
-// 8. the Controls panel (H, and the menu)
+// 8. the Controls panel (?, and the menu)
 {
-  await page.keyboard.press('h');
+  await page.keyboard.press('?');
   await wait(200);
   const t = await ev(() => document.querySelector('#options .op-head b')?.textContent);
-  check(t === 'CONTROLS', 'H opens Controls');
+  check(t === 'CONTROLS', '? opens Controls');
   check(await ev(() => document.querySelectorAll('#options .kb').length > 15), 'with the keys listed');
   await page.keyboard.press('Escape');
   await wait(100);

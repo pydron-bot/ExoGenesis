@@ -64,6 +64,15 @@ async function run(viewport, name, mobile = false) {
   await page.waitForTimeout(500);
   check(!!p && !(await page.evaluate(() => __exo.ui.sel?.kind === 'units')), `${name}: an enemy unit can't be selected`);
   if (shots) await page.screenshot({ path: `${shots}/${name}-enemies.png` });
+  // they shoot at us: an "under attack" alert with a place; tapping it (or H) takes the camera there
+  const alert = await page.waitForFunction(() => [...document.querySelectorAll('#log .ev.go')].find((e) => /Under attack/.test(e.textContent))?.textContent ?? null, null, { timeout: 30000 }).then((h) => h.jsonValue(), () => null);
+  check(!!alert, `${name}: an under-attack alert you can tap (${alert})`);
+  if (alert) {
+    await page.evaluate(() => { __exo.cam.fx = 0; __exo.cam.fz = 0; });
+    await page.keyboard.press('h');
+    const moved = await page.evaluate(() => Math.hypot(__exo.cam.fx, __exo.cam.fz));
+    check(moved > 20, `${name}: H takes the camera to it (${moved.toFixed(0)} u from the middle)`);
+  }
   // ---- menu
   await page.click('#b-menu');
   const items = await page.$$eval('#options .op-act', (bs) => bs.map((b) => b.dataset.id));
