@@ -1,0 +1,14 @@
+{
+  "name": "Garrison Doctrine",
+  "description": "Drills and stores for the outlying holdings, written with a security officer. Unlocks the Fortify standing order: while a threat is on a holding, its buildings take less damage and its turrets hit harder. Two more combat units allowed.",
+  "branch": "defence",
+  "requires": "seismic-listening",
+  "specialist": "security",
+  "cost": 120,
+  "seconds": 50,
+  "order": 34,
+  "effects": [
+    { "stat": "fortify", "amount": 1 },
+    { "stat": "units", "amount": 2 }
+  ]
+}

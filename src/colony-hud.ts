@@ -8,6 +8,7 @@ import type { BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, 
 import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { ResearchHud } from './research-hud';
+import { ORDERS, type StandingOrder } from './sim/frontier';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
 import { factoryMakes } from './sim/rules';
@@ -428,6 +429,18 @@ export class ColonyHud {
         btn.push(`<button data-act="tree" class="go" title="Every project by branch: what each does and what it waits on">Research tree</button>`);
         if (a) btn.push('<button data-act="unresearch" title="Stop and get the cost back">Cancel research</button>');
       }
+      // an outlying holding: its standing order, and any threat on it
+      const hold = s.frontier?.holdings.find((h) => h.ids.includes(b.id));
+      let orders = '';
+      if (hold) {
+        const t = s.frontier!.threat;
+        rows.push(['Holding', `${hold.name} · ${hold.ids.length} building${hold.ids.length > 1 ? 's' : ''}`]);
+        if (t && t.sector === hold.sector) rows.push(['Threat', `${{ migration: 'Migration', relic: 'Relic surge', raid: 'Raid' }[t.kind]} ${t.left < 0 ? 'here now' : `in ${mmss(t.left)}`}`]);
+        orders = `<div class="h">STANDING ORDER</div><div class="seg orders">${(Object.keys(ORDERS) as StandingOrder[]).map((o) => {
+          const lock = o === 'fortify' && !s.frontier!.fortify;
+          return `<button data-act="standing:${hold.sector}:${o}" class="${hold.order === o ? 'on' : ''}${lock ? ' poor' : ''}" title="${esc(ORDERS[o].help)}">${lock ? '🔒 ' : ''}${ORDERS[o].name}</button>`;
+        }).join('')}</div><small class="help">${esc(ORDERS[hold.order as StandingOrder]?.help ?? '')}</small>`;
+      }
       btn.push(...pe.buttons);
       if (b.progress >= 1 && b.hp < d.hp) btn.push('<button data-act="repair">Repair</button>');
       if (d.role !== 'core' && b.progress >= 1) btn.push(`<button data-act="power">${b.on ? 'Switch off' : 'Switch on'}</button>`);
@@ -440,7 +453,7 @@ export class ColonyHud {
       }
       html = `<div class="t">${esc(d.name.toUpperCase())}</div><div class="s ${cls}">${esc(st)}</div>
         <div class="hp"><i style="width:${Math.min(100, (b.hp / d.hp) * 100).toFixed(0)}%;background:${b.hp / d.hp > 0.6 ? '#5bff9a' : b.hp / d.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${names}${queue}${lab}${pe.html}
+        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${names}${queue}${lab}${pe.html}${orders}
         <div class="grp">${btn.join('')}</div>`;
     }
     card.classList.add('on');
@@ -471,6 +484,7 @@ export class ColonyHud {
     else if (b && act.startsWith('produce:')) this.d.command({ type: 'produce', id: b.id, unit: act.slice(8) });
     else if (b && act === 'unqueue') this.d.command({ type: 'unqueue', id: b.id });
     else if (act.startsWith('research:')) this.d.command({ type: 'research', id: act.slice(9) });
+    else if (act.startsWith('standing:')) { const [, sector, order] = act.split(':'); this.d.command({ type: 'standing', sector, order: order as StandingOrder }); }
     else if (act === 'tree') { this.people.toggle(false); this.tree.toggle(true); }
     else if (act === 'unresearch') this.d.command({ type: 'unresearch' });
     else if (!b) return;

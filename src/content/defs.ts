@@ -197,6 +197,13 @@ export const threatRulesShape = {
   bruteEvery: int({ label: 'Brute every', min: 0, max: 100, help: 'Every Nth attacker is a Brute (0 = never).' }),
   nightBoost: num({ label: 'Night pack size', min: 0, max: 5, step: 0.05, help: 'Multiplier for packs that arrive at night.' }),
   nestRegrow: num({ label: 'Nest regrow time', min: 30, max: 36000, unit: 's', optional: true, help: 'How long a destroyed nest takes to grow back (no packs from that spawn meanwhile). Empty = 600 s.' }),
+  frontierFrom: num({ label: 'Frontier: first threat', min: 0, max: 36000, unit: 's', optional: true, help: 'Threats to outlying holdings (migrations, relic surges, raids) start this long after landing. Empty = 1500 s.' }),
+  frontierEvery: num({ label: 'Frontier: between threats', min: 30, max: 36000, unit: 's', optional: true, help: 'After one is over, the next comes this long after (± the jitter). Empty = 420 s.' }),
+  frontierJitter: num({ label: 'Frontier: jitter', min: 0, max: 3600, unit: 's', optional: true }),
+  frontierWarn: num({ label: 'Frontier: warning', min: 0, max: 600, unit: 's', optional: true, help: 'How long between the warning and the threat arriving (more with warning research and lookouts). Empty = 90 s.' }),
+  frontierSize: int({ label: 'Frontier: first migration', min: 1, max: 200, optional: true, help: 'Predators in the first migration. Empty = 6.' }),
+  frontierGrowth: num({ label: 'Frontier: growth', min: 0, max: 50, step: 0.5, optional: true, help: 'Added to each threat after the last. Empty = 3.' }),
+  holdFrom: num({ label: 'Holdings: from', min: 20, max: 240, unit: 'u', optional: true, help: 'Buildings at least this far from the Command Core make up outlying holdings (by compass sector). Empty = 55 u.' }),
   sightRange: num({ label: 'Sight without radar', min: 0, max: 240, unit: 'u', help: 'Packs show up (and warn) only this close to a building unless a radar is powered.' }),
 } satisfies Shape;
 export type ThreatRules = Infer<typeof threatRulesShape>;

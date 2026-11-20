@@ -1723,3 +1723,41 @@ Neighbours tab in `src/people-hud.ts`. Test: `tools/relations-smoke.mjs` (`--hea
 - **Measured** (headless): two Brutes at a lone Solar Array far from the Core lost 600 hp to four Vell hunters inside
   a minute (both killed); a trusted Vell camp killed the swarmers that came onto its land; a depot on the Vell's deposit
   cost 3.1 regard a quarter sol (108 alloys) against 1.5 for encroaching alone.
+
+### The frontier: threats to held territory (campaign depth 4)
+
+DESIGN §4 "Persistent territory" within the region being played (the campaign plays one region at a time; there is no
+second held region to go back to yet): the colony's outlying **holdings** come under escalating, telegraphed threats,
+so the player has to go back out to them, and **standing orders** let a holding partly look after itself. Code:
+`src/sim/frontier.ts` (`Frontier`, owned by the Sim, checked once a second, campaign only), `Sim.surge`,
+`buildingHarm` and turret damage in `src/sim/core.ts`, Evacuate in `People.decide`, the building card in
+`src/colony-hud.ts`. Numbers: threat rules `frontierFrom` (1,500 s), `frontierEvery` (420 s) ± `frontierJitter` (90),
+`frontierWarn` (90 s), `frontierSize` (6), `frontierGrowth` (3), `holdFrom` (55 u). Test: `tools/frontier-smoke.mjs`
+(`--headless-only`; browser half on `:5186`).
+
+- **Holdings:** every finished building (walls, gates and the Core aside) at least `holdFrom` from the Core, grouped by
+  compass sector ("the east holding"). Snapshot `frontier.holdings` (sector, centre, building ids, standing order).
+- **The director** (`SimState.frontier`: `n`, `next`, `threat`, `orders`): once `next` comes and a holding exists, it
+  picks the holding furthest from our combat units (a little at random) and a threat:
+  - **migration**: `frontierSize + frontierGrowth × n` predators (× the region's pack scale; a Brute in five, a Spitter
+    in six) from the region's edge beyond the holding;
+  - **relic surge** (regions with relic grids, from the second threat): 1–4 awake sentinels (`relic: 'surge'`, no grid)
+    break the surface 16 u or more from the holding, on free ground;
+  - **raid** (a camp we've met with regard under 30 or a grievance flag): not a fight. If combat units are within 35 u or
+    a powered turret within 40 u they turn back (−3 regard); if not they take 60 + 20n alloys and 40 biomass and
+    wreck 35% of a building there (+4 regard: the grudge partly settled).
+  Each is **telegraphed**: a log line with where (it jumps the camera), a countdown under GOALS (story countdown
+  `frontier`) and a marker on the holding (story mark `frontier`, ground and minimap), `frontierWarn` + the `warning`
+  modifier ahead (Seismic Listening +45, Firmware Archaeology +30, the Vell's lookouts +30 for a sol, the Choir's sweeps
+  +30). Over when the migration's pack or the surge's sentinels are gone ("the east holding held", +1 stance, or "is
+  lost"); the next comes `frontierEvery` ± jitter later, bigger. Peaceful play tests hold the frontier off.
+- **Standing orders** (`{ type: 'standing', sector, order }`, on the card of any building in a holding, with the threat
+  on it if there is one): **Hold** (nothing extra), **Muster** (idle combat units are ordered out to it when the warning
+  comes), **Fortify** (needs the `fortify` ability, research **Garrison Doctrine**: while a threat is on it, its
+  buildings take 60% damage and its turrets do 125%), **Evacuate** (while a threat is on it, nobody goes to work there
+  and the people who live there go to the Core).
+- **Measured** (headless): the first migration (6) arrives 90 s after its warning from the east edge; with Seismic
+  Listening the warning is 135 s; Fortify takes a holding's damage to 60%; Muster sends 3 idle rovers out; an
+  unguarded holding loses 80 alloys to a Vell raid, a powered turret turns the raid back; a surge's sentinels open fire
+  on the holding. The balance bots still lose Touchdown before 25 min with predators on, so the frontier (from 25 min)
+  doesn't change those runs.

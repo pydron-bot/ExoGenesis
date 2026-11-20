@@ -421,6 +421,8 @@ export interface SimState {
   story?: StoryState;
   /** Inhabitant camps (absent in saves from before inhabitants existed: set up from the region on load). */
   camps?: Camp[];
+  /** The frontier: threats to outlying holdings and their standing orders (absent in older saves: starts fresh). */
+  frontier?: import('./frontier').FrontierState;
   /** Colonists, embryos, pods, food, Trust (absent in saves from before people existed). */
   people?: PeopleState;
   /** Set when the game ends: lost ('core', 'cryo', 'people', 'story': a fail effect or mission), or won (a win effect). */
@@ -528,6 +530,8 @@ export type Command =
   | { type: 'inspect'; flag?: string; unflag?: string; counter?: { id: string; value: number }; objective?: { mission: string; index: number }; finish?: string; fail?: string; skip?: number; expire?: string; unlock?: string }
   /** First contact with an inhabitant camp: the player's answer. */
   | { type: 'contact'; camp: number; choice: ContactChoice }
+  /** A holding's standing order (the frontier). */
+  | { type: 'standing'; sector: string; order: import('./frontier').StandingOrder }
   /** Neighbours: a trade (`n` = which), or a favour from a camp that trusts us. */
   | { type: 'neighbour'; camp: number; act: 'trade' | 'guide' | 'watch' | 'hunters'; n?: number }
   | PeopleCommand
@@ -662,6 +666,8 @@ export interface Snapshot {
   fab: { queued: number; progress: number };
   people: PeopleSnap;
   planet: PlanetSnap;
+  /** Outlying holdings, their standing orders, and the threat announced or under way (campaign only). */
+  frontier?: ReturnType<import('./frontier').Frontier['snapshot']>;
   over: SimState['over'];
   overText?: string;
   stats: SimState['stats'];

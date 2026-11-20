@@ -704,7 +704,9 @@ export class People {
     } else {
       const h = hourAt(this.secs, SOL), [a, b] = SHIFTS[this.s.policies.hours];
       const working = this.adult(c) && !c.strike && c.job >= 0 && h >= a && h < b;
-      goal = (working ? this.building(c.job) : undefined) ?? this.building(c.home) ?? core;
+      // a holding under threat with the standing order Evacuate: its workers stay away, its people come in to the Core
+      const fr = this.sim.frontier, job = this.building(c.job), home = this.building(c.home);
+      goal = (working && !fr.evacuated(job) ? job : undefined) ?? (fr.evacuated(home) ? core : home) ?? core;
     }
     if (!goal) return;
     if (goal.id !== c.goal) { c.goal = goal.id; c.path = undefined; }

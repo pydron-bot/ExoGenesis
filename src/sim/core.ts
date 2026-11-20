@@ -20,6 +20,7 @@ import { People } from './people';
 import { Planet } from './planet';
 import { Story } from './story';
 import { Missions } from './missions';
+import { Frontier } from './frontier';
 import { modTotals, researchBlocked, type ResearchWorld } from './mods';
 import type { Colonist } from './people-types';
 import { compass, depositFor, factoryMakes, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
@@ -257,6 +258,8 @@ export class Sim {
   readonly inhabitants: Inhabitants = new Inhabitants(this);
   /** Story events: triggers, cards, effects. */
   readonly story: Story = new Story(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
+  /** The frontier: threats to outlying holdings, standing orders. */
+  readonly frontier: Frontier = new Frontier(this);
   /** Missions: objectives, rewards, what comes next. */
   readonly missions: Missions = new Missions(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
 
@@ -585,7 +588,33 @@ export class Sim {
   /** Seconds a destroyed nest takes to grow back. */
   nestRegrowSecs() { return (THREATS.nestRegrow ?? 600) * Math.max(0.1, 1 + this.mod('nestRegrow')); }
   /** Share of a blow a building takes (armour research). */
-  buildingHarm(_b: Building) { return clamp(1 - this.mod('armor'), 0.2, 2); }
+  buildingHarm(b: Building) { return clamp(1 - this.mod('armor'), 0.2, 2) * this.frontier.harm(b); }
+  /** The region's pack size multiplier. */
+  regionPackScale() { return packScale(); }
+  /**
+   * A relic surge (the frontier): `n` sentinels break the surface round (x, z), awake, on free ground. Their ids.
+   */
+  surge(x: number, z: number, n: number): number[] {
+    const s = this.s, unit = relicUnit('sentinel'), out: number[] = [];
+    if (!unit) return out;
+    for (let i = 0; i < n; i++) {
+      const slot = this.freeSlot();
+      if (slot < 0) break;
+      let at = { x, z };
+      for (let tries = 0; tries < 24; tries++) {
+        const a = (i / n) * Math.PI * 2 + tries * 0.7 + this.rnd(), r = 16 + tries * 0.8;
+        const px = clamp(x + Math.cos(a) * r, -limit(), limit()), pz = clamp(z + Math.sin(a) * r, -limit(), limit());
+        if (s.buildings.some((b) => Math.hypot(b.x - px, b.z - pz) < bodyR(b) + 3) || this.blocked(px, pz)) continue;
+        at = { x: px, z: pz };
+        break;
+      }
+      const id = s.nextId++;
+      s.hostiles.push({ id, unit, slot, x: at.x, z: at.z, heading: this.rnd() * Math.PI * 2, hp: content.units[unit].hp, target: -1, cd: 1 + this.rnd(), pack: -1, relic: 'surge' });
+      this.fx.push(FX.EMERGE, at.x, at.z, 0, 0);
+      out.push(id);
+    }
+    return out;
+  }
 
   /** What research gates look at (src/sim/mods.ts ResearchWorld). */
   researchWorld(): ResearchWorld {
@@ -815,6 +844,7 @@ export class Sim {
       this.stepNests();
       this.stepRelics();
       this.stepWaves();
+      this.frontier.step();
       this.stepCryo();
       this.people.step();
       this.planet.step();
@@ -1271,7 +1301,7 @@ export class Sim {
       b.aim = Math.atan2(best.x - b.x, best.z - b.z);
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
-      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b) * (1 + this.mod('turretDamage')), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir }, team);
+      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b) * (1 + this.mod('turretDamage')) * this.frontier.fire(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir }, team);
     }
     this.stepWardens();
   }
@@ -2186,7 +2216,7 @@ export class Sim {
     if (p.colonists) { this.people.debug({ colonists: p.colonists }); done.push(`${p.colonists} colonist${p.colonists > 1 ? 's' : ''}`); }
     for (const f of p.flags ?? []) if (f && !this.story.has(f)) this.story.s.flags.push(f);
     if (p.flags?.length) done.push(`flags ${p.flags.join(', ')}`);
-    if (p.peaceful) { s.waves.next = Number.MAX_SAFE_INTEGER; done.push('no predators'); }
+    if (p.peaceful) { s.waves.next = Number.MAX_SAFE_INTEGER; this.frontier.hold(); done.push('no predators'); }
     if (done.length) this.emit(`Play test: ${done.join(' · ')}`, 'info');
   }
 
@@ -2511,6 +2541,7 @@ export class Sim {
         this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info', 'recycle');
         return;
       }
+      case 'standing': this.frontier.command(c.sector, c.order); return;
       case 'neighbour': this.inhabitants.ask(c.camp, c.act, c.n ?? 0); return;
       case 'contact':
         this.inhabitants.command(c.camp, c.choice);
@@ -2802,7 +2833,7 @@ export class Sim {
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,
-      fab: { queued: s.fab.queued, progress: s.fab.progress }, people: this.people.snapshot(), planet: this.planet.snapshot(), over: s.over, overText: s.overText, stats: { ...s.stats },
+      fab: { queued: s.fab.queued, progress: s.fab.progress }, frontier: P ? undefined : this.frontier.snapshot(), people: this.people.snapshot(), planet: this.planet.snapshot(), over: s.over, overText: s.overText, stats: { ...s.stats },
     };
   }
 }
