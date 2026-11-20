@@ -1504,7 +1504,39 @@ don't play yet (phase 4): they sit at their Cores.
   (skirmish HUD, map, fog hiding the others' bases and out-of-sight units, theirs in sight shown, not selectable) →
   skirmish menu → victory screen → Rematch → surrender → defeat.
 
-### Smoother controls (v0.54.0)
+### Skirmish phase 4: computer players (v0.54.0)
+
+DESIGN §5.11. `src/sim/ai.ts`, run by the sim for every player with `ai` set, in that player's own view
+(`withTeam`) every `period` ticks (staggered by team). It plays only through ordinary commands, sees only through
+its own fog, and knows where every player started (as most RTS computers do). Its memory (`PlayerState.brain`: waves
+sent, the raid under way, its rally point) is in the save.
+
+- **Building** (one site per drone at a time; `spot` searches rings round a centre from a preferred direction and
+  keeps a 3 u lane round every building): the first Solar Array; depots on its two home deposits; solar (or the
+  geothermal vent) whenever daytime generation is under the full load × 1.1 + 1; a Vehicle Bay; turrets toward the
+  middle; the geothermal vent; batteries until they carry 60% of the load through half a sol on what the night
+  makes; depots on any deposit it can reach; Relay Towers toward the nearest free deposit on its side of the map; a
+  Tech Lab; a second bay; more guns (cannons late); a Deep-Core Mine on a seam; a Fusion Cell once it has isotopes.
+  Drones topped up to its level's count; research Deep Survey → Isotope Cells → Shield Lattice.
+- **Army:** factories kept busy (two queued each) while alloys stay above a reserve; early rovers and tanks, later
+  tanks, lancers, rovers, artillery and arc (more arc if the enemy flies), a deterministic rotation through the mix.
+  New units gather at a rally point 30 u in front of the base. Anything hostile among its buildings brings everyone
+  not on a raid home (and a raid that's barely left turns back for a big attack). When the group reaches the wave
+  size (bigger each wave) and the first-attack time has passed, it all leaves for the nearest enemy's Core;
+  reinforcements join in fours; a wave down to a third falls back to the rally point.
+- **Levels** (`LEVELS`): Easy thinks every 5 s, 2 drones, 1 turret, no tech, first wave at 9 min (6 units, +1 a wave);
+  Normal every 2.5 s, 3 drones, 2 turrets, tech, 2 relays, first wave at 6.5 min (10, +2); Hard every 1.2 s,
+  4 drones, 3 relays, first wave at 5.5 min (12, +3) and +0.5 alloys a second.
+- **Skirmish rules changed with it:** no cryo-bank draw on power (it was taking 4 MW from every player); each player
+  may have 40 combat units (`unitCap`, shown on the bay card); a computer player 0 (tests) doesn't end the game when
+  it's knocked out.
+- **Test:** `tools/ai-sim.mjs` plays games headless on generated maps (`--match normal,idle`, `--trace` for a
+  minute-by-minute timeline per player). `--check`: each level beats a player who does nothing (Easy ~9.5 min, Normal
+  ~7.5, Hard ~9: its first wave waits until it's bigger), Hard beats Easy (3 / 3, 28–32 min), and a four-way
+  free-for-all of Normals ends (40 min on seed 100: the winner had 9 depots, a Deep-Core Mine and a Fusion Cell).
+  In the browser a Hard computer built its base, expanded through a relay and took out an idle player's Core at 7.5 min.
+
+### Smoother controls (v0.55.0)
 
 Quality of life in the colony (and the skirmish built on it; the old `?mode=skirmish` battlefield keeps its own input).
 

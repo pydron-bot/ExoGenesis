@@ -677,7 +677,7 @@ html.app #options { height: var(--app-h, 100%); bottom: auto; }
 /* a skirmish has no colony: no cryo bank, people, biomass, planet health or story goals */
 body.rts #r-cryo, body.rts #r-food, body.rts #r-planet, body.rts #r-people, body.rts #r-mood, body.rts #goals { display: none !important; }
 
-/* ---------- quality of life (v0.54.0) ---------- */
+/* ---------- quality of life (v0.55.0) ---------- */
 /* PAUSED: only when you paused (not story cards or the menu); tap to resume */
 #hud #paused {
   position: absolute; left: 50%; bottom: calc(var(--above-bar) + 4px); transform: translateX(-50%);

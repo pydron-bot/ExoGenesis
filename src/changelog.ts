@@ -15,7 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.54.0',
+    version: '0.55.0',
     date: '2026-11-20',
     title: 'Smoother controls',
     notes: [
@@ -32,6 +32,18 @@ export const CHANGELOG: Release[] = [
       'Recycle asks for a second tap (showing what you\'ll get back) instead of a browser pop-up',
       'The game pauses when you switch to another tab or app, and tells you when you come back (Options → Pause in the background)',
       'Fixed: selecting units that had only just been made could drop the selection straight away',
+    ],
+  },
+  {
+    version: '0.54.0',
+    date: '2026-11-20',
+    title: 'Computer players',
+    notes: [
+      'The computer players in a skirmish now play: they build a base (power, depots, a Vehicle Bay, turrets, the geothermal vent, batteries for the night), reach out with Relay Towers to more deposits, research at a Tech Lab, and raise an army',
+      'They attack in waves that grow each time, bring reinforcements, fall back when a wave is broken, and pull everyone home when their base is attacked',
+      'Easy, Normal and Hard: Easy builds less and attacks late with small waves; Hard thinks faster, builds more, attacks bigger and gets a little extra alloy',
+      'Computer players play fair: they see only what their fog of war shows (and where each base started)',
+      'In a skirmish there\'s no cryo bank drawing power any more, and each player may have up to 40 combat units',
     ],
   },
   {

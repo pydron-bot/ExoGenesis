@@ -14,6 +14,7 @@ import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/plane
 import { daylight } from './daylight';
 import { PathGrid, moveOf, offLimits, straight, type Move } from './path';
 import { Buckets } from './spatial';
+import { LEVELS as AI_LEVELS, think as aiThink, type AiHost } from './ai';
 import { Inhabitants, campSites } from './inhabitants';
 import { People } from './people';
 import { Planet } from './planet';
@@ -27,6 +28,8 @@ import {
   type Econ, type PlayerState, type SimStats, type SkirmishSetup,
 } from './types';
 
+/** Combat units each skirmish player may have. */
+const SKIRMISH_UNITS = 40;
 /** Anything a player's guns can shoot: fauna, or another player's unit, drone or building. */
 type Foe = Hostile | Unit | Building | Drone;
 const isHostile = (f: Foe): f is Hostile => 'pack' in f;
@@ -346,6 +349,23 @@ export class Sim {
     if (!t) return (this.fogs[0] ??= { vis: this.vis, exp: this.exp });
     return (this.fogs[t] ??= { vis: new Uint8Array(FOG_N * FOG_N), exp: new Uint8Array(FOG_N * FOG_N) });
   }
+  /** What a computer player sees and does (called inside its `withTeam` view). */
+  private aiHost(t: number): AiHost {
+    const sim = this;
+    return {
+      get s() { return sim.s; },
+      team: t,
+      get power() { return sim.power; },
+      place: (kind, x, z) => placeProblem(sim.world, DEFS, RULES, kind, x, z),
+      run: (c) => sim.run(c),
+      foes: () => sim.foes(t).filter((f) => f.hp > 0 && !(f as Hostile).under && sim.visible(f.x, f.z)) as ReturnType<AiHost['foes']>,
+      researched: (id) => sim.researched(id),
+      unitCap: () => sim.unitCap(),
+      armySize: () => sim.armySize(),
+      get secs() { return sim.secs; },
+      vents: VENTS,
+    };
+  }
   /** A player's stats (outside a swap). */
   private statsOf(t: number): SimStats {
     return !t || this.all ? this.s.stats : this.s.players?.[t]?.econ?.stats ?? this.s.stats;
@@ -427,7 +447,7 @@ export class Sim {
     this.emit(t === 0 ? 'Your Command Core has fallen. You are out of the game.' : `${P[t].name} has been defeated`, t === 0 ? 'bad' : 'info', t === 0 ? 'alarm' : 'packCleared');
     const sides = new Set(P.filter((p) => !p.out).map((p) => p.side));
     // you're out (and nobody on your side is left): your game is over, whoever goes on fighting
-    if (t === 0 && !P.some((p) => !p.out && p.side === P[0].side) && sides.size > 1) { s.over = 'core'; s.overText = 'Defeat: your Command Core has fallen'; return; }
+    if (t === 0 && !P[0].ai && !P.some((p) => !p.out && p.side === P[0].side) && sides.size > 1) { s.over = 'core'; s.overText = 'Defeat: your Command Core has fallen'; return; }
     if (sides.size > 1) return;
     if (P[0].out) { s.over = 'core'; s.overText = sides.size ? `Defeat: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won` : 'Defeat'; }
     else this.end('won', `Victory: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won`);
@@ -710,6 +730,12 @@ export class Sim {
         this.stepMining();
         this.stepRepairPads();
       });
+      // computer players think (each on its own beat, staggered so they don't all think on the same tick)
+      for (const t of this.liveTeams()) {
+        const lv = s.players[t].ai;
+        if (!lv || (s.tick + t * 7) % AI_LEVELS[lv].period) continue;
+        this.withTeam(t, () => aiThink(this.aiHost(t), lv));
+      }
       this.stepTurrets();
       this.stepUnits();
       this.stepShields();
@@ -786,7 +812,7 @@ export class Sim {
       } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
-    const essential = RULES.cryoDrawMW + drones;
+    const essential = (s.players ? 0 : RULES.cryoDrawMW) + drones; // (a skirmish has no cryo bank)
     loads.push({ b: null, mw: essential, rank: 1, battery: true });
     loads.sort((a, b) => a.rank - b.rank);
     s.stored = Math.min(s.stored, cap);
@@ -1279,7 +1305,9 @@ export class Sim {
   }
 
   /** Combat units in the field plus those aboard transports (the army limit counts both). */
-  private armySize() { return this.units.reduce((m, u) => m + 1 + (u.cargo?.length ?? 0), 0); }
+  /** Combat units a player may have: the colony rules' limit, or a skirmish's own (bigger: armies are the point). */
+  unitCap() { return this.s.skirmish ? (this.s.skirmish.unitCap ?? SKIRMISH_UNITS) : RULES.maxUnits; }
+  armySize() { return this.units.reduce((m, u) => m + 1 + (u.cargo?.length ?? 0), 0); }
 
   /**
    * Buildings by index, each in every cell its body (a wall: its whole segment) touches, plus a margin
@@ -2456,7 +2484,7 @@ export class Sim {
         if (!factoryMakes(def(b), ud)) { this.emit(`The ${def(b).name} can't build a ${ud.name}`, 'warn', 'deny'); return; }
         if (this.story.locked(c.unit)) { this.emit(`${ud.name} isn't available yet`, 'warn', 'deny'); return; }
         const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
-        if (this.armySize() + queued >= RULES.maxUnits) { this.emit(`Combat unit limit reached (${RULES.maxUnits})`, 'warn', 'deny'); return; }
+        if (this.armySize() + queued >= this.unitCap()) { this.emit(`Combat unit limit reached (${this.unitCap()})`, 'warn', 'deny'); return; }
         if (!this.researched(ud.research)) { this.emit(`${ud.name} needs research: ${content.research[ud.research!]?.name}`, 'warn', 'deny'); return; }
         if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn', 'deny'); return; }
         if ((s.isotopes ?? 0) < (ud.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${ud.name} (${ud.isotopes} needed)`, 'warn', 'deny'); return; }
@@ -2651,6 +2679,7 @@ export class Sim {
     const inh = this.inhabitants.snapshot();
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
+      unitCap: P ? this.unitCap() : undefined,
       players: P?.map((p, i) => ({ name: p.name, color: p.color, side: p.side, ai: p.ai, out: !!p.out, home: p.home, stats: { ...this.statsOf(i) } })),
       drones, fauna: fa, buildings: (P ? s.buildings.filter((b) => this.allied(0, b.team ?? 0) || b.seen) : s.buildings).map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
       wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),

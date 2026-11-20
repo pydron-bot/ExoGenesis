@@ -401,15 +401,16 @@ export class ColonyHud {
       let queue = '';
       if (d.role === 'factory' && b.progress >= 1) {
         const q = b.queue ?? [];
-        const aboard = s.units.reduce((m, u) => m + (u.cargo ?? 0), 0), army = s.units.length + aboard;
-        const total = army + s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
-        rows.push(['Army', `${army} / ${this.d.rules.maxUnits}${total > army ? ` (+${total - army} queued)` : ''}`]);
+        const mine = s.units.filter((u) => !u.team), cap = s.unitCap ?? this.d.rules.maxUnits;
+        const aboard = mine.reduce((m, u) => m + (u.cargo ?? 0), 0), army = mine.length + aboard;
+        const total = army + s.buildings.reduce((m, x) => m + (x.team ? 0 : x.queue?.length ?? 0), 0);
+        rows.push(['Army', `${army} / ${cap}${total > army ? ` (+${total - army} queued)` : ''}`]);
         queue = q.length ? `<div class="q">${q.map((k, i) => `<i class="${i ? '' : 'now'}">${esc(this.d.units[k]?.name ?? k)}</i>`).join('')}</div>` : '';
         for (const [k, u] of Object.entries(this.d.units).sort((a, b) => (a[1].cost ?? 0) - (b[1].cost ?? 0))) {
           if (u.faction !== 'accord' || u.cost === undefined || !factoryMakes(d, u)) continue; // a Shipyard builds boats, a Bay vehicles
           if (u.research && this.d.research[u.research] && !s.research?.done.includes(u.research)) continue; // not yet: the Tech Lab lists it
           if (s.story?.locked?.includes(k)) continue; // the story hasn't opened it up yet
-          btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || (s.isotopes ?? 0) < (u.isotopes ?? 0) || total >= this.d.rules.maxUnits ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆${u.isotopes ? ` ${u.isotopes}◇` : ''}</small></button>`);
+          btn.push(`<button data-act="produce:${k}" class="${s.alloys < u.cost || (s.isotopes ?? 0) < (u.isotopes ?? 0) || total >= cap ? 'poor' : ''}" title="${esc(u.description ?? '')}">+ ${esc(u.name)} <small>${u.cost}◆${u.isotopes ? ` ${u.isotopes}◇` : ''}</small></button>`);
         }
         if (q.length) btn.push('<button data-act="unqueue" title="Cancel the last queued unit (full refund)">Cancel last</button>');
       }
