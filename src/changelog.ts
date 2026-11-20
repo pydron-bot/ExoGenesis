@@ -15,6 +15,26 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.54.0',
+    date: '2026-11-20',
+    title: 'Smoother controls',
+    notes: [
+      'Holding W A S D or the arrows now pans smoothly (hold Shift to go faster), and Q E turn smoothly too',
+      'The mouse wheel zooms toward what\'s under the pointer (Options can turn it off), and there\'s optional edge scrolling',
+      'Right-click sends the selected drone or units, and stops placing a building',
+      'F (or Home) glides the camera to whatever you have selected, or back to the Command Core',
+      'A drones chip by the resources shows how many are idle: click it, or press ., to jump to the next idle drone',
+      'Control groups: Ctrl or Shift + 4 to 9 saves the selected units, the number selects them again, twice looks at them. Ctrl+A selects every combat unit',
+      '[ and ] change the game speed; a PAUSED banner shows while you\'re paused (tap it to carry on)',
+      'Ctrl+S saves; ? or H (and Controls in the menu) lists every key and gesture',
+      'While placing, the reason a building can\'t go somewhere shows right by the cursor',
+      'Esc closes the build menu first; the radar map can be dragged across to sweep the camera',
+      'Recycle asks for a second tap (showing what you\'ll get back) instead of a browser pop-up',
+      'The game pauses when you switch to another tab or app, and tells you when you come back (Options → Pause in the background)',
+      'Fixed: selecting units that had only just been made could drop the selection straight away',
+    ],
+  },
+  {
     version: '0.53.0',
     date: '2026-11-20',
     title: 'Skirmish setup',

@@ -1503,3 +1503,34 @@ don't play yet (phase 4): they sit at their Cores.
 - **Test:** `tools/skirmish-play-smoke.mjs` (desktop and phone): title → setup (choices, preview, START) → the game
   (skirmish HUD, map, fog hiding the others' bases and out-of-sight units, theirs in sight shown, not selectable) →
   skirmish menu → victory screen → Rematch → surrender → defeat.
+
+### Smoother controls (v0.54.0)
+
+Quality of life in the colony (and the skirmish built on it; the old `?mode=skirmish` battlefield keeps its own input).
+
+- **Keys** (`src/input.ts` `key`): camera keys go by `e.code` (layout-proof) into a held set; `Input.update(dt, active)`
+  runs each frame from `main.ts` and pans 700 px/s (1,500 with Shift) and turns 1.8 rad/s, so a held key is smooth
+  instead of riding the OS key repeat. `active` is false under the title, cinematics, the menu and panels (the set
+  clears; window blur clears it too). `F`/`Home` centre, `.` next idle drone, `[` `]` speed (0 / 1 / 3), `?`/`H`
+  Controls, `Ctrl+S` save (`Ctrl+A` all combat units). Digits 4–9 are control groups (1–3 stay the views): Ctrl or
+  Shift + digit saves the selected units, the digit recalls (dead ones dropped), twice within 400 ms glides there.
+  Typing in an input, textarea, select or contenteditable is never a shortcut.
+- **Camera** (`src/camera.ts`): `glideTo(x, z)` eases the focus there (a pan cancels it); `lookAtGround` jumps.
+  Wheel zoom toward the cursor (option, desktop): the ground point under the pointer stays put
+  (focus = g + (focus − g) · k for the zoom factor k), only near the ground (`cam.a < 0.15`). Edge scrolling (option,
+  off): the mouse within 10 px of the canvas edge pans.
+- **Mouse:** a right-click without a drag stops placing, or sends the selected drone or units (`rightTap`); a right-drag
+  still turns the camera.
+- **HUD:** `#r-drones` (desktop) counts your worker drones and the idle ones; a click (or `.`) cycles idle drones, all
+  of them when none are idle. `#paused` shows only when the player paused (`userPaused`: button, Space, `[`, or the
+  background pause), not for story cards or the menu; tapping it resumes. `#place-hint` follows the mouse while placing
+  with `placeProblem`'s reason. The radar map takes a drag (pointer capture). Recycle arms on the first tap
+  (`recycleArmed`, 4 s, the button shows the refund) instead of `confirm()`. Esc closes the build menu first.
+- **Options → Interface:** Pause in the background (`exo.bgpause`, on: `visibilitychange` hidden pauses a deployed,
+  running game; coming back logs it; never under webdriver), Zoom to the cursor (`exo.zoomcursor`, on), Edge scrolling
+  (`exo.edgescroll`, off). The last two are desktop only. `?bgpause=`, `?zoomcursor=`, `?edgescroll=` override.
+- **Controls panel** (`openInfo` in `src/options.ts`): every key and gesture; touch devices list touch first. From
+  `?`/`H` or the menu's Controls (closing it goes back to the menu).
+- **Fix:** the selection card read the HUD's snapshot, which is refreshed by the frame loop and can be a frame behind
+  the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
+- **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.

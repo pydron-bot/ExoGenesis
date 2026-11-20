@@ -47,7 +47,13 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 | Rotate | two-finger twist / vertical | right-drag (or shift-drag) / Q E |
 | Jump | Surface / Planet / System buttons | 1 / 2 / 3 |
 | Build solar | Solar, then tap ground | B, then click |
-| Pause | ❚❚ | Space |
+| Pause / speed | ❚❚ ▶ ⏩ | Space · [ ] |
+| Send the selection | tap the ground | click or right-click the ground |
+| Look at the selection | | F / Home (nothing selected: the Core) |
+| Next idle drone | | . or the ⛭ chip |
+| Control groups | | Ctrl/Shift + 4–9 to save, 4–9 to select (twice: look) · Ctrl+A all units |
+| Save | menu → Save | Ctrl+S |
+| Every key | menu → Controls | ? or H |
 
 ## Run
 
@@ -55,6 +61,7 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 npm install
 npm run dev        # http://localhost:5176 (on hive1: systemd user unit exo-dev.service)
 npm run build
+node tools/qol-smoke.mjs   # controls: held-key pan, F, idle drones, right-click, groups, speed keys, PAUSED, Controls, Recycle, zoom to cursor
 node tools/smoke.mjs   # colony end-to-end: orders, build menu, placement, power switch, a fight, save/load, game over
 node tools/balance.mjs # headless 20-minute runs with scripted strategies (balance numbers)
 node tools/roster-smoke.mjs # headless checks for every unit, building and predator mechanic

@@ -37,6 +37,8 @@ interface HudDeps {
   log(text: string, level?: 'info' | 'warn' | 'bad'): void;
   /** A building was selected (tutorial `opened` conditions). */
   onSelect?(kind: string, role?: string): void;
+  /** Select and look at the next idle worker drone (the drones chip). */
+  nextIdleDrone?(): void;
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -46,7 +48,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 
 export class ColonyHud {
   private el = {
-    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), iso: $('r-iso'), planet: $('r-planet'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'),
+    energy: $('r-energy'), battery: $('r-battery'), alloys: $('r-alloys'), iso: $('r-iso'), planet: $('r-planet'), cryo: $('r-cryo'), clock: $('r-clock'), threat: $('r-threat'), army: $('r-army'), drones: $('r-drones'),
     goals: $('goals'), goalsHead: $('goals-head'), goalsList: $('goals-list'), menu: $('build-menu'), card: $('card'), mini: $<HTMLCanvasElement>('minimap'),
     over: $('over'),
   };
@@ -56,6 +58,8 @@ export class ColonyHud {
   private terrain: HTMLCanvasElement | null = null;
   private fogCv: HTMLCanvasElement | null = null;
   private last = 0;
+  /** Recycle asks twice: the building armed, and until when (performance.now ms). */
+  private recycleArmed = { id: -1, until: 0 };
   /**
    * Radar as the HUD shows it. A radar that's short of power can flick on and
    * off from tick to tick; the minimap and pack timer ride through short drops
@@ -85,12 +89,16 @@ export class ColonyHud {
       this.d.setBuild(kind);
       this.toggleMenu(false);
     });
-    this.el.mini.addEventListener('pointerdown', (e) => {
+    // the radar: tap to look there, or drag across it to sweep the camera
+    const look = (e: PointerEvent) => {
       const r = this.el.mini.getBoundingClientRect();
       const x = ((e.clientX - r.left) / r.width * 2 - 1) * REGION_HALF;
       const z = -((e.clientY - r.top) / r.height * 2 - 1) * REGION_HALF;
-      this.d.cam.fx = x; this.d.cam.fz = z;
-    });
+      this.d.cam.lookAtGround(x, z);
+    };
+    this.el.mini.addEventListener('pointerdown', (e) => { e.preventDefault(); this.el.mini.setPointerCapture(e.pointerId); look(e); });
+    this.el.mini.addEventListener('pointermove', (e) => { if (this.el.mini.hasPointerCapture(e.pointerId)) look(e); });
+    this.el.drones.addEventListener('pointerdown', (e) => { e.preventDefault(); this.d.nextIdleDrone?.(); });
     this.el.army.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       const ids = this.cur?.units.filter((u) => !u.team).map((u) => u.id) ?? [];
@@ -98,8 +106,8 @@ export class ColonyHud {
       if (!ids.length) return;
       if (all) {
         // second tap: centre the camera on them
-        this.d.cam.fx = this.cur!.units.reduce((m, u) => m + u.x, 0) / ids.length;
-        this.d.cam.fz = this.cur!.units.reduce((m, u) => m + u.z, 0) / ids.length;
+        const mine = this.cur!.units.filter((u) => !u.team);
+        this.d.cam.glideTo(mine.reduce((m, u) => m + u.x, 0) / mine.length, mine.reduce((m, u) => m + u.z, 0) / mine.length);
       }
       this.d.ui.sel = { kind: 'units', ids };
       this.selected();
@@ -194,6 +202,10 @@ export class ColonyHud {
     e.army.innerHTML = `⚔ <b>${n}</b>`;
     e.army.className = `r tap ${n ? '' : 'dim'} ${this.d.ui.sel?.kind === 'units' ? 'on' : ''}`;
     e.army.title = n ? 'Combat units: tap to select them all' : 'No combat units yet (Vehicle Bay)';
+    const mine = s.drones.filter((d) => !d.team), idle = mine.filter((d) => d.task === 'idle').length;
+    e.drones.innerHTML = `⛭ <b>${mine.length}</b>${idle ? `<span class="w"> · ${idle} idle</span>` : ''}`;
+    e.drones.className = `r tap ${mine.length ? '' : 'dim'} ${this.d.ui.sel?.kind === 'drone' ? 'on' : ''}`;
+    e.drones.title = idle ? `Worker drones: ${idle} idle · click for the next one (.)` : 'Worker drones: all busy · click to cycle through them (.)';
   }
 
   /** GOALS: the objectives of the missions under way (content/missions; the sim announces progress). */
@@ -422,7 +434,13 @@ export class ColonyHud {
       btn.push(...pe.buttons);
       if (b.progress >= 1 && b.hp < d.hp) btn.push('<button data-act="repair">Repair</button>');
       if (d.role !== 'core' && b.progress >= 1) btn.push(`<button data-act="power">${b.on ? 'Switch off' : 'Switch on'}</button>`);
-      if (d.role !== 'core') btn.push(`<button data-act="demolish">${b.progress < 1 ? 'Cancel' : 'Recycle'}</button>`);
+      if (d.role !== 'core') {
+        const armed = b.progress >= 1 && this.recycleArmed.id === b.id && performance.now() < this.recycleArmed.until;
+        const back = Math.floor(d.cost * 0.5 * (b.hp / d.hp));
+        btn.push(armed
+          ? `<button data-act="demolish" class="armed" title="Recycle it for about half its cost">Sure? +${back}◆</button>`
+          : `<button data-act="demolish" title="${b.progress < 1 ? 'Stop building it (most of the cost back)' : `Take it down for about ${back}◆ (asks again)`}">${b.progress < 1 ? 'Cancel' : 'Recycle'}</button>`);
+      }
       html = `<div class="t">${esc(d.name.toUpperCase())}</div><div class="s ${cls}">${esc(st)}</div>
         <div class="hp"><i style="width:${Math.min(100, (b.hp / d.hp) * 100).toFixed(0)}%;background:${b.hp / d.hp > 0.6 ? '#5bff9a' : b.hp / d.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
         ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${names}${queue}${lab}${pe.html}
@@ -461,8 +479,14 @@ export class ColonyHud {
     else if (act === 'repair') this.d.command({ type: 'repair', id: b.id });
     else if (act === 'power') this.d.command({ type: 'power', id: b.id, on: !b.on });
     else if (act === 'demolish') {
-      const d = this.d.defs[b.kind];
-      if (b.progress >= 1 && !confirm(`Recycle this ${d.name}? You get back about half its cost.`)) return;
+      // a finished building asks twice (a second tap within a few seconds)
+      if (b.progress >= 1 && !(this.recycleArmed.id === b.id && performance.now() < this.recycleArmed.until)) {
+        this.recycleArmed = { id: b.id, until: performance.now() + 4000 };
+        this.cardKey = '';
+        this.renderCard(this.cur);
+        return;
+      }
+      this.recycleArmed = { id: -1, until: 0 };
       this.d.command({ type: 'demolish', id: b.id });
       this.d.ui.sel = null;
     }

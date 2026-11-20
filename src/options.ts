@@ -60,6 +60,14 @@ function panel(title: string, body: string, onClose?: () => void) {
 
 export const panelOpen = () => !!document.getElementById('options');
 
+/** A panel of read-only text (Controls): `html` is trusted markup built by the caller. */
+export function openInfo(title: string, html: string, onClose?: () => void) {
+  const { el, close } = panel(title, `<div class="op-info">${html}</div>`, onClose);
+  el.classList.add('info');
+  el.querySelector<HTMLElement>('.op-x')?.focus({ preventScroll: true });
+  return { el, close };
+}
+
 export function openOptions(rows: OptionRow[], tap?: () => void, onClose?: () => void) {
   const sec = (r?: OptionRow) => r?.section ?? 'Graphics';
   const { el } = panel('Options', rows.map((t, i) => `${!i || sec(t) !== sec(rows[i - 1]) ? `<div class="op-sec">${esc(sec(t))}</div>` : ''}

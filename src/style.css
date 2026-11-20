@@ -676,3 +676,42 @@ html.app #options { height: var(--app-h, 100%); bottom: auto; }
 #over .sk-stats small { opacity: 0.6; }
 /* a skirmish has no colony: no cryo bank, people, biomass, planet health or story goals */
 body.rts #r-cryo, body.rts #r-food, body.rts #r-planet, body.rts #r-people, body.rts #r-mood, body.rts #goals { display: none !important; }
+
+/* ---------- quality of life (v0.54.0) ---------- */
+/* PAUSED: only when you paused (not story cards or the menu); tap to resume */
+#hud #paused {
+  position: absolute; left: 50%; bottom: calc(var(--above-bar) + 4px); transform: translateX(-50%);
+  display: none; padding: 6px 14px; border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent); border-radius: 4px;
+  background: var(--panel); color: var(--amber); letter-spacing: 0.2em; font-weight: 600;
+  animation: paused-pulse 2.4s ease-in-out infinite;
+}
+#hud #paused small { letter-spacing: 0.04em; font-weight: 400; opacity: 0.75; }
+body.paused:not(.cine):not(.title) #hud #paused { display: block; }
+body.paused #help { display: none; }
+@media (max-width: 640px) { body.paused.card-open #hud #paused { display: none; } }
+@keyframes paused-pulse { 50% { opacity: 0.6; } }
+@media (max-width: 640px) {
+  #hud #paused small { display: none; }
+  #r-drones { display: none !important; }
+}
+/* why a building can't go where the mouse is (desktop placing) */
+#hud > #place-hint {
+  zoom: 1; position: fixed; left: 0; top: 0; display: none; pointer-events: none; max-width: 280px;
+  padding: 3px 8px; font-size: 11px; border-radius: 3px; color: #ffc3c9;
+  background: color-mix(in srgb, var(--panel-base) 88%, transparent); border: 1px solid color-mix(in srgb, var(--crimson) 60%, transparent);
+}
+body.placing:not(.menu-open) #hud > #place-hint.on { display: block; }
+/* Recycle asks twice */
+#hud #card button.armed { color: var(--amber); background: color-mix(in srgb, var(--amber) 16%, transparent); }
+/* the radar map: drag to sweep the camera */
+#minimap { cursor: crosshair; touch-action: none; }
+/* Controls panel */
+#options .op-info { padding: 0 6px 6px; }
+#options .op-info .kb { display: flex; justify-content: space-between; gap: 14px; padding: 5px 2px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); font-size: 12px; }
+#options .op-info .kb span:first-child { white-space: nowrap; color: var(--cyan); }
+#options .op-info .kb span:last-child { text-align: right; opacity: 0.8; }
+#options kbd {
+  font: inherit; font-size: 11px; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px;
+  background: color-mix(in srgb, var(--cyan) 6%, transparent);
+}
+@media (max-width: 640px) { #options .op-info .kb { flex-direction: column; gap: 2px; } #options .op-info .kb span:last-child { text-align: left; } }

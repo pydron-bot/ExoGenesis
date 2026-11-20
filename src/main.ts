@@ -27,7 +27,7 @@ import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
 import { Post } from './world/post';
-import { openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
+import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
 import { InhabitantView } from './world/inhabitants';
@@ -252,6 +252,11 @@ function setting(key: string, param: string, dflt: boolean) {
 function remember(key: string, on: boolean) {
   try { localStorage.setItem(key, on ? 'on' : 'off'); } catch { /* private mode */ }
 }
+const BGPAUSE_KEY = 'exo.bgpause', CURSOR_KEY = 'exo.zoomcursor', EDGE_KEY = 'exo.edgescroll';
+/** Pause when the tab or app goes to the background (the sim would carry on without you). */
+let bgPause = setting(BGPAUSE_KEY, 'bgpause', true);
+let zoomToCursor = setting(CURSOR_KEY, 'zoomcursor', true);
+let edgeScroll = setting(EDGE_KEY, 'edgescroll', false);
 const post = new Post(renderer, scene, camera);
 post.enabled = setting(GLOW_KEY, 'bloom', !coarse && !navigator.webdriver);
 if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
@@ -568,6 +573,7 @@ const hud = new ColonyHud({
   load: () => (rts ? showSkirmishSetup() : void loadGame()),
   log,
   onSelect: (kind, role) => storyHud.selected(kind, role),
+  nextIdleDrone: () => nextIdleDrone(),
   cardOpened: () => audio.event('message'),
 });
 /** Tutorial hints, waypoints and camera moves the story asks for. */
@@ -584,6 +590,16 @@ if (!skirmishMode) {
   // phones throw hidden tabs away: save the moment the page goes to the background
   const flush = () => { sim.flush(); saveCamera(); };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+  // Options → Pause in the background: the colony waits for you
+  let bgWas = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (bgPause && speed > 0 && !title && !cine && !navigator.webdriver && sim.cur?.deployed && !sim.cur.over) { bgWas = speed; setSpeed(0, true); }
+    } else if (bgWas) {
+      log('Paused while you were away · Space or ▶ to carry on');
+      bgWas = 0;
+    }
+  });
   addEventListener('pagehide', flush);
   setInterval(saveCamera, 10000);
 }
@@ -621,15 +637,20 @@ if (params.get('debug') === '1') {
 let speed = 1;
 /** Speed to go back to when a pausing story card closes. */
 let storyResume = 1;
+/** The player paused (button, Space, [): the PAUSED banner shows. Story cards and the menu pause without it. */
+let userPaused = false;
+const SPEEDS = [0, 1, 3];
 const speedBtns = { 0: $('b-pause'), 1: $('b-play'), 3: $('b-fast') } as Record<number, HTMLElement>;
-function setSpeed(s: number) {
+function setSpeed(s: number, user = false) {
   speed = s;
+  userPaused = s === 0 && user;
   sim.setSpeed(s);
   for (const [k, b] of Object.entries(speedBtns)) b.classList.toggle('on', Number(k) === s);
 }
-$('b-pause').onclick = () => setSpeed(0);
+$('b-pause').onclick = () => setSpeed(0, true);
 $('b-play').onclick = () => setSpeed(1);
 $('b-fast').onclick = () => setSpeed(3);
+$('paused').onclick = () => setSpeed(1);
 
 document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
   b.onclick = () => cam.setView(b.dataset.view as ViewName);
@@ -719,12 +740,32 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   },
   board: (ids, t) => { audio.play('order'); sim.command({ type: 'board', ids, transport: t }); },
   setBuild,
-  select: () => { if (ui.sel) audio.play('select'); hud.selected(); },
+  // the card reads the newest snapshot (the HUD's can be a frame behind: just-made units would drop out of the selection)
+  select: () => { if (ui.sel) audio.play('select'); if (sim.cur) hud.cur = sim.cur; hud.selected(); },
   view: (v) => cam.setView(v),
-  togglePause: () => setSpeed(speed === 0 ? 1 : 0),
+  togglePause: () => setSpeed(speed === 0 ? 1 : 0, true),
   toggleBuildMenu: () => hud.toggleMenu(),
   interacted: () => { if (!helped) { helped = true; setTimeout(() => help.classList.add('gone'), 4000); } },
-  say: (t) => { log(t, 'warn'); audio.play('deny'); },
+  say: (t, ok) => { log(t, ok ? 'info' : 'warn'); audio.play(ok ? 'tap' : 'deny'); },
+  centre: () => centreOnSelection(),
+  nextIdleDrone: () => nextIdleDrone(),
+  speedStep: (dir) => {
+    if (menuOpen) return;
+    const i = Math.max(0, SPEEDS.indexOf(speed));
+    const next = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, i + dir))];
+    if (next !== speed) { setSpeed(next, true); audio.play('tap'); }
+  },
+  showControls: () => { if (!panelOpen() && !menuOpen && !title && !cine) { audio.play('tap'); showControls(); } },
+  quickSave: () => { if (rts) log('Skirmish games aren\'t saved', 'warn'); else void saveGame(); },
+  closeBuildMenu: () => {
+    if (!document.querySelector('#build-menu.open')) return false;
+    hud.toggleMenu(false);
+    return true;
+  },
+  lookAt: (x, z) => cam.glideTo(x, z),
+  zoomToCursor: () => zoomToCursor,
+  edgeScroll: () => edgeScroll,
+  placeHint: (text, x, y) => placeHint(text, x, y),
   colonistAt: (x, y) => (colonists && cam.dist < 400 ? colonists.pick(x, y, camera, renderer.domElement.getBoundingClientRect()) : -1),
 }, army);
 $('pl-rotate').onclick = () => input?.rotate();
@@ -733,6 +774,93 @@ if (!skirmish) addEventListener('keydown', (e) => {
   // X: selected combat units stop and guard where they stand
   if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) { audio.play('order'); sim.command({ type: 'stop', ids: ui.sel.ids }); }
 });
+/** Where the selection is (or the Command Core, with nothing selected): F / Home glides the camera there. */
+function centreOnSelection() {
+  const c = sim.cur, sel = ui.sel;
+  if (!c || cam.a > 0.5) { cam.setView('surface'); }
+  if (!c) return;
+  let at: { x: number; z: number } | undefined;
+  if (sel?.kind === 'drone') at = c.drones.find((d) => d.id === sel.id);
+  else if (sel?.kind === 'building') at = c.buildings.find((b) => b.id === sel.id);
+  else if (sel?.kind === 'colonist') at = colonists?.at.get(sel.id);
+  else if (sel?.kind === 'units') {
+    const us = c.units.filter((u) => sel.ids.includes(u.id));
+    if (us.length) at = { x: us.reduce((m, u) => m + u.x, 0) / us.length, z: us.reduce((m, u) => m + u.z, 0) / us.length };
+  }
+  at ??= c.buildings.find((b) => b.kind === 'core' && !b.team);
+  if (at) cam.glideTo(at.x, at.z);
+}
+/** The next idle worker drone (. key, or the drones chip): selected and looked at; busy ones when none are idle. */
+let droneCycle = -1;
+function nextIdleDrone() {
+  const c = sim.cur;
+  if (!c) return;
+  const mine = c.drones.filter((d) => !d.team);
+  if (!mine.length) { log('No worker drones · fabricate one at the Command Core', 'warn'); return; }
+  const idle = mine.filter((d) => d.task === 'idle');
+  const pool = idle.length ? idle : mine;
+  const i = pool.findIndex((d) => d.id === droneCycle);
+  const d = pool[(i + 1) % pool.length];
+  droneCycle = d.id;
+  ui.sel = { kind: 'drone', id: d.id };
+  audio.play('select');
+  hud.selected();
+  if (cam.a > 0.5) cam.setView('surface');
+  cam.glideTo(d.x, d.z);
+  if (!idle.length) log('Every drone is busy', 'info');
+}
+/** By the mouse while placing: why the building can't go there. */
+const hintEl = $('place-hint');
+function placeHint(text: string | null, x: number, y: number) {
+  hintEl.classList.toggle('on', !!text);
+  if (!text) return;
+  if (hintEl.textContent !== text) hintEl.textContent = text;
+  hintEl.style.transform = `translate(${Math.round(x + 16)}px, ${Math.round(y + 18)}px)`;
+}
+/** Every key and gesture, in one panel (? or H, and the menu's Controls). */
+function showControls(onClose?: () => void) {
+  const row = (k: string, v: string) => `<div class="kb"><span>${k}</span><span>${v}</span></div>`;
+  const sec = (t: string) => `<div class="op-sec">${t}</div>`;
+  const touch = [
+    row('Tap', 'select a drone, unit, colonist or building'),
+    row('Drag from a drone', 'send it there'),
+    row('Tap ground', 'send the selected drone or units'),
+    row('Hold or double-tap a unit', 'select all of that type on screen'),
+    row('Drag', 'pan · pinch: zoom · two fingers: rotate and tilt'),
+    row('⚔ chip', 'select every combat unit (again: look at them)'),
+    row('Radar map', 'tap or drag to look there'),
+  ].join('');
+  const keys = [
+    row('<kbd>W A S D</kbd> / arrows', 'pan (hold <kbd>Shift</kbd>: faster)'),
+    row('<kbd>Q</kbd> <kbd>E</kbd>', 'turn the camera'),
+    row('Wheel / <kbd>+</kbd> <kbd>−</kbd>', 'zoom (toward the cursor)'),
+    row('Right-drag', 'turn and tilt'),
+    row('<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>', 'surface · planet · system'),
+    row('<kbd>F</kbd> / <kbd>Home</kbd>', 'look at the selection (nothing selected: the Command Core)'),
+    row('<kbd>.</kbd>', 'next idle worker drone'),
+  ].join('');
+  const orders = [
+    row('Click', 'select · click ground: send the selection'),
+    row('Right-click', 'send the selection there · while placing: stop placing'),
+    row('<kbd>Shift</kbd>-click', 'add or remove a unit · place several buildings'),
+    row('Double-click a unit', 'all of that type on screen'),
+    row('<kbd>Ctrl</kbd> <kbd>A</kbd>', 'select every combat unit'),
+    row('<kbd>Ctrl</kbd>/<kbd>Shift</kbd> + <kbd>4</kbd>–<kbd>9</kbd>', 'make the selected units a group'),
+    row('<kbd>4</kbd>–<kbd>9</kbd>', 'select a group (twice: look at it)'),
+    row('<kbd>X</kbd>', 'selected units stop and guard'),
+    row('<kbd>B</kbd>', 'build menu · <kbd>R</kbd> rotates while placing'),
+    row('<kbd>Esc</kbd>', 'close the build menu, stop placing, deselect · then the menu'),
+  ].join('');
+  const game = [
+    row('<kbd>Space</kbd>', 'pause'),
+    row('<kbd>[</kbd> <kbd>]</kbd>', 'slower · faster'),
+    row('<kbd>Ctrl</kbd> <kbd>S</kbd>', 'save'),
+    row('<kbd>?</kbd> / <kbd>H</kbd>', 'this list'),
+  ].join('');
+  openInfo('Controls', coarse
+    ? `${sec('Touch')}${touch}${sec('Keyboard')}${keys}${orders}${game}`
+    : `${sec('Camera')}${keys}${sec('Orders')}${orders}${sec('Game')}${game}${sec('Touch')}${touch}`, onClose);
+}
 /** Selected combat units as the army renderer wants them: slot → generation. */
 const armySel = new Map<number, number>();
 function syncArmySel() {
@@ -860,6 +988,17 @@ const graphicsToggles: Toggle[] = [
 ];
 const interfaceToggles: Toggle[] = [
   {
+    id: 'bgpause', section: 'Interface', label: 'Pause in the background', help: 'Pause when you switch to another tab or app, and say so when you come back.',
+    get: () => bgPause, set: (v) => { bgPause = v; remember(BGPAUSE_KEY, v); },
+  },
+  ...(coarse ? [] : [{
+    id: 'zoomcursor', section: 'Interface', label: 'Zoom to the cursor', help: 'The mouse wheel zooms toward what is under the pointer. Off: toward the middle of the screen.',
+    get: () => zoomToCursor, set: (v: boolean) => { zoomToCursor = v; remember(CURSOR_KEY, v); },
+  }, {
+    id: 'edgescroll', section: 'Interface', label: 'Edge scrolling', help: 'Move the mouse to the edge of the screen to pan.',
+    get: () => edgeScroll, set: (v: boolean) => { edgeScroll = v; remember(EDGE_KEY, v); },
+  }]),
+  {
     id: 'stats', section: 'Interface', label: 'Performance stats', help: 'View, altitude, frame rate and draw calls, top right.',
     get: () => statsOn, set: (v) => { statsOn = v; document.body.classList.toggle('stats', v); remember(STATS_KEY, v); },
   },
@@ -883,6 +1022,7 @@ function openGameMenu() {
   const { el } = openMenu('Menu', rts ? [
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
+    { id: 'controls', label: 'Controls', sub: 'Every key and gesture (? or H)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
     { id: 'rematch', label: 'Rematch', sub: 'The same map and players, from the start', confirm: 'This game will be lost · tap again', run: () => restartGame() },
     { id: 'skirmish', label: 'New skirmish', sub: 'Pick another map and players', run: setup },
     { id: 'surrender', label: 'Surrender', sub: 'Give up this game', confirm: 'Your Command Core will fall · tap again', run: () => sim.command({ type: 'surrender' }) },
@@ -893,6 +1033,7 @@ function openGameMenu() {
     { id: 'save', label: 'Save', sub: 'To this browser (the game also autosaves)', run: () => void saveGame() },
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
+    { id: 'controls', label: 'Controls', sub: 'Every key and gesture (? or H)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
     { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },
@@ -1110,6 +1251,8 @@ function frame(now: number) {
     });
   }
   updateHud(dt, now);
+  input?.update(dt, !title && !cine && !menuOpen && !panelOpen() && !document.getElementById('whatsnew'));
+  document.body.classList.toggle('paused', userPaused && speed === 0 && !menuOpen && !cine && !title);
   post?.update({ night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air });
   post ? post.render(dt) : renderer.render(scene, camera);
   requestAnimationFrame(frame);

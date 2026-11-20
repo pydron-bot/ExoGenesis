@@ -46,9 +46,26 @@ interface Handlers {
   togglePause(): void;
   toggleBuildMenu(): void;
   interacted(): void;
-  say(text: string): void;
+  /** A message for the player: a warning with the deny sound, or (ok) a plain note. */
+  say(text: string, ok?: boolean): void;
   /** Colonist under a screen point (client px), or -1. */
   colonistAt?(x: number, y: number): number;
+  /** Keyboard extras (main.ts): F centre, . idle drone, [ ] speed, ? controls, Ctrl+S save, Esc build menu. */
+  centre?(): void;
+  nextIdleDrone?(): void;
+  speedStep?(dir: 1 | -1): void;
+  showControls?(): void;
+  quickSave?(): void;
+  /** Esc: close the build menu if it's open (true = it was). */
+  closeBuildMenu?(): boolean;
+  /** Centre the camera on a point (control group double-press). */
+  lookAt?(x: number, z: number): void;
+  /** Mouse wheel zooms toward the cursor (Options). */
+  zoomToCursor?(): boolean;
+  /** Screen-edge scrolling with the mouse (Options). */
+  edgeScroll?(): boolean;
+  /** A placement can't go here: why (shown by the cursor), or null to hide it. */
+  placeHint?(text: string | null, x: number, y: number): void;
 }
 
 type Mode = 'none' | 'pan' | 'orbit' | 'order' | 'pinch' | 'unit' | 'uorder';
@@ -75,6 +92,14 @@ export class Input {
   private holdTimer = 0;
   private lastTap = { t: 0, id: -1 };
   private v = new THREE.Vector3();
+  /** Camera keys held down (smooth panning and turning, every frame). */
+  private held_ = new Set<string>();
+  private shiftHeld = false;
+  /** The mouse over the canvas (client px), for edge scrolling; null when it's gone. */
+  private mouse: { x: number; y: number } | null = null;
+  /** Control groups 4–9 (1–3 are the views): unit ids, and the last recall (double-press centres). */
+  private groups = new Map<number, number[]>();
+  private lastGroup = { n: -1, t: 0 };
 
   constructor(
     private el: HTMLElement,
@@ -91,10 +116,42 @@ export class Input {
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.cam.zoomBy(Math.exp(e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0016)));
+      const f = Math.exp(e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0016));
+      const before = this.cam.targetDist;
+      this.cam.zoomBy(f);
+      // zoom toward (or away from) the point under the cursor, near the ground
+      const k = this.cam.targetDist / before;
+      if (k !== 1 && this.cam.a < 0.15 && this.h.zoomToCursor?.()) {
+        const g = this.ground(e.clientX, e.clientY);
+        if (g) this.cam.lookAtGround(g.x + (this.cam.fx - g.x) * k, g.z + (this.cam.fz - g.z) * k);
+      }
       this.h.interacted();
     }, { passive: false });
+    el.addEventListener('pointerleave', () => { this.mouse = null; this.h.placeHint?.(null, 0, 0); });
     window.addEventListener('keydown', (e) => this.key(e));
+    window.addEventListener('keyup', (e) => { this.held_.delete(e.code); this.shiftHeld = e.shiftKey; });
+    window.addEventListener('blur', () => { this.held_.clear(); this.mouse = null; });
+  }
+
+  /** Per frame: held camera keys pan and turn smoothly; the mouse at the screen edge scrolls (if on). */
+  update(dt: number, active: boolean) {
+    if (!active) { this.held_.clear(); return; }
+    const h = this.el.clientHeight, k = this.held_;
+    const pan = (this.shiftHeld ? 1500 : 700) * dt;
+    let dx = 0, dy = 0;
+    if (k.has('KeyW') || k.has('ArrowUp')) dy += pan;
+    if (k.has('KeyS') || k.has('ArrowDown')) dy -= pan;
+    if (k.has('KeyA') || k.has('ArrowLeft')) dx += pan;
+    if (k.has('KeyD') || k.has('ArrowRight')) dx -= pan;
+    if (this.mouse && this.pts.size === 0 && this.cam.a < 0.5 && this.h.edgeScroll?.()) {
+      const m = this.mouse, edge = 10, w = this.el.clientWidth;
+      if (m.x <= edge) dx += pan; else if (m.x >= w - edge) dx -= pan;
+      if (m.y <= edge) dy += pan; else if (m.y >= h - edge) dy -= pan;
+    }
+    if (dx || dy) this.cam.pan(dx, dy, h);
+    const turn = 1.8 * dt;
+    if (k.has('KeyQ')) this.cam.rotate(turn, 0);
+    if (k.has('KeyE')) this.cam.rotate(-turn, 0);
   }
 
   private ground(x: number, y: number) {
@@ -183,6 +240,13 @@ export class Input {
     this.ui.ghost = { x: g.x, z: g.z, ok: !this.h.placeProblem(kind, g.x, g.z) };
   }
 
+  /** By the cursor while placing: why the ghost can't go here (nothing when it can). */
+  private hint(x: number, y: number) {
+    const kind = this.ui.build, g = this.ui.ghost;
+    const why = kind && g && !g.ok && !this.h.isLine(kind) ? this.h.placeProblem(kind, g.x, g.z) : null;
+    this.h.placeHint?.(why, x, y);
+  }
+
   /** Placement: turn the building (or a lone wall segment) 45°. */
   rotate() {
     if (!this.ui.build) return;
@@ -228,7 +292,11 @@ export class Input {
 
   private moveEv(e: PointerEvent) {
     const p = this.pts.get(e.pointerId);
-    if (this.ui.build && e.pointerType === 'mouse' && this.pts.size === 0) this.ghostAt(this.ground(e.clientX, e.clientY));
+    if (e.pointerType === 'mouse') { const r = this.el.getBoundingClientRect(); this.mouse = { x: e.clientX - r.left, y: e.clientY - r.top }; }
+    if (this.ui.build && e.pointerType === 'mouse' && this.pts.size === 0) {
+      this.ghostAt(this.ground(e.clientX, e.clientY));
+      this.hint(e.clientX, e.clientY);
+    }
     if (!p) return;
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX;
@@ -304,6 +372,8 @@ export class Input {
       }
     } else if (tap && e.button !== 2) {
       this.tap(e.clientX, e.clientY, e.pointerType === 'mouse', e.shiftKey);
+    } else if (tap && e.button === 2) {
+      this.rightTap(e.clientX, e.clientY);
     }
     this.ui.drag = null;
     this.ui.dragFrom = null;
@@ -323,6 +393,16 @@ export class Input {
     this.ui.drag = null;
     this.ui.dragFrom = null;
     this.mode = 'none';
+  }
+
+  /** Right-click without dragging: stop placing, or send the selected drone or units there. */
+  private rightTap(x: number, y: number) {
+    if (this.cam.a >= 0.5) return;
+    if (this.ui.build) { this.h.setBuild(null); this.h.placeHint?.(null, 0, 0); return; }
+    const g = this.ground(x, y);
+    if (!g) return;
+    if (this.ui.sel?.kind === 'drone') this.h.move(this.ui.sel.id, g.x, g.z);
+    else if (this.ui.sel?.kind === 'units') this.orderUnits(g.x, g.z);
   }
 
   private tap(x: number, y: number, mouse: boolean, keep: boolean) {
@@ -389,24 +469,71 @@ export class Input {
     else { this.ui.sel = null; this.h.select(); }
   }
 
+  /** Control group n: Ctrl or Shift + n saves the selected units, n recalls them, n twice centres on them. */
+  private group(n: number, save: boolean) {
+    if (save) {
+      const ids = this.selIds();
+      if (!ids.length) { this.h.say(`Select combat units first, then Ctrl+${n} to make them group ${n}`); return; }
+      this.groups.set(n, [...ids]);
+      this.h.say(`Group ${n}: ${ids.length} unit${ids.length > 1 ? 's' : ''} · press ${n} to select them`, true);
+      return;
+    }
+    const live = new Set(this.h.units().map((u) => u.id));
+    const ids = (this.groups.get(n) ?? []).filter((id) => live.has(id));
+    this.groups.set(n, ids);
+    if (!ids.length) { this.h.say(`Group ${n} is empty · select units, then Ctrl+${n}`); return; }
+    const now = performance.now();
+    if (this.lastGroup.n === n && now - this.lastGroup.t < 400) {
+      const c = this.centre(ids);
+      if (c) this.h.lookAt?.(c.x, c.z);
+    }
+    this.lastGroup = { n, t: now };
+    this.selectUnits(ids);
+  }
+
   private key(e: KeyboardEvent) {
-    if (e.target instanceof HTMLInputElement) return;
-    const step = 40;
+    const t = e.target as HTMLElement | null;
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || t?.isContentEditable) return;
+    this.shiftHeld = e.shiftKey;
+    const mod = e.ctrlKey || e.metaKey;
+    const digit = /^Digit([0-9])$/.exec(e.code)?.[1];
+    if (digit && Number(digit) >= 4 && !e.altKey) {
+      // 1–3 are the views; 4–9 control groups
+      e.preventDefault();
+      this.group(Number(digit), mod || e.shiftKey);
+      this.h.interacted();
+      return;
+    }
+    if (mod) {
+      if (e.code === 'KeyA') { e.preventDefault(); this.selectUnits(this.h.units().map((u) => u.id)); }
+      else if (e.code === 'KeyS') { e.preventDefault(); this.h.quickSave?.(); }
+      return;
+    }
+    if (e.altKey) return;
+    switch (e.code) {
+      case 'KeyW': case 'KeyS': case 'KeyA': case 'KeyD': case 'KeyQ': case 'KeyE':
+      case 'ArrowUp': case 'ArrowDown': case 'ArrowLeft': case 'ArrowRight':
+        e.preventDefault();
+        this.held_.add(e.code);
+        this.h.interacted();
+        return;
+    }
     switch (e.key) {
-      case 'w': case 'ArrowUp': this.cam.pan(0, step, this.el.clientHeight); break;
-      case 's': case 'ArrowDown': this.cam.pan(0, -step, this.el.clientHeight); break;
-      case 'a': case 'ArrowLeft': this.cam.pan(step, 0, this.el.clientHeight); break;
-      case 'd': case 'ArrowRight': this.cam.pan(-step, 0, this.el.clientHeight); break;
-      case 'q': this.cam.rotate(0.15, 0); break;
-      case 'e': this.cam.rotate(-0.15, 0); break;
       case '+': case '=': this.cam.zoomBy(0.7); break;
       case '-': case '_': this.cam.zoomBy(1.4); break;
       case '1': this.h.view('surface'); break;
       case '2': this.h.view('planet'); break;
       case '3': this.h.view('system'); break;
-      case 'b': this.h.toggleBuildMenu(); break;
-      case 'r': this.rotate(); break;
-      case 'Escape': this.h.setBuild(null); this.ui.sel = null; this.h.select(); break;
+      case 'b': case 'B': this.h.toggleBuildMenu(); break;
+      case 'r': case 'R': this.rotate(); break;
+      case 'f': case 'F': case 'Home': this.h.centre?.(); break;
+      case '.': this.h.nextIdleDrone?.(); break;
+      case ']': this.h.speedStep?.(1); break;
+      case '[': this.h.speedStep?.(-1); break;
+      case '?': case 'h': case 'H': this.h.showControls?.(); break;
+      case 'Escape':
+        if (this.h.closeBuildMenu?.()) break;
+        this.h.setBuild(null); this.h.placeHint?.(null, 0, 0); this.ui.sel = null; this.h.select(); break;
       case ' ': e.preventDefault(); this.h.togglePause(); break;
       default: return;
     }

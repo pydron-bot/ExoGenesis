@@ -48,6 +48,8 @@ export class ZoomCamera {
   freePitch = false;
   /** Camera shake amplitude in world units; decays on its own. */
   shake = 0;
+  /** Where the focus is gliding to (centre on selection, control groups); a pan or jump cancels it. */
+  private glide: { x: number; z: number } | null = null;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
@@ -67,8 +69,21 @@ export class ZoomCamera {
     this.pitch = this.targetPitch;
   }
 
+  /** Put the ground focus here at once (clamped to the region). */
+  lookAtGround(x: number, z: number) {
+    this.glide = null;
+    this.fx = THREE.MathUtils.clamp(x, -HALF + 10, HALF - 10);
+    this.fz = THREE.MathUtils.clamp(z, -HALF + 10, HALF - 10);
+  }
+
+  /** Glide the ground focus to here over a moment. */
+  glideTo(x: number, z: number) {
+    this.glide = { x: THREE.MathUtils.clamp(x, -HALF + 10, HALF - 10), z: THREE.MathUtils.clamp(z, -HALF + 10, HALF - 10) };
+  }
+
   /** Pan the ground focus by a screen-space drag (pixels). */
   pan(dx: number, dy: number, viewportH: number) {
+    this.glide = null;
     const k = (this.dist * 1.1) / viewportH;
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     // in region coords: forward = (sin yaw, cos yaw), right = (cos yaw, -sin yaw)
@@ -80,6 +95,12 @@ export class ZoomCamera {
 
   update(dt: number, starPos: THREE.Vector3) {
     const k = 1 - Math.exp(-dt * 6);
+    if (this.glide) {
+      const g = this.glide, kg = 1 - Math.exp(-dt * 7);
+      this.fx += (g.x - this.fx) * kg;
+      this.fz += (g.z - this.fz) * kg;
+      if (Math.hypot(g.x - this.fx, g.z - this.fz) < 0.05) { this.fx = g.x; this.fz = g.z; this.glide = null; }
+    }
     this.dist = Math.exp(lerp(Math.log(this.dist), Math.log(this.targetDist), k));
     if (Math.abs(this.dist - this.targetDist) / this.targetDist < 1e-4) this.dist = this.targetDist;
     this.pitch = lerp(this.pitch, this.targetPitch, k);
