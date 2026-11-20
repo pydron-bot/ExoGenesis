@@ -302,6 +302,11 @@ function renderSide() {
       const add = h('button', { cls: 'mini', textContent: name === 'assets' ? '+ Upload' : '+ New', title: name === 'assets' ? 'Add model, image or audio files' : `New ${c.label.toLowerCase().replace(/s$/, '')}` });
       add.onclick = name === 'assets' ? () => void pickFiles(ACCEPT_ALL, true).then(addFiles) : () => newRecord(name);
       head.append(add);
+      if (IMPORTABLE.has(name)) {
+        const imp = h('button', { cls: 'mini', textContent: 'Import', title: `Add a ${nounOf(name)} from JSON: paste it or choose a .json file` });
+        imp.onclick = () => importRecord(name);
+        head.append(imp);
+      }
       body.append(head);
       const recs = recordsOf(name);
       const chs = recordsOf('chapters').map((r) => ({ id: r.id, d: (r.rec.data ?? {}) as Partial<ChapterDef> })).sort((a, b) => (a.d.order ?? 0) - (b.d.order ?? 0));
@@ -701,7 +706,13 @@ function renderForm() {
     };
     const del = h('button', { cls: 'danger', textContent: 'Delete' });
     del.onclick = () => void doDelete();
-    actions.append(dup, ren, cmp, del);
+    actions.append(dup, ren, cmp);
+    if (IMPORTABLE.has(cur.coll)) {
+      const cp = h('button', { textContent: 'Copy JSON', title: 'Copy this, unsaved changes and all, as JSON: to share it, or bring it back in with Import' });
+      cp.onclick = () => { if (cur) copyText(serialize(cur.coll, cur.draft)); };
+      actions.append(cp);
+    }
+    actions.append(del);
   }
   main.classList.toggle('map-mode', isMap());
   if (isMap()) {
@@ -1059,13 +1070,17 @@ async function doDelete() {
   }
 }
 
-async function newRecord(name: CollectionName, from?: Record<string, unknown>, init?: Record<string, unknown>) {
-  if (!confirmDiscard()) return;
+/**
+ * Make a record: blank, a copy of `from` (Duplicate), or `from` as it is (`exact`: Import keeps its name).
+ * Asks for the id (offering `suggest`). True once it's created.
+ */
+async function newRecord(name: CollectionName, from?: Record<string, unknown>, init?: Record<string, unknown>, opts: { suggest?: string; exact?: boolean } = {}): Promise<boolean> {
+  if (!confirmDiscard()) return false;
   const c = coll(name);
-  const id = prompt(`Id for the new ${c.label.toLowerCase().replace(/s$/, '')} (lowercase letters, digits, - or _; becomes the file name):`)?.trim();
-  if (!id) return;
-  if (!ID_RE.test(id)) { toast('Ids are lowercase letters, digits, - and _ (start with a letter or digit)', true); return; }
-  if (files.has(pathOf(name, id))) { toast(`${id} already exists`, true); return; }
+  const id = prompt(`Id for the new ${c.label.toLowerCase().replace(/s$/, '')} (lowercase letters, digits, - or _; becomes the file name):`, opts.suggest ?? '')?.trim();
+  if (!id) return false;
+  if (!ID_RE.test(id)) { toast('Ids are lowercase letters, digits, - and _ (start with a letter or digit)', true); return false; }
+  if (files.has(pathOf(name, id))) { toast(`${id} already exists`, true); return false; }
   const data = from ? structuredClone(from) : blank(c.shape);
   // a new cinematic starts as something that plays: a slow move round the Command Core
   if (!from && name === 'cinematics') Object.assign(data, {
@@ -1075,7 +1090,8 @@ async function newRecord(name: CollectionName, from?: Record<string, unknown>, i
       { at: 8, target: 'building', building: 'core', lift: 2, dist: 40, pitch: 0.35, yaw: 1.4 },
     ],
   });
-  if (c.title) data[c.title] = from ? `${String(from[c.title] ?? id)} copy` : id.replace(/[-_]/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+  const pretty = id.replace(/[-_]/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+  if (c.title) data[c.title] = opts.exact ? (from?.[c.title] || pretty) : from ? `${String(from[c.title] ?? id)} copy` : pretty;
   if (init) for (const [k, v] of Object.entries(init)) if (v === undefined) delete data[k]; else data[k] = v;
   const text = serialize(name, data);
   try {
@@ -1084,9 +1100,87 @@ async function newRecord(name: CollectionName, from?: Record<string, unknown>, i
     open(name, id, true);
     toast(`Created content/${pathOf(name, id)}`);
     void refreshGit();
+    return true;
   } catch (e) {
     toast(`Create failed: ${(e as Error).message}`, true);
+    return false;
   }
+}
+
+/** Collections with Import and Copy JSON. */
+const IMPORTABLE = new Set<CollectionName>(['music']);
+/** What one record of a collection is called ("a mood", not "a music"). */
+const nounOf = (name: CollectionName) => (name === 'music' ? 'mood' : coll(name).label.toLowerCase().replace(/s$/, ''));
+
+/** "Night · Outer Dark" → "night-outer-dark": an id to offer for an imported record. */
+const slug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+
+/** Copy text to the clipboard (falling back to a selected textarea where the async clipboard isn't allowed). */
+function copyText(text: string) {
+  const fallback = () => {
+    const t = h('textarea', { value: text });
+    t.style.cssText = 'position:fixed;opacity:0';
+    document.body.append(t);
+    t.select();
+    const ok = document.execCommand('copy');
+    t.remove();
+    toast(ok ? 'Copied as JSON' : 'Couldn\'t copy: the browser blocked the clipboard', !ok);
+  };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => toast('Copied as JSON'), fallback);
+  else fallback();
+}
+
+/**
+ * Import a record from JSON, pasted or from a .json file. It's checked like a saved file (fields, and the
+ * collection's own rules: note names, drum patterns…); missing required fields get their defaults. With
+ * problems it says what they are, and a second Import brings it in anyway, to fix in the form.
+ */
+function importRecord(name: CollectionName) {
+  if (!confirmDiscard()) return;
+  const c = coll(name), noun = nounOf(name);
+  const text = h('textarea', { cls: 'imp-text', placeholder: `Paste a ${noun} as JSON here, or choose a .json file`, spellcheck: false });
+  const msg = h('div', { cls: 'imp-msg' });
+  const file = h('button', { textContent: 'Choose file…' });
+  const cancel = h('button', { textContent: 'Cancel' });
+  const go = h('button', { cls: 'primary', textContent: 'Import' });
+  const dlg = h('dialog', { cls: 'imp-dlg' },
+    h('h2', { textContent: `Import a ${noun}` }),
+    h('div', { cls: 'note', textContent: 'The JSON of one record, as Copy JSON gives it (or as the file in content/ holds it). It\'s checked before it\'s added; you pick its id next.' }),
+    text, msg, h('div', { cls: 'actions' }, file, h('span', { cls: 'grow' }), cancel, go));
+  document.body.append(dlg);
+  dlg.addEventListener('close', () => dlg.remove());
+  cancel.onclick = () => dlg.close();
+  /** The text whose problems were shown: Import again on the same text imports anyway. */
+  let shown = '';
+  const say = (lines: string[], bad = true) => { msg.className = `imp-msg${bad ? ' bad' : ''}`; msg.replaceChildren(...lines.map((l) => h('div', { textContent: l }))); };
+  const reset = () => { shown = ''; go.textContent = 'Import'; msg.replaceChildren(); };
+  text.oninput = reset;
+  file.onclick = () => void pickFiles('.json,application/json', false).then(async ([f]) => { if (f) { text.value = await f.text(); reset(); } });
+  go.onclick = () => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(text.value); } catch (e) { say([`That isn't valid JSON: ${(e as Error).message}`]); return; }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { say([`Expected one ${noun}: a JSON object, { … }`]); return; }
+    const data = { ...(parsed as Record<string, unknown>) };
+    delete data.$schema;
+    // fields it must have but doesn't: their defaults, as + New would give
+    const filled: string[] = [];
+    for (const [k, v] of Object.entries(blank(c.shape))) if (data[k] === undefined || data[k] === null) { data[k] = v; filled.push(k); }
+    const suggest = slug(String((c.title && data[c.title]) || '')) || noun;
+    const at = pathOf(name, suggest);
+    const issues = contentIssues({ path: at, data }).filter((i) => i.path === at);
+    if (issues.length && shown !== text.value) {
+      shown = text.value;
+      go.textContent = 'Import anyway';
+      say([`${issues.length} problem${issues.length > 1 ? 's' : ''}: fix the JSON, or Import anyway and fix ${issues.length > 1 ? 'them' : 'it'} in the form.`, ...issues.slice(0, 12).map((i) => `• ${i.field || '(record)'}: ${i.msg}`), ...(issues.length > 12 ? [`… and ${issues.length - 12} more`] : [])]);
+      return;
+    }
+    dlg.close();
+    void newRecord(name, data, undefined, { suggest, exact: true }).then((ok) => {
+      if (ok && filled.length) toast(`Imported. It had no ${filled.join(', ')}: given the default${filled.length > 1 ? 's' : ''}`);
+    });
+  };
+  dlg.showModal();
+  text.focus();
 }
 
 // ---------- git ----------

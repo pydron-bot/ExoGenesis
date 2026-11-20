@@ -671,3 +671,20 @@ button.panel-toggle:hover { color: var(--accent); }
 .mp-chip { font: 12px ui-monospace, monospace; padding: 3px 8px; border: 1px solid var(--line); border-radius: 3px; color: var(--dim); }
 .mp-chip.on { color: var(--text); border-color: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent); }
 .mp-chip.bad { border-color: var(--bad); }
+
+/* ---------- import a record from JSON ---------- */
+dialog.imp-dlg {
+  width: min(640px, calc(100vw - 32px)); background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+}
+dialog.imp-dlg::backdrop { background: #05080dcc; }
+dialog.imp-dlg h2 { margin: 0 0 6px; font-size: 17px; }
+dialog.imp-dlg .note { margin-bottom: 10px; }
+textarea.imp-text {
+  width: 100%; height: 280px; resize: vertical; font: 12px/1.4 ui-monospace, monospace;
+  background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px;
+}
+.imp-msg { margin: 8px 0; font-size: 13px; max-height: 160px; overflow: auto; }
+.imp-msg.bad { color: var(--bad); }
+dialog.imp-dlg .actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+dialog.imp-dlg .actions .grow { flex: 1; }

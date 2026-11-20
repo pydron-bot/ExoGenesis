@@ -62,6 +62,7 @@ node tools/shot.mjs    # headless screenshots of each zoom level → shots/
 npm run content:check  # validate content/ against src/content/defs.ts
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 node tools/editor-checks-smoke.mjs  # undo, content checks, Problems, Rename, Compare, Text, Since last release
+node tools/import-smoke.mjs        # editor: Import a music mood from JSON and Copy JSON (removes its test mood afterwards)
 node tools/editor-more-smoke.mjs    # map overlays + copy/paste, Planet, balance runs, play test setup, characters, timeline, interface
 node tools/cinematic-smoke.mjs      # cinematics: triggers and effects (headless), the landing, a world cinematic (pause, lines, skip)
 node tools/gameplay-smoke.mjs       # story gameplay (headless): spawns, locks, countdowns, counters, groups, fail/win, encounters, inspector

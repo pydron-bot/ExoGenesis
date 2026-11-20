@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.49.0',
+    date: '2026-11-20',
+    title: 'Import music',
+    notes: [
+      'Editor: Import in Rules → Music adds a mood from JSON (paste it or choose a .json file). It\'s checked first: it lists any problems (a note that isn\'t a note, an unknown field) and fills in anything missing',
+      'Editor: Copy JSON on a mood copies it, unsaved changes and all, to share or bring back in',
+    ],
+  },
+  {
     version: '0.48.0',
     date: '2026-11-20',
     title: 'Outer Dark',

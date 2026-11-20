@@ -809,6 +809,15 @@ First playtest build (2026-11-15).
     starts a piece again. Panned drum tracks keep one panner each (a timer per hit could disconnect a panner while
     the audio clock was stopped in a hidden tab, losing hits on return); `play()` lets go of its panner; pad
     voices let go of their per-oscillator gains. `music-smoke` checks that volume 0 stops and turning up restarts.
+  - **Import and Copy JSON (v0.49.0, editor):** Rules → Music has **Import** beside + New: a dialog takes one
+    mood as JSON, pasted or from a .json file (`importRecord` in `src/editor/main.ts`). It drops `$schema`, gives
+    missing required fields their `blank()` defaults (and says which), then runs `contentIssues()` on it as if
+    saved at the suggested id, so it gets the same checks as a saved file (schema, note names, drum patterns,
+    section layers). Problems are listed; Import again on the same text brings it in anyway, to fix in the form.
+    The id is offered from the name ("Night · Outer Dark" → night-outer-dark) and `newRecord(…, { exact })`
+    keeps the name (no "copy"). **Copy JSON** in a mood's actions copies the draft as `serialize()` writes it
+    (clipboard, or a selected-textarea fallback). Both are on for the collections in `IMPORTABLE` (music only so
+    far). Tests: `tools/import-smoke.mjs` (10 checks).
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min
