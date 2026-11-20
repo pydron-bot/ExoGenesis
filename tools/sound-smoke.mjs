@@ -80,19 +80,30 @@ try {
   await page.waitForFunction(() => (__exo.audio.stats().counts.build ?? 0) >= 1, null, { timeout: 30000, polling: 200 }).catch(() => {});
   check(((await stats()).counts.build ?? 0) >= 1, `drones at work are heard building (${(await stats()).counts.build ?? 0})`);
 
-  // selecting and ordering: tap a drone (the first starts selected: let it go first), then the ground
-  await page.keyboard.press('Escape');
-  await page.evaluate(() => { __exo.cam.fx = __exo.sim.cur.drones[0].x; __exo.cam.fz = __exo.sim.cur.drones[0].z; });
-  await wait(400);
-  const dp = await page.evaluate(() => __exo.droneScreen(__exo.sim.cur.drones[0].id));
-  await page.mouse.click(dp.x, dp.y);
-  await wait(250);
-  check(((await stats()).counts.select ?? 0) >= 1, 'selecting a drone plays "select"');
-  const free = await page.evaluate(async () => { const d = __exo.sim.cur.drones[0]; return { x: d.x + 14, z: d.z + 10 }; });
-  const fp = await spot('solar', free.x, free.z).then((p) => page.evaluate((p) => __exo.screenOf(p.x, p.z), p));
-  await page.mouse.click(fp.x, fp.y);
+  // selecting and ordering: tap a drone (the first starts selected: let it go first), then open ground
+  // (story cards can open over the map: retry the drone, and pick a ground point the map itself is under)
+  await page.evaluate(() => { for (const id of ['contact', 'radio']) { const e = document.getElementById(id); if (e) e.style.visibility = 'hidden'; } });
+  for (let k = 0; k < 4 && (await page.evaluate(() => __exo.ui.sel?.kind)) !== 'drone'; k++) {
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => { __exo.cam.fx = __exo.sim.cur.drones[0].x; __exo.cam.fz = __exo.sim.cur.drones[0].z; });
+    await wait(500);
+    const dp = await page.evaluate(() => __exo.droneScreen(__exo.sim.cur.drones[0].id));
+    await page.mouse.click(dp.x, dp.y);
+    await wait(250);
+  }
+  check(((await stats()).counts.select ?? 0) >= 1 && (await page.evaluate(() => __exo.ui.sel?.kind)) === 'drone', 'selecting a drone plays "select"');
+  const fp = await page.evaluate(() => {
+    const d = __exo.sim.cur.drones[0];
+    for (const [dx, dz] of [[14, 10], [-14, 10], [14, -10], [-14, -10], [20, 0], [0, 20], [-20, 0], [0, -20]]) {
+      const p = __exo.screenOf(d.x + dx, d.z + dz);
+      if (document.elementFromPoint(p.x, p.y)?.tagName === 'CANVAS' && !__exo.sim.cur.buildings.some((b) => Math.hypot(b.x - d.x - dx, b.z - d.z - dz) < 8)) return p;
+    }
+    return null;
+  });
+  if (fp) await page.mouse.click(fp.x, fp.y);
   await wait(250);
   check(((await stats()).counts.order ?? 0) >= 1, 'sending it somewhere plays "order"');
+  await page.evaluate(() => { for (const id of ['contact', 'radio']) { const e = document.getElementById(id); if (e) e.style.visibility = ''; } });
   await page.keyboard.press('Escape');
 
   // wildlife: a calm animal in view calls now and then
@@ -133,7 +144,7 @@ try {
       const surf = await p2.evaluate(() => __exo.audio.stats().beds.surf);
       check(surf > 0.02, `surf along a shore in Port of Hope (${surf.toFixed(3)})`);
       await p2.evaluate(() => __exo.setView('planet'));
-      await p2.waitForTimeout(3500);
+      await p2.waitForTimeout(4500);
       const up = await p2.evaluate(() => __exo.audio.stats().beds.surf);
       check(up < surf * 0.3, `and it fades in orbit (${up.toFixed(3)})`);
     }

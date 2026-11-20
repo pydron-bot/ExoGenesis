@@ -930,7 +930,9 @@ let waterNear = 0, waterIn = 0;
 function placeSounds(dt: number) {
   const c = sim.cur;
   const playing = !skirmish && !title && !cine && !!c?.deployed;
-  if (playing && (waterIn -= dt) <= 0) {
+  // in orbit (no world sounds) the surf goes at once, not at the next sample
+  if (!spatial(cam.fx, cam.fz)) waterNear = 0;
+  else if (playing && (waterIn -= dt) <= 0) {
     waterIn = 0.5;
     const near = spatial(cam.fx, cam.fz)?.gain ?? 0, r = 18 + cam.dist * 0.35;
     let wet = 0, n = 0;

@@ -226,7 +226,7 @@ export class GameAudio {
     const surf = this.quiet ? 0 : SURF_PEAK * Math.min(1, b.water);
     if (surf > 0.002 || this.loops.surf) {
       const s = (this.loops.surf ??= this.makeLoop('surf'));
-      s.gain.gain.setTargetAtTime(surf, t, 0.8);
+      s.gain.gain.setTargetAtTime(surf, t, 0.5);
       if (t >= this.nextWave && s.swell && s.filter) {
         const up = rand(1.2, 2.2);
         s.swell.gain.setTargetAtTime(rand(0.85, 1), t, up / 2.5);
