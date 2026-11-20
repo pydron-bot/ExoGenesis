@@ -205,6 +205,11 @@ export interface Unit {
   /** A shield unit (Aegis): charge, and whether its bubble has dropped (back up at 30%). */
   sh?: number;
   shDown?: boolean;
+  /** Its ability (UnitDef.ability): seconds of cooldown left, and of the effect left. */
+  ab?: number;
+  abT?: number;
+  /** An instant ability (pulse, mend) armed by a command, to go off in the next fight step. */
+  abFire?: boolean;
 }
 
 /** One of the inhabitants at a camp (walker, or the elder who keeps to the centre). */
@@ -495,6 +500,8 @@ export type Command =
   | { type: 'board'; ids: number[]; transport: number }
   | { type: 'unload'; ids: number[] }
   | { type: 'stop'; ids: number[] }
+  /** Combat units: use their ability (UnitDef.ability), each that has one ready. */
+  | { type: 'ability'; ids: number[] }
   /** Skirmish: give up (your side loses you; the game goes on for the others). */
   | { type: 'surrender' }
   | { type: 'landing'; stage: LandingStage }
@@ -554,6 +561,9 @@ export interface UnitSnap {
   sh?: number;
   shR?: number;
   shUp?: boolean;
+  /** Its ability: seconds until ready (0 = ready), and seconds the effect has left (absent when none). */
+  abCd?: number;
+  abOn?: number;
 }
 
 export interface CampSnap {

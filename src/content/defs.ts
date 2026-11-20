@@ -14,6 +14,18 @@ import { bool, choice, color, grid, int, list, num, ref, str, type ChoiceField, 
 export const WEAPONS = ['bolt', 'cannon', 'shell', 'arc', 'pd', 'bite', 'spit', 'rail'] as const;
 export type Weapon = (typeof WEAPONS)[number];
 
+/** Unit abilities (player-triggered, on a cooldown): what each kind does with its Power, Radius and Seconds. */
+export const ABILITIES = ['overdrive', 'boost', 'siege', 'charge', 'pulse', 'mend', 'shield'] as const;
+export type Ability = (typeof ABILITIES)[number];
+export const ABILITY_HELP: Record<Ability, string> = {
+  overdrive: 'fires Power times as fast for Seconds',
+  boost: 'moves Power times as fast for Seconds',
+  siege: 'digs in for Seconds: can\'t move, range and damage × Power, takes 30% less damage (a move order ends it)',
+  charge: 'its next shot (within Seconds) does Power times the damage',
+  pulse: 'at once: Power damage to every enemy within Radius (flyers too)',
+  mend: 'at once: repairs Power hp on every unit and building of ours within Radius',
+  shield: 'for Seconds, our units within Radius take Power less damage (0.5 = half)',
+};
 export const unitShape = {
   name: str({ label: 'Name' }),
   faction: choice(['accord', 'fauna', 'relic'], { label: 'Faction', help: 'Accord units are the player\'s; fauna attack them; relics are precursor defenses on a relic grid (region map).' }),
@@ -26,6 +38,7 @@ export const unitShape = {
   cooldown: num({ label: 'Attack cooldown', min: 0.05, max: 30, step: 0.05, unit: 's' }),
   splash: num({ label: 'Splash radius', min: 0, max: 50, step: 0.1, unit: 'u', optional: true, help: 'Units inside take half damage.' }),
   minRange: num({ label: 'Minimum range', min: 0, max: 200, step: 0.5, unit: 'u', optional: true, help: 'Can\'t fire at anything closer than this (artillery).' }),
+  vsBuildings: num({ label: 'Against buildings', min: 0, max: 10, step: 0.05, optional: true, help: 'Accord units: damage to buildings × this (2 = siege weapon, 0.5 = poor at it). Empty = 1.' }),
   chain: int({ label: 'Chain jumps', min: 0, max: 12, optional: true, help: 'Each hit arcs on to this many more hostiles, each within Chain range of the last, for 70% of the previous hit.' }),
   chainRange: num({ label: 'Chain range', min: 0, max: 40, step: 0.5, unit: 'u', optional: true }),
   weapon: choice(WEAPONS, { label: 'Weapon look', optional: true, help: 'How its attack looks and sounds. Empty = bolt (cannon if it has splash) for vehicles, bite (spit if Attack range > 4) for fauna.' }),
@@ -37,6 +50,12 @@ export const unitShape = {
   shield: int({ label: 'Shield', min: 0, max: 100000, unit: 'hp', optional: true, help: 'Accord units: projects a shield bubble (Shield radius) that soaks this much damage from predators outside it before it drops. It recharges at Shield recharge; once down it comes back at 30%.' }),
   shieldRadius: num({ label: 'Shield radius', min: 0, max: 80, step: 0.5, unit: 'u', optional: true, help: 'How far the shield reaches. Anything of ours inside it is covered from attacks that start outside it.' }),
   shieldRegen: num({ label: 'Shield recharge', min: 0, max: 1000, step: 0.5, unit: 'hp/s', optional: true }),
+  ability: choice(ABILITIES, { label: 'Ability', optional: true, helps: ABILITY_HELP, help: 'Accord units: a special move the player triggers (G, or the button on the unit card), then waits out its cooldown. Computer players use it too.' }),
+  abilityName: str({ label: 'Ability name', optional: true, help: 'As the button shows it, e.g. "Overdrive".', when: { field: 'ability', is: ABILITIES, need: false } }),
+  abilityPower: num({ label: 'Ability power', min: 0, max: 10000, step: 0.05, optional: true, help: 'The multiplier, damage, repair or protection (see the kind).', when: { field: 'ability', is: ABILITIES, need: false } }),
+  abilitySeconds: num({ label: 'Ability lasts', min: 0, max: 120, step: 0.5, unit: 's', optional: true, when: { field: 'ability', is: ['overdrive', 'boost', 'siege', 'charge', 'shield'], need: false } }),
+  abilityRadius: num({ label: 'Ability radius', min: 0, max: 80, step: 0.5, unit: 'u', optional: true, when: { field: 'ability', is: ['pulse', 'mend', 'shield'], need: false } }),
+  abilityCooldown: num({ label: 'Ability cooldown', min: 1, max: 600, step: 0.5, unit: 's', optional: true, help: 'Seconds before it can be used again (counted from when it was triggered). Empty = 30.', when: { field: 'ability', is: ABILITIES, need: false } }),
   rescues: int({ label: 'Rescues', min: 0, max: 20, optional: true, help: 'Accord units: a medevac. It drives to colonists lying injured (thrown out of a fallen building) within its Aggro radius, picks up this many, and brings them in to the nearest home (or the Core) before they die. Unarmed.' }),
   carries: int({ label: 'Carries', min: 0, max: 20, optional: true, help: 'Accord transports: how many ground units it can carry. Select ground units and tap it to load them; order it to a spot on land to land them there.' }),
   burrows: bool({ label: 'Burrows', optional: true, help: 'Fauna: travels underground to its target, through walls and unseen (radar still shows it), then surfaces to attack.' }),

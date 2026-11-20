@@ -791,6 +791,8 @@ if (!skirmish) addEventListener('keydown', (e) => {
   if ((e.key === 'h' || e.key === 'H') && lastAt && !(e.target instanceof HTMLInputElement)) goTo(lastAt);
   // X: selected combat units stop and guard where they stand
   if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) { audio.play('order'); sim.command({ type: 'stop', ids: ui.sel.ids }); }
+  // G: selected units use their ability (those that have one ready)
+  if ((e.key === 'g' || e.key === 'G') && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement) && !e.ctrlKey && !e.metaKey) { audio.play('order'); sim.command({ type: 'ability', ids: ui.sel.ids }); }
 });
 /** Where the selection is (or the Command Core, with nothing selected): F / Home glides the camera there. */
 function centreOnSelection() {
@@ -866,6 +868,7 @@ function showControls(onClose?: () => void) {
     row('<kbd>Ctrl</kbd>/<kbd>Shift</kbd> + <kbd>4</kbd>–<kbd>9</kbd>', 'make the selected units a group'),
     row('<kbd>4</kbd>–<kbd>9</kbd>', 'select a group (twice: look at it)'),
     row('<kbd>X</kbd>', 'selected units stop and guard'),
+    row('<kbd>G</kbd>', 'selected units use their ability (also the ⚡ button on the unit card)'),
     row('<kbd>B</kbd>', 'build menu · <kbd>R</kbd> rotates while placing'),
     row('<kbd>Esc</kbd>', 'close the build menu, stop placing, deselect · then the menu'),
   ].join('');

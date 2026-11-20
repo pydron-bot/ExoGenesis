@@ -719,3 +719,8 @@ body.placing:not(.menu-open) #hud > #place-hint.on { display: block; }
   background: color-mix(in srgb, var(--cyan) 6%, transparent);
 }
 @media (max-width: 640px) { #options .op-info .kb { flex-direction: column; gap: 2px; } #options .op-info .kb span:last-child { text-align: left; } }
+
+/* unit abilities: one wide button per kind on the unit card (touch-sized) */
+#card .grp.abil { display: flex; gap: 4px; }
+#hud #card .grp.abil button { flex: 1; min-height: 38px; font-weight: 600; letter-spacing: 0.04em; }
+#hud #card .grp.abil button.wait { opacity: 0.55; }

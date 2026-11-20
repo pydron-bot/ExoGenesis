@@ -1657,3 +1657,57 @@ afford its next step.
 - **Test:** `tools/opening-smoke.mjs` (headless: the tutorial beats in time, only the first pod primed; browser,
   desktop and phone: the opening alloys, Touchdown's payout and hint, Groundwork's goals). `mission-smoke` follows the
   new Groundwork. Smoke tools touched here take `PORT` (or `--url`).
+
+### Units that feel different: abilities and counters
+
+Every armed Accord unit has one ability the player triggers, on a cooldown; computer players use theirs too.
+
+- **Data** (`content/units/*.json`, schema `unitShape`): `ability` (a kind), `abilityName`, `abilityPower`,
+  `abilitySeconds`, `abilityRadius`, `abilityCooldown` (empty = 30 s), plus `vsBuildings` (damage to buildings ×).
+  Kinds (`ABILITIES` in `src/content/defs.ts`): **overdrive** (fire rate × power), **boost** (speed × power), **siege**
+  (dug in: can't move, range and damage × power, takes 70% damage; a move order ends it), **charge** (the next shot ×
+  power), **pulse** (power damage to every enemy within the radius, flyers too), **mend** (power hp to everything of
+  ours within the radius), **shield** (our units within the radius take power less damage).
+
+  | Unit | Ability | Numbers |
+  |---|---|---|
+  | Rover | Overdrive | 2× fire rate, 4 s, every 20 s |
+  | Scout Skimmer | Afterburner | 1.8× speed, 6 s, every 25 s |
+  | Tank | Dig in | siege 1.35× (range 22 → 29.7, past a turret's 28), 12 s, every 30 s |
+  | Arc Caster | Discharge | 60 damage within 9 u, every 20 s |
+  | Artillery | Barrage | 3× fire rate, 6 s, every 40 s; 2× damage to buildings |
+  | Lancer | Overcharge | next slug 3× (330), within 10 s, every 20 s |
+  | Field Engineer | Patch up | +120 hp within 10 u, every 30 s |
+  | Aegis Crawler | Hardlight | half damage within 10 u, 6 s, every 35 s |
+  | Hover Skiff / Medevac | Skim / Sirens | 1.6× speed, 5–6 s |
+  | Gunship | Strafe | 2× fire rate, 5 s |
+  | Gunboat | Anchor | siege 1.3×, 10 s |
+
+- **Sim** (`src/sim/core.ts`): `Unit.ab` (cooldown left), `abT` (effect left), `abFire` (an instant kind armed).
+  Command `{ type: 'ability', ids }` uses each listed unit's ability if ready ("Not ready yet" if none was).
+  `armour()` scales every hit on a unit (`strike`, splash, chains and predator bites): siege and shield auras
+  (`auras`, rebuilt each tick). Commands run inside the player's own view (`withTeam`), so **pulse and mend only arm
+  there and go off in the shared fight** (`fireAbility` at the top of `stepUnits`): first written to strike directly,
+  a Discharge killed other players' units from inside one player's view and left the lists wrong (it was why Hard
+  started losing to Easy, 0 / 3). The snapshot carries `abCd` and `abOn` per unit.
+- **Computer players** (`abilities()` in `src/sim/ai.ts`, Normal and Hard): guns in a fight use overdrive and charge;
+  tanks dig in out on the attack, against a building; a discharge with three or more in reach or a flyer; a shield
+  in a fight or with hurt friends near; repairs when a friend is under 60%; a speed boost on a drive over 50 u.
+- **Controls:** the unit card has a wide ⚡ button per kind of selected unit (ready, "· 4 s" while on, "· 12 s" while
+  cooling down) and an Ability row; **G** uses the ability of everything selected; the Controls panel lists it.
+- **Counters** (`tools/unit-duel.mjs`: each ground combat unit against each other at 700 alloys a side on a
+  skirmish map, no fog, abilities used as the computer players use them, units holding to shoot once in range; then
+  each against three Defense Turrets and a Siege Cannon). Before, with or without abilities, the **Tank beat every
+  other unit** (6–0). Changes: Tank 110 → 120 alloys; Lancer 220 → 250 hp, 100 → 110 damage. After (W–L): Tank 5–1
+  and Lancer 5–1 (Lancer beats Tank, Rover beats Lancer, Tank beats Rover), Rover 4–2, Arc 4–2, Artillery 2–4 (but
+  takes the gun line with 84% left, the best of any), Skiff 1–5, Scout 0–6 (it scouts). The gun line holds against
+  Scouts, Skiffs and Arc Casters; Rovers (with Overdrive), Tanks, Lancers and Artillery break it.
+- **AI vs AI** (`tools/ai-sim.mjs`): `--check` passes (each level beats an idle player; Hard beats Easy 3 / 3 at
+  22–32 min; the four-way Normal free-for-all ends at 38.7 min; its limit is now 80 min, as one ordering ran 69).
+  New AI against the last release's (`--match old:normal,normal` and swapped, 3 seeds each): 4–1 with a draw. New
+  options: `--no-abilities`, `--seed`, `--size`.
+- **Test:** `tools/ability-smoke.mjs` (headless: each kind measured on the real sim, the cooldown, a Discharge killing
+  another player's Scouts cleanly, a computer player using Overdrive; browser, desktop and phone: a button per kind,
+  touch-sized, it fires only that kind, counts down, and G). `tools/unit-duel.mjs --check`.
+- Known: `tools/roster-smoke.mjs` "packs bring spitters and burrowers" fails before this change too (the test clears
+  every hostile, nests included, so later packs have no open spawn).

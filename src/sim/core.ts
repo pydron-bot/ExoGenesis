@@ -34,6 +34,13 @@ const SKIRMISH_UNITS = 40;
 type Foe = Hostile | Unit | Building | Drone;
 const isHostile = (f: Foe): f is Hostile => 'pack' in f;
 const isBuilding = (f: Foe): f is Building => 'kind' in f;
+const isUnit = (f: Foe): f is Unit => 'order' in f && !('pack' in f);
+/** Seconds between uses of an ability when the unit doesn't say. */
+const ABILITY_CD = 30;
+/** Damage a dug-in (siege) unit takes. */
+const SIEGE_ARMOUR = 0.7;
+/** Is this unit's ability `kind`, and on right now? */
+const abilityOn = (u: Unit, d: UnitDef, kind: string) => d.ability === kind && (u.abT ?? 0) > 0;
 const isDrone = (f: Foe): f is Drone => 'task' in f;
 /** Shooters pick anything that moves before a building, unless the building is this much closer (u). */
 const BUILDING_LAST = 10;
@@ -245,6 +252,8 @@ export class Sim {
   private lastGuards = -1e9;
   /** Shields up this tick (stepShields), for stepHostiles to check hits against. */
   private domes: Dome[] = [];
+  /** Units' shield abilities on this tick: our units inside take `keep` of the damage. */
+  private auras: { x: number; z: number; r: number; keep: number; team: number }[] = [];
   /** Power result of the last tick. */
   power = { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 };
 
@@ -1185,11 +1194,11 @@ export class Sim {
     // splash stays at the target's level (a burst in the air catches flyers, one on the ground doesn't); a chain reaches flyers only if anti-air
     const air = this.foeAir(tgt);
     this.fx.push(fxKind, fx, fz, tx, tz);
-    tgt.hp -= dmg;
+    tgt.hp -= dmg * this.armour(tgt);
     if (team && !isHostile(tgt)) this.underAttack(tgt);
     if (o.splash) {
       for (const h of [...foes]) {
-        if (h !== tgt && h.hp > 0 && !(isHostile(h) && h.under) && this.foeAir(h) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.kill(h, team); }
+        if (h !== tgt && h.hp > 0 && !(isHostile(h) && h.under) && this.foeAir(h) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= (dmg / 2) * this.armour(h); if (h.hp <= 0) this.kill(h, team); }
       }
     }
     if (o.chain && o.chainRange) {
@@ -1205,7 +1214,7 @@ export class Sim {
         if (!next) break;
         d *= CHAIN_FALLOFF;
         this.fx.push(FX.ARC, from.x, from.z, next.x, next.z);
-        next.hp -= d;
+        next.hp -= d * this.armour(next);
         hit.add(next);
         if (from !== tgt && from.hp <= 0) this.kill(from, team);
         from = next;
@@ -1213,6 +1222,57 @@ export class Sim {
       for (const h of hit) if (h !== tgt && h.hp <= 0) this.kill(h, team);
     }
     if (tgt.hp <= 0) this.kill(tgt, team);
+  }
+
+  /** What share of a hit a target takes: units dug in (siege) or under a shield ability take less. */
+  private armour(f: Foe) {
+    if (!isUnit(f)) return 1;
+    const d = content.units[f.unit];
+    let k = d && abilityOn(f, d, 'siege') ? SIEGE_ARMOUR : 1;
+    if (this.auras.length) {
+      let best = 1;
+      for (const a of this.auras) if (this.allied(a.team, f.team ?? 0) && Math.hypot(f.x - a.x, f.z - a.z) <= a.r) best = Math.min(best, a.keep);
+      k *= best;
+    }
+    return k;
+  }
+
+  /**
+   * A unit's ability (the player's G or button, or a computer player): false if it has none or it isn't ready.
+   * Commands run inside the player's own view, so the instant kinds (pulse, mend) only arm here and go off in
+   * the shared fight (stepUnits), where they can reach everyone's things.
+   */
+  private useAbility(u: Unit): boolean {
+    const d = content.units[u.unit];
+    if (!d?.ability || (u.ab ?? 0) > 0 || u.ride !== undefined) return false;
+    u.ab = d.abilityCooldown ?? ABILITY_CD;
+    if (d.ability === 'pulse' || d.ability === 'mend') { u.abFire = true; return true; }
+    u.abT = d.abilitySeconds ?? 5;
+    if (d.ability === 'siege') { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; u.path = undefined; }
+    return true;
+  }
+
+  /** An armed instant ability goes off (in the shared fight). */
+  private fireAbility(u: Unit, d: UnitDef) {
+    u.abFire = undefined;
+    const team = u.team ?? 0, p = d.abilityPower ?? 1, r = d.abilityRadius ?? 0;
+    if (d.ability === 'pulse') {
+      for (const h of [...this.foes(team)]) {
+        if (h.hp <= 0 || !this.targetable(h, team) || Math.hypot(h.x - u.x, h.z - u.z) - this.foeR(h) > r) continue;
+        this.strike(u.x, u.z, h, p, FX.ARC, {}, team);
+      }
+    } else if (d.ability === 'mend') {
+      for (const o of this.units) {
+        if (!this.allied(o.team ?? 0, team) || Math.hypot(o.x - u.x, o.z - u.z) > r) continue;
+        const max = content.units[o.unit].hp;
+        if (o.hp < max) { o.hp = Math.min(max, o.hp + p); this.fx.push(FX.REPAIR, u.x, u.z, o.x, o.z); }
+      }
+      for (const b of this.s.buildings) {
+        if (!this.allied(b.team ?? 0, team) || b.progress < 1 || Math.hypot(b.x - u.x, b.z - u.z) > r + bodyR(b)) continue;
+        const max = def(b).hp;
+        if (b.hp < max) { b.hp = Math.min(max, b.hp + p); this.fx.push(FX.REPAIR, u.x, u.z, b.x, b.z); }
+      }
+    }
   }
 
   private stepTurrets() {
@@ -1487,6 +1547,17 @@ export class Sim {
     if (us.length) this.setUnitBodies(us);
     const boarded: Unit[] = [];
     const raiders = new Map<number, Foe[]>(); // hostiles at a building, worked out once per player if an idle unit asks
+    this.auras.length = 0;
+    for (const u of [...us]) {
+      const d = content.units[u.unit];
+      if (u.abFire && u.hp > 0) this.fireAbility(u, d);
+    }
+    for (const u of us) {
+      const d = content.units[u.unit];
+      if (u.ab) u.ab = Math.max(0, u.ab - DT);
+      if (u.abT) u.abT = Math.max(0, u.abT - DT);
+      if (abilityOn(u, d, 'shield')) this.auras.push({ x: u.x, z: u.z, r: d.abilityRadius ?? 0, keep: Math.max(0, 1 - (d.abilityPower ?? 0.5)), team: u.team ?? 0 });
+    }
     for (const u of us) {
       const d = content.units[u.unit];
       u.cd = Math.max(0, u.cd - DT);
@@ -1495,12 +1566,14 @@ export class Sim {
       if (d.rescues) { this.stepMedevac(u, d); continue; }
       if (d.repairRate) { this.stepRepairer(u, d); continue; }
       const moving = u.order.kind === 'move', team = u.team ?? 0, foes = this.foes(team);
+      const pw = d.abilityPower ?? 1, sieged = abilityOn(u, d, 'siege');
+      const range = d.range * (sieged ? pw : 1), speed = d.speed * (abilityOn(u, d, 'boost') ? pw : 1);
       let tgt = u.target >= 0 ? foes.find((h) => h.id === u.target) : undefined;
       if (tgt && !this.canHit(tgt, d.antiAir, false, team)) tgt = undefined;
       const leash = Math.max(d.aggro * LEASH, RULES.unitResponse + 10);
       const min = d.minRange ?? 0;
       if (!tgt || (s.tick + u.id) % 5 === 0) {
-        const seek = moving ? d.range : d.aggro;
+        const seek = moving ? range : Math.max(d.aggro, range);
         let bd = Infinity;
         tgt = undefined;
         for (const h of foes) {
@@ -1526,26 +1599,30 @@ export class Sim {
       if (!d.damage) tgt = undefined; // unarmed (a transport): never chases anything
       u.target = tgt?.id ?? -1;
       const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.foeR(tgt) - d.radius : Infinity;
-      if (tgt && gap <= d.range && d.damage > 0) {
+      if (tgt && gap <= range && d.damage > 0) {
         if (!moving) {
           let dh = Math.atan2(tgt.x - u.x, tgt.z - u.z) - u.heading;
           dh = Math.atan2(Math.sin(dh), Math.cos(dh));
           u.heading += clamp(dh, -8 * DT, 8 * DT);
         }
         if (u.cd <= 0) {
-          u.cd = d.cooldown;
-          const dead = tgt.hp <= d.damage;
-          this.strike(u.x, u.z, tgt, d.damage, weaponFx(unitWeapon(d), false), d, team); // (d carries antiAir)
+          u.cd = d.cooldown / (abilityOn(u, d, 'overdrive') ? pw : 1);
+          const charged = abilityOn(u, d, 'charge');
+          const dmg = d.damage * (sieged ? pw : 1) * (charged ? pw : 1) * (isBuilding(tgt) ? d.vsBuildings ?? 1 : 1);
+          if (charged) u.abT = 0;
+          const dead = tgt.hp <= dmg;
+          this.strike(u.x, u.z, tgt, dmg, weaponFx(unitWeapon(d), false), d, team); // (d carries antiAir)
           if (dead) u.target = -1;
         }
       }
+      if (sieged) continue; // dug in: turns and shoots, doesn't move
       if (u.order.kind === 'move') {
         const o = u.order;
-        if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed)) this.arrive(u);
-      } else if (tgt && gap > d.range) {
-        if (!this.goTo(u, tgt.x, tgt.z, d.speed)) u.target = -1;
+        if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, speed)) this.arrive(u);
+      } else if (tgt && gap > range) {
+        if (!this.goTo(u, tgt.x, tgt.z, speed)) u.target = -1;
       } else if (!tgt && Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5) {
-        if (!this.goTo(u, u.gx, u.gz, d.speed)) this.arrive(u);
+        if (!this.goTo(u, u.gx, u.gz, speed)) this.arrive(u);
       }
     }
     for (const u of boarded) us.splice(us.indexOf(u), 1);
@@ -1603,14 +1680,14 @@ export class Sim {
     for (let i = pax.length - 1; i >= 0; i--) if (!P.colonist(pax[i])) pax.splice(i, 1); // (died meanwhile)
     if (u.order.kind === 'move') {
       const o = u.order;
-      if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed)) this.arrive(u);
+      if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed * (abilityOn(u, d, 'boost') ? d.abilityPower ?? 1 : 1))) this.arrive(u);
     } else {
       let want: { x: number; z: number } | null = null, bd = d.aggro;
       if (pax.length < cap) for (const c of P.injured()) {
         const dist = Math.hypot(c.x - u.x, c.z - u.z);
         if (dist < bd) { bd = dist; want = c; }
       }
-      if (want) this.goTo(u, want.x, want.z, d.speed);
+      if (want) this.goTo(u, want.x, want.z, d.speed * (abilityOn(u, d, 'boost') ? d.abilityPower ?? 1 : 1));
       else if (pax.length) {
         // in to the nearest finished home, Med Bay (preferred: they're fully treated there) or the Core
         let home: Building | null = null, hd = Infinity, best = Infinity;
@@ -1624,8 +1701,8 @@ export class Sim {
           const n = P.admit(pax, home);
           u.pax = [];
           if (n) this.emit(`${d.name}: ${n === 1 ? 'one' : n} brought in to the ${def(home).name}`, 'info', 'online');
-        } else if (home && !this.goTo(u, home.x, home.z, d.speed)) u.repath = this.s.tick;
-      } else if (Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5 && !this.goTo(u, u.gx, u.gz, d.speed)) this.arrive(u);
+        } else if (home && !this.goTo(u, home.x, home.z, d.speed * (abilityOn(u, d, 'boost') ? d.abilityPower ?? 1 : 1))) u.repath = this.s.tick;
+      } else if (Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5 && !this.goTo(u, u.gx, u.gz, d.speed * (abilityOn(u, d, 'boost') ? d.abilityPower ?? 1 : 1))) this.arrive(u);
     }
     if (u.pax?.length) P.carry(u.pax, u.x, u.z);
   }
@@ -1684,11 +1761,11 @@ export class Sim {
     }
     if (moving) {
       const o = u.order as { x: number; z: number };
-      if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed)) this.arrive(u);
+      if (Math.hypot(o.x - u.x, o.z - u.z) < 1.2 || !this.goTo(u, o.x, o.z, d.speed * (abilityOn(u, d, 'boost') ? d.abilityPower ?? 1 : 1))) this.arrive(u);
     } else if (p && gap > d.range) {
-      if (!this.goTo(u, p.e.x, p.e.z, d.speed)) u.fix = -1;
+      if (!this.goTo(u, p.e.x, p.e.z, d.speed * (abilityOn(u, d, 'boost') ? d.abilityPower ?? 1 : 1))) u.fix = -1;
     } else if (!p && Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5) {
-      if (!this.goTo(u, u.gx, u.gz, d.speed)) this.arrive(u);
+      if (!this.goTo(u, u.gx, u.gz, d.speed * (abilityOn(u, d, 'boost') ? d.abilityPower ?? 1 : 1))) this.arrive(u);
     }
   }
 
@@ -1876,7 +1953,7 @@ export class Sim {
           h.cd = u.cooldown;
           const left = this.soak(h, tgt.x, tgt.z, u.damage * (isC ? this.people.harm() : 1), weaponFx(unitWeapon(u), false));
           if (left <= 0) continue;
-          tgt.hp -= left;
+          tgt.hp -= isU ? left * this.armour(tgt as Unit) : left;
           if (!isC) this.underAttack(tgt as Building | Unit | Drone);
           if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : isC ? this.people.kill(tgt as Colonist, 'killed by predators') : this.destroyDrone(tgt as Drone);
         }
@@ -2541,7 +2618,7 @@ export class Sim {
       case 'order': {
         let sel = this.units.filter((u) => c.ids.includes(u.id));
         const x = clamp(c.x, -limit(), limit()), z = clamp(c.z, -limit(), limit());
-        for (const u of sel) { u.ride = undefined; u.drop = undefined; }
+        for (const u of sel) { u.ride = undefined; u.drop = undefined; if (content.units[u.unit].ability === 'siege') u.abT = 0; }
         // a loaded transport sent to a spot on land goes to land its cargo there
         if (!offLimits('ground', regionHeightRaw(x, z))) sel = sel.filter((u) => !(u.cargo?.length && this.sendToLand(u, x, z)));
         // spread out around the point (sunflower), nearest units take the inner spots
@@ -2585,6 +2662,16 @@ export class Sim {
       }
       case 'surrender': {
         if (s.players && !s.players[this.team]?.out && !this.falling.includes(this.team)) this.falling.push(this.team);
+        return;
+      }
+      case 'ability': {
+        let n = 0, any = false;
+        for (const u of this.units) {
+          if (!c.ids.includes(u.id) || !content.units[u.unit]?.ability) continue;
+          any = true;
+          if (this.useAbility(u)) n++;
+        }
+        if (any && !n) this.emit('Not ready yet', 'warn', 'deny');
         return;
       }
       case 'stop': {
@@ -2697,6 +2784,7 @@ export class Sim {
         id: u.id, team: u.team, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0,
         cargo: d.carries ? u.cargo?.length ?? 0 : undefined, boarding: u.ride !== undefined || undefined, pax: d.rescues ? u.pax?.length ?? 0 : undefined,
         ...(d.shield && d.shieldRadius ? { sh: (u.sh ?? d.shield) / d.shield, shR: d.shieldRadius, shUp: !u.shDown && (u.sh ?? d.shield) > 0 } : {}),
+        ...(d.ability ? { abCd: u.ab ?? 0, abOn: u.abT || undefined } : {}),
       };
     });
     // effects in the fog stay hidden too

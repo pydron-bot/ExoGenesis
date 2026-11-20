@@ -14,5 +14,10 @@
   "modelScale": 1,
   "cost": 70,
   "buildSeconds": 12,
-  "model": "exo-medevac"
+  "model": "exo-medevac",
+  "ability": "boost",
+  "abilityName": "Sirens",
+  "abilityPower": 1.6,
+  "abilitySeconds": 6,
+  "abilityCooldown": 25
 }

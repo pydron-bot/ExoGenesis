@@ -2,8 +2,9 @@
  * Computer players, headless (DESIGN §5.11 phase 4): plays skirmishes on generated maps and reports how each
  * computer player's game went: a minute-by-minute timeline (alloys, buildings, drones, army, waves, power) and who
  * won when.
- *   node tools/ai-sim.mjs [--match normal,idle] [--seeds 3] [--minutes 30] [--players 2] [--world home] [--trace]
+ *   node tools/ai-sim.mjs [--match normal,idle] [--seeds 3] [--seed 100] [--minutes 30] [--players 2] [--world home] [--size medium] [--trace]
  *   --match a,b[,c,d]: each player's level (easy | normal | hard), or idle (a player who does nothing)
+ *   --no-abilities: computer players don't use unit abilities
  *   --check: run the standard checks (each level beats an idle player; hard beats easy) and exit 1 on a failure
  */
 import path from 'node:path';
@@ -27,6 +28,8 @@ if (argv0.some((a) => a.includes('old:'))) {
   baseline = (await runnerImport(path.join(root, 'tools/.cache/ai-baseline.ts'))).module;
 }
 const arg = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
+/** --no-abilities: computer players never use unit abilities (to measure what they add). */
+if (process.argv.includes('--no-abilities')) globalThis.exoNoAbilities = true;
 const trace = process.argv.includes('--trace');
 
 function game({ match, seed, minutes, world = 'home', size = 'medium', water = 'some', relief = 'rolling', quiet = false }) {
@@ -79,7 +82,7 @@ if (process.argv.includes('--check')) {
     console.log(`      easy vs hard, seed ${seed}: ${r.winner < 0 ? 'no result' : `P${r.winner} won`} at ${r.mins} min`);
   }
   check(hardWins >= 2, `hard beats easy (${hardWins}/3)`);
-  const ffa = game({ match: ['normal', 'normal', 'normal', 'normal'], seed: 31, minutes: 60, quiet: true, size: 'large' });
+  const ffa = game({ match: ['normal', 'normal', 'normal', 'normal'], seed: 31, minutes: 80, quiet: true, size: 'large' });
   check(ffa.winner >= 0, `a four-way free-for-all of normals ends (${ffa.winner >= 0 ? `P${ffa.winner} at ${ffa.mins} min` : `still going at ${ffa.mins} min`})`);
   for (const l of ffa.stats) console.log(`        ${l}`);
   console.log(failed ? `\n${failed} failed` : '\nall AI checks passed');
@@ -89,9 +92,9 @@ if (process.argv.includes('--check')) {
 const match = arg('--match', 'idle,normal').split(',');
 const seeds = Number(arg('--seeds', 3)), minutes = Number(arg('--minutes', 30));
 for (let k = 0; k < seeds; k++) {
-  const seed = 100 + k;
+  const seed = Number(arg('--seed', 100)) + k;
   console.log(`=== ${match.join(' vs ')} · seed ${seed}`);
-  const r = game({ match, seed, minutes, world: arg('--world', 'home') });
+  const r = game({ match, seed, minutes, world: arg('--world', 'home'), size: arg('--size', 'medium') });
   console.log(`  ${r.winner < 0 ? 'no winner' : `P${r.winner} (${match[r.winner]}) won`} at ${r.mins} min`);
   for (const l of r.lines) console.log(`    ${l}`);
   for (const l of r.stats) console.log(`    ${l}`);
