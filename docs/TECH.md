@@ -1439,7 +1439,7 @@ unchanged (`tools/balance.mjs`, all nine strategies, output byte-identical befor
   out and the last one wins, save/load, a four-player free-for-all, and allies holding fire. Sim cost (sim-bench):
   3.2 → ~3.3 ms/tick, within its ±10% noise.
 
-### Skirmish phase 2: generated maps (v0.51.0)
+### Skirmish phase 2: generated maps (v0.52.0)
 
 DESIGN §5.11. `src/skirmish/mapgen.ts` `generateSkirmishMap(options, content.bodies)` → a region record (never saved
 to content), the start spots, and a report. ~90 ms median, 150 ms worst on hive1.

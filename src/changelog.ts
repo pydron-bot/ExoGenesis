@@ -15,7 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.51.0',
+    version: '0.52.0',
     date: '2026-11-20',
     title: 'Skirmish maps',
     notes: [
