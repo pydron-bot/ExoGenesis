@@ -1,0 +1,76 @@
+{
+  "title": "Brownout",
+  "text": "Not enough power for everything. The cryo bank is drawing down its buffer. Something has to go dark tonight.",
+  "trigger": "cryoBelow",
+  "count": 90,
+  "dilemma": true,
+  "again": 1200,
+  "choices": [
+    {
+      "label": "Dim the homes",
+      "reply": "Homes on minimum heat. People sleep in their coats. They know whose call it was."
+    },
+    {
+      "label": "Slow the mines",
+      "reply": "Depots throttled back. The embryos stay cold and safe; the alloy count stalls."
+    },
+    {
+      "label": "Put it to the colony",
+      "reply": "The question goes out on every screen. The vote is tonight."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "boost",
+      "stat": "power",
+      "amount": -0.15,
+      "seconds": 180,
+      "text": "Homes dimmed"
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -6
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "boost",
+      "stat": "mining",
+      "amount": -0.4,
+      "seconds": 180,
+      "text": "Mines slowed"
+    },
+    {
+      "after": 2,
+      "kind": "boost",
+      "stat": "power",
+      "amount": -0.1,
+      "seconds": 180,
+      "text": "Depots throttled"
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": 3
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": -2
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "brownout-vote"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

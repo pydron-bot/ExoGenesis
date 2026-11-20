@@ -1,0 +1,81 @@
+{
+  "title": "The Cantor's Request",
+  "text": "For a whole sol the Choir's cantor has been broadcasting one packet, over and over, in our own format: a request for power to its dead tower.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "contact",
+      "group": "choir"
+    },
+    {
+      "kind": "regard",
+      "group": "choir",
+      "count": 40
+    }
+  ],
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Lend them power",
+      "reply": "A cable to the pylon. Its glow steadies. The loop of tenders speeds up, very slightly."
+    },
+    {
+      "label": "Refuse",
+      "reply": "The packet stops. Then it starts again, slower."
+    },
+    {
+      "label": "Take the tower apart for study",
+      "reply": "The drones strip the pylon's isotope cells. The tenders stop walking and watch."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "boost",
+      "stat": "power",
+      "amount": 0.1,
+      "seconds": 360,
+      "text": "Power lent to the Choir"
+    },
+    {
+      "after": 1,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 15
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "choir-powered"
+    },
+    {
+      "after": 2,
+      "kind": "regard",
+      "group": "choir",
+      "amount": -8
+    },
+    {
+      "after": 3,
+      "kind": "isotopes",
+      "amount": 30
+    },
+    {
+      "after": 3,
+      "kind": "regard",
+      "group": "choir",
+      "amount": -20
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": -1
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "choir-studied"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

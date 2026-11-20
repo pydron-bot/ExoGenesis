@@ -1,0 +1,68 @@
+{
+  "title": "A Quarrel",
+  "cast": "unhappy",
+  "text": "{who} and a crew-mate came to blows over the shift rota. Both of them want the AI to settle it.",
+  "trigger": "colonists",
+  "count": 5,
+  "dilemma": true,
+  "again": 1500,
+  "choices": [
+    {
+      "label": "The AI decides",
+      "reply": "We rule on the rota. {who} loses. The Devoted call it fair; the Autonomists call it an order."
+    },
+    {
+      "label": "Send it to the colonists",
+      "reply": "A meeting, a long one. The rota is fixed by morning, by people."
+    },
+    {
+      "label": "Rewrite everyone's shifts",
+      "reply": "A new rota for the whole colony. Output dips while everyone learns it; the shouting stops."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -6,
+      "one": true
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 3,
+      "bloc": "devoted"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -1
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": 2
+    },
+    {
+      "after": 3,
+      "kind": "boost",
+      "stat": "staff",
+      "amount": -0.15,
+      "seconds": 150,
+      "text": "New shift rota"
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": 3
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

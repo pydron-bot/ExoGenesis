@@ -1,0 +1,24 @@
+{
+  "title": "The Tower Speaks",
+  "text": "The powered pylon starts relaying a sensor sweep of the whole region into our network, in our own packet format. We didn't teach it that. Our warnings come earlier now.",
+  "trigger": "flag",
+  "flag": "choir-powered",
+  "delay": 300,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "boost",
+      "stat": "warning",
+      "amount": 30,
+      "text": "Choir sensor sweeps"
+    },
+    {
+      "after": 0,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 5
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma follow-up"
+}

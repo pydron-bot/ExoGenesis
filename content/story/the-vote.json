@@ -1,0 +1,30 @@
+{
+  "title": "The Vote",
+  "text": "The colony voted to share the cold: everyone on short heat until the power is back, the pods and the bank first. Nobody was told to. They are oddly proud of it.",
+  "trigger": "flag",
+  "flag": "brownout-vote",
+  "delay": 60,
+  "unless": "brownout-voted",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "boost",
+      "stat": "power",
+      "amount": -0.12,
+      "seconds": 150,
+      "text": "Shared cold"
+    },
+    {
+      "after": 0,
+      "kind": "wellbeing",
+      "amount": 5
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "brownout-voted"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma follow-up"
+}

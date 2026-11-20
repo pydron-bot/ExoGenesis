@@ -244,6 +244,15 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if (ev.trigger === 'after' && ev.event === id) out.push({ path: P, field: 'event', msg: 'an event can\'t follow itself' });
     if (ev.style === 'radio' && ev.choices?.length) out.push({ path: P, field: 'choices', msg: 'a radio message can\'t have choices (make it a card)' });
     if (ev.style === 'radio' && ev.lines?.length) out.push({ path: P, field: 'lines', msg: 'a radio message is one line (make it a card for a conversation)' });
+    // a card about one colonist: effects on "the one", and {who}, need a cast
+    (ev.effects ?? []).forEach((e, n) => {
+      if (!ev.cast && (e?.one || e?.kind === 'favourLine' || e?.kind === 'rescue')) out.push({ path: P, field: `effects[${n}]`, msg: 'needs the event to be About someone (its cast)' });
+      if (e?.kind === 'boost' && !e.stat) out.push({ path: P, field: `effects[${n}].stat`, msg: 'a boost needs what it Changes' });
+      if (e?.kind === 'policy' && !/^(hours|rations|oversight|council):\w+$/.test(e.policy ?? '')) out.push({ path: P, field: `effects[${n}].policy`, msg: 'key:value, e.g. hours:short' });
+    });
+    const words = [ev.title, ev.text, ...(ev.choices ?? []).flatMap((c) => [c.label, c.reply ?? ''])].join(' ');
+    if (!ev.cast && /\{who(Line)?\}/.test(words)) out.push({ path: P, field: 'cast', msg: '{who} needs the event to be About someone' });
+    if (ev.again && !ev.dilemma) out.push({ path: P, field: 'again', msg: 'only colony dilemmas come again' });
   }
   if (db.buildings.core && db.buildings.core.role !== 'core') out.push({ path: 'buildings/core.json', field: 'role', msg: 'must be core' });
   if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });

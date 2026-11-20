@@ -1,0 +1,78 @@
+{
+  "title": "Lean Months",
+  "cast": "adult",
+  "text": "The biomass stores are nearly empty. {who} asks what the colony eats this week.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "biomassBelow",
+      "count": 25
+    },
+    {
+      "kind": "colonists",
+      "count": 3
+    }
+  ],
+  "dilemma": true,
+  "again": 1200,
+  "choices": [
+    {
+      "label": "Cut everyone's rations",
+      "reply": "Short rations for a while. Nobody likes it; nobody starves."
+    },
+    {
+      "label": "Children and the sick first",
+      "reply": "The adults go short so the young ones don't. {who} nods and takes the news to the kitchens."
+    },
+    {
+      "label": "Buy growth kits with alloys",
+      "reply": "The printers run emergency growth kits overnight. 150 alloys gone; the shelves fill a little."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "boost",
+      "stat": "eat",
+      "amount": 0.25,
+      "seconds": 240,
+      "text": "Short rations"
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -6
+    },
+    {
+      "after": 2,
+      "kind": "boost",
+      "stat": "eat",
+      "amount": 0.12,
+      "seconds": 240,
+      "text": "Adults go short"
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": -3
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "partner"
+    },
+    {
+      "after": 3,
+      "kind": "alloys",
+      "amount": -150
+    },
+    {
+      "after": 3,
+      "kind": "biomass",
+      "amount": 90
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

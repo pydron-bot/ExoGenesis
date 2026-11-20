@@ -9,6 +9,7 @@ import { SPECIALTIES, type BuildingDef, type InhabitantDef, type PeopleRules, ty
 import { TRAITS } from './sim/names';
 import { AUTONOMIST_BELOW, CURRICULA, DEVOTED_ABOVE, POLICIES, type Bloc, type ColonistSnap, type Curriculum, type PeopleSnap, type PolicyKey } from './sim/people-types';
 import type { Command, Snapshot } from './sim/types';
+import { modText } from './sim/mods';
 import type { RegionUi } from './world/region';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -152,6 +153,12 @@ export class PeopleHud {
       if (p.striking) rows.push(`<div class="row warn"><span>On strike</span><span>${p.striking}</span></div>`);
       if (p.surge > 0) rows.push(`<div class="row"><span>Breakthrough</span><span><b>+25% output</b> · ${Math.ceil(p.surge)} s left</span></div>`);
       else rows.push(`<div class="meter"><span title="Fills while 60%+ are Partners and wellbeing is 65+">Breakthrough</span>${bar(p.breakthrough * 100, '#5bff9a')}<b>${(p.breakthrough * 100).toFixed(0)}%</b></div>`);
+    }
+    // what the colony's choices are still doing (story boosts: dilemmas, inhabitants' gifts)
+    const boosts = s.story?.boosts ?? [];
+    if (boosts.length) {
+      rows.push('<div class="h">IN FORCE</div>');
+      for (const b of boosts) rows.push(`<div class="row"><span>${esc(b.text)}</span><span>${esc(modText(b.stat, b.amount))} · ${b.left < 0 ? 'lasting' : `${Math.floor(b.left / 60)}:${String(Math.floor(b.left % 60)).padStart(2, '0')} left`}</span></div>`);
     }
     rows.push('<div class="h">POLICY</div>');
     for (const [k, pol] of Object.entries(POLICIES) as [PolicyKey, (typeof POLICIES)[PolicyKey]][]) {

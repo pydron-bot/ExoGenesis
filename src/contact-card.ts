@@ -63,7 +63,10 @@ export class ContactCard {
   }
 
   /** Story text with {first} (the first pod-born colonist's given name). */
-  private fill(t: string) { return t.replaceAll('{first}', this.first || 'your first colonist'); }
+  private fill(t: string, id?: string) {
+    const w = id ? this.last?.story?.who?.[id] : undefined;
+    return t.replaceAll('{first}', this.first || 'your first colonist').replaceAll('{whoLine}', w?.line ?? 'their').replaceAll('{who}', w?.name ?? 'someone');
+  }
 
   /** Name, role and portrait above a line, in the character's colour. */
   private speaker(character?: string, speaker?: string): { html: string; color: string } {
@@ -86,8 +89,8 @@ export class ContactCard {
     const n = Math.min(this.page.n, pages.length - 1), pg = pages[n], who = this.speaker(pg.character, pg.speaker);
     const buttons = n < pages.length - 1
       ? `<button data-next>Next ›</button><span class="pg">${n + 1} / ${pages.length}</span>`
-      : ev.choices?.length ? ev.choices.map((c, k) => `<button data-s="${esc(id)}:${k}">${esc(this.fill(c.label))}</button>`).join('') : `<button data-s="${esc(id)}:0">Continue</button>`;
-    return { html: `${who.html}<div class="t">${esc(this.fill(ev.title))}</div><p>${esc(this.fill(pg.text))}</p><div class="grp">${buttons}</div>`, color: who.color };
+      : ev.choices?.length ? ev.choices.map((c, k) => `<button data-s="${esc(id)}:${k}">${esc(this.fill(c.label, id))}</button>`).join('') : `<button data-s="${esc(id)}:0">Continue</button>`;
+    return { html: `${who.html}${ev.dilemma ? '<small class="kind">Colony dilemma</small>' : ''}<div class="t">${esc(this.fill(ev.title, id))}</div><p>${esc(this.fill(pg.text, id))}</p><div class="grp">${buttons}</div>`, color: who.color };
   }
 
   /** The radio panel: the oldest radio message, until it times out or is tapped. */

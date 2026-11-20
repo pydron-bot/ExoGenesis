@@ -14,7 +14,7 @@
  * AI?). Stance sorts them into blocs, and the blocs want different policies.
  */
 import { content } from '../content';
-import { SPECIALTIES, type BuildingDef, type Specialty } from '../content/defs';
+import { SPECIALTIES, type BuildingDef, type Cast, type Specialty } from '../content/defs';
 import type { Sim } from './core';
 import { hourAt } from './daylight';
 import { GIVEN, LINEAGES, TRAITS, type Trait } from './names';
@@ -195,6 +195,44 @@ export class People {
   }
 
   colonist(id: number) { return this.s.colonists.find((c) => c.id === id); }
+  /** A colonist's family line, by name. */
+  lineOf(c: Colonist) { return lineName(c.lineage); }
+
+  /**
+   * Who a story card can be about (its `cast`): an adult who fits, picked at random (the unhappiest for "unhappy",
+   * whoever is lying injured for "injured"). Undefined when no one fits.
+   */
+  castFor(kind: Cast): Colonist | undefined {
+    const s = this.s;
+    if (kind === 'injured') return this.injured()[0];
+    const ok = s.colonists.filter((c) => this.adult(c) && c.down === undefined && c.at !== AT_RIDE);
+    let pool: Colonist[];
+    switch (kind) {
+      case 'adult': pool = ok; break;
+      case 'autonomist': case 'partner': case 'devoted': pool = ok.filter((c) => blocOf(c.stance) === kind); break;
+      case 'unhappy': return [...ok].sort((a, b) => a.wb - b.wb)[0];
+      case 'parent': pool = ok.filter((c) => s.colonists.some((k) => !this.adult(k) && k.parents?.includes(c.id))); break;
+      default: pool = ok.filter((c) => c.specialty === kind);
+    }
+    return pool.length ? pool[Math.floor(this.sim.rnd() * pool.length)] : undefined;
+  }
+
+  /** Someone lying injured is carried indoors by their neighbours (a story choice): the nearest home, or the Core. */
+  carryIn(c: Colonist) {
+    if (c.down === undefined || c.at !== -1) return false;
+    let best: Building | undefined, bd = Infinity;
+    for (const b of this.sim.s.buildings) {
+      const d = def(b);
+      if (b.progress < 1 || !(d?.role === 'civic' && (d.housing ?? 0) > 0) && d?.role !== 'core' && d?.role !== 'medbay') continue;
+      const dist = Math.hypot(b.x - c.x, b.z - c.z);
+      if (dist < bd) { bd = dist; best = b; }
+    }
+    if (!best) return false;
+    c.at = best.id; c.x = best.x; c.z = best.z; c.down = undefined; c.goal = -1; c.path = undefined;
+    c.hp = Math.max(c.hp, P.colonistHp * 0.4);
+    this.emit(`${c.name} was carried in to the ${def(best).name} by their neighbours`, 'info', 'friend');
+    return true;
+  }
   private maxHp(c: Colonist) { return P.colonistHp * (c.traits.includes('frail') ? 0.6 : 1); }
 
   // ---------- Med Bays and Memorials ----------
@@ -363,6 +401,8 @@ export class People {
   /** The surviving lineage with the fewest people (living + embryos), to keep diversity up. */
   private rarestLine() {
     const s = this.s, living = this.livingPerLine();
+    // a line promised by a story choice goes first, once
+    if (s.favour !== undefined) { const f = s.favour; s.favour = undefined; if (s.bank[f] > 0) return f; }
     let best = -1, bn = Infinity;
     s.bank.forEach((n, l) => {
       if (n <= 0) return;

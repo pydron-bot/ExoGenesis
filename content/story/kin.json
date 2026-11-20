@@ -1,0 +1,42 @@
+{
+  "title": "Kin",
+  "cast": "adult",
+  "text": "Word of the favour got round. {who} is the third to ask for their own line to be thawed next.",
+  "trigger": "flag",
+  "flag": "kin-favour",
+  "delay": 300,
+  "choices": [
+    {
+      "label": "No more favours",
+      "reply": "The rule stands again: rarest line first. A few people think it should never have bent."
+    },
+    {
+      "label": "Draw lots",
+      "reply": "Each pod, one family line by lot from the ones running short. It feels fair, mostly."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -3
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -2
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": 3
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 1
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma follow-up"
+}

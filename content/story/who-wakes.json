@@ -1,0 +1,78 @@
+{
+  "title": "Who Wakes Next",
+  "cast": "adult",
+  "text": "{who} has asked a favour. The next embryo out of the cryo bank should come from the {whoLine} line: their own family. The bank's rule is rarest line first, to keep the colony's genes diverse.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "pod"
+    },
+    {
+      "kind": "colonists",
+      "count": 3
+    },
+    {
+      "kind": "embryosBelow",
+      "count": 116
+    }
+  ],
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Keep the rule",
+      "reply": "\"Rarest line first. Everyone's family is the colony's family.\" {who} says they understand. They don't look like it."
+    },
+    {
+      "label": "Grant it",
+      "reply": "The next pod will hold a {whoLine} child. {who} cries, then laughs, then goes to tell everyone."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -6,
+      "one": true
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -5,
+      "one": true
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 1
+    },
+    {
+      "after": 2,
+      "kind": "favourLine"
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": 12,
+      "one": true
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 6,
+      "one": true
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "kin-favour"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

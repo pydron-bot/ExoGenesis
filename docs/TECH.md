@@ -1655,3 +1655,38 @@ Test: `tools/tree-smoke.mjs` (`--headless-only`; the browser half wants a dev se
   Brute's blow on a Solar Array 24 → 20.4 (Hardened Plating) → 18.0 (+ Precursor Alloys); Nutrition Science food ×0.85;
   Low-Scar scars ×0.60; Tracking Arrays takes 35 s at an unstaffed lab. Also: each gate refuses then allows, modifiers
   survive a save, and at 390 × 780 the tree fills the width with no sideways scroll and starts a project from a node.
+
+### Colony dilemmas (campaign depth 2)
+
+Small choices that come out of what the colony is going through, each leaving something behind. They are ordinary
+story events (`content/story/`, the story HUD) with a few additions. Code: `src/sim/story.ts`, `src/sim/conditions.ts`,
+`People.castFor` / `carryIn` in `src/sim/people.ts`. Test: `tools/dilemma-smoke.mjs` (`--headless-only`; the browser
+half wants a dev server, default `:5186`).
+
+- **Story fields:** `dilemma` (waits its turn), `again` (seconds after its answer that a dilemma can fire again, its
+  trigger met again; `StoryState.again` re-arms it by taking it off `fired`), and `cast` (`CASTS`: adult, a bloc, the
+  unhappiest, someone injured, a parent, a specialty): who the card is about, picked when it fires
+  (`StoryState.cast`); `{who}` and `{whoLine}` in its title, text, choices and replies are their name and family line
+  (the sim fills log lines, the card fills from `StorySnap.who`). With no one to fit, the event waits.
+- **Throttle** (`Story.dilemmaOk`): none before the colony rules' `dilemmaFrom` (900 s after landing), none within
+  `dilemmaGap` (200 s) of the last one being answered, none while another card waits (radio aside) or a dilemma waits out
+  a delay, and at most one per check. The card carries a small "Colony dilemma" tag.
+- **New conditions:** `cryoBelow` (a brownout draws the bank's buffer down), `biomassBelow`, `embryosBelow`, `injured`,
+  `children`, `autonomists`, `devoted`, `striking`, `linesGone`, `regard` / `regardBelow` (a group's camp).
+- **New effects:** `boost` (a colony modifier from the research system, `stat` × `amount`, for `seconds` or for good,
+  named by its text; `StoryState.mods`, shown in the Colony panel under **In force** with its time left, logged
+  "…: over" when it ends), `policy` (`hours:short`…), `favourLine` (the next growth pod takes the cast's line, once:
+  `PeopleState.favour`), `rescue` (the cast, lying injured, is carried in to the nearest home). `stance` and
+  `wellbeing` gain `one` (just the cast) and `bloc` (just that bloc's adults). Content checks: `one`, `favourLine`,
+  `rescue` and `{who}` need a cast; a boost needs its stat; a policy is `key:value`; only dilemmas come again.
+- **The dilemmas** (13, chapter Firstborn, tag "dilemma"): Brownout (dim the homes / slow the mines / put it to the
+  colony → The Vote), Lean Months (rations), Who Wakes Next (a promised family line → Kin), The Watchers (surveillance
+  logs), What the Children Learn (education → The Children's Question), A Quarrel (a dispute), Hurt (someone injured:
+  stay in / carry them / talk them through), The Vell Ask (food → A Debt Repaid: a guide's find), The Cantor's Request
+  (power for the Choir's tower → The Tower Speaks: earlier warnings for good), Down Tools (strikers), The Last Name (a
+  line gone), The Petition (Devoted on the sensor net → Two Voices), Night Shift (an armed watch). Six follow-ups.
+- **Measured:** a 60-minute headless playthrough (people bot, no predators, random answers) met Who Wakes Next at
+  21:55, A Quarrel 27:55, Brownout 35:39 (The Vote a minute later), What the Children Learn 44:08 and its follow-up
+  50:09: one every 6–8 minutes once the colony has people. The test also checks the gap, one card at a time, boosts
+  running out, a promised line reaching the next pod, a rescue, a policy change, coming again, saves, and (browser) the
+  card naming its colonist and the Colony panel listing the boost.

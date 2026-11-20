@@ -1,0 +1,82 @@
+{
+  "title": "The Vell Ask",
+  "text": "Runners from the Vell camp stand at the edge of our lights. The cold months are coming and their stores are thin. They ask for food.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "contact",
+      "group": "vell"
+    },
+    {
+      "kind": "regard",
+      "group": "vell",
+      "count": 40
+    },
+    {
+      "kind": "colonists",
+      "count": 2
+    }
+  ],
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Give them 80 biomass",
+      "reply": "The runners load the sacks onto their backs and go without a word. The song-keeper sends one back to bow."
+    },
+    {
+      "label": "We can't spare it",
+      "reply": "They hear it and leave. The fire at their camp burns lower that night."
+    },
+    {
+      "label": "Trade food for their songs",
+      "reply": "40 biomass for an evening of star-songs, recorded. The translators work all night."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "biomass",
+      "amount": -80
+    },
+    {
+      "after": 1,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 15
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "fed-vell"
+    },
+    {
+      "after": 2,
+      "kind": "regard",
+      "group": "vell",
+      "amount": -8
+    },
+    {
+      "after": 3,
+      "kind": "biomass",
+      "amount": -40
+    },
+    {
+      "after": 3,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 6
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": -1
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "vell-songs"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

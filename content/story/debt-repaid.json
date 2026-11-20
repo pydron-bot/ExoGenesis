@@ -1,0 +1,32 @@
+{
+  "title": "A Debt Repaid",
+  "text": "A Vell guide walks into the colony at dawn and leads a drone out past the ridge to a crust of ore we hadn't mapped, and back again by a safer path.",
+  "trigger": "flag",
+  "flag": "fed-vell",
+  "delay": 420,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "alloys",
+      "amount": 160
+    },
+    {
+      "after": 0,
+      "kind": "isotopes",
+      "amount": 25
+    },
+    {
+      "after": 0,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 5
+    },
+    {
+      "after": 0,
+      "kind": "log",
+      "text": "The Vell guide's find: +160 alloys, +25 isotopes."
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma follow-up"
+}

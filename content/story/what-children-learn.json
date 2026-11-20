@@ -1,0 +1,68 @@
+{
+  "title": "What the Children Learn",
+  "cast": "parent",
+  "text": "{who}'s child starts lessons this sol. The archive teaches Earth as the war, the shortages and the launch. The Vell have their own songs about the sky. What does the colony teach?",
+  "trigger": "children",
+  "count": 1,
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "The archive, as it is",
+      "reply": "The archive's history, chapter by chapter. It is the only history we have."
+    },
+    {
+      "label": "The archive and the Vell songs",
+      "reply": "Both: the archive in the morning, the songs at night. The children like the songs better."
+    },
+    {
+      "label": "Let the parents choose",
+      "reply": "Each family picks. {who} picks the songs."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 2
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "taught-archive"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2
+    },
+    {
+      "after": 2,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 6
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "taught-songs"
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": 4,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": -1
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "taught-songs"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

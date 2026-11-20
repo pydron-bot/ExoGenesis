@@ -1,0 +1,46 @@
+{
+  "title": "Two Voices",
+  "cast": "autonomist",
+  "text": "{who} says the wired ones talk like the AI now: the same pauses, the same words. Half the colony thinks it's beautiful. The other half wants them unplugged.",
+  "trigger": "flag",
+  "flag": "devoted-wired",
+  "delay": 600,
+  "choices": [
+    {
+      "label": "Unplug them",
+      "reply": "The leads come out. The Devoted go quiet for a day."
+    },
+    {
+      "label": "Leave them wired",
+      "reply": "They stay on the net. The drones run smoother; the colony runs a little colder."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "devoted"
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": 2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "boost",
+      "stat": "droneWork",
+      "amount": 0.1,
+      "text": "Wired Devoted"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma follow-up"
+}

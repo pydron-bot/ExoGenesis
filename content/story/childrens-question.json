@@ -1,0 +1,41 @@
+{
+  "title": "The Children's Question",
+  "text": "A child stops a drone in the corridor. \"The Vell sing about a guardian that burned its people. Are you a guardian?\"",
+  "trigger": "flag",
+  "flag": "taught-songs",
+  "delay": 360,
+  "choices": [
+    {
+      "label": "\"I don't know what they mean.\"",
+      "reply": "The child thinks about it. \"That's not a no.\" They run off before we can answer."
+    },
+    {
+      "label": "\"It's only a story.\"",
+      "reply": "\"Okay.\" The child believes us. We log the conversation anyway."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 2
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -1
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "only-a-story"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma follow-up"
+}

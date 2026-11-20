@@ -6,6 +6,7 @@
 import { content } from '../content';
 import type { Condition, ConditionDef } from '../content/defs';
 import type { Sim } from './core';
+import { blocOf } from './people-types';
 
 const SOL = content.colony.solSeconds;
 
@@ -65,6 +66,17 @@ export function conditionMet(sim: Sim, kind: Condition, c: ConditionDef, w: Cond
     case 'planet': return sim.planet.health() >= (c.count ?? 0);
     case 'planetBelow': return sim.planet.health() <= (c.count ?? 0);
     case 'reports': return (s.planet?.reports.length ?? 0) >= n;
+    case 'cryoBelow': return s.cryo <= (c.count ?? 0);
+    case 'biomassBelow': return !!s.people?.colonists.length && s.people.biomass <= (c.count ?? 0);
+    case 'embryosBelow': return !!s.people && sim.people.embryos() <= (c.count ?? 0);
+    case 'injured': return !!s.people && sim.people.injured().length >= n;
+    case 'children': return !!s.people && s.people.colonists.filter((x) => !sim.people.adult(x)).length >= n;
+    case 'autonomists': return !!s.people && s.people.colonists.filter((x) => sim.people.adult(x) && blocOf(x.stance) === 'autonomist').length >= n;
+    case 'devoted': return !!s.people && s.people.colonists.filter((x) => sim.people.adult(x) && blocOf(x.stance) === 'devoted').length >= n;
+    case 'striking': return !!s.people && s.people.colonists.filter((x) => x.strike).length >= n;
+    case 'linesGone': return (s.people?.gone.length ?? 0) >= n;
+    case 'regard': return (s.camps ?? []).some((x) => x.group === c.group && !x.gone && x.regard >= (c.count ?? 0));
+    case 'regardBelow': return (s.camps ?? []).some((x) => x.group === c.group && x.met && !x.gone && x.regard <= (c.count ?? 0));
     case 'all': return !!c.of?.length && c.of.every((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'any': return !!c.of?.some((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'never': return false;

@@ -18,6 +18,7 @@ import type { StorySnap } from './types';
 import { conditionMet } from './conditions';
 import type { Sim } from './core';
 import { TICK_HZ, type StoryState } from './types';
+import { blocOf, type PolicyKey } from './people-types';
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 /** Hints that clear themselves when the player uses what they point at (others stay until an unhint or the next hint). */
@@ -54,11 +55,26 @@ export class Story {
       }
     }
     if (sim.s.tick % TICK_HZ) return;
+    // story boosts that have run their time
+    if (st.mods?.length) {
+      for (const b of st.mods.filter((x) => x.until >= 0 && x.until <= sim.s.tick)) if (b.text) sim.emit(`${b.text}: over`, 'info');
+      st.mods = st.mods.filter((x) => x.until < 0 || x.until > sim.s.tick);
+    }
+    // dilemmas that can come again
+    if (st.again?.length) for (const a of st.again.filter((x) => x.at <= sim.s.tick)) {
+      st.again = st.again.filter((x) => x !== a);
+      st.fired = st.fired.filter((x) => x !== a.id);
+      st.answered = st.answered.filter((x) => x !== a.id);
+    }
+    let dilemma = this.dilemmaOk();
     for (const [id, ev] of Object.entries(content.story)) {
       if (st.fired.includes(id) || st.timers.some((t) => t.id === id)) continue;
       if (ev.region && ev.region !== this.region().id) continue;
       if (ev.unless && this.has(ev.unless)) continue;
+      if (ev.dilemma && !dilemma) continue;
       if (!this.met(ev)) continue;
+      if (ev.cast && !sim.people.castFor(ev.cast)) continue; // no one it could be about (yet)
+      if (ev.dilemma) { dilemma = false; st.lastDilemma = sim.s.tick; }
       if (ev.delay) st.timers.push({ id, at: sim.s.tick + Math.round(ev.delay * TICK_HZ) });
       else this.fire(id);
     }
@@ -70,6 +86,18 @@ export class Story {
       (st.cines ??= []).push(id);
       this.playCine(id);
     }
+  }
+
+  /**
+   * Can a colony dilemma fire now? Not before the colony rules' first-dilemma time, not within the dilemma gap of the
+   * last one, and not while another card waits for an answer (or a dilemma waits out its delay).
+   */
+  private dilemmaOk() {
+    const sim = this.sim, st = this.s, R = content.colony;
+    if (!sim.s.people || sim.secs < (R.dilemmaFrom ?? 900)) return false;
+    if (st.lastDilemma !== undefined && sim.s.tick - st.lastDilemma < (R.dilemmaGap ?? 180) * TICK_HZ) return false;
+    if (st.inbox.some((id) => content.story[id] && content.story[id].style !== 'radio')) return false;
+    return !st.timers.some((t) => content.story[t.id]?.dilemma);
   }
 
   /** Queue a cinematic to play (its trigger met, a `cinematic` effect, or a play test). */
@@ -95,10 +123,15 @@ export class Story {
     const ev = content.story[id], st = this.s;
     if (!ev || st.fired.includes(id)) return;
     st.fired.push(id);
+    if (ev.cast) {
+      const c = this.sim.s.people ? this.sim.people.castFor(ev.cast) : undefined;
+      if (c) (st.cast ??= {})[id] = { id: c.id, name: c.name, line: this.sim.people.lineOf(c) };
+      else if (st.cast) delete st.cast[id];
+    }
     // a radio message logs what was said; a card logs its title (the card shows the rest)
-    this.sim.emit(ev.style === 'radio' ? `${this.fill(this.who(ev))}: ${this.fill(ev.text)}` : this.fill(ev.title), 'info', 'warning');
+    this.sim.emit(ev.style === 'radio' ? `${this.fill(this.who(ev), id)}: ${this.fill(ev.text, id)}` : this.fill(ev.title, id), 'info', 'warning');
     st.inbox.push(id);
-    this.apply(ev, 0);
+    this.apply(ev, 0, id);
   }
 
   /** The player answered a card: `choice` is the button's index (0 for Continue). */
@@ -110,18 +143,26 @@ export class Story {
     const ch = ev.choices?.[choice];
     if (ev.choices?.length) {
       if (!ch) return;
-      if (ch.reply) this.sim.emit(this.fill(ch.reply), 'info', 'message');
-      this.apply(ev, choice + 1);
+      if (ch.reply) this.sim.emit(this.fill(ch.reply, id), 'info', 'message');
+      this.apply(ev, choice + 1, id);
     }
     if (!st.answered.includes(id)) st.answered.push(id);
+    if (ev.dilemma) st.lastDilemma = this.sim.s.tick; // the gap runs from the answer
+    if (ev.again && !st.again?.some((a) => a.id === id)) (st.again ??= []).push({ id, at: this.sim.s.tick + Math.round(ev.again * TICK_HZ) });
   }
 
-  private apply(ev: StoryDef, when: number) {
-    for (const e of ev.effects ?? []) if ((e.after ?? 0) === when) this.effect(e);
+  private apply(ev: StoryDef, when: number, id?: string) {
+    for (const e of ev.effects ?? []) if ((e.after ?? 0) === when) this.effect(e, id);
   }
 
-  /** Run one effect (story events, mission rewards). */
-  effect(e: EffectDef) {
+  /** The colonist an event is about, if they're still with us. */
+  private castOf(id?: string) {
+    const c = id ? this.s.cast?.[id] : undefined;
+    return c && this.sim.s.people ? this.sim.people.colonist(c.id) : undefined;
+  }
+
+  /** Run one effect (story events, mission rewards). `from`: the event it belongs to (whose cast "only the one" means). */
+  effect(e: EffectDef, from?: string) {
     const sim = this.sim, s = sim.s, st = this.s, n = e.amount ?? 0;
     const site = e.site ? this.region().sites.find((x) => x.id === e.site) : undefined;
     switch (e.kind) {
@@ -130,8 +171,22 @@ export class Story {
       case 'isotopes': s.isotopes = Math.max(0, (s.isotopes ?? 0) + n); break;
       case 'biomass': if (s.people) sim.people.debug({ biomass: n }); break;
       case 'planet': sim.planet.adjust(n); break;
-      case 'stance': for (const c of s.people?.colonists ?? []) c.stance = clamp(c.stance + n, 0, 100); break;
-      case 'wellbeing': for (const c of s.people?.colonists ?? []) c.wb = clamp(c.wb + n, 0, 100); break;
+      case 'stance': for (const c of this.targets(e, from)) c.stance = clamp(c.stance + n, 0, 100); break;
+      case 'wellbeing': for (const c of this.targets(e, from)) c.wb = clamp(c.wb + n, 0, 100); break;
+      case 'boost': {
+        if (!e.stat) break;
+        const text = e.text ? this.fill(e.text, from) : '';
+        st.mods = (st.mods ?? []).filter((b) => !(text && b.text === text));
+        st.mods.push({ stat: e.stat, amount: n, until: e.seconds ? s.tick + Math.round(e.seconds * TICK_HZ) : -1, text, id: from });
+        break;
+      }
+      case 'policy': {
+        const [key, value] = (e.policy ?? '').split(':');
+        if (s.people && key && value) sim.people.command({ type: 'policy', key: key as PolicyKey, value });
+        break;
+      }
+      case 'favourLine': { const c = this.castOf(from); if (c && s.people) s.people.favour = c.lineage; break; }
+      case 'rescue': { const c = this.castOf(from); if (c) sim.people.carryIn(c); break; }
       case 'regard':
         (s.camps ?? []).forEach((c, i) => { if (c.group === e.group && !c.gone) sim.inhabitants.setRegard(i, c.regard + n); });
         break;
@@ -196,9 +251,22 @@ export class Story {
     if (h?.target === 'buildItem' && h.building === kind) this.s.hint = null;
   }
 
-  /** Story text with {first} filled in (the first pod-born colonist's given name). */
-  fill(text: string) {
-    return text.includes('{first}') ? text.replaceAll('{first}', this.firstName() ?? 'your first colonist') : text;
+  /** Who a stance or wellbeing effect touches: the card's one colonist, one bloc's adults, or everyone. */
+  private targets(e: EffectDef, from?: string) {
+    const all = this.sim.s.people?.colonists ?? [];
+    if (e.one) { const c = this.castOf(from); return c ? [c] : []; }
+    if (e.bloc) return all.filter((c) => this.sim.people.adult(c) && blocOf(c.stance) === e.bloc);
+    return all;
+  }
+
+  /** Story text with {first} filled in (the first pod-born colonist's given name), and {who} / {whoLine} (the card's cast). */
+  fill(text: string, id?: string) {
+    let t = text.includes('{first}') ? text.replaceAll('{first}', this.firstName() ?? 'your first colonist') : text;
+    if (t.includes('{who')) {
+      const c = id ? this.s.cast?.[id] : undefined;
+      t = t.replaceAll('{whoLine}', c?.line ?? 'their').replaceAll('{who}', c?.name ?? 'someone');
+    }
+    return t;
   }
   private firstName() {
     return this.sim.s.people ? this.sim.people.first()?.name.split(' ')[0] : undefined;
@@ -221,6 +289,8 @@ export class Story {
       fired: [...st.fired], answered: [...st.answered],
       timers: st.timers.map((t) => ({ id: t.id, left: Math.max(0, (t.at - tick) / TICK_HZ) })),
       expired: [...(st.expired ?? [])],
+      who: Object.fromEntries(st.inbox.filter((id) => st.cast?.[id]).map((id) => [id, { name: st.cast![id].name, line: st.cast![id].line }])),
+      boosts: (st.mods ?? []).filter((b) => b.text).map((b) => ({ text: b.text, stat: b.stat, amount: b.amount, left: b.until < 0 ? -1 : Math.max(0, (b.until - tick) / TICK_HZ) })),
     };
   }
 }

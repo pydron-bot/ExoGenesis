@@ -1,0 +1,73 @@
+{
+  "title": "Down Tools",
+  "cast": "autonomist",
+  "text": "{who} speaks for the strikers: shorter shifts, or no shifts at all.",
+  "trigger": "striking",
+  "count": 2,
+  "dilemma": true,
+  "again": 1500,
+  "choices": [
+    {
+      "label": "Shorter hours",
+      "reply": "Work hours go to short. {who} shakes a drone's manipulator, which is a first."
+    },
+    {
+      "label": "Hold firm",
+      "reply": "The hours stay. The strikers stay out. Some of the Devoted cover their shifts."
+    },
+    {
+      "label": "Double rations for a week",
+      "reply": "A feast, then a week of full plates. It isn't what they asked for, but people eat."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "policy",
+      "policy": "hours:short"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -4,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 1,
+      "bloc": "devoted"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "held-firm"
+    },
+    {
+      "after": 3,
+      "kind": "biomass",
+      "amount": -60
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": 8
+    },
+    {
+      "after": 3,
+      "kind": "boost",
+      "stat": "eat",
+      "amount": -0.3,
+      "seconds": 240,
+      "text": "Full plates"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

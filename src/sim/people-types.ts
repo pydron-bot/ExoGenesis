@@ -141,6 +141,8 @@ export interface PeopleState {
   gone: number[];
   /** The first colonist out of a pod (story cards call them {first}); kept after they die. */
   first?: { id: number; name: string };
+  /** A line promised the next growth pod (a story choice); used once. */
+  favour?: number;
   /** Totals for the end screen. */
   grown: number;
   births: number;

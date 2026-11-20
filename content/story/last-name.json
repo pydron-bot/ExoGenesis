@@ -1,0 +1,50 @@
+{
+  "title": "The Last Name",
+  "text": "A family line has gone out: no embryos left in the bank, and no one living. The colonists want to mark it somehow.",
+  "trigger": "linesGone",
+  "count": 1,
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Carve the names",
+      "reply": "A plate by the Core with every name the line ever had. People stop to read it on their way to work."
+    },
+    {
+      "label": "Keep working",
+      "reply": "We note it in the log. The colonists note that we noted it."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "alloys",
+      "amount": -40
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": 4
+    },
+    {
+      "after": 1,
+      "kind": "boost",
+      "stat": "grief",
+      "amount": 0.5,
+      "seconds": 360,
+      "text": "Names carved"
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": -3
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 1,
+      "bloc": "devoted"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

@@ -281,6 +281,12 @@ export interface StoryState {
   encounters?: string[];
   /** Colony modifiers running (story boosts: dilemma choices, inhabitants' gifts); until = tick, −1 for good. */
   mods?: import('./mods').ModBoost[];
+  /** The tick the last colony dilemma fired (they wait their turn). */
+  lastDilemma?: number;
+  /** Who each fired card is about (its `cast`): {who} in its text. */
+  cast?: Record<string, { id: number; name: string; line: string }>;
+  /** Dilemmas that can come again, and the tick they re-arm. */
+  again?: { id: string; at: number }[];
 }
 
 /** Missions (content/missions): which are under way, done, and which objectives are met. */
@@ -309,6 +315,10 @@ export interface StorySnap {
   marks: { site: string; x: number; z: number; text: string }[];
   hint: { target: string; building?: string; text: string; n: number } | null;
   look?: { x: number; z: number; n: number };
+  /** Who each card waiting is about (event id → name, line), for {who} and {whoLine}. */
+  who?: Record<string, { name: string; line: string }>;
+  /** Colony modifiers running from the story: what, how much, seconds left (−1 = for good). */
+  boosts?: { text: string; stat: string; amount: number; left: number }[];
   /** For the inspector: events fired and answered, delays waiting, countdowns run out. */
   fired: string[];
   answered: string[];

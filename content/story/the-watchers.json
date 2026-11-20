@@ -1,0 +1,87 @@
+{
+  "title": "The Watchers",
+  "cast": "autonomist",
+  "text": "Autonomists have found the sensor logs on their homes. At the evening meal {who} reads one out: every door, every hour, every night.",
+  "trigger": "autonomists",
+  "count": 2,
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Delete the home logs",
+      "reply": "The home logs are gone. The sensors outside stay. {who} says it is a start."
+    },
+    {
+      "label": "Explain why we keep them",
+      "reply": "We explain: safety, predators, fires. The Devoted agree. The Autonomists stop talking when the drones fly over."
+    },
+    {
+      "label": "Open every log to everyone",
+      "reply": "Every log the AI keeps is now readable by anyone. It is uncomfortable for everybody, us included."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 6,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 1,
+      "kind": "boost",
+      "stat": "sabotage",
+      "amount": -0.5,
+      "seconds": 360,
+      "text": "Home logs deleted"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "logs-deleted"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -5,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 3,
+      "bloc": "devoted"
+    },
+    {
+      "after": 2,
+      "kind": "boost",
+      "stat": "sabotage",
+      "amount": 0.5,
+      "seconds": 360,
+      "text": "Watched closely"
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": 2
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": -2
+    },
+    {
+      "after": 3,
+      "kind": "boost",
+      "stat": "stance",
+      "amount": 1,
+      "text": "Logs open to all"
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "logs-open"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

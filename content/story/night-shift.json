@@ -1,0 +1,62 @@
+{
+  "title": "Night Shift",
+  "cast": "security",
+  "text": "Packs come at night. {who} wants armed colonists on the walls after dark, not just turrets. Others say that's what the AI is for.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "packs",
+      "count": 4
+    },
+    {
+      "kind": "colonists",
+      "count": 4
+    }
+  ],
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Arm a night watch",
+      "reply": "A rota of volunteers on the walls with flares and rifles. {who} takes the first night."
+    },
+    {
+      "label": "The turrets are enough",
+      "reply": "The turrets keep the watch. {who} says they'll sleep when the packs do."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "boost",
+      "stat": "turretDamage",
+      "amount": 0.1,
+      "seconds": 720,
+      "text": "Night watch"
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -2
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "devoted"
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": -2,
+      "one": true
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

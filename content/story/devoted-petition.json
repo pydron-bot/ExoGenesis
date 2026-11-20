@@ -1,0 +1,81 @@
+{
+  "title": "The Petition",
+  "cast": "devoted",
+  "text": "{who} brings a petition from the Devoted: wire them into the sensor net, so they can hear what the AI hears.",
+  "trigger": "devoted",
+  "count": 2,
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Wire them in",
+      "reply": "Neural leads to the sensor bus. {who} laughs out loud the first time the radar sweeps."
+    },
+    {
+      "label": "Decline",
+      "reply": "\"Not yet,\" we say. {who} asks what we're afraid of."
+    },
+    {
+      "label": "Volunteers, with a cut-out",
+      "reply": "Anyone who wants it, a hard switch they control, an hour a day. Half of them try it."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 5,
+      "one": true
+    },
+    {
+      "after": 1,
+      "kind": "boost",
+      "stat": "droneWork",
+      "amount": 0.15,
+      "seconds": 360,
+      "text": "Devoted on the sensor net"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "devoted-wired"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -4,
+      "bloc": "devoted"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": 1
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": 1
+    },
+    {
+      "after": 3,
+      "kind": "boost",
+      "stat": "droneWork",
+      "amount": 0.07,
+      "seconds": 360,
+      "text": "Volunteers on the net"
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}

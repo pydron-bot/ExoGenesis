@@ -25,5 +25,7 @@
   "scarBuildingLost": 1,
   "nestHarm": 3,
   "campHarm": 12,
-  "rewildMax": 20
+  "rewildMax": 20,
+  "dilemmaFrom": 900,
+  "dilemmaGap": 200
 }

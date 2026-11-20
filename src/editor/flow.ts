@@ -191,6 +191,17 @@ export function condText(kind: Condition, c: ConditionDef): string {
     case 'planet': return `planet health ≥ ${c.count ?? 0}`;
     case 'planetBelow': return `planet health ≤ ${c.count ?? 0}`;
     case 'reports': return pl(n, 'Biosphere Report');
+    case 'cryoBelow': return `cryo bank ≤ ${c.count ?? 0}%`;
+    case 'biomassBelow': return `biomass ≤ ${c.count ?? 0}`;
+    case 'embryosBelow': return `embryos ≤ ${c.count ?? 0}`;
+    case 'injured': return `${pl(n, 'colonist')} injured`;
+    case 'children': return pl(n, 'child').replace('childs', 'children');
+    case 'autonomists': return pl(n, 'Autonomist');
+    case 'devoted': return `${n} Devoted`;
+    case 'striking': return `${n} on strike`;
+    case 'linesGone': return `${pl(n, 'line')} gone`;
+    case 'regard': return `${c.group ?? '?'} regard ≥ ${c.count ?? 0}`;
+    case 'regardBelow': return `${c.group ?? '?'} regard ≤ ${c.count ?? 0}`;
     case 'all': case 'any': return (c.of ?? []).map((x) => `${x.not ? 'not ' : ''}${condText(x.kind as Condition, x as ConditionDef)}`).join(kind === 'all' ? ' and ' : ' or ') || `(empty ${kind} group)`;
     case 'never': return 'only when started';
   }

@@ -1,0 +1,72 @@
+{
+  "title": "Hurt",
+  "cast": "injured",
+  "text": "{who} is down by the ruins and can't walk. Their neighbours are at the windows. Predators may still be about.",
+  "trigger": "injured",
+  "count": 1,
+  "dilemma": true,
+  "again": 900,
+  "choices": [
+    {
+      "label": "Everyone stays indoors",
+      "reply": "The doors stay shut. Help comes the way it comes. Some of the neighbours don't forgive it."
+    },
+    {
+      "label": "Let them carry {who} in",
+      "reply": "Four of them run out with a door for a stretcher."
+    },
+    {
+      "label": "Talk them through it",
+      "reply": "We stay on {who}'s channel: pressure here, breathe, don't move. They hold on."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -3
+    },
+    {
+      "after": 2,
+      "kind": "rescue"
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": -2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "carried-in"
+    },
+    {
+      "after": 3,
+      "kind": "boost",
+      "stat": "injuredTime",
+      "amount": 1,
+      "seconds": 90,
+      "text": "Talked through it"
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": 2,
+      "one": true
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, dilemma"
+}
