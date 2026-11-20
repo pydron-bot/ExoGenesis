@@ -433,7 +433,18 @@ export interface SkirmishSetup {
 export type SimStats = { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number; unitsBuilt?: number; enemyKills?: number; printed?: number };
 
 /** A computer player's memory: waves sent, the raid under way (unit ids, whose base, when, how big), its rally point. */
-export interface AiBrain { wave: number; attack: number[]; target: number; launched: number; size: number; rally: { x: number; z: number } | null }
+export interface AiBrain {
+  wave: number; attack: number[]; target: number; launched: number; size: number; rally: { x: number; z: number } | null;
+  /** The raid's stage: forming up at `stage`, or pushing in. */
+  phase?: 'gather' | 'push';
+  stage?: { x: number; z: number };
+  /** A raiding party (unit ids); the scout (unit id; -2 once done). */
+  raid?: number[];
+  scout?: number;
+  /** Enemy buildings seen (by id), and the strongest army seen of each player lately. */
+  known?: Record<number, { kind: string; x: number; z: number; team: number; hp: number }>;
+  armies?: Record<number, { st: number; at: number }>;
+}
 
 /** One player's own economy (skirmish players other than 0). */
 export interface Econ {

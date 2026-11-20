@@ -365,6 +365,8 @@ export class Sim {
     if (!t) return (this.fogs[0] ??= { vis: this.vis, exp: this.exp });
     return (this.fogs[t] ??= { vis: new Uint8Array(FOG_N * FOG_N), exp: new Uint8Array(FOG_N * FOG_N) });
   }
+  /** Tests: another computer player for a team (tools/ai-sim.mjs --baseline plays the last release's against the new one). */
+  thinkers: Record<number, (h: AiHost, level: NonNullable<PlayerState['ai']>) => void> = {};
   /** What a computer player sees and does (called inside its `withTeam` view). */
   private aiHost(t: number): AiHost {
     const sim = this;
@@ -380,6 +382,7 @@ export class Sim {
       armySize: () => sim.armySize(),
       get secs() { return sim.secs; },
       vents: VENTS,
+      visible: (x, z) => sim.visible(x, z),
     };
   }
   /** A player's stats (outside a swap). */
@@ -750,7 +753,7 @@ export class Sim {
       for (const t of this.liveTeams()) {
         const lv = s.players[t].ai;
         if (!lv || (s.tick + t * 7) % AI_LEVELS[lv].period) continue;
-        this.withTeam(t, () => aiThink(this.aiHost(t), lv));
+        this.withTeam(t, () => (this.thinkers[t] ?? aiThink)(this.aiHost(t), lv));
       }
       this.stepTurrets();
       this.stepUnits();

@@ -42,7 +42,7 @@ interface LevelRules {
 export const LEVELS: Record<Level, LevelRules> = {
   easy: { period: 50, drones: 2, turrets: 1, firstAttack: 540, waveBase: 6, waveGrow: 1, waveMax: 12, tech: false, bays: 1, reserve: 80, bonus: 0, relays: 0 },
   normal: { period: 25, drones: 3, turrets: 2, firstAttack: 390, waveBase: 10, waveGrow: 2, waveMax: 22, tech: true, bays: 2, reserve: 50, bonus: 0, relays: 2 },
-  hard: { period: 12, drones: 4, turrets: 2, firstAttack: 330, waveBase: 12, waveGrow: 3, waveMax: 30, tech: true, bays: 2, reserve: 30, bonus: 0.5, relays: 3 },
+  hard: { period: 12, drones: 4, turrets: 2, firstAttack: 330, waveBase: 10, waveGrow: 3, waveMax: 30, tech: true, bays: 2, reserve: 30, bonus: 0.5, relays: 3 },
 };
 
 /** What the computer needs from the sim (all in its own view). */
@@ -61,6 +61,8 @@ export interface AiHost {
   readonly secs: number;
   /** The map's geothermal vents. */
   readonly vents: { x: number; z: number }[];
+  /** In this player's sight now. */
+  visible(x: number, z: number): boolean;
 }
 
 const DEFS = content.buildings;
@@ -74,7 +76,7 @@ const fighter = (u: Unit) => (UNITS[u.unit]?.damage ?? 0) > 0 && !UNITS[u.unit].
 const LANE = 3;
 
 export function freshBrain(): AiBrain {
-  return { wave: 0, attack: [], target: -1, launched: 0, size: 0, rally: null };
+  return { wave: 0, attack: [], target: -1, launched: 0, size: 0, rally: null, raid: [], known: {}, armies: {} };
 }
 
 export function think(h: AiHost, level: Level) {
@@ -85,7 +87,7 @@ export function think(h: AiHost, level: Level) {
   // toward the middle of the map, and away from it (the safe side)
   const inA = Math.atan2(-home.z, -home.x);
   economy(h, L, inA);
-  army(h, L, brain, inA);
+  army(h, L, level, brain, inA);
 }
 
 // ---------- building ----------
@@ -215,87 +217,242 @@ function spot(h: AiHost, kind: string, c: { x: number; z: number }, a: number, r
 }
 
 // ---------- army ----------
-function army(h: AiHost, L: LevelRules, brain: AiBrain, inA: number) {
+/** A unit's or gun's fighting weight: damage a second and hit points (strength in a fight goes as their product). */
+const dps = (d: { damage?: number; cooldown?: number }) => (d.damage ?? 0) / Math.max(0.1, d.cooldown ?? 1);
+/** Lanchester-style strength of a force: √(total dps × total hp). */
+function strength(parts: { dps: number; hp: number }[]) {
+  let a = 0, b = 0;
+  for (const p of parts) { a += p.dps; b += p.hp; }
+  return Math.sqrt(a * b);
+}
+const unitPart = (u: { unit?: string; hp?: number }) => { const d = UNITS[u.unit ?? '']; return d ? { dps: dps(d), hp: u.hp ?? d.hp } : { dps: 0, hp: 0 }; };
+/** How sure of winning before setting off, by level (ours ÷ theirs). */
+const NERVE: Record<Level, number> = { easy: 1.6, normal: 1.3, hard: 1.15 };
+
+/** Update what this player knows: enemy buildings seen (forgotten once seen gone), enemy armies seen. */
+function remember(h: AiHost, brain: AiBrain, foes: ReturnType<AiHost['foes']>) {
+  const known = (brain.known ??= {});
+  const now = h.secs;
+  for (const f of foes) {
+    if (f.kind) known[f.id] = { kind: f.kind, x: f.x, z: f.z, team: f.team ?? 0, hp: f.hp }; // (unset team: player 0)
+  }
+  const seen = new Set(foes.map((f) => f.id));
+  for (const [id, k] of Object.entries(known)) if (!seen.has(Number(id)) && h.visible(k.x, k.z)) delete known[Number(id)];
+  // the biggest enemy army seen lately, per player (decays after two minutes)
+  const armies = (brain.armies ??= {});
+  const by: Record<number, { dps: number; hp: number }[]> = {};
+  for (const f of foes) if (f.unit && f.pack === undefined) (by[f.team ?? 0] ??= []).push(unitPart(f)); // (fauna have a pack)
+  for (const [t, parts] of Object.entries(by)) {
+    const st = strength(parts), a = armies[Number(t)];
+    if (!a || st >= a.st || now - a.at > 120) armies[Number(t)] = { st, at: now };
+  }
+}
+
+/**
+ * What defends a point, as far as this player knows: guns seen there, and that player's army: as strong as the
+ * strongest seen lately, grown since (a third more for every 100 s), or never seen: as strong as ours (`ours`).
+ */
+function defence(brain: AiBrain, team: number, at: { x: number; z: number }, now: number, ours: number) {
+  const parts: { dps: number; hp: number }[] = [];
+  for (const k of Object.values(brain.known ?? {})) {
+    if (k.team !== team) continue;
+    const d = DEFS[k.kind];
+    if (d?.fireRange && d.damage && dist(k, at) < 70) parts.push({ dps: dps(d), hp: k.hp });
+  }
+  const guns = strength(parts), a = brain.armies?.[team];
+  const army = a ? a.st * (1 + Math.max(0, now - a.at) / 300) : ours;
+  return Math.sqrt(guns * guns + army * army);
+}
+
+/** Known guns of a player near a point: where they are and how far they reach. */
+const gunsNear = (brain: AiBrain, team: number, at: { x: number; z: number }, r: number) =>
+  Object.values(brain.known ?? {}).filter((k) => k.team === team && DEFS[k.kind]?.fireRange && DEFS[k.kind]?.damage && dist(k, at) < r);
+
+function army(h: AiHost, L: LevelRules, level: Level, brain: AiBrain, inA: number) {
   const s = h.s, P = s.players!, me = P[h.team], home = me.home, secs = h.secs;
   const mine = (s.units ?? []).filter(fighter);
   const byId = new Map(mine.map((u) => [u.id, u]));
   brain.attack = brain.attack.filter((id) => byId.has(id));
+  brain.raid = (brain.raid ?? []).filter((id) => byId.has(id));
+  if (brain.scout !== undefined && brain.scout >= 0 && !byId.has(brain.scout)) brain.scout = -2; // lost: done scouting
   const rally = brain.rally ?? (brain.rally = { x: home.x + Math.cos(inA) * 30, z: home.z + Math.sin(inA) * 30 });
-  // production: keep the factories busy (saving the reserve for buildings)
   const foes = h.foes();
-  const flyers = foes.some((f) => f.unit && UNITS[f.unit]?.move === 'air');
+  remember(h, brain, foes);
+  const busy = new Set([...brain.attack, ...brain.raid, ...(brain.scout !== undefined && brain.scout >= 0 ? [brain.scout] : [])]);
+
+  // ---- production: keep the factories busy (saving the reserve for buildings), answering what the enemy has
   for (const b of s.buildings) {
     if (def(b)?.role !== 'factory' || b.progress < 1 || (b.queue?.length ?? 0) >= 2) continue;
     if (h.armySize() + s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0) >= h.unitCap()) break;
-    const kind = pickUnit(h, b, brain, flyers, mine.length);
+    const kind = pickUnit(h, b, brain, foes, mine.length);
     if (kind && s.alloys >= (UNITS[kind].cost ?? 0) + L.reserve) h.run({ type: 'produce', id: b.id, unit: kind });
   }
-  // defence: anything hostile among our buildings brings everyone not on a raid home
+
+  // ---- scouting: the first unit, and again whenever what it knows of the enemy is old, goes to look at the
+  // nearest enemy's base, then comes home
+  const st0 = nearestEnemy(h), seen = st0 >= 0 ? brain.armies?.[st0] : undefined;
+  if (brain.scout === -2 && (!seen || secs - seen.at > 150) && mine.length >= 3 && !brain.attack.length) brain.scout = undefined;
+  if (brain.scout === undefined && mine.length) {
+    const t = nearestEnemy(h);
+    const free = mine.filter((u) => !brain.attack.includes(u.id) && !(brain.raid ?? []).includes(u.id));
+    const u = (free.length ? free : mine).reduce((a, b) => (UNITS[b.unit].speed > UNITS[a.unit].speed ? b : a));
+    if (t >= 0) { brain.scout = u.id; h.run({ type: 'order', ids: [u.id], x: P[t].home.x, z: P[t].home.z }); }
+  } else if (brain.scout !== undefined && brain.scout >= 0) {
+    const u = byId.get(brain.scout)!, t = nearestEnemy(h);
+    const there = t >= 0 && dist(u, P[t].home) < 40;
+    // looked and saw no army there (remember() would have just noted one): that's worth knowing too
+    if (there) { const a = (brain.armies ??= {})[t]; if (!a || secs - a.at > 5) brain.armies[t] = { st: 0, at: secs }; }
+    if (there || u.order.kind === 'idle') { h.run({ type: 'order', ids: [u.id], x: rally.x, z: rally.z }); brain.scout = -2; }
+  }
+
+  // ---- defence: enemies among our buildings; answer with enough (everyone if it's a real attack)
   const near = foes.filter((f) => !f.kind && s.buildings.some((b) => dist(b, f) < (def(b)?.clearance ?? 8) / 2 + 28));
-  const raid = new Set(brain.attack);
   if (near.length) {
     const c = centroid(near);
-    const home = mine.filter((u) => !raid.has(u.id) && orderedFar(u, c, 12));
-    if (home.length) h.run({ type: 'order', ids: home.map((u) => u.id), x: c.x, z: c.z });
-    // a raid that's barely started comes back for a big attack on the base
-    if (near.length >= 4 && brain.attack.length && brain.launched > secs - 25) {
+    const threat = strength(near.map(unitPart));
+    const free = mine.filter((u) => !busy.has(u.id)).sort((a, b) => dist(a, c) - dist(b, c));
+    const send: Unit[] = [];
+    let st = 0;
+    for (const u of free) { if (st > threat * 1.5 + 1) break; send.push(u); st = strength(send.map(unitPart)); }
+    const go = send.filter((u) => orderedFar(u, c, 12));
+    if (go.length) h.run({ type: 'order', ids: go.map((u) => u.id), x: c.x, z: c.z });
+    // a big attack on the base while the army's still gathering or just left: everyone comes back
+    if (threat > st && brain.attack.length && (brain.phase === 'gather' || brain.launched > secs - 30)) {
       h.run({ type: 'order', ids: brain.attack, x: c.x, z: c.z });
       brain.attack = [];
     }
-    return;
   }
-  // a raid on its way
-  if (brain.attack.length) {
-    const target = P[brain.target];
-    if (!target || target.out) {
-      const next = nearestEnemy(h);
-      if (next < 0) { brain.attack = []; return; }
-      brain.target = next;
-    }
-    const goal = P[brain.target].home;
-    const group = brain.attack.map((id) => byId.get(id)!).filter(Boolean);
-    // broken (under a third left): fall back to the rally point and build up again
-    if (group.length < Math.max(2, brain.size * 0.33)) {
-      h.run({ type: 'order', ids: brain.attack, x: rally.x, z: rally.z });
-      brain.attack = [];
-      return;
-    }
-    // stragglers that stopped short (nothing in sight where they stand): on to the Core
-    const idle = group.filter((u) => u.order.kind === 'idle' && u.target < 0);
-    if (idle.length) h.run({ type: 'order', ids: idle.map((u) => u.id), x: goal.x, z: goal.z });
-    // new units join the raid once there are a few of them (not one at a time across the map)
-    const fresh = mine.filter((u) => !raid.has(u.id));
-    if (fresh.length >= 4) {
-      for (const u of fresh) brain.attack.push(u.id);
-      brain.size += fresh.length;
-      h.run({ type: 'order', ids: fresh.map((u) => u.id), x: goal.x, z: goal.z });
-    }
-    return;
-  }
-  // gathering: new units go to the rally point; a big enough group sets off
-  const loose = mine.filter((u) => orderedFar(u, rally, 18));
+
+  // ---- raiding party (normal, hard): a few fast units after a depot with no guns by it
+  if (level !== 'easy') raid(h, brain, byId, busy, mine, rally);
+
+  // ---- the main army
+  if (brain.attack.length) { push(h, brain, byId, mine, rally, busy); return; }
+  // gathering at the rally point
+  const loose = mine.filter((u) => !busy.has(u.id) && orderedFar(u, rally, 18) && !near.length);
   if (loose.length) h.run({ type: 'order', ids: loose.map((u) => u.id), x: rally.x, z: rally.z });
-  const size = Math.min(L.waveMax, L.waveBase + brain.wave * L.waveGrow, Math.max(4, h.unitCap() - 4));
-  if (secs >= L.firstAttack && mine.length >= size) {
-    const t = nearestEnemy(h);
-    if (t < 0) return;
+  if (secs < L.firstAttack) return;
+  const t = nearestEnemy(h);
+  if (t < 0) return;
+  const army = mine.filter((u) => !busy.has(u.id));
+  const ours = strength(army.map(unitPart));
+  const theirs = defence(brain, t, P[t].home, secs, ours);
+  const minimum = Math.min(L.waveBase + brain.wave * L.waveGrow, L.waveMax);
+  const full = h.armySize() >= h.unitCap() - 2;
+  // go when the army's big enough and (as far as it knows) strong enough, or when it can't grow any more
+  if (army.length >= Math.max(4, minimum * 0.6) && (ours >= theirs * NERVE[level] && army.length >= minimum * 0.75 || full || army.length >= minimum * 1.6)) {
     brain.target = t;
-    brain.attack = mine.map((u) => u.id);
-    brain.size = mine.length;
+    brain.attack = army.map((u) => u.id);
+    brain.size = army.length;
     brain.launched = secs;
     brain.wave++;
-    const goal = P[t].home;
-    h.run({ type: 'order', ids: brain.attack, x: goal.x, z: goal.z });
+    // form up short of the target first (out of its known guns' reach), then go in together
+    const goal = P[t].home, back = Math.atan2(home.z - goal.z, home.x - goal.x);
+    const reach = Math.max(30, ...gunsNear(brain, t, goal, 80).map((k) => DEFS[k.kind].fireRange! + dist(k, goal)));
+    const stage = { x: goal.x + Math.cos(back) * Math.min(reach + 12, dist(goal, home) * 0.6), z: goal.z + Math.sin(back) * Math.min(reach + 12, dist(goal, home) * 0.6) };
+    brain.stage = stage;
+    brain.phase = 'gather';
+    h.run({ type: 'order', ids: brain.attack, x: stage.x, z: stage.z });
   }
 }
 
-/** What a factory should make next: early on cheap and quick, later heavier, anti-air if the enemy flies. */
-function pickUnit(h: AiHost, f: Building, brain: AiBrain, flyers: boolean, armySize: number) {
+/** The main army on a raid: form up at the staging point, then push in (artillery holds back and shells the guns). */
+function push(h: AiHost, brain: AiBrain, byId: Map<number, Unit>, mine: Unit[], rally: { x: number; z: number }, busy: Set<number>) {
+  const P = h.s.players!, secs = h.secs;
+  if (!P[brain.target] || P[brain.target].out) {
+    const next = nearestEnemy(h);
+    if (next < 0) { brain.attack = []; return; }
+    brain.target = next;
+    brain.phase = 'push';
+  }
+  const goal = P[brain.target].home;
+  const group = brain.attack.map((id) => byId.get(id)!).filter(Boolean);
+  // broken (under a third left): fall back and build up again
+  if (group.length < Math.max(2, brain.size * 0.33)) {
+    h.run({ type: 'order', ids: brain.attack, x: rally.x, z: rally.z });
+    brain.attack = [];
+    return;
+  }
+  if (brain.phase === 'gather') {
+    const st = brain.stage ?? goal;
+    const there = group.filter((u) => dist(u, st) < 16).length;
+    // most of them there (or waited long enough): in together
+    if (there >= group.length * 0.8 || secs - brain.launched > 75) {
+      brain.phase = 'push';
+      const art = group.filter((u) => (UNITS[u.unit].range ?? 0) >= 40);
+      const rest = group.filter((u) => !art.includes(u));
+      if (rest.length) h.run({ type: 'order', ids: rest.map((u) => u.id), x: goal.x, z: goal.z });
+      siege(h, brain, art, goal);
+    }
+    return;
+  }
+  // pushing: artillery keeps to its siege line; anyone who stopped short goes on to the Core
+  const art = group.filter((u) => (UNITS[u.unit].range ?? 0) >= 40);
+  if (art.length && secs % 10 < 3) siege(h, brain, art, goal);
+  const idle = group.filter((u) => !art.includes(u) && u.order.kind === 'idle' && u.target < 0);
+  if (idle.length) h.run({ type: 'order', ids: idle.map((u) => u.id), x: goal.x, z: goal.z });
+  // reinforcements join in fours, going straight in
+  const fresh = mine.filter((u) => !busy.has(u.id) && dist(u, rally) < 30);
+  if (fresh.length >= 4) {
+    for (const u of fresh) brain.attack.push(u.id);
+    brain.size += fresh.length;
+    h.run({ type: 'order', ids: fresh.map((u) => u.id), x: goal.x, z: goal.z });
+  }
+}
+
+/** Artillery: to just inside its reach of the nearest known gun (outside the gun's, if it can), or in with the rest. */
+function siege(h: AiHost, brain: AiBrain, art: Unit[], goal: { x: number; z: number }) {
+  if (!art.length) return;
+  const c = centroid(art);
+  const guns = gunsNear(brain, brain.target, goal, 90).sort((a, b) => dist(a, c) - dist(b, c));
+  const g = guns[0] ?? { x: goal.x, z: goal.z };
+  const reach = (UNITS[art[0].unit].range ?? 40) - 3;
+  const a = Math.atan2(c.z - g.z, c.x - g.x);
+  const at = { x: g.x + Math.cos(a) * reach, z: g.z + Math.sin(a) * reach };
+  const go = art.filter((u) => orderedFar(u, at, 6));
+  if (go.length) h.run({ type: 'order', ids: go.map((u) => u.id), x: at.x, z: at.z });
+}
+
+/** A raiding party: three or four of the fastest after the nearest known enemy depot with no gun covering it. */
+function raid(h: AiHost, brain: AiBrain, byId: Map<number, Unit>, busy: Set<number>, mine: Unit[], rally: { x: number; z: number }) {
+  const home = h.s.players![h.team].home;
+  const known = Object.entries(brain.known ?? {}).map(([id, k]) => ({ id: Number(id), ...k }));
+  const exposed = (k: { team: number; x: number; z: number }) => !known.some((g) => g.team === k.team && DEFS[g.kind]?.fireRange && DEFS[g.kind]?.damage && dist(g, k) < (DEFS[g.kind].fireRange ?? 0) + 6);
+  const target = known.filter((k) => (DEFS[k.kind]?.role === 'depot' || DEFS[k.kind]?.role === 'deepmine' || DEFS[k.kind]?.role === 'printer') && exposed(k))
+    .sort((a, b) => dist(a, home) - dist(b, home))[0];
+  const party = brain.raid!.map((id) => byId.get(id)!).filter(Boolean);
+  if (!party.length) {
+    if (!target || h.secs < 240) return;
+    const fast = mine.filter((u) => !busy.has(u.id) && UNITS[u.unit].speed >= 7).sort((a, b) => dist(a, rally) - dist(b, rally)).slice(0, 4);
+    // only with enough left at home to hold it
+    if (fast.length < 3 || mine.filter((u) => !busy.has(u.id)).length - fast.length < 6) return;
+    brain.raid = fast.map((u) => u.id);
+    for (const u of fast) busy.add(u.id);
+    h.run({ type: 'order', ids: brain.raid, x: target.x, z: target.z });
+    return;
+  }
+  for (const u of party) busy.add(u.id);
+  // down to one, or nothing left to hit: home to the army
+  if (party.length < 2 || !target) { h.run({ type: 'order', ids: brain.raid!, x: rally.x, z: rally.z }); brain.raid = []; return; }
+  const idle = party.filter((u) => u.order.kind === 'idle' && u.target < 0);
+  if (idle.length) h.run({ type: 'order', ids: idle.map((u) => u.id), x: target.x, z: target.z });
+}
+
+/**
+ * What a factory should make next: early on cheap and quick (and fast ones for raiding), later heavier, shaped by
+ * what it has seen: artillery and lancers against a lot of guns, lancers against heavy armour, arcs against flyers.
+ */
+function pickUnit(h: AiHost, f: Building, brain: AiBrain, foes: ReturnType<AiHost['foes']>, armySize: number) {
   const fd = def(f);
   const ok = (k: string) => UNITS[k] && UNITS[k].faction === 'accord' && UNITS[k].cost !== undefined && factoryMakes(fd, UNITS[k]) && h.researched(UNITS[k].research) && (UNITS[k].damage ?? 0) > 0;
+  const known = Object.values(brain.known ?? {});
+  const guns = known.filter((k) => DEFS[k.kind]?.fireRange && DEFS[k.kind]?.damage).length;
+  const flyers = foes.some((f2) => f2.unit && UNITS[f2.unit]?.move === 'air');
+  const heavy = foes.filter((f2) => f2.unit && (UNITS[f2.unit]?.hp ?? 0) >= 400).length;
+  const fastOnes = (h.s.units ?? []).filter((u) => UNITS[u.unit]?.speed >= 7).length;
   const mix: [string, number][] = brain.wave === 0 && armySize < 6
     ? [['rover', 1], ['tank', 3]]
-    : [['tank', 4], ['lancer', 3], ['rover', 2], ['artillery', 1], ['arc', flyers ? 4 : 1]];
+    : [['tank', 4], ['lancer', 2 + Math.min(4, heavy)], ['rover', fastOnes < 4 ? 3 : 1], ['artillery', 1 + Math.min(4, guns)], ['arc', flyers ? 5 : 1]];
   const pool = mix.filter(([k]) => ok(k));
   if (!pool.length) return null;
   const total = pool.reduce((m, [, w]) => m + w, 0);

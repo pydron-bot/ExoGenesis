@@ -681,7 +681,7 @@ body.rts #r-cryo, body.rts #r-food, body.rts #r-planet, body.rts #r-people, body
 #log .ev.go::after { content: ' ◎'; opacity: 0.6; }
 #log .ev.go:hover { filter: brightness(1.25); }
 
-/* ---------- quality of life (v0.56.0) ---------- */
+/* ---------- quality of life (v0.57.0) ---------- */
 /* PAUSED: only when you paused (not story cards or the menu); tap to resume */
 #hud #paused {
   position: absolute; left: 50%; bottom: calc(var(--above-bar) + 4px); transform: translateX(-50%);

@@ -1,5 +1,5 @@
 /**
- * Quality-of-life controls (v0.56.0), end to end in the colony:
+ * Quality-of-life controls (v0.57.0), end to end in the colony:
  * held-key panning, F centre, the drones chip and . (next idle drone), right-click orders and
  * cancelling placement, the placement hint by the cursor, Esc closing the build menu, control
  * groups, Ctrl+A, [ ] speed and the PAUSED banner, the Controls panel, two-tap Recycle,
