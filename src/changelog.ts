@@ -15,6 +15,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.53.0',
+    date: '2026-11-20',
+    title: 'Skirmish setup',
+    notes: [
+      'SKIRMISH on the title screen now opens a setup: 2 to 4 players, teams (free for all, you against everyone, or 2 v 2), the world, size, sea and ground, a map seed with a live preview of the map, starting alloys, fog of war, wildlife and predator packs',
+      'Every player has a colour: their units, the rings under their buildings and drones, the glow of their buildings and their dots on the map',
+      'Fog of war hides the other players: their units only while you can see them, their buildings once you have',
+      'A skirmish HUD: no cryo bank, colonists or planet health, a game clock, and the map from the start',
+      'Win by being the last one standing (or the last team): the end screen shows everyone\'s units built, kills, losses and alloys mined, with Rematch and New skirmish',
+      'The menu in a skirmish has Rematch, New skirmish and Surrender',
+      'The computer players don\'t play yet: that comes next. The old hundreds-of-units battlefield is still at ?mode=skirmish',
+    ],
+  },
+  {
     version: '0.52.0',
     date: '2026-11-20',
     title: 'Skirmish maps',

@@ -1471,3 +1471,35 @@ to content), the start spots, and a report. ~90 ms median, 150 ms worst on hive1
 - Not yet (phase 3): enemy buildings and units in team colours and hidden in fog, the HUD's campaign counters.
 - Found on the way: `tools/build-smoke.mjs` fails its wall-line steps on v0.49.0 too (the opening story card sits
   over the taps); `tools/region-smoke.mjs` expected no world name between a region and HERE in Options (fixed).
+
+### Skirmish phase 3: setup, colours, fog and the end screen (v0.53.0)
+
+DESIGN §5.11. A skirmish is now reached from the title (SKIRMISH) and played with its own HUD. The computer players
+don't play yet (phase 4): they sit at their Cores.
+
+- **Setup** (`src/skirmish/setup-screen.ts`, title SKIRMISH or the game menu's Skirmish): players 2–4, teams (free for
+  all, you vs all, 2 v 2 with four), computer difficulty, world, size, sea (only worlds with seas offer any), ground,
+  map seed (🎲 rerolls), starting alloys (400 / 600 / 1,500), fog, wildlife, predator packs. A live preview generates
+  the map in its own worker (`src/skirmish/map-worker.ts`: the title's planet keeps its terrain state) and draws the
+  ground, sea, deposits, seams and each player's base in their colour. START builds the `?skirmish=` link
+  (`skirmishLink`) and goes there. Choices are remembered (`exo-skirmish-setup`), the seed is new each time.
+- **What you can know** (sim `snapshot`): other players' units and drones only while in sight; their buildings once
+  seen (`Building.seen`, then shown as they are). Radar blips stay fauna only.
+- **Colours:** players are `PLAYER_COLORS` (cyan you, crimson, amber, violet). Units: the army buffer has an owner
+  (`F.TEAM`, `STRIDE` 8); another player's are drawn in their colour (body and glow strips), get red bars and can't be
+  selected. Buildings and drones: a ring in the owner's colour under each (`RegionView.teamRing`), and other players'
+  buildings glow in their colour. Minimap: everything in its owner's colour, Cores outlined white.
+- **Can't command theirs:** the input only offers your own units, buildings and drones (`buildings()` / `units()` filter
+  on `team`, drones carry `team` in `RegionView.drones`); placement sees theirs only as too-close (`PlaceWorld.others`).
+  The sim refuses anything else anyway (`command(c, team)`).
+- **HUD** (`body.rts`): no cryo, biomass, planet health, colonists or goals; the clock is game time; the map shows from
+  the start (no radar needed). Game menu: Resume, Options, Rematch, New skirmish, Surrender, What's new, Title screen
+  (no Save / Load: skirmishes aren't saved).
+- **End:** VICTORY / DEFEAT with each player's units built, kills of other players' things, units and buildings lost
+  and alloys mined (`players[].stats` in the snapshot). Rematch restarts the same map and players; New skirmish opens
+  the setup. You're out when your Core falls or you surrender (`{ type: 'surrender' }`); your game ends then even if
+  computer players go on fighting each other.
+- `SimClient.command(cmd, team)` acts as another player (tests now, the AI later).
+- **Test:** `tools/skirmish-play-smoke.mjs` (desktop and phone): title → setup (choices, preview, START) → the game
+  (skirmish HUD, map, fog hiding the others' bases and out-of-sight units, theirs in sight shown, not selectable) →
+  skirmish menu → victory screen → Rematch → surrender → defeat.

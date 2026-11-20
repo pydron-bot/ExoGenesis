@@ -113,6 +113,12 @@ export class ArmyView {
   private v2 = new THREE.Vector3();
   private up = new THREE.Vector3();
   private col = new THREE.Color();
+  /** Skirmish: each player's colour (index = team); units of players other than 0 are drawn in theirs. */
+  private teamCols: THREE.Color[] = [];
+  setTeamColors(colors: string[]) {
+    if (this.teamCols.length === colors.length && colors.every((c, i) => '#' + this.teamCols[i].getHexString() === c.toLowerCase())) return;
+    this.teamCols = colors.map((c) => new THREE.Color(c));
+  }
   readonly group = new THREE.Group();
 
   constructor(scene: THREE.Scene) {
@@ -228,9 +234,15 @@ export class ArmyView {
       this.visible[s] = 1;
       this.type[s] = t;
       const hp = b[o + F.HP];
-      const team = DEFS[t].team;
+      const owner = b[o + F.TEAM] | 0, tc = owner ? this.teamCols[owner] : undefined;
+      // another skirmish player's unit counts as hostile here (red bar, never selected)
+      const team = owner ? 1 : DEFS[t].team;
       const sel = team === 0 && selected.get(s) === b[o + F.GEN];
-      if (team === 0) {
+      if (tc) {
+        body.setColorAt(i, this.col.copy(tc).multiplyScalar(1.5).lerp(C.hurt, Math.max(0, 1 - hp * 1.3) * 0.6));
+        const g = model ? null : this.glows[t];
+        if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, tc); }
+      } else if (team === 0) {
         body.setColorAt(i, this.col.copy(C.hurt).lerp(C.white, Math.min(1, hp * 1.3)));
         const g = model ? null : this.glows[t];
         if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, sel ? C.glowSel : C.glow); }

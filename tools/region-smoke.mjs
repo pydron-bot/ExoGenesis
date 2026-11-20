@@ -140,7 +140,7 @@ try {
   const t = await page.evaluate(() => document.body.innerText);
   check(/Your colony in Touchdown/i.test(t), 'title offers CONTINUE into the other region\'s colony');
   check(/Land in Smoke Test Basin/i.test(t), 'NEW GAME names the region it lands in');
-  check(!/\bREGION\b|\bSOUND\b/.test(t), 'region and sound are not on the title screen itself');
+  check(!/\bREGION\b|\bSOUND\b/.test(t.replace(/ANYWHERE FOR SOUND/g, '')), 'region and sound are not on the title screen itself (the tap-for-sound hint aside)');
   await page.getByText('OPTIONS', { exact: true }).click();
   await page.waitForSelector('#options');
   const op = await page.evaluate(() => document.getElementById('options').innerText);

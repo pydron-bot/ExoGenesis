@@ -640,3 +640,39 @@ html.app #options { height: var(--app-h, 100%); bottom: auto; }
 #options .op-slide input { flex: 0 1 150px; min-width: 90px; accent-color: var(--cyan); }
 #options .op-val { flex: none; min-width: 7ch; text-align: right; font-size: 11px; color: color-mix(in srgb, var(--text) 62%, transparent); }
 #options .op-slide.dis { opacity: 0.55; }
+
+/* ---------- skirmish setup (src/skirmish/setup-screen.ts), in the options overlay ---------- */
+#options.sk-setup .op-panel { width: min(560px, 100%); }
+#options .op-choice { cursor: default; flex-wrap: wrap; row-gap: 6px; min-height: 48px; }
+#options .op-choice .op-text { min-width: 120px; }
+#options .seg { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; }
+#options .seg button, #options .seg input {
+  font: inherit; font-size: 12px; color: var(--text); background: none; border: 1px solid var(--line); border-radius: 3px;
+  padding: 6px 9px; cursor: pointer; min-width: 36px;
+}
+#options .seg input { width: 7ch; cursor: text; -moz-appearance: textfield; }
+#options .seg button.on { color: #05080d; background: var(--cyan); border-color: var(--cyan); }
+#options .seg button:disabled { opacity: 0.35; cursor: default; }
+#options .sk-top { display: flex; gap: 14px; align-items: flex-start; padding: 10px 8px 4px; flex-wrap: wrap; }
+#options .sk-prev { position: relative; width: 160px; height: 160px; flex: none; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #05080d; }
+#options .sk-prev canvas { width: 100%; height: 100%; display: block; }
+#options .sk-wait { position: absolute; inset: auto 0 0 0; padding: 3px 6px; font-size: 10px; background: rgba(5, 8, 13, 0.7); color: var(--cyan-dim); }
+#options .sk-players { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 6px; }
+#options .sk-p { display: grid; grid-template-columns: 14px 1fr; column-gap: 8px; align-items: center; }
+#options .sk-p i, #over .sk-stats i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 1px rgba(255,255,255,.5); }
+#options .sk-p b { font-size: 13px; letter-spacing: 0.08em; }
+#options .sk-p small { grid-column: 2; font-size: 11px; color: color-mix(in srgb, var(--text) 62%, transparent); }
+#options .sk-start {
+  display: block; width: calc(100% - 16px); margin: 14px 8px 8px; padding: 13px; font: inherit; font-weight: 600; letter-spacing: 0.3em;
+  color: #05080d; background: var(--cyan); border: 0; border-radius: 4px; cursor: pointer;
+}
+/* skirmish end screen: everyone's numbers */
+#over .sk-stats { border-collapse: collapse; margin: 8px auto 0; font-size: 12px; }
+#over .sk-stats th { font-weight: 400; opacity: 0.6; padding: 2px 8px; font-size: 11px; }
+#over .sk-stats td { padding: 3px 8px; text-align: right; }
+#over .sk-stats td:first-child { text-align: left; white-space: nowrap; }
+#over .sk-stats td i { margin-right: 6px; vertical-align: -1px; }
+#over .sk-stats tr.out td { opacity: 0.55; }
+#over .sk-stats small { opacity: 0.6; }
+/* a skirmish has no colony: no cryo bank, people, biomass, planet health or story goals */
+body.rts #r-cryo, body.rts #r-food, body.rts #r-planet, body.rts #r-people, body.rts #r-mood, body.rts #goals { display: none !important; }

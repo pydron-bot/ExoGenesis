@@ -93,7 +93,7 @@ export class ColonyHud {
     });
     this.el.army.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      const ids = this.cur?.units.map((u) => u.id) ?? [];
+      const ids = this.cur?.units.filter((u) => !u.team).map((u) => u.id) ?? [];
       const all = this.d.ui.sel?.kind === 'units' && this.d.ui.sel.ids.length === ids.length;
       if (!ids.length) return;
       if (all) {
@@ -120,7 +120,9 @@ export class ColonyHud {
     this.cur = s;
     if (s.radar) { this.radar.at = s.secs; this.radar.next = s.nextPack; }
     if (s.secs < this.radar.at) this.radar.at = -1e9; // new game / load
-    this.radar.built = s.buildings.some((b) => b.progress >= 1 && this.d.defs[b.kind]?.role === 'radar');
+    // a skirmish always has its map (no radar needed for it: the fog still hides what isn't in sight)
+    if (s.players) this.radar.at = s.secs;
+    this.radar.built = !!s.players || s.buildings.some((b) => b.progress >= 1 && this.d.defs[b.kind]?.role === 'radar');
     if (now - this.last < 160) return;
     this.last = now;
     this.renderBar(s, speed);
@@ -180,14 +182,15 @@ export class ColonyHud {
     const sol = this.d.rules.solSeconds;
     const sl = Math.floor(s.secs / sol) + 1, h = hourAt(s.secs, sol);
     const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
-    e.clock.textContent = `SOL ${sl} · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} ${s.daylight > 0.5 ? '☀' : '☾'}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;
+    const when = s.players ? `⏱ ${mmss(s.secs)} ${s.daylight > 0.5 ? '☀' : '☾'}` : `SOL ${sl} · ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} ${s.daylight > 0.5 ? '☀' : '☾'}`;
+    e.clock.textContent = `${when}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;
     const seen = s.packs.filter((p) => p.seen);
     const rv = this.radarView(s);
     if (seen.length) { e.threat.className = 'r bad'; e.threat.innerHTML = `⚠ <b>${seen.reduce((m, p) => m + p.alive, 0)}</b><span class="w"> predators</span>`; e.threat.title = 'Predators on the map'; }
     else if (rv.next !== null) { e.threat.className = `r ${rv.next < 30 ? 'warn' : ''}`; e.threat.innerHTML = `⚠<span class="w"> next pack</span> <b>${mmss(rv.next)}</b>`; e.threat.title = 'Next predator pack (radar)'; }
     else if (rv.offline) { e.threat.className = 'r warn'; e.threat.innerHTML = '⚠ <b>off</b><span class="w"> (radar)</span>'; e.threat.title = 'The radar has no power'; }
     else { e.threat.className = 'r dim'; e.threat.innerHTML = '⚠ <b>—</b>'; e.threat.title = 'Build a Radar to see packs coming'; }
-    const n = s.units.length;
+    const n = s.players ? s.units.filter((u) => !u.team).length : s.units.length;
     e.army.innerHTML = `⚔ <b>${n}</b>`;
     e.army.className = `r tap ${n ? '' : 'dim'} ${this.d.ui.sel?.kind === 'units' ? 'on' : ''}`;
     e.army.title = n ? 'Combat units: tap to select them all' : 'No combat units yet (Vehicle Bay)';
@@ -505,16 +508,17 @@ export class ColonyHud {
     g.fillStyle = '#9aa3ab';
     for (const w of s.wrecks ?? []) if (w.found && w.alloys > 0) g.fillRect(px(w.x) - 2.5, pz(w.z) - 1.5, 5, 3);
     g.fillStyle = fill;
+    // skirmish: everything in its owner's colour, Cores outlined white
+    const P = s.players, col = (t?: number) => P?.[t ?? 0]?.color;
     for (const b of s.buildings) {
       const d = this.d.defs[b.kind];
       const r = Math.max(2, (d?.clearance ?? 8) / REGION_HALF * W * 0.3);
-      g.fillStyle = b.kind === 'core' ? '#ffffff' : b.progress < 1 ? '#7f9aa6' : '#5ff3ff';
+      g.fillStyle = col(b.team) ?? (b.kind === 'core' ? '#ffffff' : b.progress < 1 ? '#7f9aa6' : '#5ff3ff');
       g.fillRect(px(b.x) - r, pz(b.z) - r, r * 2, r * 2);
+      if (P && b.kind === 'core') { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(px(b.x) - r - 1, pz(b.z) - r - 1, r * 2 + 2, r * 2 + 2); }
     }
-    g.fillStyle = '#ffffff';
-    for (const d of s.drones) g.fillRect(px(d.x) - 1, pz(d.z) - 1, 3, 3);
-    g.fillStyle = '#5ff3ff';
-    for (const u of s.units) g.fillRect(px(u.x) - 1.5, pz(u.z) - 1.5, 3, 3);
+    for (const d of s.drones) { g.fillStyle = P ? col(d.team)! : '#ffffff'; g.fillRect(px(d.x) - 1, pz(d.z) - 1, 3, 3); }
+    for (const u of s.units) { g.fillStyle = col(u.team) ?? '#5ff3ff'; g.fillRect(px(u.x) - 1.5, pz(u.z) - 1.5, 3, 3); }
     // fog of war: unexplored black, explored dim (drawn under the radar blips)
     if (s.fog) {
       this.fogCv ??= Object.assign(document.createElement('canvas'), { width: FOG_N, height: FOG_N });
@@ -556,6 +560,17 @@ export class ColonyHud {
     this.el.over.classList.toggle('on', on);
     if (!on) return;
     this.el.over.classList.toggle('won', s.over === 'won');
+    if (s.players) {
+      // skirmish: who won, and everyone's numbers
+      $('over-title').textContent = s.over === 'won' ? 'VICTORY' : 'DEFEAT';
+      $('over-sub').textContent = s.overText ?? '';
+      const row = (p: NonNullable<Snapshot['players']>[number]) => `<tr${p.out ? ' class="out"' : ''}><td><i style="background:${esc(p.color)}"></i>${esc(p.name)}${p.ai ? ` <small>${esc(p.ai)}</small>` : ''}</td>` +
+        `<td>${p.stats.unitsBuilt ?? 0}</td><td>${p.stats.enemyKills ?? 0}</td><td>${p.stats.unitsLost ?? 0}</td><td>${p.stats.buildingsLost}</td><td>${Math.round(p.stats.mined)}</td></tr>`;
+      $('over-stats').innerHTML = `<div>${mmss(s.secs)} played</div><table class="sk-stats"><tr><th></th><th>Built</th><th>Kills</th><th>Lost</th><th>Bldgs lost</th><th>Mined</th></tr>${s.players.map(row).join('')}</table>`;
+      $('over-restart').textContent = 'Rematch';
+      $('over-load').textContent = 'New skirmish';
+      return;
+    }
     $('over-title').textContent = s.over === 'won' ? 'COLONY ENDURES' : 'COLONY LOST';
     $('over-sub').textContent = s.over === 'won' || s.over === 'story' ? (s.overText || (s.over === 'won' ? 'You won through.' : 'The colony is lost.')) : s.over === 'core' ? 'The Command Core was destroyed.' : s.over === 'cryo' ? 'The cryo bank failed. The last embryos are gone, and no one is left to carry on.' : 'No colonists are left, and the cryo bank is empty.';
     const sol = Math.floor(s.secs / this.d.rules.solSeconds) + 1;

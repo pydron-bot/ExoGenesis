@@ -819,7 +819,35 @@ export class RegionView {
   readonly flora: Flora | null;
   readonly core: THREE.Group;
   /** Interpolated drone positions this frame (for picking and HUD). */
-  readonly drones = new Map<number, { obj: THREE.Group; x: number; z: number; world: THREE.Vector3 }>();
+  readonly drones = new Map<number, { obj: THREE.Group; x: number; z: number; world: THREE.Vector3; team?: number }>();
+  /** Skirmish: a ring in its owner's colour under every building and drone (key 'b<id>' / 'd<id>'). */
+  private teamRings = new Map<string, THREE.Mesh>();
+  private teamRingGeo: THREE.BufferGeometry | null = null;
+  private teamRingMats = new Map<string, THREE.MeshBasicMaterial>();
+  private ringsSeen = new Set<string>();
+  /** A team ring at (x, z), radius r, in `color`; call `endTeamRings` once a frame to drop the ones not placed. */
+  private teamRing(key: string, x: number, z: number, r: number, color: string) {
+    this.ringsSeen.add(key);
+    let m = this.teamRings.get(key);
+    if (!m) {
+      this.teamRingGeo ??= new THREE.RingGeometry(0.84, 1, 48).rotateX(-Math.PI / 2);
+      let mat = this.teamRingMats.get(color);
+      if (!mat) {
+        mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 });
+        this.teamRingMats.set(color, mat);
+      }
+      m = new THREE.Mesh(this.teamRingGeo, mat);
+      m.renderOrder = 2;
+      this.teamRings.set(key, m);
+      this.details.add(m);
+    }
+    orient(m, x, z, 0, 0.35);
+    m.scale.setScalar(r);
+  }
+  private endTeamRings() {
+    for (const [k, m] of this.teamRings) if (!this.ringsSeen.has(k)) { this.details.remove(m); this.teamRings.delete(k); }
+    this.ringsSeen.clear();
+  }
   /** Wildlife: one instanced mesh per species on the map (index into the sorted species ids), all in `wildGroup`. */
   private wildGroup = new THREE.Group();
   private wildMat = creatureMaterial();
@@ -1115,6 +1143,7 @@ export class RegionView {
         e = { obj, x: b.x, z: b.z, world: new THREE.Vector3() };
         this.drones.set(b.id, e);
       }
+      e.team = b.team ?? 0;
       const x = lerp(a.x, b.x, alpha), z = lerp(a.z, b.z, alpha);
       let dh = b.heading - a.heading;
       dh = Math.atan2(Math.sin(dh), Math.cos(dh));
@@ -1123,6 +1152,8 @@ export class RegionView {
       if (!held) orient(e.obj, x, z, a.heading + dh * alpha, 2.4 + bob);
       e.x = x; e.z = z;
       e.world.copy(e.obj.position);
+      const pc = cur.players?.[b.team ?? 0]?.color;
+      if (pc) this.teamRing(`d${b.id}`, x, z, 2.2, pc);
       if (b.id === this.firstDrone) this.droneWorld.copy(e.obj.position);
     }
     for (const [id, e] of this.drones) {
@@ -1439,6 +1470,8 @@ export class RegionView {
       if (b.kind === 'core' && !cur.players) { coreSeen = true; this.hpBar(b, d, ui, camera, null); continue; }
       seen.add(b.id);
       const done = b.progress >= 1;
+      const pc = cur.players?.[b.team ?? 0]?.color;
+      if (pc) this.teamRing(`b${b.id}`, b.x, b.z, (d?.clearance ?? 8) / 2 + 1, pc);
       let e = this.buildings.get(b.id);
       if (!e || e.done !== done) {
         if (e) this.dropBuilding(b.id, e);
@@ -1471,6 +1504,8 @@ export class RegionView {
             // own copy so dimming one building doesn't dim the others
             const c = mm.clone();
             (o as THREE.Mesh).material = c;
+            // another skirmish player's building: its glow in their colour
+            if (pc && b.team && c.emissiveIntensity > 0) c.emissive.set(pc);
             emissive.push([c, c.emissiveIntensity]);
           }
         });
@@ -1578,6 +1613,7 @@ export class RegionView {
       const h = this.haulers.get(id);
       if (h) { this.details.remove(h); this.haulers.delete(id); }
     }
+    this.endTeamRings();
     if (this.coreAlive !== coreSeen) {
       this.coreAlive = coreSeen;
       this.core.visible = coreSeen;

@@ -372,7 +372,9 @@ export class Sim {
   private foeR(f: Foe) { const u = (f as Unit).unit; return u !== undefined ? content.units[u].radius : (f as Building).kind !== undefined ? bodyR(f as Building) : 1; }
   private foeAir(f: Foe) { const u = (f as Unit).unit; return u !== undefined && flies(content.units[u]); }
   /** Take a foe off the map: whatever kind it is. */
-  private kill(f: Foe) {
+  private kill(f: Foe, by = 0) {
+    // a skirmish player's kills of other players' things (fauna count as `kills`, in killHostile)
+    if (!isHostile(f) && this.s.players) { const st = this.statsOf(by); st.enemyKills = (st.enemyKills ?? 0) + 1; }
     if (isHostile(f)) this.killHostile(f);
     else if (isBuilding(f)) this.destroyBuilding(f);
     else if (isDrone(f)) this.destroyDrone(f);
@@ -424,6 +426,8 @@ export class Sim {
     s.units = this.units.filter((o) => !mine(o));
     this.emit(t === 0 ? 'Your Command Core has fallen. You are out of the game.' : `${P[t].name} has been defeated`, t === 0 ? 'bad' : 'info', t === 0 ? 'alarm' : 'packCleared');
     const sides = new Set(P.filter((p) => !p.out).map((p) => p.side));
+    // you're out (and nobody on your side is left): your game is over, whoever goes on fighting
+    if (t === 0 && !P.some((p) => !p.out && p.side === P[0].side) && sides.size > 1) { s.over = 'core'; s.overText = 'Defeat: your Command Core has fallen'; return; }
     if (sides.size > 1) return;
     if (P[0].out) { s.over = 'core'; s.overText = sides.size ? `Defeat: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won` : 'Defeat'; }
     else this.end('won', `Victory: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won`);
@@ -1042,6 +1046,7 @@ export class Sim {
         id: s.nextId++, unit: kind, slot, x: ux, z: uz, heading: yaw + Math.PI, hp: ud.hp, cd: 0,
         order: { kind: 'move', x: gx, z: gz }, gx, gz, target: -1,
       });
+      s.stats.unitsBuilt = (s.stats.unitsBuilt ?? 0) + 1;
       this.emit(`${ud.name} ready${b.queue.length ? ` · ${b.queue.length} more queued` : ''}`, 'info', 'unitReady');
     }
   }
@@ -1128,7 +1133,7 @@ export class Sim {
     tgt.hp -= dmg;
     if (o.splash) {
       for (const h of [...foes]) {
-        if (h !== tgt && h.hp > 0 && !(isHostile(h) && h.under) && this.foeAir(h) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.kill(h); }
+        if (h !== tgt && h.hp > 0 && !(isHostile(h) && h.under) && this.foeAir(h) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.kill(h, team); }
       }
     }
     if (o.chain && o.chainRange) {
@@ -1146,12 +1151,12 @@ export class Sim {
         this.fx.push(FX.ARC, from.x, from.z, next.x, next.z);
         next.hp -= d;
         hit.add(next);
-        if (from !== tgt && from.hp <= 0) this.kill(from);
+        if (from !== tgt && from.hp <= 0) this.kill(from, team);
         from = next;
       }
-      for (const h of hit) if (h !== tgt && h.hp <= 0) this.kill(h);
+      for (const h of hit) if (h !== tgt && h.hp <= 0) this.kill(h, team);
     }
-    if (tgt.hp <= 0) this.kill(tgt);
+    if (tgt.hp <= 0) this.kill(tgt, team);
   }
 
   private stepTurrets() {
@@ -2501,6 +2506,10 @@ export class Sim {
         });
         return;
       }
+      case 'surrender': {
+        if (s.players && !s.players[this.team]?.out && !this.falling.includes(this.team)) this.falling.push(this.team);
+        return;
+      }
       case 'stop': {
         for (const u of this.units) if (c.ids.includes(u.id)) { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; u.ride = undefined; u.drop = undefined; }
         return;
@@ -2596,12 +2605,16 @@ export class Sim {
       army[o + F.HP] = h.hp / this.unitDef(h).hp;
       army[o + F.GEN] = h.id & 0xffff; army[o + F.ALIVE] = 1;
     }
-    const units: UnitSnap[] = this.units.map((u) => {
+    // skirmish: what the local player can know of the others: their units and drones in sight, their buildings once seen
+    const P = s.players;
+    const known = <X extends { team?: number; x: number; z: number }>(o: X) => !P || this.allied(0, o.team ?? 0) || this.visible(o.x, o.z);
+    if (P) for (const b of s.buildings) if (!b.seen && known(b)) b.seen = true;
+    const units: UnitSnap[] = this.units.filter(known).map((u) => {
       const o = u.slot * STRIDE, d = content.units[u.unit];
       army[o + F.X] = u.x; army[o + F.Z] = u.z; army[o + F.HEADING] = u.heading;
       army[o + F.TYPE] = unitType(u.unit);
       army[o + F.HP] = u.hp / d.hp;
-      army[o + F.GEN] = u.id & 0xffff; army[o + F.ALIVE] = 1;
+      army[o + F.GEN] = u.id & 0xffff; army[o + F.ALIVE] = 1; army[o + F.TEAM] = u.team ?? 0;
       const mv = u.order.kind === 'move' ? u.order : null;
       return {
         id: u.id, team: u.team, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0,
@@ -2619,7 +2632,7 @@ export class Sim {
     this.fx.length = 0;
     const fog = new Uint8Array(FOG_N * FOG_N);
     for (let i = 0; i < fog.length; i++) fog[i] = this.vis[i] ? 2 : this.exp[i];
-    const drones: DroneSnap[] = s.drones.map((d) => {
+    const drones: DroneSnap[] = s.drones.filter(known).map((d) => {
       const t = d.task;
       let tx = d.x, tz = d.z;
       if (t.kind === 'move') { tx = t.x; tz = t.z; }
@@ -2638,8 +2651,8 @@ export class Sim {
     const inh = this.inhabitants.snapshot();
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
-      players: s.players?.map((p) => ({ name: p.name, color: p.color, side: p.side, ai: p.ai, out: !!p.out, home: p.home })),
-      drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
+      players: P?.map((p, i) => ({ name: p.name, color: p.color, side: p.side, ai: p.ai, out: !!p.out, home: p.home, stats: { ...this.statsOf(i) } })),
+      drones, fauna: fa, buildings: (P ? s.buildings.filter((b) => this.allied(0, b.team ?? 0) || b.seen) : s.buildings).map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
       wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),
       seams: (s.seams ?? []).map((v) => ({ ...v })), isotopes: s.isotopes ?? 0,
       caches: (s.relics?.caches ?? []).map((c) => ({ ...c })),

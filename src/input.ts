@@ -110,6 +110,7 @@ export class Input {
     let best = -1, bd = DRONE_PICK_PX;
     const v = new THREE.Vector3();
     for (const [id, d] of this.region.drones) {
+      if (d.team) continue; // another skirmish player's
       v.copy(d.world).project(this.cam.camera);
       if (v.z > 1) continue;
       const dist = Math.hypot(((v.x + 1) / 2) * r.width + r.left - x, ((1 - v.y) / 2) * r.height + r.top - y);

@@ -55,7 +55,8 @@ export class SimClient {
     return Math.min(1, Math.max(0, (now - this.curAt) / this.interval));
   }
 
-  command(cmd: Command) { this.worker.postMessage({ type: 'cmd', cmd }); }
+  /** `team`: act as that skirmish player (tests; you are 0). */
+  command(cmd: Command, team?: number) { this.worker.postMessage({ type: 'cmd', cmd, team }); }
   setSpeed(speed: number) { this.worker.postMessage({ type: 'speed', speed }); }
   load(state: SimState) { this.worker.postMessage({ type: 'load', state }); }
   newGame(seed: number) { this.worker.postMessage({ type: 'new', seed }); }

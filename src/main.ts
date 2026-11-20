@@ -17,6 +17,7 @@ import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 import { startSkirmish } from './skirmish/mode';
 import { skirmishFromUrl } from './skirmish/setup';
+import { openSkirmishSetup } from './skirmish/setup-screen';
 import { Landing } from './landing';
 import { Cinematic, type CineHooks } from './cinematic';
 import { loadModel } from './assets/models';
@@ -517,7 +518,11 @@ const canPlace = (kind: string, x: number, z: number) => {
   return placeProblem(placeWorld(c), content.buildings, content.colony, kind, x, z);
 };
 /** What placement rules see: the colony plus the region's static features (vents). */
-const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits']; seams?: Snapshot['seams']; camps?: Snapshot['camps'] }) => ({ buildings: c.buildings, deposits: c.deposits, vents: regionDef.vents ?? [], seams: c.seams ?? [], campSites: campSites(c.camps ?? []) });
+const placeWorld = (c: { buildings: Building[]; deposits: Snapshot['deposits']; seams?: Snapshot['seams']; camps?: Snapshot['camps'] }) => ({
+  // a skirmish: other players' buildings (as far as you've seen them) only keep you from building too close
+  buildings: rts ? c.buildings.filter((b) => !b.team) : c.buildings, others: rts ? c.buildings.filter((b) => b.team) : undefined,
+  deposits: c.deposits, vents: regionDef.vents ?? [], seams: c.seams ?? [], campSites: campSites(c.camps ?? []),
+});
 const snapGate = (kind: string, x: number, z: number) => {
   const c = sim.cur;
   return c && content.buildings[kind]?.role === 'gate' ? gateSnap(c, content.buildings, x, z) : null;
@@ -548,18 +553,19 @@ function restartGame() {
   fogView.reset();
   ui.sel = null; setBuild(null);
   selectFirstDrone = true;
+  if (rts) { const h = rts.setup.homes![0]; cam.fx = h.x; cam.fz = h.z; }
 }
 const hud = new ColonyHud({
   defs: content.buildings, units: content.units, research: content.research, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
   command: (c) => sim.command(c),
   setBuild,
-  restart: () => restartGame(),
+  restart: () => restartGame(), // (a skirmish: the same map and players again)
   // automated tests (Playwright) don't stop for story pauses unless they asked for a story (?story=<id>, play test)
   pause: (on) => {
     if (navigator.webdriver && !fireStory) return;
     if (on) { storyResume = speed || 1; setSpeed(0); } else if (speed === 0) setSpeed(storyResume);
   },
-  load: () => void loadGame(),
+  load: () => (rts ? showSkirmishSetup() : void loadGame()),
   log,
   onSelect: (kind, role) => storyHud.selected(kind, role),
   cardOpened: () => audio.event('message'),
@@ -668,11 +674,11 @@ if (previewModels || builtinModels) for (const d of UNIT_DEFS) {
 }
 const skirmish = skirmishMode ? startSkirmish({ scene, renderer, cam, region, log, params }) : null;
 $('brand-ver').textContent = `v${VERSION}`;
-function goSkirmish() {
-  const u = new URL(location.href);
-  u.searchParams.set('mode', 'skirmish');
-  location.href = u.toString();
+/** The skirmish setup panel (title SKIRMISH, the game menu); START goes to the game it sets up. */
+function showSkirmishSetup(onClose?: () => void) {
+  openSkirmishSetup(content.bodies, { base: import.meta.env.BASE_URL, tap: () => audio.play('tap'), onClose });
 }
+if (rts) document.body.classList.add('rts');
 
 const help = $('help');
 let helped = false;
@@ -702,8 +708,9 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   lineStep: (kind) => content.buildings[kind].clearance + 0.02,
   placeProblem: canPlace,
   snap: snapGate,
-  buildings: () => sim.cur?.buildings ?? [],
-  units: () => sim.cur?.units ?? [],
+  // only your own can be picked (a skirmish's other players' are shown, not commanded)
+  buildings: () => (sim.cur?.buildings ?? []).filter((b) => !b.team),
+  units: () => (sim.cur?.units ?? []).filter((u) => !u.team),
   order: (ids, x, z) => { audio.play('order'); sim.command({ type: 'order', ids, x, z }); },
   riders: (ids, t) => {
     const us = sim.cur?.units ?? [], tu = us.find((u) => u.id === t);
@@ -871,14 +878,24 @@ function openGameMenu() {
   const keep = (fn: () => void) => () => { resume = false; menuOpen = false; fn(); };
   const reopen = () => { resume = true; openGameMenu(); };
   // the menu's buttons close it first; ones that come back to it (Options, What's new) keep the game paused
-  const { el } = openMenu('Menu', [
+  const toTitle = () => { const u = new URL(location.href); for (const k of [...u.searchParams.keys()]) if (k !== 'look' && k !== 'sw') u.searchParams.delete(k); location.href = u.toString(); };
+  const setup = keep(() => showSkirmishSetup(() => { menuOpen = false; reopen(); }));
+  const { el } = openMenu('Menu', rts ? [
+    { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
+    { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
+    { id: 'rematch', label: 'Rematch', sub: 'The same map and players, from the start', confirm: 'This game will be lost · tap again', run: () => restartGame() },
+    { id: 'skirmish', label: 'New skirmish', sub: 'Pick another map and players', run: setup },
+    { id: 'surrender', label: 'Surrender', sub: 'Give up this game', confirm: 'Your Command Core will fall · tap again', run: () => sim.command({ type: 'surrender' }) },
+    { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
+    { id: 'title', label: 'Title screen', sub: 'Leave this skirmish', confirm: 'This game will be lost · tap again', run: keep(toTitle) },
+  ] : [
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
     { id: 'save', label: 'Save', sub: 'To this browser (the game also autosaves)', run: () => void saveGame() },
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
-    { id: 'skirmish', label: 'Skirmish', sub: 'Leave for a skirmish battle (your colony is autosaved)', run: keep(() => { sim.flush(); goSkirmish(); }) },
-    { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); const u = new URL(location.href); for (const k of ['title', 'intro', 'new', 'mode']) u.searchParams.delete(k); location.href = u.toString(); }) },
+    { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
+    { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },
     { id: 'new', label: 'New game', sub: 'Start over in this region', confirm: 'Your current colony will be lost (unless you Saved it) · tap again', run: () => restartGame() },
   ], `v${VERSION} · M1`, () => audio.play('tap'), () => back());
   el.querySelector('.op-foot')?.classList.add('dim');
@@ -930,7 +947,7 @@ function showTitle() {
       ...(autosaved && !scratch ? { confirm: `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` } : {}),
       run: go(startLanding),
     },
-    { id: 'skirmish', label: 'SKIRMISH', sub: 'Hundreds of units, one battlefield (prototype)', run: goSkirmish },
+    { id: 'skirmish', label: 'SKIRMISH', sub: 'You against the computer: pick a map and players', run: () => showSkirmishSetup() },
     { id: 'options', label: 'OPTIONS', sub: regions.length > 1 ? 'Region, sound and graphics' : 'Sound and graphics', run: () => showOptions(undefined, titleOptions) },
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
   ];
@@ -1050,6 +1067,7 @@ function frame(now: number) {
     // fog shows once the landing has handed over (the descent keeps its vista)
     fogView.amount = (cine && !cine.world) || title ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
+    if (sim.cur.players) army?.setTeamColors(sim.cur.players.map((p) => p.color));
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
     natives?.update(sim.prev, sim.cur, alpha, gameT, cam.dist);

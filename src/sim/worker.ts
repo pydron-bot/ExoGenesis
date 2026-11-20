@@ -64,7 +64,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
   if (!sim) return;
   switch (msg.type) {
     case 'cmd':
-      sim.command(msg.cmd);
+      sim.command(msg.cmd, msg.team ?? 0);
       // paused: no ticks will send the result, so show it now (orders, queues, builds)
       if (msg.cmd.type === 'landing' || speed === 0) snapshot();
       return;

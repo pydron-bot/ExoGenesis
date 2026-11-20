@@ -33,6 +33,8 @@ export const MAX_HOSTILES = 400;
 /** A building; `kind` is its content id (content/buildings/<kind>.json). */
 export interface Building {
   id: number;
+  /** Skirmish: the local player has seen it (an enemy building stays on its map from then on, as last seen). */
+  seen?: boolean;
   /** Owner (skirmish player index); unset = player 0, the local player (the campaign never sets it). */
   team?: number;
   /** Wardens' cooldown (Autonomist-led colonies: the people inside fight back). */
@@ -477,6 +479,8 @@ export type Command =
   | { type: 'board'; ids: number[]; transport: number }
   | { type: 'unload'; ids: number[] }
   | { type: 'stop'; ids: number[] }
+  /** Skirmish: give up (your side loses you; the game goes on for the others). */
+  | { type: 'surrender' }
   | { type: 'landing'; stage: LandingStage }
   /** A story card answered: the choice's index (0 for Continue). */
   | { type: 'story'; id: string; choice: number }
@@ -501,7 +505,7 @@ export interface PlaySetup { sol?: number; alloys?: number; isotopes?: number; c
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
   | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef }; skirmish?: SkirmishSetup }
-  | { type: 'cmd'; cmd: Command }
+  | { type: 'cmd'; cmd: Command; team?: number }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }
   | { type: 'load'; state: SimState }
@@ -547,7 +551,7 @@ export interface Snapshot {
   type: 'snap';
   tick: number;
   /** Skirmish players (absent in the campaign). */
-  players?: { name: string; color: string; side: number; ai?: PlayerState['ai']; out: boolean; home: { x: number; z: number } }[];
+  players?: { name: string; color: string; side: number; ai?: PlayerState['ai']; out: boolean; home: { x: number; z: number }; stats: SimStats }[];
   /** Game seconds since landing. */
   secs: number;
   /** False until the landing sequence has put the drone on the ground. */
