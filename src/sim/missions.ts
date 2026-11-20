@@ -58,7 +58,7 @@ export class Missions {
         if (marks.includes(i) || !conditionMet(this.sim, o.kind, o, { sites: this.region().sites })) return;
         marks.push(i);
         changed = true;
-        if (!quiet) this.sim.emit(`✓ ${o.text}`, 'info', 'online');
+        if (!quiet) this.sim.emit(`✓ ${o.text}`, 'info', 'objective');
       });
       if (marks.length >= def.objectives.length) { this.finish(id, quiet); changed = true; }
     }
@@ -73,7 +73,7 @@ export class Missions {
     if (!(m.failed ??= []).includes(id)) m.failed.push(id);
     if (quiet) return;
     const why = text ? this.sim.story.fill(text) : '';
-    this.sim.emit(`Mission failed: ${def.title}${why ? ` · ${why}` : ''}`, 'bad', 'alarm');
+    this.sim.emit(`Mission failed: ${def.title}${why ? ` · ${why}` : ''}`, 'bad', 'missionFail');
     if (def.onFail) this.sim.story.fire(def.onFail);
     if (def.failEnds) this.sim.end('story', why || `Mission failed: ${def.title}`);
   }
@@ -107,7 +107,7 @@ export class Missions {
     m.active.push(id);
     m.marks[id] = [];
     if (quiet) return;
-    this.sim.emit(`Mission: ${def.title}`, 'info', 'warning');
+    this.sim.emit(`Mission: ${def.title}`, 'info', 'mission');
     if (def.onStart) this.sim.story.fire(def.onStart);
   }
 
@@ -126,7 +126,7 @@ export class Missions {
     m.active = m.active.filter((x) => x !== id);
     if (!m.done.includes(id)) m.done.push(id);
     if (quiet) return;
-    this.sim.emit(`Mission complete: ${def.title}`, 'info', 'packCleared');
+    this.sim.emit(`Mission complete: ${def.title}`, 'info', 'missionDone');
     for (const e of def.rewards ?? []) this.sim.story.effect(e);
     if (def.onDone) this.sim.story.fire(def.onDone);
   }

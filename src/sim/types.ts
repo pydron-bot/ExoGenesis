@@ -553,7 +553,9 @@ export interface Snapshot {
  * What an event sounds like (src/audio). Sent alongside the event text so the
  * client doesn't have to match on wording; events without one stay silent.
  */
-export type EventCue = 'placed' | 'online' | 'unitReady' | 'droneReady' | 'packCleared' | 'lost' | 'deny' | 'warning' | 'alarm';
+export type EventCue = 'placed' | 'online' | 'unitReady' | 'droneReady' | 'packCleared' | 'lost' | 'deny' | 'warning' | 'alarm'
+  | 'birth' | 'death' | 'research' | 'confirm' | 'recycle' | 'mission' | 'objective' | 'missionDone' | 'victory'
+  | 'discovery' | 'friend' | 'exhausted' | 'message' | 'missionFail' | 'defeat';
 
 export type FromWorker =
   | Snapshot

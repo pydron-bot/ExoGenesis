@@ -109,7 +109,7 @@ export class Inhabitants {
       if (!c.met && this.seen(c)) {
         c.met = true;
         c.pending = true;
-        this.sim.emit(`${g.contactTitle}: ${cap(g.name)} have seen us`, 'warn', 'warning');
+        this.sim.emit(`${g.contactTitle}: ${cap(g.name)} have seen us`, 'warn', 'discovery');
       }
       if ((s.tick + i) % EVERY) return;
       this.regard(c, g, EVERY * DT);
@@ -139,7 +139,7 @@ export class Inhabitants {
     if (!c.trusted && c.regard >= g.trustAt && !c.pending) {
       c.trusted = true;
       // the story plays once (the HUD shows it as a card); after that, a log line
-      this.sim.emit(c.sang ? `${cap(g.name)} trust us again` : `${g.trustTitle}: ${cap(g.name)} trust us`, 'info', 'online');
+      this.sim.emit(c.sang ? `${cap(g.name)} trust us again` : `${g.trustTitle}: ${cap(g.name)} trust us`, 'info', 'friend');
       c.sang = true;
     }
   }
@@ -165,8 +165,8 @@ export class Inhabitants {
     c.choice = choice;
     if (choice === 'approach') {
       c.regard = clamp(c.regard + g.approach, 0, 100);
-      this.sim.emit(g.approachText, 'info', 'online');
-    } else if (choice === 'avoid') this.sim.emit(g.avoidText, 'info');
+      this.sim.emit(g.approachText, 'info', 'friend');
+    } else if (choice === 'avoid') this.sim.emit(g.avoidText, 'info', 'message');
     else this.leave(c, g.driveText, 'warn');
   }
 

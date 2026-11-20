@@ -71,11 +71,11 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       post({ type: 'saved', reqId: msg.reqId, state: sim.s });
       return;
     case 'load':
-      if (msg.state?.version !== 2) { post({ type: 'event', text: 'That save is from an older version of the game and can’t be loaded', level: 'bad' }); return; }
-      if ((msg.state.region ?? 'touchdown') !== region) { post({ type: 'event', text: 'That save is from another region and can’t be loaded here', level: 'bad' }); return; }
+      if (msg.state?.version !== 2) { post({ type: 'event', text: 'That save is from an older version of the game and can’t be loaded', level: 'bad', cue: 'deny' }); return; }
+      if ((msg.state.region ?? 'touchdown') !== region) { post({ type: 'event', text: 'That save is from another region and can’t be loaded here', level: 'bad', cue: 'deny' }); return; }
       sim.load(msg.state);
       snapshot();
-      post({ type: 'event', text: 'Save restored', level: 'info' });
+      post({ type: 'event', text: 'Save restored', level: 'info', cue: 'confirm' });
       return;
     case 'new':
       sim.newGame(msg.seed);

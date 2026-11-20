@@ -27,6 +27,8 @@ interface Deps {
   command(c: Command): void;
   /** Pause (true) or resume (false) the game for a `pause` event. */
   pause(on: boolean): void;
+  /** A card opened (a sound). */
+  opened?(): void;
 }
 
 export class ContactCard {
@@ -158,6 +160,7 @@ export class ContactCard {
     if (quiet) { html = ''; pause = false; }
     if (pause !== this.paused) { this.paused = pause; this.d.pause(pause); }
     if (html === this.key) return;
+    if (html && !this.key) this.d.opened?.();
     this.key = html;
     this.el.innerHTML = html;
     this.el.style.borderColor = color;

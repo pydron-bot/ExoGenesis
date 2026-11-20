@@ -131,7 +131,7 @@ export class Planet {
       const h = Math.round(this.health()), last = p.reports.length ? p.reports[p.reports.length - 1] : Math.round(this.start());
       p.reports.push(h);
       const diff = h - last;
-      sim.emit(`Biosphere Report sent: planet health ${h}${diff ? ` (${diff > 0 ? '+' : '−'}${Math.abs(diff)} this sol)` : ' (no change)'}`, 'info');
+      sim.emit(`Biosphere Report sent: planet health ${h}${diff ? ` (${diff > 0 ? '+' : '−'}${Math.abs(diff)} this sol)` : ' (no change)'}`, 'info', 'message');
       if (sim.story.s && !sim.story.has('biosphere-report')) sim.story.s.flags.push('biosphere-report');
     }
   }

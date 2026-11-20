@@ -110,7 +110,7 @@ export class Story {
     const ch = ev.choices?.[choice];
     if (ev.choices?.length) {
       if (!ch) return;
-      if (ch.reply) this.sim.emit(this.fill(ch.reply), 'info');
+      if (ch.reply) this.sim.emit(this.fill(ch.reply), 'info', 'message');
       this.apply(ev, choice + 1);
     }
     if (!st.answered.includes(id)) st.answered.push(id);
@@ -125,7 +125,7 @@ export class Story {
     const sim = this.sim, s = sim.s, st = this.s, n = e.amount ?? 0;
     const site = e.site ? this.region().sites.find((x) => x.id === e.site) : undefined;
     switch (e.kind) {
-      case 'log': if (e.text) sim.emit(this.fill(e.text), 'info'); break;
+      case 'log': if (e.text) sim.emit(this.fill(e.text), 'info', 'message'); break;
       case 'alloys': s.alloys = Math.max(0, s.alloys + n); break;
       case 'isotopes': s.isotopes = Math.max(0, (s.isotopes ?? 0) + n); break;
       case 'biomass': if (s.people) sim.people.debug({ biomass: n }); break;

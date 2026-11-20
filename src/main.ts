@@ -555,6 +555,7 @@ const hud = new ColonyHud({
   load: () => $('b-load').click(),
   log,
   onSelect: (kind, role) => storyHud.selected(kind, role),
+  cardOpened: () => audio.event('message'),
 });
 /** Tutorial hints, waypoints and camera moves the story asks for. */
 const storyHud = new StoryHud({
@@ -676,7 +677,7 @@ const army = skirmish ? null : new ArmyView(scene);
 const colonists = skirmish ? null : new ColonistView(region.details);
 const natives = skirmish ? null : new InhabitantView(region.details, content.inhabitants, content.assets, fogView.enabled, region.flora);
 const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {
-  move: (drone, x, z) => sim.command({ type: 'move', drone, x, z }),
+  move: (drone, x, z) => { audio.play('order'); sim.command({ type: 'move', drone, x, z }); },
   build: (kind, x, z, yaw) => sim.command({ type: 'build', kind, x, z, yaw }),
   isLine,
   linePreview: (kind, x1, z1, x2, z2) => {
@@ -700,15 +701,15 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   snap: snapGate,
   buildings: () => sim.cur?.buildings ?? [],
   units: () => sim.cur?.units ?? [],
-  order: (ids, x, z) => sim.command({ type: 'order', ids, x, z }),
+  order: (ids, x, z) => { audio.play('order'); sim.command({ type: 'order', ids, x, z }); },
   riders: (ids, t) => {
     const us = sim.cur?.units ?? [], tu = us.find((u) => u.id === t);
     if (!tu || !content.units[tu.unit]?.carries) return [];
     return ids.filter((id) => { const d = content.units[us.find((u) => u.id === id)?.unit ?? '']; return !!d && !d.carries && (d.move ?? 'ground') === 'ground'; });
   },
-  board: (ids, t) => sim.command({ type: 'board', ids, transport: t }),
+  board: (ids, t) => { audio.play('order'); sim.command({ type: 'board', ids, transport: t }); },
   setBuild,
-  select: () => hud.selected(),
+  select: () => { if (ui.sel) audio.play('select'); hud.selected(); },
   view: (v) => cam.setView(v),
   togglePause: () => setSpeed(speed === 0 ? 1 : 0),
   toggleBuildMenu: () => hud.toggleMenu(),
@@ -720,7 +721,7 @@ $('pl-rotate').onclick = () => input?.rotate();
 $('pl-done').onclick = () => setBuild(null);
 if (!skirmish) addEventListener('keydown', (e) => {
   // X: selected combat units stop and guard where they stand
-  if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) sim.command({ type: 'stop', ids: ui.sel.ids });
+  if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) { audio.play('order'); sim.command({ type: 'stop', ids: ui.sel.ids }); }
 });
 /** Selected combat units as the army renderer wants them: slot → generation. */
 const armySel = new Map<number, number>();
@@ -923,6 +924,33 @@ const shadowSizes = Object.fromEntries(Object.entries(content.buildings).map(([k
   const r = Math.max(1, (d.clearance ?? 8) / 2 * 0.85);
   return [k, { r, h: d.role === 'wall' || d.role === 'gate' ? 3 : Math.min(r * 1.2, 9) }];
 }));
+// ---------- sounds of the place ----------
+/** How much of the ground round the camera focus is water (0..1), and how close the camera is: sampled twice a second. */
+let waterNear = 0, waterIn = 0;
+function placeSounds(dt: number) {
+  const c = sim.cur;
+  const playing = !skirmish && !title && !cine && !!c?.deployed;
+  if (playing && (waterIn -= dt) <= 0) {
+    waterIn = 0.5;
+    const near = spatial(cam.fx, cam.fz)?.gain ?? 0, r = 18 + cam.dist * 0.35;
+    let wet = 0, n = 0;
+    for (const [k, rr] of [[12, r], [6, r / 2], [1, 0]] as const) for (let i = 0; i < k; i++) {
+      const a = (i / k) * Math.PI * 2;
+      if (regionHeightRaw(cam.fx + Math.cos(a) * rr, cam.fz + Math.sin(a) * rr) < 0.3) wet++;
+      n++;
+    }
+    // a little water is heard (a lake's edge), half or more is a full shore
+    waterNear = near * Math.min(1, Math.sqrt(wet / n) * 1.5);
+  }
+  audio.beds({
+    water: playing ? waterNear : 0,
+    sites: playing ? c!.drones.filter((d) => d.working).map((d) => ({ x: d.tx, z: d.tz })) : [],
+    fauna: playing ? c!.fauna : undefined,
+    camps: playing ? (c!.camps ?? []).filter((cp) => cp.met && !cp.gone) : [],
+    dt, spatial,
+  });
+}
+
 // ---------- frame loop ----------
 // the body's sky: Home's by default; airless bodies have a black one, day and night
 const skyDay = new THREE.Color(bodyDef?.sky ?? (airGlow ? '#8fb0ad' : '#05070b'));
@@ -1005,6 +1033,7 @@ function frame(now: number) {
     audio.musicFor(title?.active ? 'title' : !title && !cine && sim.cur.deployed ? 'play' : null, sim.cur.daylight, dt);
     audio.worldFx(sim.cur.fx, sim.cur.tick, cam.fx, cam.fz, spatial);
     audio.ambient(sim.cur.daylight, air, dt);
+    placeSounds(dt);
     sim.seenTick = sim.cur.tick;
     if (!ready) { ready = true; exo.ready = true; reveal(); }
   }

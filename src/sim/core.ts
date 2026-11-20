@@ -630,7 +630,7 @@ export class Sim {
       if (w.found || !this.visible(w.x, w.z)) continue;
       w.found = true;
       if (this.story.s && !this.story.has('wreck-found')) this.story.s.flags.push('wreck-found');
-      if (this.deployed) this.emit(`Wreck sighted ${compass(w.x, w.z)} of the Core. Field Engineers can salvage it.`, 'warn', 'warning');
+      if (this.deployed) this.emit(`Wreck sighted ${compass(w.x, w.z)} of the Core. Field Engineers can salvage it.`, 'warn', 'discovery');
     }
     if (grew || force || !s.explored) {
       let str = '';
@@ -820,7 +820,7 @@ export class Sim {
     s.research!.active = null;
     s.stats.researched = (s.stats.researched ?? 0) + 1;
     const unlocks = [...Object.values(DEFS), ...Object.values(content.units)].filter((x) => x.research === a.id).map((x) => x.name);
-    this.emit(`Research complete: ${r.name}${unlocks.length ? ` · unlocks ${unlocks.join(', ')}` : ''}`, 'info', 'online');
+    this.emit(`Research complete: ${r.name}${unlocks.length ? ` · unlocks ${unlocks.join(', ')}` : ''}`, 'info', 'research');
     const flag = `research-${a.id}`;
     if (this.story.s && !this.story.has(flag)) this.story.s.flags.push(flag);
   }
@@ -840,7 +840,7 @@ export class Sim {
         s.isotopes = (s.isotopes ?? 0) + take;
         s.stats.isotopesMined = (s.stats.isotopesMined ?? 0) + take;
         this.planet.minedIsotopes(sm.x, sm.z, take);
-        if (sm.isotopes <= 0) this.emit(`Isotope seam ${compass(sm.x, sm.z)} of the Core is exhausted`, 'warn');
+        if (sm.isotopes <= 0) this.emit(`Isotope seam ${compass(sm.x, sm.z)} of the Core is exhausted`, 'warn', 'exhausted');
         continue;
       }
       if (d.role !== 'depot' || b.progress < 1) continue;
@@ -852,7 +852,7 @@ export class Sim {
       s.alloys += take;
       s.stats.mined += take;
       this.planet.mined(dep.x, dep.z, take);
-      if (dep.alloys <= 0) this.emit(`Deposit ${compass(dep.x, dep.z)} of the Core is exhausted`, 'warn');
+      if (dep.alloys <= 0) this.emit(`Deposit ${compass(dep.x, dep.z)} of the Core is exhausted`, 'warn', 'exhausted');
     }
     s.alloys += RULES.alloyTrickle * DT;
   }
@@ -985,7 +985,7 @@ export class Sim {
     if (Math.hypot(t.x - u.x, t.z - u.z) < td.radius + d.radius + BOARD_REACH) {
       (t.cargo ??= []).push(u);
       u.ride = undefined; u.slot = -1; u.target = -1; u.path = undefined; u.goal = undefined; u.order = { kind: 'idle' };
-      if (t.cargo.length === td.carries || !this.units.some((o) => o !== u && o.ride === t.id)) this.emit(`${td.name}: ${t.cargo.length} aboard`, 'info');
+      if (t.cargo.length === td.carries || !this.units.some((o) => o !== u && o.ride === t.id)) this.emit(`${td.name}: ${t.cargo.length} aboard`, 'info', 'confirm');
       return true;
     }
     this.goTo(u, t.x, t.z, d.speed); // as near as the land goes: the transport comes in to meet it
@@ -1722,7 +1722,7 @@ export class Sim {
     if (this.s.over) return;
     this.s.over = how;
     this.s.overText = text;
-    this.emit(text || (how === 'won' ? 'The colony has won through.' : 'The colony is lost.'), how === 'won' ? 'info' : 'bad', how === 'won' ? 'packCleared' : 'alarm');
+    this.emit(text || (how === 'won' ? 'The colony has won through.' : 'The colony is lost.'), how === 'won' ? 'info' : 'bad', how === 'won' ? 'victory' : 'defeat');
   }
 
   private destroyBuilding(b: Building) {
@@ -1837,7 +1837,7 @@ export class Sim {
   lose(why: 'core' | 'cryo' | 'people') {
     if (this.s.over) return;
     this.s.over = why;
-    this.emit(why === 'core' ? 'The Command Core has fallen. The colony is lost.' : why === 'cryo' ? 'The last embryos are gone. The colony is lost.' : 'No one is left. The colony is lost.', 'bad', 'alarm');
+    this.emit(why === 'core' ? 'The Command Core has fallen. The colony is lost.' : why === 'cryo' ? 'The last embryos are gone. The colony is lost.' : 'No one is left. The colony is lost.', 'bad', 'defeat');
   }
 
   // ---------- waves ----------
@@ -2097,7 +2097,7 @@ export class Sim {
         s.alloys += refund;
         s.buildings.splice(s.buildings.indexOf(b), 1);
         this.people.buildingLost(b, false);
-        this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info');
+        this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info', 'recycle');
         return;
       }
       case 'contact':
@@ -2241,7 +2241,7 @@ export class Sim {
         s.alloys -= r.cost;
         s.isotopes = (s.isotopes ?? 0) - (r.isotopes ?? 0);
         R.active = { id: c.id, progress: 0 };
-        this.emit(`Research started: ${r.name}`, 'info', 'placed');
+        this.emit(`Research started: ${r.name}`, 'info', 'confirm');
         return;
       }
       case 'unresearch': {
@@ -2249,7 +2249,7 @@ export class Sim {
         if (!R || !a) return;
         if (r) { s.alloys += r.cost; s.isotopes = (s.isotopes ?? 0) + (r.isotopes ?? 0); }
         R.active = null;
-        this.emit(`Research cancelled${r ? `: ${r.name} (refunded)` : ''}`, 'info');
+        this.emit(`Research cancelled${r ? `: ${r.name} (refunded)` : ''}`, 'info', 'recycle');
         return;
       }
       case 'fab': {
@@ -2257,7 +2257,7 @@ export class Sim {
         if (s.alloys < RULES.droneCost) { this.emit(`Not enough alloys for a drone (${RULES.droneCost} needed)`, 'warn', 'deny'); return; }
         s.alloys -= RULES.droneCost;
         s.fab.queued++;
-        this.emit('Drone fabrication started', 'info');
+        this.emit('Drone fabrication started', 'info', 'confirm');
         return;
       }
     }
@@ -2272,11 +2272,11 @@ export class Sim {
       s.phase = 'landed';
       s.panic = Math.max(s.panic, 10 * TICK_HZ);
       const deficit = RULES.cryoDrawMW + RULES.droneIdleDrawMW - DEFS.core.powerMW;
-      this.emit(`Touchdown. Cryo bank on reserve power: ${deficit.toFixed(1)} MW short.`, 'warn');
+      this.emit(`Touchdown. Cryo bank on reserve power: ${deficit.toFixed(1)} MW short.`, 'warn', 'message');
     } else if (stage === 'deploy') {
       if (s.phase === 'descent') this.landing('touchdown');
       s.phase = 'deployed';
-      this.emit('Worker drone deployed. Build a Solar Array to stabilize the cryo bank.', 'info');
+      this.emit('Worker drone deployed. Build a Solar Array to stabilize the cryo bank.', 'info', 'message');
     }
   }
 

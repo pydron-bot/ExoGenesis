@@ -71,6 +71,74 @@ try {
   await page.evaluate(() => __exo.sim.setSpeed(1));
   await wait(600);
   check(((await stats()).counts.online ?? 0) >= 1, 'a finished building plays "online"');
+  await cmd({ type: 'fab' });
+  await wait(500);
+  check(((await stats()).counts.confirm ?? 0) >= 1, 'starting drone fabrication plays "confirm"');
+
+  // drones at work, at normal speed and in view
+  await cmd({ type: 'build', kind: 'solar', ...(await spot('solar', 0, -20)) });
+  await page.waitForFunction(() => (__exo.audio.stats().counts.build ?? 0) >= 1, null, { timeout: 30000, polling: 200 }).catch(() => {});
+  check(((await stats()).counts.build ?? 0) >= 1, `drones at work are heard building (${(await stats()).counts.build ?? 0})`);
+
+  // selecting and ordering: tap a drone (the first starts selected: let it go first), then the ground
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { __exo.cam.fx = __exo.sim.cur.drones[0].x; __exo.cam.fz = __exo.sim.cur.drones[0].z; });
+  await wait(400);
+  const dp = await page.evaluate(() => __exo.droneScreen(__exo.sim.cur.drones[0].id));
+  await page.mouse.click(dp.x, dp.y);
+  await wait(250);
+  check(((await stats()).counts.select ?? 0) >= 1, 'selecting a drone plays "select"');
+  const free = await page.evaluate(async () => { const d = __exo.sim.cur.drones[0]; return { x: d.x + 14, z: d.z + 10 }; });
+  const fp = await spot('solar', free.x, free.z).then((p) => page.evaluate((p) => __exo.screenOf(p.x, p.z), p));
+  await page.mouse.click(fp.x, fp.y);
+  await wait(250);
+  check(((await stats()).counts.order ?? 0) >= 1, 'sending it somewhere plays "order"');
+  await page.keyboard.press('Escape');
+
+  // wildlife: a calm animal in view calls now and then
+  const beast = await page.evaluate(() => { const f = __exo.sim.cur.fauna; for (let i = 0; i < f.length; i += 4) if (f[i + 3] % 4 === 0) return { x: f[i], z: f[i + 1] }; return null; });
+  if (beast) {
+    await page.evaluate((b) => { __exo.cam.fx = b.x; __exo.cam.fz = b.z; __exo.audio.nextCritter = 0; }, beast);
+    await page.waitForFunction(() => (__exo.audio.stats().counts.critter ?? 0) >= 1, null, { timeout: 15000, polling: 200 }).catch(() => {});
+    check(((await stats()).counts.critter ?? 0) >= 1, 'wildlife in view calls');
+  } else check(false, 'wildlife in view calls (no calm animal in this region)');
+
+  // surf: the camera over a shore
+  const shore = await page.evaluate(() => { for (let r = 20; r < 240; r += 10) for (let a = 0; a < 6.28; a += 0.2) { const x = Math.cos(a) * r, z = Math.sin(a) * r; if (__exo.heightRaw(x, z) < 0.3) return { x, z }; } return null; });
+  if (shore) {
+    await page.evaluate((p) => { __exo.cam.fx = p.x; __exo.cam.fz = p.z; }, shore);
+    await wait(2500);
+    const surf = (await stats()).beds.surf;
+    check(surf > 0.02, `surf by the water (${surf.toFixed(3)})`);
+    await page.evaluate(() => { __exo.cam.fx = 0; __exo.cam.fz = -8; });
+  } else console.log('SKIP  surf: no water in this region');
+  // a coastal region: surf along the shore, none inland, none in orbit
+  {
+    const p2 = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+    await p2.goto(`${url}?intro=0&new=1&region=port_of_hope`);
+    await p2.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
+    await p2.click('#b-play');
+    const wet = await p2.evaluate(() => {
+      // a shore: water here, dry ground close by
+      for (let r = 10; r < 300; r += 6) for (let a = 0; a < 6.28; a += 0.15) {
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (__exo.heightRaw(x, z) < 0.3 && __exo.heightRaw(x + 12, z) >= 0.3 || __exo.heightRaw(x, z) < 0.3 && __exo.heightRaw(x - 12, z) >= 0.3) return { x, z };
+      }
+      return null;
+    });
+    if (!wet) check(false, 'surf: found no shore in Port of Hope');
+    else {
+      await p2.evaluate((p) => { __exo.cam.fx = p.x; __exo.cam.fz = p.z; }, wet);
+      await p2.waitForTimeout(3000);
+      const surf = await p2.evaluate(() => __exo.audio.stats().beds.surf);
+      check(surf > 0.02, `surf along a shore in Port of Hope (${surf.toFixed(3)})`);
+      await p2.evaluate(() => __exo.setView('planet'));
+      await p2.waitForTimeout(3500);
+      const up = await p2.evaluate(() => __exo.audio.stats().beds.surf);
+      check(up < surf * 0.3, `and it fades in orbit (${up.toFixed(3)})`);
+    }
+    await p2.close();
+  }
   // centre the camera on the turret so the fight is close and on screen
   await page.evaluate((t) => { __exo.cam.fx = t.x; __exo.cam.fz = t.z; }, t);
 

@@ -32,6 +32,8 @@ interface HudDeps {
   load(): void;
   /** Story cards: pause the game (true) or resume (false). */
   pause(on: boolean): void;
+  /** A story or contact card opened. */
+  cardOpened?(): void;
   log(text: string, level?: 'info' | 'warn' | 'bad'): void;
   /** A building was selected (tutorial `opened` conditions). */
   onSelect?(kind: string, role?: string): void;
@@ -69,7 +71,7 @@ export class ColonyHud {
       defs: d.defs, inhabitants: d.inhabitants, rules: d.people, solSeconds: d.rules.solSeconds, ui: d.ui, cam: d.cam,
       command: (c) => d.command(c), select: () => this.selected(),
     });
-    this.contact = new ContactCard({ inhabitants: d.inhabitants, story: d.story, cam: d.cam, command: (c) => d.command(c), pause: (on) => d.pause(on) });
+    this.contact = new ContactCard({ inhabitants: d.inhabitants, story: d.story, cam: d.cam, command: (c) => d.command(c), pause: (on) => d.pause(on), opened: () => d.cardOpened?.() });
     // phones start with just the current goal showing
     if (innerWidth < 640) this.el.goals.classList.add('min');
     this.el.goals.onclick = () => this.el.goals.classList.toggle('min');

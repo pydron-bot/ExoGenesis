@@ -224,11 +224,32 @@ export const SOUNDS = {
   droneReady: { label: 'Drone fabricated', cat: 'events' },
   packCleared: { label: 'Pack destroyed', cat: 'events' },
   lost: { label: 'Drone / unit lost', cat: 'events' },
+  birth: { label: 'Birth (a child, a pod opens)', cat: 'events' },
+  death: { label: 'Colonist death', cat: 'events' },
+  research: { label: 'Research complete', cat: 'events' },
+  confirm: { label: 'Started (research, policy, pod, fabrication)', cat: 'events' },
+  recycle: { label: 'Cancelled / recycled (refund)', cat: 'events' },
+  mission: { label: 'New mission', cat: 'events' },
+  objective: { label: 'Objective done', cat: 'events' },
+  missionDone: { label: 'Mission complete', cat: 'events' },
+  victory: { label: 'Victory', cat: 'events' },
+  discovery: { label: 'Discovery (wreck, relic, first contact)', cat: 'events' },
+  friend: { label: 'Friendship (trust, partners, coming of age)', cat: 'events' },
+  exhausted: { label: 'Deposit exhausted', cat: 'events' },
+  message: { label: 'Message (story, reports, a card opens)', cat: 'events' },
   warning: { label: 'Warning', cat: 'alerts' },
   alarm: { label: 'Alarm', cat: 'alerts' },
+  missionFail: { label: 'Mission failed', cat: 'alerts' },
+  defeat: { label: 'Colony lost', cat: 'alerts' },
   tap: { label: 'UI tap', cat: 'ui' },
   deny: { label: 'UI refused', cat: 'ui' },
+  select: { label: 'Select', cat: 'ui' },
+  order: { label: 'Order given', cat: 'ui' },
   wind: { label: 'Wind (loop)', cat: 'ambient' },
+  surf: { label: 'Surf (loop, near water)', cat: 'ambient' },
+  camp: { label: 'Camp voices (loop, near a camp)', cat: 'ambient' },
+  build: { label: 'Construction (drones at work)', cat: 'ambient' },
+  critter: { label: 'Wildlife calls', cat: 'ambient' },
 } as const;
 export type SoundId = keyof typeof SOUNDS;
 export const SOUND_CATS = ['combat', 'events', 'alerts', 'ui', 'ambient', 'music'] as const;
@@ -237,15 +258,15 @@ export type SoundCat = (typeof SOUND_CATS)[number];
 const vol = (label: string, help?: string) => num({ label, min: 0, max: 1, step: 0.05, help });
 const soundFile = (id: SoundId) => ref('assets', {
   label: `${SOUNDS[id].label} · file`, optional: true, assetKind: 'audio',
-  help: `An audio asset to play instead of the built-in synthesised ${SOUNDS[id].label.toLowerCase()}.${id === 'wind' ? ' Loops; pitch and filter still follow day and night.' : ''}`,
+  help: `An audio asset to play instead of the built-in synthesised ${SOUNDS[id].label.toLowerCase()}.${id === 'wind' ? ' Loops; pitch and filter still follow day and night.' : id === 'surf' || id === 'camp' ? ' Loops; its volume follows how near it is.' : ''}`,
 });
 export const soundRulesShape = {
   master: vol('Master volume', 'Multiplies everything. Players set their own volume in the ⋯ menu on top of this.'),
   combat: vol('Combat', 'Shots, bites, deaths. Quieter with distance from the camera.'),
-  events: vol('Events', 'Placed, online, unit ready, drone fabricated, pack destroyed, losses.'),
-  alerts: vol('Alerts', 'Predator warnings and alarms (cryo integrity, buildings destroyed).'),
-  ui: vol('Interface', 'Button taps, refused orders.'),
-  ambient: vol('Ambient', 'The wind bed.'),
+  events: vol('Events', 'Placed, online, unit ready, drone fabricated, pack destroyed, losses; births and deaths, research, missions, discoveries, messages.'),
+  alerts: vol('Alerts', 'Predator warnings and alarms (cryo integrity, buildings destroyed), a failed mission, the colony lost.'),
+  ui: vol('Interface', 'Button taps, refused orders, selecting, giving orders.'),
+  ambient: vol('Ambient', 'The wind, surf near water, drones building, wildlife calls, voices near a camp.'),
   music: vol('Music', 'Title and in-game music (moods: Rules → Music). Players have their own music volume on top.'),
   titleMusic: ref('assets', {
     label: 'Title music · file', optional: true, assetKind: 'audio',

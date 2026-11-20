@@ -304,7 +304,7 @@ export class People {
     if (left) { s.departed++; return; }
     this.sim.fxDeath(c.x, c.z);
     s.grief += 12;
-    this.emit(`${c.name} (${Math.floor(this.age(c))}) has died: ${cause}`, 'bad', 'lost');
+    this.emit(`${c.name} (${Math.floor(this.age(c))}) has died: ${cause}`, 'bad', 'death');
     // deaths the AI might have prevented cost it trust
     if (cause !== 'old age') this.shock(cause.includes('starv') ? -3 : -1.5);
   }
@@ -334,7 +334,7 @@ export class People {
       const opts = POLICIES[c.key]?.options as Record<string, string> | undefined;
       if (!opts || !(c.value in opts) || s.policies[c.key] === c.value) return;
       (s.policies as Record<PolicyKey, string>)[c.key] = c.value;
-      this.emit(`${POLICIES[c.key].name}: ${opts[c.value]}`, 'info', 'placed');
+      this.emit(`${POLICIES[c.key].name}: ${opts[c.value]}`, 'info', 'confirm');
       return;
     }
     const b = this.sim.s.buildings.find((x) => x.id === c.id);
@@ -346,7 +346,7 @@ export class People {
       if (p.progress >= UNPOD_BEFORE) { this.emit('Too late to stop that pod: the child is already growing', 'warn', 'deny'); return; }
       s.pods.splice(s.pods.indexOf(p), 1);
       s.bank[p.lineage]++;
-      this.emit(`Pod stopped · embryo returned to the cryo bank`, 'info');
+      this.emit(`Pod stopped · embryo returned to the cryo bank`, 'info', 'recycle');
       return;
     }
     // grow
@@ -357,7 +357,7 @@ export class People {
     if (lineage < 0 || !(s.bank[lineage] > 0)) { this.emit('No embryos left in the cryo bank', 'warn', 'deny'); return; }
     s.bank[lineage]--;
     s.pods.push({ b: b.id, lineage, specialty: c.specialty, curriculum: c.curriculum, progress: 0, dark: 0 });
-    this.emit(`Growth pod started · ${lineName(lineage)} line · ${cap(c.specialty)}, ${CURRICULA[c.curriculum].name} imprint`, 'info', 'placed');
+    this.emit(`Growth pod started · ${lineName(lineage)} line · ${cap(c.specialty)}, ${CURRICULA[c.curriculum].name} imprint`, 'info', 'confirm');
   }
 
   /** The surviving lineage with the fewest people (living + embryos), to keep diversity up. */
@@ -533,7 +533,7 @@ export class People {
     });
     this.s.grown++;
     this.s.first ??= { id: c.id, name: c.name };
-    this.emit(`${c.name} steps out of the growth pod · ${cap(p.specialty)}, ${cur.name} imprint`, 'info', 'unitReady');
+    this.emit(`${c.name} steps out of the growth pod · ${cap(p.specialty)}, ${cur.name} imprint`, 'info', 'birth');
   }
 
   // ---------- housing and jobs ----------
@@ -762,7 +762,7 @@ export class People {
       this.emit(`${striking} colonist${striking > 1 ? 's are' : ' is'} on strike`, 'warn', 'warning');
       this.strikeSaid = striking;
     } else if (striking === 0 && this.strikeSaid > 0) {
-      this.emit('The strike is over: everyone is back at work', 'info');
+      this.emit('The strike is over: everyone is back at work', 'info', 'friend');
       this.strikeSaid = 0;
     }
   }
@@ -787,7 +787,7 @@ export class People {
       // children come of age
       if (!c.specialty && age >= P.adultAge) {
         c.specialty = this.neededSpecialty();
-        this.emit(`${c.name} comes of age and trains as ${aOrAn(c.specialty)} ${cap(c.specialty)}`, 'info');
+        this.emit(`${c.name} comes of age and trains as ${aOrAn(c.specialty)} ${cap(c.specialty)}`, 'info', 'friend');
       }
     }
     // couples form among housemates, and settled, happy couples have children
@@ -796,7 +796,7 @@ export class People {
       if (c.partner >= 0 || c.home < 0 || c.wb < 40) continue;
       if (this.sim.rnd() > 0.6 * per * (c.stance > 75 ? 0.3 : 1)) continue;
       const o = adults.find((x) => x !== c && x.partner < 0 && x.home === c.home && x.lineage !== c.lineage && x.wb >= 40);
-      if (o) { c.partner = o.id; o.partner = c.id; this.emit(`${c.name} and ${o.name} are now partners`, 'info'); }
+      if (o) { c.partner = o.id; o.partner = c.id; this.emit(`${c.name} and ${o.name} are now partners`, 'info', 'friend'); }
     }
     const homeCount = new Map<number, number>();
     for (const c of s.colonists) if (c.home >= 0) homeCount.set(c.home, (homeCount.get(c.home) ?? 0) + 1);
@@ -813,7 +813,7 @@ export class People {
       kid.hp = Math.min(kid.hp, P.colonistHp * 0.5);
       homeCount.set(home.id, (homeCount.get(home.id) ?? 0) + 1);
       s.births++;
-      this.emit(`A child is born: ${kid.name}, to ${a.name.split(' ')[0]} and ${b.name.split(' ')[0]}`, 'info', 'unitReady');
+      this.emit(`A child is born: ${kid.name}, to ${a.name.split(' ')[0]} and ${b.name.split(' ')[0]}`, 'info', 'birth');
     }
   }
 
@@ -918,7 +918,7 @@ export class People {
       if (n > 0 || living[l] > 0 || s.gone.includes(l)) return;
       s.gone.push(l);
       s.grief += 4;
-      this.emit(`The ${lineName(l)} line is gone`, 'bad', 'lost');
+      this.emit(`The ${lineName(l)} line is gone`, 'bad', 'death');
     });
   }
 

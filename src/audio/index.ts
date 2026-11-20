@@ -21,7 +21,10 @@ const MIN_GAP: Record<SoundId, number> = {
   turretShot: 0.11, roverShot: 0.09, tankShot: 0.22, bite: 0.14, deathSmall: 0.08, deathBig: 0.25,
   shell: 0.3, arc: 0.12, pdShot: 0.07, rail: 0.25, spit: 0.2, emerge: 0.6, repair: 0.35, shieldHit: 0.15,
   placed: 0.08, online: 0.4, unitReady: 0.4, droneReady: 0.4, packCleared: 1.5, lost: 0.8,
-  warning: 2, alarm: 3, tap: 0.04, deny: 0.3, wind: 0,
+  birth: 1, death: 1.5, research: 1, confirm: 0.15, recycle: 0.2, mission: 1, objective: 0.4, missionDone: 1.5,
+  victory: 3, discovery: 1, friend: 1, exhausted: 1, message: 0.5,
+  warning: 2, alarm: 3, missionFail: 2, defeat: 3, tap: 0.04, deny: 0.3, select: 0.05, order: 0.08,
+  wind: 0, surf: 0, camp: 0, build: 0.12, critter: 0.8,
 };
 /** Most sounds playing at once (alerts always get through). */
 const MAX_VOICES = 12;
@@ -30,6 +33,9 @@ const MAX_COMBAT = 7;
 const PITCH_SPREAD = 0.05;
 /** Quieter than this after distance and zoom: don't bother. */
 const MIN_GAIN = 0.04;
+/** Loudest the surf and a camp's voices get, right on top of them (before the Ambient category). */
+const SURF_PEAK = 0.4;
+const CAMP_PEAK = 0.22;
 
 const PREF_KEY = 'exo.sound';
 
@@ -77,6 +83,10 @@ export class GameAudio {
   private tenseUntil = -1;
   /** The mood last played for each use (so the next is a different one). */
   private lastMood: Partial<Record<MusicUse, string>> = {};
+  /** Beds that loop near things (`beds()`): their level, pan, and for the surf the wave swell and its filter. */
+  private loops: Partial<Record<'surf' | 'camp', { gain: GainNode; pan: StereoPannerNode; swell?: GainNode; filter?: BiquadFilterNode }>> = {};
+  private nextWave = 0;
+  private nextCritter = 4;
 
   constructor(private rules: SoundRules, private assets: Record<string, AssetDef>, readonly disabled: boolean, private moods: Record<string, MusicDef> = {}) {
     try {
@@ -203,6 +213,129 @@ export class GameAudio {
     w.gain.gain.setTargetAtTime(0.5 * (0.85 + 0.25 * night) * w.gust * air, t, 0.4);
   }
 
+  /**
+   * Sounds of the place, every frame (all quiet outside play): surf when there's water near the camera
+   * focus (`water` 0..1, already lowered for zoom), drones at work at building sites, now and then a call
+   * from wildlife in earshot (calm animals in `fauna`, stride 4: x, z, heading, species × 4 + state), and
+   * voices from the nearest camp the colony has met. Placed with `spatial`, like the fighting.
+   */
+  beds(b: { water: number; sites: { x: number; z: number }[]; fauna?: Float32Array; camps: { x: number; z: number }[]; dt: number; spatial: Spatial }) {
+    if (!this.live()) return;
+    const t = this.ctx!.currentTime;
+    // surf: a loop under waves that swell and break every 5–9 s
+    const surf = this.quiet ? 0 : SURF_PEAK * Math.min(1, b.water);
+    if (surf > 0.002 || this.loops.surf) {
+      const s = (this.loops.surf ??= this.makeLoop('surf'));
+      s.gain.gain.setTargetAtTime(surf, t, 0.8);
+      if (t >= this.nextWave && s.swell && s.filter) {
+        const up = rand(1.2, 2.2);
+        s.swell.gain.setTargetAtTime(rand(0.85, 1), t, up / 2.5);
+        s.swell.gain.setTargetAtTime(0.22, t + up, rand(1.2, 2));
+        s.filter.frequency.setTargetAtTime(rand(1700, 2400), t, up / 2.5);
+        s.filter.frequency.setTargetAtTime(650, t + up, 1.5);
+        this.nextWave = t + rand(5, 9);
+      }
+    }
+    // a camp's voices: the nearest (loudest) one met
+    let best: { gain: number; pan: number } | null = null;
+    if (!this.quiet) for (const cp of b.camps) { const sp = b.spatial(cp.x, cp.z); if (sp && (!best || sp.gain > best.gain)) best = sp; }
+    const camp = best ? CAMP_PEAK * best.gain : 0;
+    if (camp > 0.002 || this.loops.camp) {
+      const l = (this.loops.camp ??= this.makeLoop('camp'));
+      l.gain.gain.setTargetAtTime(camp, t, 0.6);
+      if (best) l.pan.pan.setTargetAtTime(best.pan, t, 0.3);
+    }
+    if (this.quiet) return;
+    // drones at work: each site now and then (the sound's own gap keeps a big build from rattling)
+    for (const s of b.sites) {
+      if (Math.random() > b.dt * 2.5) continue;
+      const sp = b.spatial(s.x, s.z);
+      if (sp && sp.gain > MIN_GAIN) this.play('build', sp.gain, sp.pan);
+    }
+    // wildlife: every few seconds, a call from a calm animal in earshot (the loudest of a few tried)
+    if ((this.nextCritter -= b.dt) <= 0) {
+      this.nextCritter = rand(3, 9);
+      const f = b.fauna, n = f ? f.length / 4 : 0;
+      let pick: { gain: number; pan: number } | null = null;
+      for (let k = 0; k < Math.min(8, n); k++) {
+        const i = Math.floor(Math.random() * n) * 4;
+        if (f![i + 3] % 4 !== 0) continue; // running or hidden: no calls
+        const sp = b.spatial(f![i], f![i + 1]);
+        if (sp && (!pick || sp.gain > pick.gain)) pick = sp;
+      }
+      if (pick && pick.gain > 0.1) this.play('critter', pick.gain, pick.pan);
+    }
+  }
+
+  /** A looping bed into the Ambient category: an audio file when the sound rules name one, else synthesised. */
+  private makeLoop(id: 'surf' | 'camp') {
+    const c = this.ctx!;
+    const gain = c.createGain();
+    gain.gain.value = 0;
+    const pan = c.createStereoPanner();
+    gain.connect(pan).connect(this.cats.ambient);
+    const file = this.buffers.get(id);
+    if (file) {
+      const src = c.createBufferSource();
+      src.buffer = file;
+      src.loop = true;
+      src.connect(gain);
+      src.start();
+      return { gain, pan };
+    }
+    if (id === 'surf') {
+      // 5 s of stereo noise, low-passed; the waves move the filter and a swell gain
+      const n = c.sampleRate * 5, buf = c.createBuffer(2, n, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch); let y = 0; for (let i = 0; i < n; i++) { y = 0.7 * y + 0.3 * (Math.random() * 2 - 1); d[i] = y * 1.6; } }
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const filter = c.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 650;
+      const hp = c.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 120;
+      const swell = c.createGain();
+      swell.gain.value = 0.22;
+      src.connect(hp).connect(filter).connect(swell).connect(gain);
+      src.start();
+      return { gain, pan, swell, filter };
+    }
+    // a camp: low, wordless voices on an open fifth, through "oo" formants, breathing slowly
+    const vowel = c.createGain();
+    for (const [f, q, lv] of [[420, 4, 1], [880, 6, 0.4]]) {
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = f;
+      bp.Q.value = q;
+      const g = c.createGain();
+      g.gain.value = lv * 3;
+      vowel.connect(bp).connect(g).connect(gain);
+    }
+    for (const [f, det] of [[110, -6], [165, 4], [220, 9], [110, 7]]) {
+      const o = c.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      o.detune.value = det;
+      const vib = c.createOscillator(), vd = c.createGain();
+      vib.frequency.value = rand(4.5, 5.5);
+      vd.gain.value = 9;
+      vib.connect(vd).connect(o.detune);
+      const og = c.createGain();
+      og.gain.value = 0.25;
+      o.connect(og).connect(vowel);
+      o.start();
+      vib.start();
+    }
+    const breath = c.createOscillator(), bd = c.createGain();
+    breath.frequency.value = 0.09;
+    bd.gain.value = 0.35;
+    breath.connect(bd).connect(vowel.gain);
+    breath.start();
+    return { gain, pan };
+  }
+
   setMusicVolume(v: number) {
     this.musicVolume = Math.min(1, Math.max(0, v));
     this.save();
@@ -282,7 +415,7 @@ export class GameAudio {
 
   /** Test hook. */
   stats() {
-    return { state: this.state, autoplayed: this.autoplayed, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, musicVolume: this.musicVolume,
+    return { state: this.state, autoplayed: this.autoplayed, beds: { surf: this.loops.surf?.gain.gain.value ?? 0, camp: this.loops.camp?.gain.gain.value ?? 0 }, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, musicVolume: this.musicVolume,
       music: this.music ? { use: this.music.use, mood: this.music.mood, ...(this.music.played ?? {}) } : null,
       stretch: this.stretch ? { ...this.stretch } : null, tense: performance.now() / 1000 < this.tenseUntil };
   }
@@ -317,7 +450,7 @@ export class GameAudio {
       s.connect(g);
       s.start(t);
       dur = buf.duration / p;
-    } else if (id !== 'wind') dur = RECIPES[id](c, g, t, p);
+    } else if (id in RECIPES) dur = RECIPES[id as keyof typeof RECIPES](c, g, t, p);
     else return;
     this.voices++;
     if (cat === 'combat') this.combatVoices++;

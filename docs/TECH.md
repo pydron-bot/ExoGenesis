@@ -699,6 +699,39 @@ First playtest build (2026-11-15).
     the ringer switch is on silent — if there's no sound on the phone, check the switch first.
   - Tests: `tools/sound-smoke.mjs` (counts what started via `__exo.audio.stats()`; it can't judge how it sounds —
     the recipes in `src/audio/synth.ts` are first guesses for Derek to tune by ear).
+  - **More sounds (v0.50.0):** every situation the game reports now has its own sound (34 sounds, was 25):
+    - *Events* (`EventCue` in `src/sim/types.ts`, recipes in `src/audio/synth.ts`): **birth** (a child, a pod
+      opens), **death** (a colonist, a line gone), **research** (complete), **confirm** (research, a policy, a
+      pod, drone fabrication started; boarding; save restored), **recycle** (cancel or recycle with a refund,
+      research cancelled, pod stopped), **mission** (a new one: radio squelch and a rising fifth), **objective**,
+      **missionDone**, **victory** (a brassy fanfare), **discovery** (a wreck, first contact with a camp),
+      **friend** (trust, partners, coming of age, a strike over, a camp's approach), **exhausted** (a deposit or
+      seam), **message** (story lines and replies, the Biosphere Report, the touchdown notes, a story or contact
+      card opening); alerts **missionFail** and **defeat** (slow low tolls). Earlier these shared the nine old
+      cues: a child's birth played "unit ready", a colonist's death the drone-lost blip, a new mission the
+      predator warning, the colony won "pack destroyed". Only the editor's play-test lines stay silent.
+    - *Interface:* **select** (anything selected, not deselecting: `select` handler in main.ts) and **order**
+      (units sent, a drone moved, boarding, X to stop).
+    - *Place* (`GameAudio.beds()`, every frame from `placeSounds()` in main.ts; all placed with `spatial`):
+      **surf**, a loop of low-passed noise under waves that swell and break every 5–9 s, as loud as there's
+      water round the camera focus (19 height samples twice a second, `regionHeightRaw < 0.3`;
+      `sqrt(wet fraction) × 1.5`, so a lake's edge is heard and a shore is full) and as close as the camera is;
+      **camp**, low wordless voices on an open fifth through "oo" formants, from the nearest camp the colony has
+      met; **build**, a ratchet, clank or weld fizz now and then (2.5 a second at most per site, 0.12 s apart) at
+      each site a drone is `working` on; **critter**, every 3–9 s a trill, warble or pair of hoots from the
+      loudest of a few calm animals tried (`fauna` state 0). Surf and camp take an audio file (looped) in Rules
+      → Sound like the wind; all four sit in the Ambient category and fade in orbit, over cinematics and on the
+      title.
+    - The Core being hit only exists in the Skirmish prototype, which is silent; there's no separate attack
+      order (units given a destination pick their own targets), so one **order** sound covers it.
+    - Tests: `tools/sound-smoke.mjs` adds drones heard building, confirm on fabrication, select and order by
+      clicking a drone and the ground, a wildlife call, and surf on a Port of Hope shore that fades in orbit.
+  - **Title music without a click (v0.50.0):** browsers hold sound back until a tap or key. At load
+    `tryAutoplay()` makes a context; where the browser allows autoplay (`getAutoplayPolicy`, or a context that's
+    running within 0.3 s) it's kept and the title music starts at once; otherwise it's closed and the first tap
+    makes one as before (iOS wants that inside the gesture). While sound is locked the title's status line says
+    "♪ CLICK (TAP) ANYWHERE FOR SOUND". Before, only Options was a click that didn't leave the title, so the
+    title music seemed to need it. `music-smoke` checks both: blocked (hint, then a click starts it) and allowed.
 - **Music (2026-11-19, v0.42.0):** generative ambient, synthesised live like
   the rest of the sound; it never loops, so there's no seam. `src/audio/music.ts` (`AmbientMusic`) plays a
   **mood**: pad chords (per-note oscillators under a slowly breathing low-pass; long swells and releases so chords
