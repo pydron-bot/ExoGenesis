@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.56.0',
+    date: '2026-11-20',
+    title: 'Smarter computer players',
+    notes: [
+      'Computer players scout your base, remember what they\'ve seen, and attack when they think they can win rather than at a set army size',
+      'Their armies form up out of reach of your guns and go in together; artillery sets up just out of your turrets\' range and shells them',
+      'On Normal and Hard they send small raiding parties after depots you\'ve left unguarded',
+      'They answer a raid with enough to beat it, build what counters your army and defences (artillery against turrets, lancers against heavy units, arcs against flyers), and pull back a wave that\'s been broken',
+      'No unit or building numbers changed',
+    ],
+  },
+  {
     version: '0.55.0',
     date: '2026-11-20',
     title: 'Matter Printer and alerts',

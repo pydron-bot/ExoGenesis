@@ -10,6 +10,22 @@ import path from 'node:path';
 import { runnerImport } from 'vite';
 const root = path.resolve(import.meta.dirname, '..');
 const { module: M } = await runnerImport(path.join(root, 'tools/sim-entry.ts'));
+/**
+ * --match entries may be old:<level>: that player runs the AI from a git revision (--baseline, default HEAD), so a
+ * change to src/sim/ai.ts can be measured head to head against the last version.
+ */
+import { execSync } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
+const argv0 = process.argv;
+let baseline = null;
+if (argv0.some((a) => a.includes('old:'))) {
+  const rev = argv0.includes('--baseline') ? argv0[argv0.indexOf('--baseline') + 1] : 'HEAD';
+  const src = execSync(`git show ${rev}:src/sim/ai.ts`, { cwd: root }).toString()
+    .replaceAll("from '../content'", "from '../../src/content'").replaceAll("from './rules'", "from '../../src/sim/rules'").replaceAll("from './types'", "from '../../src/sim/types'").replaceAll("from '../content/defs'", "from '../../src/content/defs'");
+  mkdirSync(path.join(root, 'tools/.cache'), { recursive: true });
+  writeFileSync(path.join(root, 'tools/.cache/ai-baseline.ts'), src);
+  baseline = (await runnerImport(path.join(root, 'tools/.cache/ai-baseline.ts'))).module;
+}
 const arg = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
 const trace = process.argv.includes('--trace');
 
@@ -21,8 +37,9 @@ function game({ match, seed, minutes, world = 'home', size = 'medium', water = '
   const sim = new M.Sim((t, l) => events.push(t), seed);
   sim.newSkirmish({
     seed, alloys: 600, homes: map.homes, wildlife: false,
-    players: match.map((lv, i) => ({ name: `P${i}:${lv}`, color: '#fff', ai: lv === 'idle' ? undefined : lv })),
+    players: match.map((lv, i) => ({ name: `P${i}:${lv}`, color: '#fff', ai: lv === 'idle' ? undefined : lv.replace('old:', '') })),
   });
+  match.forEach((lv, i) => { if (lv.startsWith('old:')) sim.thinkers[i] = baseline.think; });
   const s = sim.s, T = minutes * 600;
   const line = (t) => {
     const P = s.players[t], e = t ? P.econ : null;
@@ -30,7 +47,7 @@ function game({ match, seed, minutes, world = 'home', size = 'medium', water = '
     const kinds = {};
     for (const b of s.buildings) if (own(b)) kinds[b.kind] = (kinds[b.kind] ?? 0) + 1;
     const alloys = Math.round(t ? e.alloys : s.alloys), army = s.units.filter(own).length;
-    return `${P.name.padEnd(10)} ${P.out ? 'OUT' : `◆${String(alloys).padStart(5)} army ${String(army).padStart(2)} drones ${s.drones.filter(own).length} wave ${P.brain?.wave ?? '-'} · ${Object.entries(kinds).map(([k, v]) => `${k}${v > 1 ? '×' + v : ''}`).join(' ')}`}`;
+    return `${P.name.padEnd(10)} ${P.out ? 'OUT' : `◆${String(alloys).padStart(5)} army ${String(army).padStart(2)} drones ${s.drones.filter(own).length} wave ${P.brain?.wave ?? '-'}${P.brain ? ` ${P.brain.attack.length ? P.brain.phase : 'home'} raid ${P.brain.raid?.length ?? 0} knows ${Object.keys(P.brain.known ?? {}).length}` : ''} · ${Object.entries(kinds).map(([k, v]) => `${k}${v > 1 ? '×' + v : ''}`).join(' ')}`}`;
   };
   for (let i = 1; i <= T && !s.over; i++) {
     sim.step();

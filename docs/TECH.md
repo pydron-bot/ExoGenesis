@@ -1556,3 +1556,30 @@ sent, the raid under way, its rally point) is in the save.
 - Tests: `tools/skirmish-sim.mjs` checks the printer (waits with no spare power, never touches the battery, 0.4/s on
   spare power); `tools/skirmish-play-smoke.mjs` checks a tappable alert and H. `tools/balance.mjs` shows at most 60
   events per run, so the new alerts push some old lines out of its listing; compare outcomes (`===`, `end:`, tables).
+
+### Smarter computer players (v0.56.0)
+
+AI only (`src/sim/ai.ts`): no unit or building numbers changed.
+
+- **Memory** (`AiBrain.known`, `armies`): enemy buildings it has seen (forgotten once it sees the spot empty) and the
+  strongest army it has seen of each player lately. It scouts with its fastest unit at the start, and again whenever
+  what it knows is over 2.5 min old; a scout that finds no army at the base records that too.
+- **Strength:** a force is √(total dps × total hp) (Lanchester-style). The defence of a target is the guns it knows
+  within 70 u plus that player's army: as seen, grown a third every 100 s since; never seen, assumed as strong as its
+  own. It sets off when its army is at least ¾ of the wave size and ours ≥ theirs × nerve (Easy 1.6, Normal 1.3, Hard
+  1.15), or when it's 1.6× the wave size or at the unit cap.
+- **Gather, then push:** the wave forms up at a staging point short of the target, beyond its known guns' reach, and
+  goes in when 80% are there (or after 75 s). Artillery takes a siege line just inside its own range of the nearest
+  known gun (artillery 46 u outranges turrets 28 u and cannons 44 u); the rest push on to the Core; reinforcements
+  join in fours. A wave down to a third falls back.
+- **Raids** (Normal, Hard, after 4 min): three or four of its fastest units after the nearest known enemy depot,
+  deep-core mine or printer that no known gun covers, only while at least six others stay home.
+- **Defence:** answers a raid with about 1.5× its strength from the nearest free units; a bigger attack also recalls
+  a wave that's still forming up or only just left.
+- **Production** answers what it has seen: more artillery the more guns it knows, more lancers against heavy units
+  (400+ hp), arcs against flyers, rovers while it has few fast units.
+- Hard's first wave is 10 (was 12).
+- **Measured** (`tools/ai-sim.mjs --match new,old:<level>` plays the last release's AI, from git, against the new one;
+  `Sim.thinkers` is the test hook): new vs old, three seeds each way: Easy 6–0, Normal 6–0, Hard 3–2 with a draw (4–2
+  with a first wave of 12). `--check` passes: each level beats a player who does nothing (~10 min: it scouts and
+  forms up first), Hard beats Easy 3 / 3 (23–34 min), and the four-way Normal free-for-all ends at 34 min (45 before).
