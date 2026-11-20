@@ -25,5 +25,49 @@
   "trustTitle": "The Keeper's Song",
   "trustText": "The song-keeper sings for the drone, and the colony's translators catch most of it: \"They came like you. They grew like you. Their guardian burned them.\" The Vell will send runners when predators move.",
   "leaveText": "The Vell have abandoned their camp.",
+  "trades": [
+    {
+      "label": "Alloy tools for their dried stores",
+      "give": "alloys",
+      "giveAmount": 60,
+      "get": "biomass",
+      "getAmount": 70,
+      "regard": 40
+    },
+    {
+      "label": "Food for scavenged hull plate",
+      "give": "biomass",
+      "giveAmount": 50,
+      "get": "alloys",
+      "getAmount": 80,
+      "regard": 50
+    },
+    {
+      "label": "Medicine for glow-stone from the old fires",
+      "give": "biomass",
+      "giveAmount": 80,
+      "get": "isotopes",
+      "getAmount": 20,
+      "regard": 65
+    }
+  ],
+  "tradeEvery": 90,
+  "mineHarm": 1.5,
+  "nestHelp": 8,
+  "helpEvery": 240,
+  "guideCost": 4,
+  "guideReveal": 90,
+  "guideText": "Two Vell guides walk the drone along their paths for an afternoon. The map fills in round their camp.",
+  "watchCost": 6,
+  "watchText": "Vell lookouts climb to the high stones. For a sol their runners will bring word of anything that moves, sooner than our sensors.",
+  "hunterCost": 10,
+  "hunters": 4,
+  "hunterSeconds": 70,
+  "hunterDamage": 10,
+  "hunterRange": 14,
+  "hunterCooldown": 1.3,
+  "hunterWeapon": "bolt",
+  "hunterText": "Four Vell hunters come down from the camp with long spears and take up places among our buildings.",
+  "defends": true,
   "chapter": "beyond-the-ridge"
 }

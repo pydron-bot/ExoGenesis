@@ -1690,3 +1690,36 @@ half wants a dev server, default `:5186`).
   50:09: one every 6–8 minutes once the colony has people. The test also checks the gap, one card at a time, boosts
   running out, a promised line reaching the next pod, a rescue, a policy change, coming again, saves, and (browser) the
   card naming its colonist and the Colony panel listing the boost.
+
+### Inhabitant relations (campaign depth 3)
+
+Past first contact, the Vell and the Choir are neighbours to deal with: trade, favours, fighting beside us, and
+grudges. Data-driven in `content/inhabitants/` (`inhabitantShape`); code in `src/sim/inhabitants.ts`
+(`tradeProblem`, `ask`, `hunt`, `fight`, `mined`, `nestCleared`), `Sim.nativeStrike` in `src/sim/core.ts`, the
+Neighbours tab in `src/people-hud.ts`. Test: `tools/relations-smoke.mjs` (`--headless-only`; browser half on `:5186`).
+
+- **Trade** (`trades`: label, give / giveAmount, get / getAmount, minimum regard; `tradeEvery`): once they trust us,
+  or once we can speak their language (the `trade` ability: Translation Matrix). Each trade adds 1 regard; the camp
+  then needs `tradeEvery` before the next (`Camp.tradeAt`). The Vell: alloy tools for dried stores (40), food for
+  scavenged hull plate (50), medicine for glow-stone isotopes (65). The Choir: power cells for isotope dust,
+  isotopes for circuitry.
+- **Favours** (a trusted camp; each costs regard; `helpEvery` between asks, `Camp.helpAt`): **guides** reveal their
+  land (`guideReveal`); **lookouts** (`Camp.watchUntil`, a sol) warn of every pack like a trusted camp and add a story
+  boost `warning` +30 s (so frontier threats come sooner too); **hunters** (`hunters`, `hunterSeconds`,
+  `hunterDamage`, `hunterRange`, `hunterCooldown`, `hunterWeapon`): that many of the camp's walkers set out
+  (`Native.hunt` = until), go to the predator nearest our buildings (or stand by the Core) and strike it
+  (`Sim.nativeStrike`: never relics, nests, burrowers underground or flyers), then walk home. Predators still ignore
+  them, so they can't be lost.
+- **Joint defence** (`defends`): a trusted camp strikes predators on its land (double hunter damage, its cooldown,
+  `Camp.dcd`), our buildings there included.
+- **Consequences:** depots mining a deposit on their land cost `mineHarm` regard per 100 alloys on top of encroaching;
+  a loud building (one with `lure`, the Deep-Core Mine) counts three times; destroying a nest within their land + 20 u
+  earns `nestHelp`. At regard 22 or less a dilemma comes, Grievance (the Vell) or Broken Loop (the Choir): pay for the
+  land (−100 alloys, −40 biomass, +18 regard) or not (−6, flag `<group>-grievance`, which later threats read).
+  Earlier dilemmas (The Vell Ask, The Cantor's Request, What the Children Learn) move regard too.
+- **Neighbours tab:** regard, what wears it down, who is with us now (lookouts, hunters), each trade as a button
+  (give → get, why not yet), and the favours with their regard cost once they trust us (before that, what trust brings).
+  Snapshot `CampSnap`: `tradeIn`, `helpIn`, `watch`, `hunting`, `canTrade`.
+- **Measured** (headless): two Brutes at a lone Solar Array far from the Core lost 600 hp to four Vell hunters inside
+  a minute (both killed); a trusted Vell camp killed the swarmers that came onto its land; a depot on the Vell's deposit
+  cost 3.1 regard a quarter sol (108 alloys) against 1.5 for encroaching alone.

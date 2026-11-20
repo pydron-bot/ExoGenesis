@@ -1,6 +1,6 @@
 {
   "name": "Translation Matrix",
-  "description": "A working grammar built from everything the inhabitants have said near our sensors. Their regard recovers faster and wears down slower.",
+  "description": "A working grammar built from everything the inhabitants have said near our sensors. We can trade with any group we have met, and their regard recovers faster and wears down slower.",
   "branch": "people",
   "flag": "inhabitants-met",
   "flagText": "Meet the inhabitants",
@@ -11,6 +11,10 @@
     {
       "stat": "regard",
       "amount": 0.5
+    },
+    {
+      "stat": "trade",
+      "amount": 1
     }
   ]
 }

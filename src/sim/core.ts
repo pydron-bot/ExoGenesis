@@ -1188,6 +1188,7 @@ export class Sim {
       s.alloys += take;
       s.stats.mined += take;
       this.planet.mined(dep.x, dep.z, take);
+      this.inhabitants.mined(dep.x, dep.z, take);
       if (dep.alloys <= 0) this.emit(`Deposit ${compass(dep.x, dep.z)} of the Core is exhausted`, 'warn', 'exhausted');
     }
     s.alloys += RULES.alloyTrickle * DT;
@@ -1273,6 +1274,23 @@ export class Sim {
       this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b) * (1 + this.mod('turretDamage')), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir }, team);
     }
     this.stepWardens();
+  }
+
+  /**
+   * Inhabitants fighting beside us (asked-for hunters, a trusted camp defending its land): strike the predator nearest
+   * (x, z) within `range` (never a relic, a nest, a burrower underground or a flyer). True if they struck.
+   */
+  nativeStrike(x: number, z: number, range: number, dmg: number, weapon?: Weapon, from?: { x: number; z: number }) {
+    let best: Hostile | null = null, bd = range;
+    for (const h of this.s.hostiles) {
+      if (h.hp <= 0 || h.relic || h.nest !== undefined || h.under || h.dormant || flies(this.unitDef(h))) continue;
+      const d = Math.hypot(h.x - x, h.z - z);
+      if (d <= bd) { bd = d; best = h; }
+    }
+    if (!best) return false;
+    const o = from ?? { x, z };
+    this.strike(o.x, o.z, best, dmg, weaponFx(weapon ?? 'bolt', false));
+    return true;
   }
 
   /** Autonomist-led colonies: the people inside a building fight off predators that come close (no power needed). */
@@ -1795,6 +1813,7 @@ export class Sim {
       if (n) { n.id = -1; n.regrow = s.tick + Math.round(secs * TICK_HZ); }
       s.stats.nestsDestroyed = (s.stats.nestsDestroyed ?? 0) + 1;
       this.planet.nestDestroyed(h.x, h.z);
+      this.inhabitants.nestCleared(h.x, h.z);
       if (this.story.s && !this.story.has('nest-destroyed')) this.story.s.flags.push('nest-destroyed');
       this.emit(`Nest destroyed ${compass(h.x, h.z)} of the Core: no packs from there for ${Math.round(secs / 60)} min`, 'info', 'packCleared');
     }
@@ -2492,6 +2511,7 @@ export class Sim {
         this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info', 'recycle');
         return;
       }
+      case 'neighbour': this.inhabitants.ask(c.camp, c.act, c.n ?? 0); return;
       case 'contact':
         this.inhabitants.command(c.camp, c.choice);
         return;

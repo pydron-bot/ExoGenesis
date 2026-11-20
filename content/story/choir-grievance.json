@@ -1,0 +1,64 @@
+{
+  "title": "Broken Loop",
+  "text": "The Choir's loop has broken twice this sol. The cantor broadcasts one fragment, over and over: our own error code for a resource conflict.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "contact",
+      "group": "choir"
+    },
+    {
+      "kind": "regardBelow",
+      "group": "choir",
+      "count": 22
+    }
+  ],
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Pay for the disruption",
+      "reply": "We send replacement cells to the pylon. The loop resumes."
+    },
+    {
+      "label": "Ignore it",
+      "reply": "The fragment stops. The tenders stop too, and turn to face the colony."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "alloys",
+      "amount": -100
+    },
+    {
+      "after": 1,
+      "kind": "biomass",
+      "amount": -40
+    },
+    {
+      "after": 1,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 18
+    },
+    {
+      "after": 2,
+      "kind": "regard",
+      "group": "choir",
+      "amount": -6
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "choir-grievance"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2,
+      "bloc": "autonomist"
+    }
+  ],
+  "chapter": "beyond-the-ridge",
+  "tags": "act 1, inhabitants, dilemma"
+}

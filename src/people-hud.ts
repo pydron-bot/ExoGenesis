@@ -204,7 +204,28 @@ export class PeopleHud {
       const col = c.trusted ? '#5bff9a' : c.regard < 25 ? '#ff5a4a' : '#ffb547';
       rows.push(`<div class="meter"><span title="0 = they leave; ${g.trustAt} = they trust you">Regard</span>${bar(c.regard, col, [25, g.trustAt])}<b>${c.regard.toFixed(0)}</b></div>`);
       rows.push(`<div class="row"><span>On their land</span><span>${c.encroaching ? `<b class="warn">${c.encroaching} of our buildings</b> · −${(g.encroach * c.encroaching).toFixed(0)}/sol` : `none · +${g.recover.toFixed(0)}/sol${c.choice === 'approach' || c.regard < g.regard ? '' : ' (back to where it started)'}`}</span></div>`);
-      if (c.trusted) rows.push('<p class="hint">They warn of predator packs when there\'s no radar, and share what they see of their land.</p>');
+      if (c.trusted) rows.push(`<p class="hint">They warn of predator packs when there\'s no radar, and share what they see of their land.${g.defends ? ' They fight predators that come onto it.' : ''}</p>`);
+      if (g.mineHarm) rows.push(`<small class="help">Mining a deposit on their land costs ${g.mineHarm} regard per 100 alloys. Loud buildings there count three times.${g.nestHelp ? ` Clearing a nest near them earns ${g.nestHelp}.` : ''}</small>`);
+      if (c.watch > 0 || c.hunting > 0) rows.push(`<div class="row"><span>With us now</span><span>${[c.watch > 0 ? `lookouts ${Math.ceil(c.watch / 60)} min` : '', c.hunting ? `${c.hunting} hunters` : ''].filter(Boolean).join(' · ')}</span></div>`);
+      const icon: Record<string, string> = { alloys: '◆', biomass: '🌱', isotopes: '◇' };
+      const stock: Record<string, number> = { alloys: s.alloys, biomass: s.people.biomass, isotopes: s.isotopes ?? 0 };
+      if (g.trades?.length) {
+        rows.push('<div class="h">TRADE</div>');
+        if (!c.canTrade) rows.push('<p class="hint">They won\'t trade until they trust us, or until we can speak their language (research Translation Matrix).</p>');
+        else g.trades.forEach((t, n) => {
+          const why = c.regard < (t.regard ?? 0) ? `needs regard ${t.regard}` : c.tradeIn > 0 ? `ready in ${Math.ceil(c.tradeIn)} s` : stock[t.give] < t.giveAmount ? `not enough ${t.give}` : '';
+          rows.push(`<div class="trade"><button data-trade="${i}:${n}" class="${why ? 'poor' : ''}">${t.giveAmount}${icon[t.give]} → ${t.getAmount}${icon[t.get]}</button><span>${esc(t.label)}${why ? ` <small>· ${esc(why)}</small>` : ''}</span></div>`);
+        });
+      }
+      const favours: [string, string, number | undefined][] = [['guide', 'Guides', g.guideCost], ['watch', 'Lookouts', g.watchCost], ['hunters', g.hunters ? `${g.hunters} hunters` : 'Hunters', g.hunters ? g.hunterCost : undefined]];
+      if (favours.some(([, , k]) => k !== undefined)) {
+        rows.push('<div class="h">ASK A FAVOUR</div>');
+        if (!c.trusted) rows.push('<p class="hint">Once they trust us: guides who show us their land, lookouts who warn of threats sooner, hunters who fight beside us. Each costs some of their regard.</p>');
+        else {
+          if (c.helpIn > 0) rows.push(`<small class="help">They helped us lately: ask again in ${Math.ceil(c.helpIn)} s.</small>`);
+          rows.push(`<div class="grp">${favours.filter(([, , k]) => k !== undefined).map(([a, label, k]) => `<button data-ask="${i}:${a}" class="${c.helpIn > 0 ? 'poor' : ''}" title="Costs ${k} regard">${label} <small>−${k}</small></button>`).join('')}</div>`);
+        }
+      }
       else if (c.choice !== 'approach' && !c.pending) rows.push(`<p class="hint">You kept away, so their regard only recovers to where it started (${g.regard}). They won't come to trust you like this.</p>`);
       rows.push(`<div class="grp">${c.pending ? `<button data-contact="${i}:approach">Approach</button><button data-contact="${i}:avoid">Keep away</button>` : ''}<button data-look="${c.x},${c.z}">Look</button></div>`);
     });
@@ -228,6 +249,16 @@ export class PeopleHud {
     if (btn.dataset.contact) {
       const [i, choice] = btn.dataset.contact.split(':');
       this.d.command({ type: 'contact', camp: Number(i), choice: choice as 'approach' | 'avoid' | 'drive' });
+      return;
+    }
+    if (btn.dataset.trade) {
+      const [i, n] = btn.dataset.trade.split(':').map(Number);
+      this.d.command({ type: 'neighbour', camp: i, act: 'trade', n });
+      return;
+    }
+    if (btn.dataset.ask) {
+      const [i, a] = btn.dataset.ask.split(':');
+      this.d.command({ type: 'neighbour', camp: Number(i), act: a as 'guide' | 'watch' | 'hunters' });
       return;
     }
     if (btn.dataset.look) {

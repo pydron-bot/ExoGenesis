@@ -495,6 +495,18 @@ export const organizeFields = {
   notes: str({ label: 'Writer\'s notes', multiline: true, optional: true, help: 'For the editor: anything for the writers. Players never see it.' }),
 } satisfies Shape;
 
+/** A trade an inhabitant group offers (the Neighbours tab): we give one thing for another. */
+export const RESOURCES = ['alloys', 'biomass', 'isotopes'] as const;
+export const tradeShape = {
+  label: str({ label: 'Label', help: 'What the trade is, in their terms ("Food for hull plate").' }),
+  give: choice(RESOURCES, { label: 'We give' }),
+  giveAmount: int({ label: 'How much', min: 1, max: 10000 }),
+  get: choice(RESOURCES, { label: 'We get' }),
+  getAmount: int({ label: 'How much', min: 1, max: 10000 }),
+  regard: int({ label: 'Needs regard', min: 0, max: 100, optional: true, help: 'They only make this trade with us at this regard or more.' }),
+} satisfies Shape;
+export type TradeDef = Infer<typeof tradeShape>;
+
 export const inhabitantShape = {
   name: str({ label: 'Name', help: 'What the log calls them ("the Vell").' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
@@ -523,6 +535,25 @@ export const inhabitantShape = {
   trustTitle: str({ label: 'Trust: title' }),
   trustText: str({ label: 'Trust: text', multiline: true }),
   leaveText: str({ label: 'They leave', multiline: true }),
+  trades: list(tradeShape, { label: 'Trades', max: 6, optional: true, help: 'What they will exchange (Neighbours tab), once they trust us or we can speak their language (research with the trade ability).' }),
+  tradeEvery: num({ label: 'Between trades', min: 0, max: 7200, unit: 's', optional: true, help: 'How long a camp takes to be ready to trade again. Empty = 90 s.' }),
+  mineHarm: num({ label: 'Mining their land', min: 0, max: 100, step: 0.1, unit: 'regard/100 alloys', optional: true, help: 'Regard lost for every 100 alloys our depots take from deposits on their land.' }),
+  nestHelp: int({ label: 'Clearing a nest', min: 0, max: 50, optional: true, help: 'Regard gained when we destroy a nest on their land.' }),
+  helpEvery: num({ label: 'Between favours', min: 0, max: 7200, unit: 's', optional: true, help: 'Once they trust us we can ask for help (guides, lookouts, hunters); this long between asks. Empty = 240 s.' }),
+  guideCost: int({ label: 'Guides: regard', min: 0, max: 100, optional: true, help: 'Asking for guides costs this much regard. Empty = they don\'t guide.' }),
+  guideReveal: num({ label: 'Guides: reach', min: 10, max: 240, unit: 'u', optional: true, default: 80, help: 'They show us the land this far round their camp.' }),
+  guideText: str({ label: 'Guides: text', multiline: true, optional: true }),
+  watchCost: int({ label: 'Lookouts: regard', min: 0, max: 100, optional: true, help: 'Asking them to keep watch costs this much regard. Empty = they don\'t.' }),
+  watchText: str({ label: 'Lookouts: text', multiline: true, optional: true, help: 'For a sol they warn of every pack and threat, and earlier.' }),
+  hunterCost: int({ label: 'Hunters: regard', min: 0, max: 100, optional: true, help: 'Asking for fighters costs this much regard. Empty = they won\'t fight for us.' }),
+  hunters: int({ label: 'Hunters', min: 0, max: 12, optional: true, help: 'How many come to the colony\'s defence when asked.' }),
+  hunterSeconds: num({ label: 'Hunters stay', min: 5, max: 600, unit: 's', optional: true, default: 60 }),
+  hunterDamage: num({ label: 'Hunters: damage', min: 0, max: 500, optional: true, default: 10, help: 'Each, per hit, against predators.' }),
+  hunterRange: num({ label: 'Hunters: reach', min: 1, max: 60, unit: 'u', optional: true, default: 14 }),
+  hunterCooldown: num({ label: 'Hunters: time between hits', min: 0.2, max: 30, step: 0.1, unit: 's', optional: true, default: 1.4 }),
+  hunterWeapon: choice(WEAPONS, { label: 'Hunters: weapon look', optional: true }),
+  hunterText: str({ label: 'Hunters: text', multiline: true, optional: true }),
+  defends: bool({ label: 'Defend their land', optional: true, help: 'Once they trust us, their people strike predators that come onto their land (with the hunters\' numbers), our buildings there included.' }),
   ...organizeFields,
 } satisfies Shape;
 export type InhabitantDef = Infer<typeof inhabitantShape>;

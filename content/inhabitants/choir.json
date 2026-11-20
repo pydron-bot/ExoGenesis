@@ -25,5 +25,41 @@
   "trustTitle": "Shared Signal",
   "trustText": "The Choir starts relaying its sensor sweeps to us, in our own packet format. We didn't teach it that. They will flag predators on the move.",
   "leaveText": "The Choir has left its tower.",
+  "trades": [
+    {
+      "label": "Power cells for isotope dust",
+      "give": "alloys",
+      "giveAmount": 80,
+      "get": "isotopes",
+      "getAmount": 25,
+      "regard": 45
+    },
+    {
+      "label": "Isotopes for salvaged circuitry",
+      "give": "isotopes",
+      "giveAmount": 20,
+      "get": "alloys",
+      "getAmount": 110,
+      "regard": 55
+    }
+  ],
+  "tradeEvery": 120,
+  "mineHarm": 1,
+  "nestHelp": 4,
+  "helpEvery": 300,
+  "guideCost": 4,
+  "guideReveal": 110,
+  "guideText": "The pylon sends us a full sensor sweep of the ground round its loop, in our own map format.",
+  "watchCost": 5,
+  "watchText": "The Choir turns its pylon outward. For a sol it flags anything moving, in our own packet format.",
+  "hunterCost": 12,
+  "hunters": 3,
+  "hunterSeconds": 60,
+  "hunterDamage": 16,
+  "hunterRange": 12,
+  "hunterCooldown": 1.6,
+  "hunterWeapon": "arc",
+  "hunterText": "Three tenders break their loop and roll toward the colony, discharging as they come.",
+  "defends": true,
   "chapter": "beyond-the-ridge"
 }

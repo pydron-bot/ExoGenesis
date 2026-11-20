@@ -217,6 +217,9 @@ export interface Native {
   /** Seconds to stand before picking a new spot. */
   wait: number;
   elder?: boolean;
+  /** Gone to fight for the colony (asked-for hunters) until this tick; `cd`: seconds to their next blow. */
+  hunt?: number;
+  cd?: number;
 }
 
 export type ContactChoice = 'approach' | 'avoid' | 'drive';
@@ -244,6 +247,13 @@ export interface Camp {
   /** They left (driven off, or regard hit 0). The camp stands empty. */
   gone: boolean;
   natives: Native[];
+  /** Ready to trade again / to be asked a favour again at this tick. */
+  tradeAt?: number;
+  helpAt?: number;
+  /** Their lookouts watch for us until this tick. */
+  watchUntil?: number;
+  /** Seconds to their next blow at a predator on their land (trusted camps that defend it). */
+  dcd?: number;
 }
 
 /** Story events (content/story): what has fired, been answered, flags, cards waiting. */
@@ -518,6 +528,8 @@ export type Command =
   | { type: 'inspect'; flag?: string; unflag?: string; counter?: { id: string; value: number }; objective?: { mission: string; index: number }; finish?: string; fail?: string; skip?: number; expire?: string; unlock?: string }
   /** First contact with an inhabitant camp: the player's answer. */
   | { type: 'contact'; camp: number; choice: ContactChoice }
+  /** Neighbours: a trade (`n` = which), or a favour from a camp that trusts us. */
+  | { type: 'neighbour'; camp: number; act: 'trade' | 'guide' | 'watch' | 'hunters'; n?: number }
   | PeopleCommand
   /** Playtesting / tests: spawn the next pack now, add alloys, damage a building, or drop in hostiles or combat units. */
   | { type: 'cinematic'; id: string; done: true }
@@ -571,8 +583,15 @@ export interface UnitSnap {
 export interface CampSnap {
   group: string; x: number; z: number; yaw: number; regard: number;
   met: boolean; pending: boolean; choice: ContactChoice | null; trusted: boolean; gone: boolean;
-  /** Colony buildings standing on their land. */
+  /** Colony buildings standing on their land (loud ones count three times). */
   encroaching: number;
+  /** Seconds until they will trade again / do us another favour; lookouts' seconds left; hunters out fighting for us. */
+  tradeIn: number;
+  helpIn: number;
+  watch: number;
+  hunting: number;
+  /** Can we trade with them (they trust us, or we speak their language)? */
+  canTrade: boolean;
 }
 
 export interface Snapshot {

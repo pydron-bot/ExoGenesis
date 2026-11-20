@@ -1,0 +1,64 @@
+{
+  "title": "Grievance",
+  "text": "The song-keeper comes to the edge of our lights alone. Our drills are in their hunting ground; the herds have gone. \"You take and take. The ones before you took too.\"",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "contact",
+      "group": "vell"
+    },
+    {
+      "kind": "regardBelow",
+      "group": "vell",
+      "count": 22
+    }
+  ],
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Pay them for the land",
+      "reply": "We send alloys and food to the camp. The song-keeper takes it, and says it changes nothing about the land. Still, they take it."
+    },
+    {
+      "label": "Drills before songs",
+      "reply": "The song-keeper walks away. That night the camp's fire is out early. Something has been decided."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "alloys",
+      "amount": -100
+    },
+    {
+      "after": 1,
+      "kind": "biomass",
+      "amount": -40
+    },
+    {
+      "after": 1,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 18
+    },
+    {
+      "after": 2,
+      "kind": "regard",
+      "group": "vell",
+      "amount": -6
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "vell-grievance"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2,
+      "bloc": "autonomist"
+    }
+  ],
+  "chapter": "beyond-the-ridge",
+  "tags": "act 1, inhabitants, dilemma"
+}
