@@ -83,6 +83,8 @@ try {
   // selecting and ordering: tap a drone (the first starts selected: let it go first), then open ground
   // (story cards can open over the map: retry the drone, and pick a ground point the map itself is under)
   await page.evaluate(() => { for (const id of ['contact', 'radio']) { const e = document.getElementById(id); if (e) e.style.visibility = 'hidden'; } });
+  await page.keyboard.press('Escape');
+  await wait(200);
   for (let k = 0; k < 4 && (await page.evaluate(() => __exo.ui.sel?.kind)) !== 'drone'; k++) {
     await page.keyboard.press('Escape');
     await page.evaluate(() => { __exo.cam.fx = __exo.sim.cur.drones[0].x; __exo.cam.fz = __exo.sim.cur.drones[0].z; });
@@ -105,6 +107,13 @@ try {
   check(((await stats()).counts.order ?? 0) >= 1, 'sending it somewhere plays "order"');
   await page.evaluate(() => { for (const id of ['contact', 'radio']) { const e = document.getElementById(id); if (e) e.style.visibility = ''; } });
   await page.keyboard.press('Escape');
+
+  // a camp's voices: none is met this early, so hand the bed one at the camera focus
+  await page.evaluate(() => { __exo.audio.campTest = setInterval(() => __exo.audio.beds({ water: 0, sites: [], camps: [{ x: 0, z: 0 }], dt: 0.05, spatial: () => ({ gain: 1, pan: 0 }) }), 50); });
+  await wait(1500);
+  const campLvl = (await stats()).beds.camp;
+  await page.evaluate(() => clearInterval(__exo.audio.campTest));
+  check(campLvl > 0.05, `a camp's voices play near it (${campLvl.toFixed(3)})`);
 
   // wildlife: a calm animal in view calls now and then
   const beast = await page.evaluate(() => { const f = __exo.sim.cur.fauna; for (let i = 0; i < f.length; i += 4) if (f[i + 3] % 4 === 0) return { x: f[i], z: f[i + 1] }; return null; });
