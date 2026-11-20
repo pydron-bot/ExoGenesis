@@ -195,25 +195,32 @@ try {
   check(((await stats()).counts.turretShot ?? 0) === c0, 'no fight sounds from orbit');
   await page.evaluate(() => __exo.setView('surface'));
 
-  // 6. toggle persists across a reload
-  await page.click('#b-sound');
+  // 6. toggle persists across a reload (Sound lives in the game menu's Options)
+  const options = async () => { await page.click('#b-menu'); await page.click('#options [data-id="options"]'); await page.waitForSelector('#options [data-id="sound"]'); };
+  const closeAll = async () => { await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await wait(200); };
+  await options();
+  await page.click('#options [data-id="sound"]');
   s = await stats();
   check(!s.on && s.muted, 'toggle mutes');
   await page.goto(`${url}?intro=0&new=1`);
   await ready();
   s = await stats();
-  check(!s.on && (await page.textContent('#b-sound')).includes('Muted'), 'muted after a reload');
+  await options();
+  check(!s.on && (await page.textContent('#options [data-id="sound"] .op-state')) === 'OFF', 'muted after a reload');
+  await closeAll();
   await gesture();
   await cmd({ type: 'debug', alloys: 500 });
   await cmd({ type: 'build', kind: 'solar', ...(await spot('solar', 20, 0)) });
   await wait(800);
   check(Object.keys((await stats()).counts).length === 0, 'muted plays nothing');
-  await page.click('#b-sound');
+  await options();
+  await page.click('#options [data-id="sound"]');
   await wait(300);
   check((await stats()).on && (await page.evaluate(() => JSON.parse(localStorage.getItem('exo.sound')).on)), 'toggle back on, remembered');
-  await page.fill('#sound-vol', '40');
+  await page.fill('#options [data-id="volume"] input', '40');
   check(Math.abs((await stats()).volume - 0.4) < 0.01, 'volume slider sets the volume');
-  await page.fill('#sound-vol', '80');
+  await page.fill('#options [data-id="volume"] input', '80');
+  await closeAll();
 
   // 7. ?sound=0
   await page.goto(`${url}?intro=0&new=1&sound=0`);

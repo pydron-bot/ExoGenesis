@@ -316,6 +316,30 @@ around Act 2.
 Caveat: these help people find the game and spread it. Whether they stay still depends on
 the first 20 minutes (the M1 exit test).
 
+### 5.11 Skirmish *(planned 2026-11-19; replaces the horde proof of concept)*
+
+A standard RTS skirmish outside the campaign: pick a map and players, then build up and fight until one side is left.
+
+- **Setup screen** (title → SKIRMISH): procedural map (seed, size, terrain style or biome, sea level), 2–4 players
+  (you plus 1–3 computer players, each with a colour and **Easy / Normal / Hard**, teams or free-for-all), starting
+  alloys, wildlife and predator packs on or off, fog of war on or off.
+- **Everyone plays the same tech** (the campaign's Accord buildings, units and research), told apart by colour.
+- **Win:** the last player or team with a Command Core standing. No cryo bank, colonists, story or planet health.
+- **Computer players:** the same commands a player has (build, queue, research, order units). They run an economy build
+  order, expand to deposits, mass an army, scout and attack, and defend their base. Difficulty sets reaction time,
+  build-order quality and an income bonus at Hard.
+- **How it's built:** the campaign sim (`src/sim/core.ts`) gains an owner (team) on buildings, drones and units, and
+  per-player alloys, isotopes, research, power and fog. Combat targets enemy players as well as fauna. A skirmish is the
+  same `Sim` started from a generated map with N players. Single-player campaign saves stay as they are (team 0).
+- **Phases** (each its own release):
+  1. Multi-player sim: owners, per-player economy, player-vs-player combat, Core-loss defeat. Headless test: two
+     scripted bases fight to a result.
+  2. Skirmish maps: a procedural generator with fair start spots (deposits near each), run through the campaign renderer.
+  3. Setup screen, team colours on models, HUD for the local player only, victory/defeat screen with stats.
+  4. Computer player AI (economy, army, attack waves, defence), with difficulty levels, measured by AI-vs-AI runs.
+  5. Polish: minimap pings, an "under attack" alert, a surrender option, a rematch button.
+- Online multiplayer is out of scope for now (the game is static hosting; it would need lockstep netcode and a relay).
+
 ## 6. Technical architecture
 
 ### 6.1 Simulation owns the game state
@@ -415,6 +439,8 @@ What each milestone actually shipped, with its numbers and tests: `TECH.md` §3 
 - 2026-11-17: yes to a skirmish / sandbox mode outside the campaign, ultimately against a computer
   opponent. The working names in `STORY.md` are fine as they are.
 - 2026-11-17: skirmish maps are procedural (campaign regions stay hand-authored).
+- 2026-11-19: skirmish becomes a real RTS skirmish (§5.11): you vs 1–3 computer players, same tech in different colours,
+  last Command Core standing wins; no online multiplayer for now.
 - 2026-11-14: player is always the coop probe; all three land at the same time on different
   planets; growth pods accelerate maturation.
 - 2026-11-15: one solar system only; two acts (planet, system); C&C-style direct control;

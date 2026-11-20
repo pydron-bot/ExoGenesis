@@ -8,7 +8,10 @@ import { regionHeightRaw } from '../world/planet';
 import { REGION_HALF } from './types';
 
 export interface PlaceWorld {
+  /** Your buildings: they set the build area, and nothing may go too close to them. */
   buildings: { kind: string; x: number; z: number; progress: number; yaw?: number }[];
+  /** Other players' buildings (skirmish): nothing may go too close, but they don't extend your build area. */
+  others?: { kind: string; x: number; z: number; progress: number; yaw?: number }[];
   deposits: { x: number; z: number; alloys: number }[];
   /** Geothermal vents (from the region map). */
   vents?: { x: number; z: number }[];
@@ -68,11 +71,11 @@ export function placeProblem(
     if (lo > -0.4) return 'must reach the water: build it on the waterline';
     if (hi > 6) return 'shore too steep';
   }
-  for (const b of w.buildings) {
+  for (const b of w.others ? [...w.buildings, ...w.others] : w.buildings) {
     const o = defs[b.kind];
     if (!o) continue;
     // a gate goes onto a wall line, replacing the segments under it
-    if (d.role === 'gate' && o.role === 'wall') continue;
+    if (d.role === 'gate' && o.role === 'wall' && w.buildings.includes(b)) continue;
     if (Math.hypot(b.x - x, b.z - z) < (o.clearance + d.clearance) / 2) return `too close to the ${o.name}`;
   }
   for (const c of w.campSites ?? []) {

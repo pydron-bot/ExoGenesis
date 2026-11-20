@@ -448,7 +448,7 @@ How content is stored and edited in general (one JSON record per file, schemas i
     height. See-through parts (gate field, plumes) wait for the finished model. The construction work light is now
     cyan and dimmer (0.35). `?print=0` (or the option) brings back the scaffold box. `region.printing` switches it
     at runtime (buildings under construction rebuild).
-  - **Options** (`src/options.ts`): one panel, opened from OPTIONS on the title screen and ⚙ Options in the ⋯ menu
+  - **Options** (`src/options.ts`): one panel, opened from OPTIONS on the title screen and Options in the game menu
     (it replaces nothing; ✦ Lights stays). Toggles: glow (`exo.glow`), shadows (`exo.shadows`), printed construction
     (`exo.print`), colony lights (`exo.lights`), each remembered in localStorage. A URL param locks its row ("Set in
     URL"). Test: `tools/options-smoke.mjs` (title → options → every toggle flips and the game follows → remembered
@@ -699,7 +699,7 @@ First playtest build (2026-11-15).
     the ringer switch is on silent — if there's no sound on the phone, check the switch first.
   - Tests: `tools/sound-smoke.mjs` (counts what started via `__exo.audio.stats()`; it can't judge how it sounds —
     the recipes in `src/audio/synth.ts` are first guesses for Derek to tune by ear).
-  - **More sounds (v0.50.0):** every situation the game reports now has its own sound (34 sounds, was 25):
+  - **More sounds (v0.51.0):** every situation the game reports now has its own sound (34 sounds, was 25):
     - *Events* (`EventCue` in `src/sim/types.ts`, recipes in `src/audio/synth.ts`): **birth** (a child, a pod
       opens), **death** (a colonist, a line gone), **research** (complete), **confirm** (research, a policy, a
       pod, drone fabrication started; boarding; save restored), **recycle** (cancel or recycle with a refund,
@@ -726,7 +726,7 @@ First playtest build (2026-11-15).
       order (units given a destination pick their own targets), so one **order** sound covers it.
     - Tests: `tools/sound-smoke.mjs` adds drones heard building, confirm on fabrication, select and order by
       clicking a drone and the ground, a wildlife call, and surf on a Port of Hope shore that fades in orbit.
-  - **Title music without a click (v0.50.0):** browsers hold sound back until a tap or key. At load
+  - **Title music without a click (v0.51.0):** browsers hold sound back until a tap or key. At load
     `tryAutoplay()` makes a context; where the browser allows autoplay (`getAutoplayPolicy`, or a context that's
     running within 0.3 s) it's kept and the title music starts at once; otherwise it's closed and the first tap
     makes one as before (iOS wants that inside the gesture). While sound is locked the title's status line says
@@ -1362,3 +1362,79 @@ base colour at the root to its tip colour at the top), `leaf`, `glow`.
   per-instance cull spheres by the radius ratio). The built-ins draw until then.
 - Editor: the Nature preview loads the models too, so a species or biome shows as the game draws it.
 - Checked: in-game renders of Touchdown as verdant and arid, editor previews of a shell, ray, serpent and the lush biome.
+
+### Unit movement round buildings (v0.49.1)
+
+`tools/path-bench.mjs` (headless, ~20 s): a packed base (rings round the core, as tight as placement allows), a
+base on a grid with 3 / 5 / 8 u lanes, and a walled yard with one gate; groups of every ground / hover combat unit
+ordered across, into the middle, onto a building and through the gate (12, 20 or 30 at a time). A unit passes if it
+ends within 4 u of its spot, or of the nearest point its path can reach when the spot is walled off. Exit 1 on any
+failure.
+
+- **Found:** 31 of 576 units gave up 15–45 u short going into the packed base. `goTo`'s stall check measured
+  straight-line distance to the goal, so a detour round the base (farther first) read as stuck: 9 s without getting
+  closer and it gave up. Scouts also took twice as long as needed, circling waypoints (turn radius 13 / 6 = 2.2 u
+  is wider than the 1.5 u "reached it" radius).
+- **Fixes (`src/sim/core.ts`):**
+  - Progress is the length left along the path (to the next waypoint plus the rest), still re-planned every `STALL`
+    ticks without progress and dropped after three times that.
+  - A waypoint counts as passed within 1.5 u, or within 4 u once the unit is past it along the next leg.
+  - When the path ends short of the goal (walled off, or inside a building), the unit stops on reaching its end.
+  - `steer(…, brake)`: units (not fauna) slow to as little as 25% into a sharp turn.
+  - `order`: a formation spot inside a building (or off-limits ground) moves to the nearest open ground at least
+    0.8 × `SPREAD` from spots already handed out, so a group sent onto a building spreads round it.
+- **After:** 976 / 976 (with the 30-unit and onto-a-building cases added); travel times unchanged except Scouts into
+  the packed base, 28.4 → 14.0 s. `tools/units-smoke.mjs` passes.
+
+### Game menu and a slimmer HUD (v0.50.0)
+
+- **Bottom bar:** Build · ❚❚ ▶ ⏩ · Surface / Planet / System · ☰ Menu (8 buttons; was ~20 plus two sliders, with a ⋯
+  overflow on phones). Save, Load, New game, Look, Lights, Options, Skirmish, the version and Sound are gone from it.
+- **Game menu** (`openMenu` in `src/options.ts`, `openGameMenu` in `main.ts`): ☰ Menu, or Esc when nothing is selected,
+  nothing is being placed and no panel is open (a capture-phase listener, so the input's own Esc still deselects
+  first). Pauses while open and puts the speed back on close. Resume · Save · Load · Options · What's new · Skirmish ·
+  Title screen · New game (two taps: the button turns amber and says what will be lost). Options and What's new come
+  back to the menu when closed. It shares the options overlay (`#options.menu`), so only one panel is ever up.
+- **Options rows** can be `Slider`s (`kind: 'slider'`, 0–100): Volume and Music volume. New rows: Interface →
+  Performance stats (`exo-stats`, or `?stats`), Graphics → Terrain look (reloads; flushes the autosave first).
+- **Top:** `#brand` is hidden in game; `#tele` (view, altitude, fps, draws) only with `body.stats`, and the minimap moves
+  up into its place on desktop; `.r.dim` resource chips (nothing to show yet) are hidden, except the colonists chip,
+  which opens the Colony panel.
+- Tests: `tools/options-smoke.mjs` checks the menu (bar size, pauses, Options round trip, Esc behaviour, two-tap New
+  game) on desktop and phone; `smoke.mjs`, `sound-smoke.mjs` and `music-smoke.mjs` go through the menu now.
+  Headless desktop screenshots can catch the panel mid-fade (swiftshader holds the CSS animation for ~2 s).
+
+### Skirmish phase 1: players in the sim (v0.50.1)
+
+DESIGN §5.11. `src/sim/core.ts` runs any number of players on one map; the campaign is the one-player case and is
+unchanged (`tools/balance.mjs`, all nine strategies, output byte-identical before and after).
+
+- **Ownership:** `team` on `Building`, `Drone`, `Unit` (unset = player 0). `SimState.players` (absent in the campaign):
+  name, side (same side = allies), colour, `ai`, `out`, `home`, and for players ≥ 1 an `econ` (alloys, isotopes,
+  battery, research, drone fabrication, stats). Player 0 keeps its economy in the top-level fields, so the HUD,
+  saves and the campaign read it as before. `SimState.skirmish`: `{ fog, packs }`.
+- **`withTeam(t, fn)`:** runs `fn` as player `t` sees the world: the lists hold only `t`'s buildings, drones and
+  units; its econ is swapped into the top-level fields; `power`, `vis` and `exp` are its own. On the way out the
+  lists merge back (what `fn` added becomes `t`'s, what it removed is gone) and the econ swaps back. Placement sees
+  other players' buildings through `PlaceWorld.others` (spacing only: they don't extend your build area).
+- **Tick (skirmish):** each live player's economy in its own view (power, drones, fabrication, factories, research,
+  mining, repair pads), then one shared fight (turrets, units, shields, fauna, nests, packs if on), eliminations, fog
+  per player every 5 ticks. No cryo bank, people, planet, inhabitants, story, missions or encounters.
+- **Combat:** shooters pick from `foes(team)`: fauna plus every unit, drone and building of a player on another side
+  (the campaign's `foes(0)` is `s.hostiles` itself). Anything that moves comes before a building unless the building
+  is 10 u closer (`BUILDING_LAST`). `strike` splashes and chains over the shooter's foes; `kill` dispatches by kind.
+  Visibility is per shooter (`visibleTo`). Idle units also answer enemy units among their own buildings (`raiders`).
+  Field Engineers mend only their own side. Turret ties still go to the later target (as before: a `<` here changed
+  three balance runs).
+- **Commands:** `command(c, team)` runs in that player's view, so a player can only spend its own alloys and order
+  its own drones and units. Events from other players' views are dropped (`emit` passes only player 0's); enemy
+  buildings destroyed are reported to player 0.
+- **Defeat:** a Command Core destroyed queues its player (`falling`); at the end of the tick it's out and everything
+  of theirs goes. One side left: `end('won')` if player 0 is on it, otherwise `over = 'core'` with "Defeat: … won".
+- **Setup:** `newSkirmish({ seed, players, alloys, wildlife?, packs?, fog?, homes?, deposits? })`; `skirmishHomes(n,
+  limit)` spreads start spots round a ring at 62% of the way out, each moved to dry flat ground. Story locks are
+  cleared. Saves keep player 0's fog (`explored`); other players' fog is worked out again on load.
+- **Test:** `tools/skirmish-sim.mjs` (headless, 30 checks): separate economies and stats, commands limited to their
+  owner, per-player building and mining, turrets and units fighting across players, a Core falling takes its player
+  out and the last one wins, save/load, a four-player free-for-all, and allies holding fire. Sim cost (sim-bench):
+  3.2 → ~3.3 ms/tick, within its ±10% noise.

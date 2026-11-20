@@ -1,0 +1,135 @@
+{
+  "name": "Day · Outpost Pulse",
+  "use": "day",
+  "chords": [
+    {
+      "notes": "A2 E3 G3 B3 C4",
+      "bass": "A1",
+      "bells": "E5 G5 A5 B5 C6 D6"
+    },
+    {
+      "notes": "F2 C3 E3 G3 A3",
+      "bass": "F1",
+      "bells": "E5 G5 A5 C6 E6"
+    },
+    {
+      "notes": "D2 A2 C3 E3 F3",
+      "bass": "D1",
+      "bells": "E5 F5 A5 C6 D6"
+    },
+    {
+      "notes": "E2 B2 D3 G3 A3",
+      "bass": "E1",
+      "bells": "D5 E5 G5 A5 B5"
+    }
+  ],
+  "order": "cycle",
+  "homePull": 0,
+  "chordMin": 10,
+  "chordMax": 10,
+  "swell": 2.5,
+  "release": 3,
+  "pad": 0.22,
+  "padTone": "soft",
+  "brightness": 0.6,
+  "bass": 0,
+  "bells": 0.65,
+  "bellTone": "kalimba",
+  "bellGapMin": 2,
+  "bellGapMax": 5,
+  "phrases": 0.45,
+  "pulse": 0,
+  "pulseRate": 96,
+  "barSteps": 16,
+  "drums": 0.85,
+  "drumTracks": [
+    {
+      "sound": "kick",
+      "steps": "x... ..o. ..x. ....",
+      "level": 0.85,
+      "pan": 0
+    },
+    {
+      "sound": "clap",
+      "steps": ".... x... .... x..o",
+      "level": 0.72,
+      "pan": 0.15
+    },
+    {
+      "sound": "hand",
+      "steps": "o..x ..o. x..o ..x.",
+      "level": 0.55,
+      "pan": -0.3
+    },
+    {
+      "sound": "hat",
+      "steps": "x.o. x.o. x.o. x.oo",
+      "level": 0.45,
+      "pan": 0.35
+    },
+    {
+      "sound": "block",
+      "steps": "..o. .... .x.. ..o.",
+      "level": 0.35,
+      "pan": -0.45
+    }
+  ],
+  "swing": 0.14,
+  "drumsIn": 0,
+  "sections": [
+    {
+      "chords": 2,
+      "layers": "bassline drums bells"
+    },
+    {
+      "chords": 4,
+      "layers": "bassline drums arp bells"
+    },
+    {
+      "chords": 4,
+      "layers": "pad bassline drums arp melody"
+    },
+    {
+      "chords": 2,
+      "layers": "bassline drums arp"
+    }
+  ],
+  "arp": 0.65,
+  "arpMode": "updown",
+  "arpRate": "8ths",
+  "arpOctaves": 1,
+  "arpShift": 1,
+  "arpTone": "string",
+  "arpGate": 0.55,
+  "arpBright": 0.85,
+  "bassline": "x..x ..o. x.5. ..o.",
+  "basslineLevel": 0.78,
+  "lead": 0.5,
+  "leadTone": "glass",
+  "melody": [
+    {
+      "notes": ". . E5 - G5 A5 - . | G5 - E5 D5 C5 - - ."
+    },
+    {
+      "notes": ". . C5 - E5 G5 - . | A5 - G5 E5 C5 - - ."
+    },
+    {
+      "notes": ". . D5 - F5 A5 - . | G5 - F5 E5 D5 - - ."
+    },
+    {
+      "notes": ". . B4 - D5 E5 - . | G5 - A5 G5 E5 - - ."
+    }
+  ],
+  "leadStep": "8ths",
+  "leadEvery": 1,
+  "leadGlide": 0,
+  "leadVibrato": 0.15,
+  "air": 0.25,
+  "echo": 0.35,
+  "echoSync": true,
+  "space": 0.4,
+  "room": 3.2,
+  "grit": 0.08,
+  "lofi": 0,
+  "level": 0.95
+}

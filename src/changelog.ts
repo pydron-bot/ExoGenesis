@@ -1,6 +1,6 @@
 /**
  * Release notes, newest first: what players see under "What's new" (title
- * screen and the ⋯ menu). Every push to main that changes the game adds an
+ * screen and the game menu). Every push to main that changes the game adds an
  * entry here and bumps package.json to match (`npm run build` checks:
  * tools/version-check.mjs). Minor for features, patch for fixes. Write for
  * players, not for the code.
@@ -15,7 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.50.0',
+    version: '0.51.0',
     date: '2026-11-20',
     title: 'Sounds of the colony',
     notes: [
@@ -24,6 +24,37 @@ export const CHANGELOG: Release[] = [
       'And the smaller ones: discoveries, new friendships, a deposit running dry, refunds, messages and story cards',
       'Selecting something and giving an order now sound too',
       'The world is livelier: surf along the shore, drones clanking and welding as they build, wildlife calling, and voices near the camps you\'ve met',
+    ],
+  },
+  {
+    version: '0.50.1',
+    date: '2026-11-20',
+    title: 'Skirmish groundwork',
+    notes: [
+      'Behind the scenes: the game can now run several players on one map, each with its own base, alloys, power, research and fog of war, fighting each other. This is the first step toward a full skirmish mode against computer players; the campaign plays exactly as before',
+    ],
+  },
+  {
+    version: '0.50.0',
+    date: '2026-11-20',
+    title: 'A tidier screen',
+    notes: [
+      'The bottom bar is down to Build, speed, the three views and ☰ Menu',
+      'Menu (☰, or Esc with nothing selected) pauses the game and holds Save, Load, Options, What\'s new, Skirmish, the title screen and New game (which asks twice)',
+      'Options now has the sound and music volume sliders, the terrain look (Flat or Smooth) and Performance stats',
+      'The frame rate and altitude box is hidden unless you turn on Performance stats, and the radar moves up into its place',
+      'Resource counters that don\'t apply yet (no Battery Bank, no isotopes, no radar, no army) stay hidden until they do',
+    ],
+  },
+  {
+    version: '0.49.1',
+    date: '2026-11-20',
+    title: 'Units find their way round buildings',
+    notes: [
+      'Units sent the long way round a base no longer give up partway: they now judge progress by the road left to go, not the straight-line distance',
+      'Sent somewhere walled off or into a building, units go as close as they can get and stop there instead of milling about',
+      'A group ordered onto a building spreads out on open ground beside it instead of piling up at one spot',
+      'Fast units (Scouts, Rovers) slow into sharp turns, so they stop circling round corners and waypoints',
     ],
   },
   {

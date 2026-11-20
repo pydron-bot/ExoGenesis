@@ -86,17 +86,24 @@ try {
   s = await stats();
   // every tension piece has drums (not all have the pulse)
   check((s.music?.hits ?? 0) > 0, `tension has its drums (${s.music?.mood}: ${s.music?.hits} hits)`);
-  // the player's music volume: 0 is remembered
-  await page.evaluate(() => { const el = document.getElementById('music-vol'); el.value = '0'; el.dispatchEvent(new Event('input')); });
+  // the player's music volume (game menu → Options): 0 is remembered
+  const musicVol = async (v) => {
+    if (!(await page.$('#options [data-id="music-volume"]'))) { await page.click('#b-menu'); await page.click('#options [data-id="options"]'); }
+    await page.fill('#options [data-id="music-volume"] input', v);
+    // Options and the menu close again (the menu pauses the game)
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+  };
+  await musicVol('0');
   await page.waitForTimeout(600);
   check((await stats()).music === null, 'music volume 0 stops the music (nothing synthesised into silence)');
-  await page.evaluate(() => { const el = document.getElementById('music-vol'); el.value = '50'; el.dispatchEvent(new Event('input')); });
+  await musicVol('50');
   await page.waitForTimeout(600);
   check((await stats()).music?.use === 'tension', `and it comes back when turned up (${(await stats()).music?.use})`);
-  await page.evaluate(() => { const el = document.getElementById('music-vol'); el.value = '0'; el.dispatchEvent(new Event('input')); });
+  await musicVol('0');
   await page.reload();
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
-  check((await stats()).musicVolume === 0 && await page.$eval('#music-vol', (e) => e.value) === '0', 'music volume 0 is remembered');
+  await page.click('#b-menu'); await page.click('#options [data-id="options"]');
+  check((await stats()).musicVolume === 0 && await page.$eval('#options [data-id="music-volume"] input', (e) => e.value) === '0', 'music volume 0 is remembered');
   await page.evaluate(() => localStorage.removeItem('exo.sound'));
 
   // ---- editor ▶ Listen ----

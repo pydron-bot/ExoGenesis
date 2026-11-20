@@ -33,6 +33,8 @@ export const MAX_HOSTILES = 400;
 /** A building; `kind` is its content id (content/buildings/<kind>.json). */
 export interface Building {
   id: number;
+  /** Owner (skirmish player index); unset = player 0, the local player (the campaign never sets it). */
+  team?: number;
   /** Wardens' cooldown (Autonomist-led colonies: the people inside fight back). */
   mcd?: number;
   /** Reactor out of fuel (warned once until it has some again). */
@@ -73,6 +75,8 @@ export type DroneTask =
 
 export interface Drone {
   id: number;
+  /** Owner (see Building.team). */
+  team?: number;
   x: number;
   z: number;
   heading: number;
@@ -162,6 +166,8 @@ export interface Wreck { x: number; z: number; yaw: number; alloys: number; max:
  */
 export interface Unit {
   id: number;
+  /** Owner (see Building.team). */
+  team?: number;
   /** Unit content id (rover, tank). */
   unit: string;
   /** Render slot (shared pool with hostiles). */
@@ -397,7 +403,56 @@ export interface SimState {
   over: null | 'core' | 'cryo' | 'people' | 'story' | 'won';
   /** The end screen's text for 'story' and 'won'. */
   overText?: string;
-  stats: { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number };
+  stats: SimStats;
+  /**
+   * Skirmish: every player, index = team (absent in the campaign). Player 0 is the local player and keeps its
+   * economy in the top-level fields (alloys, isotopes, stored, research, fab, stats); the others keep theirs in `econ`.
+   */
+  players?: PlayerState[];
+  /** Skirmish rules (absent in the campaign). */
+  skirmish?: { fog: boolean; packs: boolean };
+}
+
+/** How a skirmish starts (Sim.newSkirmish). */
+export interface SkirmishSetup {
+  seed: number;
+  players: { name: string; color: string; side?: number; ai?: PlayerState['ai'] }[];
+  /** Starting alloys, each. */
+  alloys: number;
+  wildlife?: boolean;
+  packs?: boolean;
+  /** Fog of war (default on). */
+  fog?: boolean;
+  /** Start spots (default: `skirmishHomes`), and the map's deposits (default: the region's). */
+  homes?: { x: number; z: number }[];
+  deposits?: { x: number; z: number; alloys: number; max: number }[];
+}
+
+export type SimStats = { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number; unitsBuilt?: number; enemyKills?: number };
+
+/** One player's own economy (skirmish players other than 0). */
+export interface Econ {
+  alloys: number;
+  isotopes: number;
+  stored: number;
+  research: ResearchState;
+  fab: SimState['fab'];
+  stats: SimStats;
+}
+
+export interface PlayerState {
+  name: string;
+  /** Players on the same side are allies (free-for-all: everyone on their own side). */
+  side: number;
+  /** Team colour (CSS hex). */
+  color: string;
+  /** A computer player, and how hard it plays; unset = a human. */
+  ai?: 'easy' | 'normal' | 'hard';
+  /** Lost its Command Core: out of the game. */
+  out?: boolean;
+  /** Where it started (its Command Core). */
+  home: { x: number; z: number };
+  econ?: Econ;
 }
 
 export type LandingStage = 'burn' | 'touchdown' | 'deploy';
