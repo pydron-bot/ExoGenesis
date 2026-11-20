@@ -1,0 +1,19 @@
+{
+  "name": "Swarm Logic",
+  "description": "Drones share one work plan instead of each keeping its own. The Core can run two more, and every drone works faster.",
+  "branch": "economy",
+  "requires": "refined-drills",
+  "cost": 120,
+  "seconds": 50,
+  "order": 13,
+  "effects": [
+    {
+      "stat": "drones",
+      "amount": 2
+    },
+    {
+      "stat": "droneWork",
+      "amount": 0.15
+    }
+  ]
+}

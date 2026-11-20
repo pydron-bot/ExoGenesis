@@ -1,0 +1,20 @@
+{
+  "name": "Rites of Remembrance",
+  "description": "The colony writes its own rites for the dead. Grief fades faster, and people feel a little held.",
+  "branch": "people",
+  "requires": "open-ledger",
+  "building": "memorial",
+  "cost": 60,
+  "seconds": 30,
+  "order": 54,
+  "effects": [
+    {
+      "stat": "grief",
+      "amount": 0.75
+    },
+    {
+      "stat": "wellbeing",
+      "amount": 2
+    }
+  ]
+}

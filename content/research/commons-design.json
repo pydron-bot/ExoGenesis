@@ -1,0 +1,20 @@
+{
+  "name": "Commons Design",
+  "description": "Shared kitchens, light wells, a place to sit. An engineer draws it up with the colonists.",
+  "branch": "people",
+  "requires": "nutrition",
+  "specialist": "engineer",
+  "cost": 120,
+  "seconds": 55,
+  "order": 55,
+  "effects": [
+    {
+      "stat": "wellbeing",
+      "amount": 3
+    },
+    {
+      "stat": "staff",
+      "amount": 0.15
+    }
+  ]
+}

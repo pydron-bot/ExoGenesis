@@ -279,6 +279,8 @@ export interface StoryState {
   placed?: string[];
   /** Map encounters that have appeared. */
   encounters?: string[];
+  /** Colony modifiers running (story boosts: dilemma choices, inhabitants' gifts); until = tick, −1 for good. */
+  mods?: import('./mods').ModBoost[];
 }
 
 /** Missions (content/missions): which are under way, done, and which objectives are met. */
@@ -386,7 +388,7 @@ export interface SimState {
   explored?: string;
   packs: Pack[];
   /** Next pack index and the tick it arrives; attackers spawned so far. */
-  waves: { n: number; next: number; spawned: number };
+  waves: { n: number; next: number; spawned: number; warned?: number };
   /** Drone fabrication at the Core. */
   fab: { queued: number; progress: number; free?: boolean };
   /** Landing sequence: 'descent' until touchdown, 'landed' until the drone is out, then 'deployed'. */
@@ -569,6 +571,10 @@ export interface Snapshot {
   /** Skirmish players (absent in the campaign). */
   /** Combat units you may have (absent: the colony rules' maxUnits). */
   unitCap?: number;
+  /** Worker drones allowed (campaign; absent: the colony rules' maxDrones). */
+  droneCap?: number;
+  /** Colony modifiers in force (research and story boosts summed; campaign only). */
+  mods?: Partial<Record<string, number>>;
   players?: { name: string; color: string; side: number; ai?: PlayerState['ai']; out: boolean; home: { x: number; z: number }; stats: SimStats }[];
   /** Game seconds since landing. */
   secs: number;

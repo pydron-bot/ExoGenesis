@@ -1,0 +1,16 @@
+{
+  "name": "Logistics Grid",
+  "description": "Supply routes, spares and crew rotas for a bigger force. Four more combat units allowed.",
+  "branch": "defence",
+  "requires": "fire-control",
+  "building": "bay",
+  "cost": 150,
+  "seconds": 60,
+  "order": 38,
+  "effects": [
+    {
+      "stat": "units",
+      "amount": 4
+    }
+  ]
+}

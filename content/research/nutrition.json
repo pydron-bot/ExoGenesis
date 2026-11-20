@@ -1,0 +1,15 @@
+{
+  "name": "Nutrition Science",
+  "description": "Diets fitted to what this world grows. Colonists eat less for the same strength.",
+  "branch": "people",
+  "building": "hydroponics",
+  "cost": 70,
+  "seconds": 35,
+  "order": 52,
+  "effects": [
+    {
+      "stat": "eat",
+      "amount": 0.15
+    }
+  ]
+}

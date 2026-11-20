@@ -709,14 +709,73 @@ export type StoryEffectDef = Infer<typeof storyEffectShape>;
  * Research (content/research/<id>.json): run at a Tech Lab, one at a time. Units and buildings
  * name the research they need; finishing one also sets the story flag research-<id>.
  */
+/**
+ * Colony modifiers: what a research project (or a story `boost`, or an inhabitant's gift) changes in the sim.
+ * Each is a sum of amounts; the sim reads it where the stat is used (Sim.mod). Multipliers are 1 + the sum
+ * (or 1 − the sum for the "less" ones); counts, points and seconds add as they are; abilities are on at 1 or more.
+ */
+export const MOD_STATS = ['mining', 'isotopeMining', 'solar', 'farm', 'printer', 'eat', 'battery', 'droneWork', 'drones', 'units', 'turretDamage', 'armor', 'repairPad', 'shieldRegen', 'relicDamage', 'researchSpeed', 'podSpeed', 'injuredTime', 'wellbeing', 'stance', 'sabotage', 'grief', 'staff', 'scars', 'restore', 'regard', 'salvage', 'cacheYield', 'nestRegrow', 'warning', 'power', 'trade', 'fortify'] as const;
+export type ModStat = (typeof MOD_STATS)[number];
+export const MOD_HELP: Record<ModStat, string> = {
+  mining: 'Mining Depots dig alloys faster (0.2 = +20%)',
+  isotopeMining: 'Deep-Core Mines dig isotopes faster',
+  solar: 'Solar Arrays give more power',
+  farm: 'Hydroponics grow more biomass',
+  printer: 'Matter Printers make more alloys',
+  eat: 'Colonists eat less (0.15 = 15% less; negative: more)',
+  battery: 'Batteries hold more',
+  droneWork: 'Drones build and repair faster',
+  drones: 'More worker drones allowed (a count)',
+  units: 'More combat units allowed (a count)',
+  turretDamage: 'Buildings that shoot hit harder',
+  armor: 'Buildings take less damage (0.15 = 15% less)',
+  repairPad: 'Repair Pads mend faster',
+  shieldRegen: 'Shields recharge faster',
+  relicDamage: 'Our weapons hurt relic sentinels and nodes more',
+  researchSpeed: 'Research runs faster',
+  podSpeed: 'Growth pods mature faster',
+  injuredTime: 'People lying injured hold on longer',
+  wellbeing: 'Wellbeing for everyone (points)',
+  stance: 'Opinion of the AI drifts this much a sol (negative: down)',
+  sabotage: 'Less sabotage (0.5 = half as often; negative: more)',
+  grief: 'Grief fades faster',
+  staff: 'Colonists at work add more to their buildings',
+  scars: 'Mining scars the land less (0.4 = 40% less)',
+  restore: 'Seed Banks heal land faster',
+  regard: 'Inhabitants\' regard recovers faster and wears down slower',
+  salvage: 'Field Engineers strip wrecks faster',
+  cacheYield: 'Relic caches pay out more',
+  nestRegrow: 'Destroyed nests take longer to grow back',
+  warning: 'Threat warnings come this many seconds earlier',
+  power: 'Buildings draw more power (0.1 = 10% more; negative: less)',
+  trade: 'Ability: trade with inhabitants who know us (1 = on)',
+  fortify: 'Ability: the Fortify standing order for outlying holdings (1 = on)',
+};
+export const modShape = {
+  stat: choice(MOD_STATS, { label: 'Changes', helps: MOD_HELP }),
+  amount: num({ label: 'By', min: -1000, max: 1000, step: 0.01, help: 'Multipliers: 0.2 = 20%. Counts, points and seconds: as they are. Abilities: 1.' }),
+} satisfies Shape;
+export type ModDef = Infer<typeof modShape>;
+/** Research branches (the Tech Lab's tabs). */
+export const RESEARCH_BRANCHES = ['economy', 'defence', 'people', 'relic'] as const;
+export type ResearchBranch = (typeof RESEARCH_BRANCHES)[number];
+export const BRANCH_NAMES: Record<ResearchBranch, string> = { economy: 'Economy', defence: 'Defence', people: 'People', relic: 'Precursor' };
+
 export const researchShape = {
   name: str({ label: 'Name' }),
   description: str({ label: 'Description', multiline: true, optional: true, help: 'What it unlocks, for the Tech Lab card.' }),
+  branch: choice(RESEARCH_BRANCHES, { label: 'Branch', optional: true, help: 'Which tab of the research tree it sits in. Empty = Economy.' }),
   requires: ref('research', { label: 'Needs first', optional: true, help: 'Another research that must be done before this one can start.' }),
+  also: ref('research', { label: 'And needs', optional: true, help: 'A second research that must be done first.' }),
+  building: ref('buildings', { label: 'Needs a building', optional: true, help: 'A finished building of this kind must stand (a C&C-style prerequisite).' }),
+  specialist: choice(SPECIALTIES, { label: 'Needs a specialist', optional: true, help: 'An adult colonist with this specialty must live in the colony.' }),
+  flag: str({ label: 'Needs a discovery', optional: true, help: 'A story flag that must be set: precursor finds (wreck-found, stone-found, relic-woke, relic-opened, nest-destroyed), contact-<group>, or any flag an event sets.' }),
+  flagText: str({ label: 'Discovery, in words', optional: true, help: 'What the player must do for that flag, as the research tree shows it ("Sight a wreck from an earlier run").' }),
   cost: int({ label: 'Cost', min: 0, max: 100000, unit: 'alloys' }),
   isotopes: int({ label: 'Isotope cost', min: 0, max: 100000, optional: true }),
   seconds: num({ label: 'Time', min: 1, max: 3600, unit: 's', help: 'At one unstaffed Tech Lab; staff speed it up.' }),
   order: int({ label: 'Order', min: 0, max: 1000, optional: true, help: 'Position in the Tech Lab list (lower first).' }),
+  effects: list(modShape, { label: 'Effects', max: 6, optional: true, help: 'What it changes once done (on top of unlocking the buildings and units that name it).' }),
 } satisfies Shape;
 export type ResearchDef = Infer<typeof researchShape>;
 

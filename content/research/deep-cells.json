@@ -1,0 +1,16 @@
+{
+  "name": "Deep-Cycle Cells",
+  "description": "Battery chemistry that takes a deeper charge. Every battery holds half as much again.",
+  "branch": "economy",
+  "requires": "tracking-arrays",
+  "building": "battery",
+  "cost": 90,
+  "seconds": 40,
+  "order": 18,
+  "effects": [
+    {
+      "stat": "battery",
+      "amount": 0.5
+    }
+  ]
+}

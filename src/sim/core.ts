@@ -8,7 +8,7 @@
  */
 import { content } from '../content';
 import { biomeOf, herdCount, herdSpecies, wildlifeIds } from '../content/nature';
-import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
+import type { BuildingDef, ModStat, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { daylight } from './daylight';
@@ -20,6 +20,7 @@ import { People } from './people';
 import { Planet } from './planet';
 import { Story } from './story';
 import { Missions } from './missions';
+import { modTotals, researchBlocked, type ResearchWorld } from './mods';
 import type { Colonist } from './people-types';
 import { compass, depositFor, factoryMakes, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
 import {
@@ -564,6 +565,37 @@ export class Sim {
     return !id || !content.research[id] || !!this.s.research?.done.includes(id);
   }
 
+  /** Worked out once a tick (or when research or the boosts change): every modifier summed (src/sim/mods.ts). */
+  private modMemo: { tick: number; done: readonly string[] | null; n: number; b: number; v: Partial<Record<ModStat, number>> } = { tick: -1, done: null, n: -1, b: -1, v: {} };
+  /** A colony modifier: finished research plus story boosts still running (0 when nothing changes it). */
+  mod(stat: ModStat): number {
+    const s = this.s, done = s.research?.done ?? [], boosts = s.story?.mods ?? [], m = this.modMemo;
+    if (m.tick !== s.tick || m.done !== done || m.n !== done.length || m.b !== boosts.length) {
+      m.v = modTotals(done, content.research, boosts, s.tick);
+      m.tick = s.tick; m.done = done; m.n = done.length; m.b = boosts.length;
+    }
+    return m.v[stat] ?? 0;
+  }
+  /** Everything the modifiers add up to now (snapshot: the research tree and the Colony panel). */
+  modsNow() { this.mod('mining'); return { ...this.modMemo.v }; }
+  /** Drone build and repair speed: the Devoted's Vigil and research. */
+  droneWork() { return this.people.droneWork() * Math.max(0.1, 1 + this.mod('droneWork')); }
+  /** Worker drones allowed. */
+  maxDrones() { return RULES.maxDrones + Math.round(this.mod('drones')); }
+  /** Seconds a destroyed nest takes to grow back. */
+  nestRegrowSecs() { return (THREATS.nestRegrow ?? 600) * Math.max(0.1, 1 + this.mod('nestRegrow')); }
+  /** Share of a blow a building takes (armour research). */
+  buildingHarm(_b: Building) { return clamp(1 - this.mod('armor'), 0.2, 2); }
+
+  /** What research gates look at (src/sim/mods.ts ResearchWorld). */
+  researchWorld(): ResearchWorld {
+    const s = this.s;
+    return {
+      done: s.research?.done ?? [], buildings: s.buildings, flags: s.story?.flags ?? [],
+      specialists: (s.people?.colonists ?? []).filter((c) => c.specialty && this.people.adult(c)).map((c) => c.specialty!),
+    };
+  }
+
   private regionWrecks() {
     return (REGION.wrecks ?? []).map((w) => ({ x: w.x, z: w.z, yaw: ((w.yaw ?? 0) * Math.PI) / 180, alloys: w.alloys, max: w.alloys }));
   }
@@ -635,6 +667,8 @@ export class Sim {
       s.stats.relicsDown = (s.stats.relicsDown ?? 0) + 1;
       let alloys = 0, iso = 0;
       for (const c of R.caches) if (c.grid === id && !c.opened) { c.opened = true; alloys += c.alloys; iso += c.isotopes; }
+      const k = 1 + this.mod('cacheYield');
+      alloys = Math.round(alloys * k); iso = Math.round(iso * k);
       s.alloys += alloys;
       s.isotopes = (s.isotopes ?? 0) + iso;
       this.emit(`The relic grid powers down.${alloys || iso ? ` Its cache opens: +${alloys} alloys${iso ? `, +${iso} isotopes` : ''}.` : ''}`, 'info', 'packCleared');
@@ -667,7 +701,7 @@ export class Sim {
     const s = this.s;
     for (const n of s.nests ?? []) {
       if (n.id >= 0) {
-        if (!s.hostiles.some((h) => h.id === n.id)) { n.id = -1; n.regrow = s.tick + Math.round((THREATS.nestRegrow ?? 600) * TICK_HZ); }
+        if (!s.hostiles.some((h) => h.id === n.id)) { n.id = -1; n.regrow = s.tick + Math.round(this.nestRegrowSecs() * TICK_HZ); }
       } else if (s.tick >= n.regrow && this.growNest(n)) {
         const sp = this.spawns()[n.spawn];
         this.emit(`A nest has grown back ${compass(sp.x, sp.z)} of the Core. Packs will come from there again.`, 'warn', 'warning');
@@ -701,7 +735,7 @@ export class Sim {
     const s = this.s;
     for (const w of s.wrecks ?? []) {
       if (w.alloys <= 0 || Math.hypot(w.x - u.x, w.z - u.z) > d.range + d.radius + WRECK_R) continue;
-      const take = Math.min(w.alloys, SALVAGE_RATE * DT);
+      const take = Math.min(w.alloys, SALVAGE_RATE * (1 + this.mod('salvage')) * DT);
       w.alloys -= take;
       s.alloys += take;
       s.stats.salvaged = (s.stats.salvaged ?? 0) + take;
@@ -813,7 +847,7 @@ export class Sim {
       const d = def(b);
       b.powered = false;
       if (b.progress < 1 || !b.on) continue;
-      if (d.role === 'battery') { cap += d.storage ?? 0; b.powered = true; }
+      if (d.role === 'battery') { cap += (d.storage ?? 0) * (1 + this.mod('battery')); b.powered = true; }
       if (d.role === 'reactor') {
         // steady power while it has fuel: no isotopes, no power
         const need = (d.fuelRate ?? 0) * DT;
@@ -822,13 +856,13 @@ export class Sim {
         if ((s.isotopes ?? 0) >= need * 20) b.starved = false;
         continue;
       }
-      if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() : d.powerMW) * this.people.mult(b); b.powered = true; }
+      if (d.powerMW > 0) { gen += (d.role === 'solar' ? d.powerMW * this.solarFactor() * (1 + this.mod('solar')) : d.powerMW) * this.people.mult(b); b.powered = true; }
       else if (d.powerMW < 0) {
         // homes and growth pods share the cryo bank's priority; farms run with the radar
         // a matter printer only gets what nothing else wants (rank 4, live power only)
         const rank = d.role === 'printer' ? 4 : d.fireRange || d.role === 'shield' ? 0 : d.role === 'civic' || d.role === 'medbay' ? 1 : d.role === 'radar' || d.role === 'factory' || d.role === 'repair' || d.role === 'farm' || d.role === 'sensor' || d.role === 'relay' || d.role === 'seedbank' ? 2 : 3;
         const idle = (d.fireRange && !b.engaged) || (d.role === 'factory' && !b.queue?.length) || (d.role === 'repair' && !b.engaged);
-        loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw(), rank, battery: d.role !== 'depot' && d.role !== 'printer' });
+        loads.push({ b, mw: (-d.powerMW * (idle ? STANDBY : 1) + (d.role === 'civic' ? this.people.podDraw(b) : 0)) * this.people.powerDraw() * Math.max(0.2, 1 + this.mod('power')), rank, battery: d.role !== 'depot' && d.role !== 'printer' });
       } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
@@ -984,7 +1018,7 @@ export class Sim {
           d.heading += 1.5 * DT; // circle-scan while building
           const dd = def(site);
           const before = site.progress;
-          site.progress = dd.buildSeconds > 0 ? Math.min(1, site.progress + (DT * this.people.droneWork()) / dd.buildSeconds) : 1;
+          site.progress = dd.buildSeconds > 0 ? Math.min(1, site.progress + (DT * this.droneWork()) / dd.buildSeconds) : 1;
           site.hp = Math.min(dd.hp, site.hp + (site.progress - before) * dd.hp * 0.9);
           if (site.progress >= 1) {
             site.hp = Math.max(site.hp, dd.hp * 0.999);
@@ -998,7 +1032,7 @@ export class Sim {
         if (this.reach(d, b)) {
           d.heading += 1.5 * DT;
           const dd = def(b);
-          const hp = Math.min(RULES.repairRate * this.people.droneWork() * DT, maxHp(b) - b.hp);
+          const hp = Math.min(RULES.repairRate * this.droneWork() * DT, maxHp(b) - b.hp);
           const cost = (hp / dd.hp) * dd.cost * 0.5;
           if (s.alloys >= cost) { s.alloys -= cost; b.hp += hp; }
         }
@@ -1107,7 +1141,7 @@ export class Sim {
     for (const b of s.buildings) if (b.progress >= 1 && b.powered && def(b)?.role === 'lab') rate = Math.max(rate, this.people.mult(b));
     for (const b of s.buildings) if (def(b)?.role === 'lab') b.engaged = rate > 0;
     if (!rate) return;
-    a.progress = Math.min(1, a.progress + (DT * rate) / Math.max(1, r.seconds));
+    a.progress = Math.min(1, a.progress + (DT * rate * (1 + this.mod('researchSpeed'))) / Math.max(1, r.seconds));
     if (a.progress < 1) return;
     s.research!.done.push(a.id);
     s.research!.active = null;
@@ -1128,7 +1162,7 @@ export class Sim {
         if (b.mining === undefined || b.mining < 0 || !seams[b.mining] || seams[b.mining].isotopes <= 0) b.mining = seamFor(this.world, DEFS, d, b.x, b.z);
         if (!b.powered || b.mining < 0) continue;
         const sm = seams[b.mining];
-        const take = Math.min(sm.isotopes, (d.mineRate ?? 0) * this.people.mult(b) * DT);
+        const take = Math.min(sm.isotopes, (d.mineRate ?? 0) * this.people.mult(b) * (1 + this.mod('isotopeMining')) * DT);
         sm.isotopes -= take;
         s.isotopes = (s.isotopes ?? 0) + take;
         s.stats.isotopesMined = (s.stats.isotopesMined ?? 0) + take;
@@ -1139,7 +1173,7 @@ export class Sim {
       if (d.role === 'printer') {
         // alloys from spare power: no deposit, no scars
         if (b.progress >= 1 && b.powered) {
-          const made = (d.mineRate ?? 0) * this.people.mult(b) * DT;
+          const made = (d.mineRate ?? 0) * this.people.mult(b) * (1 + this.mod('printer')) * DT;
           s.alloys += made;
           s.stats.printed = (s.stats.printed ?? 0) + made;
         }
@@ -1149,7 +1183,7 @@ export class Sim {
       if (b.mining === undefined || b.mining < 0 || !s.deposits[b.mining] || s.deposits[b.mining].alloys <= 0) b.mining = depositFor(s, d, b.x, b.z);
       if (!b.powered || b.mining < 0) continue;
       const dep = s.deposits[b.mining];
-      const take = Math.min(dep.alloys, (d.mineRate ?? 0) * this.people.mult(b) * DT);
+      const take = Math.min(dep.alloys, (d.mineRate ?? 0) * this.people.mult(b) * (1 + this.mod('mining')) * DT);
       dep.alloys -= take;
       s.alloys += take;
       s.stats.mined += take;
@@ -1181,6 +1215,7 @@ export class Sim {
    */
   private strike(fx: number, fz: number, tgt: Foe, dmg: number, fxKind: number, o: { splash?: number; chain?: number; chainRange?: number; antiAir?: boolean } = {}, team = 0) {
     const tx = tgt.x, tz = tgt.z;
+    if (isHostile(tgt) && tgt.relic) dmg *= 1 + this.mod('relicDamage');
     const foes = this.foes(team);
     // splash stays at the target's level (a burst in the air catches flyers, one on the ground doesn't); a chain reaches flyers only if anti-air
     const air = this.foeAir(tgt);
@@ -1235,7 +1270,7 @@ export class Sim {
       b.aim = Math.atan2(best.x - b.x, best.z - b.z);
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
-      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir }, team);
+      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b) * (1 + this.mod('turretDamage')), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir }, team);
     }
     this.stepWardens();
   }
@@ -1275,7 +1310,7 @@ export class Sim {
         if (u.hp >= ud.hp || Math.hypot(u.x - b.x, u.z - b.z) > reach + ud.radius) continue;
         any = true;
         if (!b.powered) continue;
-        u.hp = Math.min(ud.hp, u.hp + (d.repairRate ?? 10) * DT);
+        u.hp = Math.min(ud.hp, u.hp + (d.repairRate ?? 10) * (1 + this.mod('repairPad')) * DT);
         if ((s.tick + u.id) % 8 === 0) this.fx.push(FX.REPAIR, b.x, b.z, u.x, u.z);
       }
       b.engaged = any;
@@ -1336,7 +1371,7 @@ export class Sim {
 
   /** Combat units in the field plus those aboard transports (the army limit counts both). */
   /** Combat units a player may have: the colony rules' limit, or a skirmish's own (bigger: armies are the point). */
-  unitCap() { return this.s.skirmish ? (this.s.skirmish.unitCap ?? SKIRMISH_UNITS) : RULES.maxUnits; }
+  unitCap() { return this.s.skirmish ? (this.s.skirmish.unitCap ?? SKIRMISH_UNITS) : RULES.maxUnits + Math.round(this.mod('units')); }
   armySize() { return this.units.reduce((m, u) => m + 1 + (u.cargo?.length ?? 0), 0); }
 
   /**
@@ -1704,7 +1739,7 @@ export class Sim {
       if (!d.shield || !d.shieldRadius) continue;
       if (b.progress < 1) { b.sh = 0; b.shDown = true; continue; }
       if (b.sh === undefined) { b.sh = 0; b.shDown = true; }
-      if (b.powered) b.sh = Math.min(d.shield, b.sh + (d.shieldRegen ?? 0) * this.people.mult(b) * DT);
+      if (b.powered) b.sh = Math.min(d.shield, b.sh + (d.shieldRegen ?? 0) * this.people.mult(b) * (1 + this.mod('shieldRegen')) * DT);
       if (b.shDown && b.sh >= d.shield * SHIELD_BACK) {
         b.shDown = false;
         if (this.s.tick > 1) this.emit(`${d.name} dome up`, 'info', 'online');
@@ -1714,7 +1749,7 @@ export class Sim {
     for (const u of this.units) {
       const d = content.units[u.unit];
       if (!d.shield || !d.shieldRadius) continue;
-      u.sh = Math.min(d.shield, (u.sh ?? d.shield) + (d.shieldRegen ?? 0) * DT);
+      u.sh = Math.min(d.shield, (u.sh ?? d.shield) + (d.shieldRegen ?? 0) * (1 + this.mod('shieldRegen')) * DT);
       if (u.shDown && u.sh >= d.shield * SHIELD_BACK) u.shDown = false;
       if (!u.shDown && u.sh > 0) domes.push({ x: u.x, z: u.z, r: d.shieldRadius, o: u, max: d.shield, name: d.name });
     }
@@ -1756,7 +1791,7 @@ export class Sim {
     this.fx.push(dieFx(this.unitDef(h).radius), h.x, h.z, 0, 0);
     if (h.nest !== undefined) {
       const n = s.nests?.find((x) => x.id === h.id);
-      const secs = THREATS.nestRegrow ?? 600;
+      const secs = this.nestRegrowSecs();
       if (n) { n.id = -1; n.regrow = s.tick + Math.round(secs * TICK_HZ); }
       s.stats.nestsDestroyed = (s.stats.nestsDestroyed ?? 0) + 1;
       this.planet.nestDestroyed(h.x, h.z);
@@ -1876,7 +1911,7 @@ export class Sim {
           h.cd = u.cooldown;
           const left = this.soak(h, tgt.x, tgt.z, u.damage * (isC ? this.people.harm() : 1), weaponFx(unitWeapon(u), false));
           if (left <= 0) continue;
-          tgt.hp -= left;
+          tgt.hp -= isB ? left * this.buildingHarm(tgt as Building) : left;
           if (!isC) this.underAttack(tgt as Building | Unit | Drone);
           if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : isC ? this.people.kill(tgt as Colonist, 'killed by predators') : this.destroyDrone(tgt as Drone);
         }
@@ -2192,6 +2227,12 @@ export class Sim {
 
   private stepWaves() {
     const s = this.s, w = s.waves;
+    // seismic listening (research): a powered radar hears the next pack gather before it sets out
+    const early = this.mod('warning');
+    if (early > 0 && w.warned !== w.n && s.tick < w.next && w.next - s.tick <= early * TICK_HZ && this.radarPowered()) {
+      w.warned = w.n;
+      this.emit(`Seismic listening: a pack is gathering. It sets out in about ${Math.round((w.next - s.tick) / TICK_HZ)} s.`, 'warn', 'warning');
+    }
     if (s.tick < w.next) return;
     const night = this.power.daylight < 0.3;
     const size = Math.round(Math.min(THREATS.maxSize, THREATS.startSize + THREATS.growth * w.n) * packScale() * (night ? THREATS.nightBoost : 1));
@@ -2619,7 +2660,8 @@ export class Sim {
         if (!r || R.done.includes(c.id)) return;
         if (R.active) { this.emit(`The Tech Lab is busy with ${content.research[R.active.id]?.name ?? 'other research'}`, 'warn', 'deny'); return; }
         if (!s.buildings.some((b) => b.progress >= 1 && def(b)?.role === 'lab')) { this.emit('Research needs a finished Tech Lab', 'warn', 'deny'); return; }
-        if (!this.researched(r.requires)) { this.emit(`${r.name} needs ${content.research[r.requires!]?.name} first`, 'warn', 'deny'); return; }
+        const why = researchBlocked(r, content.research, DEFS, this.researchWorld());
+        if (why) { this.emit(`${r.name} needs ${why}`, 'warn', 'deny'); return; }
         if (s.alloys < r.cost) { this.emit(`Not enough alloys for ${r.name} (${r.cost} needed)`, 'warn', 'deny'); return; }
         if ((s.isotopes ?? 0) < (r.isotopes ?? 0)) { this.emit(`Not enough isotopes for ${r.name} (${r.isotopes} needed)`, 'warn', 'deny'); return; }
         s.alloys -= r.cost;
@@ -2637,7 +2679,7 @@ export class Sim {
         return;
       }
       case 'fab': {
-        if (s.drones.length + s.fab.queued >= RULES.maxDrones) { this.emit(`Drone limit reached (${RULES.maxDrones})`, 'warn', 'deny'); return; }
+        if (s.drones.length + s.fab.queued >= this.maxDrones()) { this.emit(`Drone limit reached (${this.maxDrones()})`, 'warn', 'deny'); return; }
         if (s.alloys < RULES.droneCost) { this.emit(`Not enough alloys for a drone (${RULES.droneCost} needed)`, 'warn', 'deny'); return; }
         s.alloys -= RULES.droneCost;
         s.fab.queued++;
@@ -2728,7 +2770,7 @@ export class Sim {
     const inh = this.inhabitants.snapshot();
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
-      unitCap: P ? this.unitCap() : undefined,
+      unitCap: this.unitCap(), droneCap: P ? undefined : this.maxDrones(), mods: P ? undefined : this.modsNow(),
       players: P?.map((p, i) => ({ name: p.name, color: p.color, side: p.side, ai: p.ai, out: !!p.out, home: p.home, stats: { ...this.statsOf(i) } })),
       drones, fauna: fa, buildings: (P ? s.buildings.filter((b) => this.allied(0, b.team ?? 0) || b.seen) : s.buildings).map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
       wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),

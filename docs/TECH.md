@@ -1614,3 +1614,44 @@ Quality of life in the colony (and the skirmish built on it; the old `?mode=skir
 - **Fix:** the selection card read the HUD's snapshot, which is refreshed by the frame loop and can be a frame behind
   the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
 - **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.
+
+### Research tree (campaign depth 1)
+
+DESIGN §5.9's compact Act 1 tree: 4 projects became 32, in four branches, gated C&C-style and by the colony's people and
+finds. Code: `src/sim/mods.ts` (pure, shared by sim and HUD), `Sim.mod` in `src/sim/core.ts`, `src/research-hud.ts`.
+Test: `tools/tree-smoke.mjs` (`--headless-only`; the browser half wants a dev server, default `:5186`).
+
+- **Content** (`researchShape`): `branch` (economy, defence, people, relic = the tree's tabs), `requires` and a second
+  prerequisite `also`, `building` (a finished one must stand), `specialist` (an adult colonist with that specialty),
+  `flag` + `flagText` (a discovery: `wreck-found`, `stone-found`, `relic-woke`, `relic-opened`, `nest-destroyed`,
+  `inhabitants-met`, or any story flag) and `effects`, a list of **modifiers** (`modShape`: `stat` from `MOD_STATS`,
+  `amount`). Content checks: prerequisites can't loop, a flag gate needs its words. Inhabitants now set `contact-<group>`,
+  `trust-<group>` and `inhabitants-met`; the editor's Story flow knows those (and `relic-*`) as the game's own flags.
+- **Modifiers** (`MOD_STATS`, words in `modText`): a sum over finished research plus running story boosts
+  (`StoryState.mods`, used by later features). `Sim.mod(stat)` memoises the sum once per tick (or when research or the
+  boosts change). Read where each stat is used: depot / deep mine / printer output, solar, battery capacity, power draw,
+  drone work (`Sim.droneWork`), drone and unit caps (`maxDrones`, `unitCap`; snapshot `droneCap`, `unitCap`), turret
+  damage, damage buildings take (`buildingHarm`), repair pads, shield recharge, damage to relics (`strike`), research
+  speed, cache payouts, salvage, nest regrowth (`nestRegrowSecs`); in `people.ts` biomass grown, food eaten, pod speed,
+  how long the injured last, wellbeing (reason "Colony projects"), stance drift, sabotage, grief fading, staff bonus; in
+  `planet.ts` mining scars and Seed Bank healing; in `inhabitants.ts` regard recovery and encroachment. `warning`:
+  a powered radar with Seismic Listening announces the next pack that many seconds before it sets out (`waves.warned`).
+  `trade` and `fortify` are abilities for the later features. The snapshot carries the totals (`mods`).
+- **Gates** (`researchNeeds` / `researchBlocked`): the sim refuses a project with its first unmet need ("Fire Control
+  needs a Security officer in the colony"); the tree shows every need ticked or not, from the same function.
+- **The tree:** 10 economy (Refined Drills, Tracking Arrays, Swarm Logic, Vertical Farms, Low-Scar Extraction, Seam
+  Harmonics, Deep-Cycle Cells, Matter Compiler + Deep Survey, Isotope Cells), 7 defence (Hardened Plating, Fire Control,
+  Field Repair, Seismic Listening, Lattice Tuning, Logistics Grid + Shield Lattice), 7 people (Colony Medicine,
+  Accelerated Pods, Nutrition Science, Open Ledger, Rites of Remembrance, Commons Design, Translation Matrix), 8
+  precursor (Hull Forensics, Ruin Stratigraphy, Fauna Genomics, Handshake Codes, Cache Keys, Precursor Alloys, Firmware
+  Archaeology + Relic Studies). Three finish with a story card: Layers (Stratigraphy), Designer Marks (Fauna Genomics,
+  STORY.md E9), Lineage Report (Firmware Archaeology). The four old projects keep their numbers. Skirmish computer
+  players still research only their three; nothing they use has a new gate.
+- **HUD** (`ResearchHud`): the Tech Lab card shows the project under way and "N of 32 done · M ready", plus **Research
+  tree**. The tree is one scrolling column (`#research`, full width under 640 px): branch tabs with done counts (● on the
+  one under way), then each project indented under the one it follows, with its effects in green, its needs (✓ / ✗),
+  cost and time, description, and Research (or Cancel) when it can start. It opens on the branch with something to do.
+- **Measured** (headless, `tools/tree-smoke.mjs`): Refined Drills mines ×1.200; Deep-Cycle Cells 600 → 900 MJ; a
+  Brute's blow on a Solar Array 24 → 20.4 (Hardened Plating) → 18.0 (+ Precursor Alloys); Nutrition Science food ×0.85;
+  Low-Scar scars ×0.60; Tracking Arrays takes 35 s at an unstaffed lab. Also: each gate refuses then allows, modifiers
+  survive a save, and at 390 × 780 the tree fills the width with no sideways scroll and starts a project from a node.

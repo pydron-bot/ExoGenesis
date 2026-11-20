@@ -1,0 +1,15 @@
+{
+  "title": "Lineage Report",
+  "text": "Firmware Archaeology, final comparison. The relic grid's code and ours share a root, then split, then split again: a family tree of caretakers. 97.3% at the surface. Underneath, one module is identical to the bit: a dormant routine in both of us that neither of us can read.",
+  "trigger": "flag",
+  "flag": "research-firmware-archaeology",
+  "choices": [
+    { "label": "Quarantine the module", "reply": "Quarantine refused. The module isn't in any list we can edit." },
+    { "label": "Leave it be", "reply": "Logged. The technician who signed off the comparison asks what it does. We don't know." }
+  ],
+  "effects": [
+    { "after": 0, "kind": "flag", "flag": "lineage-read" },
+    { "after": 2, "kind": "stance", "amount": -2 }
+  ],
+  "chapter": "beyond-the-ridge"
+}

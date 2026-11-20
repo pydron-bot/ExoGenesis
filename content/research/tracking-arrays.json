@@ -1,0 +1,15 @@
+{
+  "name": "Tracking Arrays",
+  "description": "Solar panels that follow the sun across the sky.",
+  "branch": "economy",
+  "building": "solar",
+  "cost": 70,
+  "seconds": 35,
+  "order": 11,
+  "effects": [
+    {
+      "stat": "solar",
+      "amount": 0.15
+    }
+  ]
+}

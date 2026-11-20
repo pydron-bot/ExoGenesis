@@ -1,0 +1,18 @@
+{
+  "name": "Handshake Codes",
+  "description": "Record the grid's scan of us and play it back. Our weapons find the gaps in relic armour.",
+  "branch": "relic",
+  "requires": "relic-studies",
+  "flag": "relic-woke",
+  "flagText": "Wake a relic grid",
+  "cost": 110,
+  "isotopes": 20,
+  "seconds": 50,
+  "order": 75,
+  "effects": [
+    {
+      "stat": "relicDamage",
+      "amount": 0.5
+    }
+  ]
+}

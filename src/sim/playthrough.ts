@@ -115,7 +115,13 @@ function chase(sim: Sim, plan: Step[], tick: number) {
         if (!have('lab')) { front(['lab']); return; }
         // the first research on the way to it that can start
         let r = c.research;
-        for (let i = 0; i < 8; i++) { const need = content.research[r]?.requires; if (need && !s.research?.done.includes(need)) r = need; else break; }
+        for (let i = 0; i < 8; i++) {
+          const q = content.research[r], need = [q?.requires, q?.also].find((x) => x && !s.research?.done.includes(x));
+          if (need) r = need; else break;
+        }
+        // a building the project needs goes to the front of the plan
+        const nb = content.research[r]?.building;
+        if (nb && !have(nb)) front([nb]);
         if (!s.research?.active && tick % (5 * TICK_HZ) === 0) sim.command({ type: 'research', id: r });
         return;
       }

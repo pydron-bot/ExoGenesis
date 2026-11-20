@@ -1,0 +1,16 @@
+{
+  "name": "Fire Control",
+  "description": "Shared targeting between turrets. A security officer writes the rules of engagement.",
+  "branch": "defence",
+  "requires": "hardened-plating",
+  "specialist": "security",
+  "cost": 130,
+  "seconds": 55,
+  "order": 31,
+  "effects": [
+    {
+      "stat": "turretDamage",
+      "amount": 0.15
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Hull Forensics",
+  "description": "Map the old hulls' build plans. They match ours more closely than they should. Field Engineers strip wrecks faster.",
+  "branch": "relic",
+  "flag": "wreck-found",
+  "flagText": "Sight a wreck from an earlier run",
+  "cost": 70,
+  "seconds": 35,
+  "order": 70,
+  "effects": [
+    {
+      "stat": "salvage",
+      "amount": 0.6
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Seismic Listening",
+  "description": "Ground sensors tied to the radar. We hear packs gather before they set out, and every threat warning comes earlier.",
+  "branch": "defence",
+  "building": "radar",
+  "cost": 80,
+  "seconds": 40,
+  "order": 33,
+  "effects": [
+    {
+      "stat": "warning",
+      "amount": 45
+    }
+  ]
+}

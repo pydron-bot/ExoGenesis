@@ -1,0 +1,16 @@
+{
+  "name": "Ruin Stratigraphy",
+  "description": "Date the ruin's layers. Its methods sharpen everything the lab does: research runs faster.",
+  "branch": "relic",
+  "flag": "stone-found",
+  "flagText": "Find the carved stone on the east ridge",
+  "cost": 90,
+  "seconds": 45,
+  "order": 71,
+  "effects": [
+    {
+      "stat": "researchSpeed",
+      "amount": 0.1
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "Precursor Alloys",
+  "description": "The grid's own plating, reverse-engineered. Buildings take less damage and turrets hit harder.",
+  "branch": "relic",
+  "requires": "handshake-codes",
+  "flag": "relic-opened",
+  "flagText": "Shut down a relic grid",
+  "cost": 160,
+  "isotopes": 40,
+  "seconds": 70,
+  "order": 77,
+  "effects": [
+    {
+      "stat": "armor",
+      "amount": 0.1
+    },
+    {
+      "stat": "turretDamage",
+      "amount": 0.1
+    }
+  ]
+}

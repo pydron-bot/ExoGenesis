@@ -1,0 +1,15 @@
+{
+  "name": "Hardened Plating",
+  "description": "Layered hull plate on every structure. Buildings take less damage.",
+  "branch": "defence",
+  "building": "turret",
+  "cost": 100,
+  "seconds": 45,
+  "order": 30,
+  "effects": [
+    {
+      "stat": "armor",
+      "amount": 0.15
+    }
+  ]
+}

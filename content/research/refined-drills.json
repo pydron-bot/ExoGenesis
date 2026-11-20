@@ -1,0 +1,15 @@
+{
+  "name": "Refined Drills",
+  "description": "Harder bits and a better feed rate on the depot drills.",
+  "branch": "economy",
+  "building": "depot",
+  "cost": 90,
+  "seconds": 40,
+  "order": 10,
+  "effects": [
+    {
+      "stat": "mining",
+      "amount": 0.2
+    }
+  ]
+}

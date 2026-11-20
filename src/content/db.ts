@@ -181,6 +181,22 @@ function crossIssues(db: ContentDb): FileIssue[] {
     }
     if (b.role === 'core' && id !== 'core') out.push({ path: `buildings/${id}.json`, field: 'role', msg: 'only the Command Core (core.json) can have the core role' });
   }
+  // research: prerequisites can't loop back; a discovery gate says in words what to do
+  for (const [id, r] of Object.entries(db.research ?? {})) {
+    if (!r || typeof r !== 'object') continue;
+    const P = `research/${id}.json`;
+    if (r.flag && !r.flagText) out.push({ path: P, field: 'flagText', msg: 'say what the player must do to set the flag' });
+    if (r.also && r.also === r.requires) out.push({ path: P, field: 'also', msg: 'the same as Needs first' });
+    const seen = new Set<string>([id]), todo = [r.requires, r.also].filter(Boolean) as string[];
+    while (todo.length) {
+      const x = todo.pop()!;
+      if (x === id) { out.push({ path: P, field: 'requires', msg: 'its prerequisites lead back to itself' }); break; }
+      if (seen.has(x)) continue;
+      seen.add(x);
+      const q = db.research[x];
+      if (q) todo.push(...([q.requires, q.also].filter(Boolean) as string[]));
+    }
+  }
   // story and missions: site conditions need a site on a region map; nothing waits on itself
   const siteMissing = (site: string, region?: string) => {
     const maps = region ? [db.regions[region]] : Object.values(db.regions);

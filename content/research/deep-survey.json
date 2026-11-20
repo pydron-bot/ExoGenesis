@@ -1,7 +1,8 @@
 {
   "name": "Deep Survey",
   "description": "Maps the isotope seams under the crust and how to drill them.",
+  "branch": "economy",
   "cost": 80,
   "seconds": 45,
-  "order": 1
+  "order": 12
 }

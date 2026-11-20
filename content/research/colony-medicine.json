@@ -1,0 +1,15 @@
+{
+  "name": "Colony Medicine",
+  "description": "Field trauma kits and a medic's triage protocol. The injured hold on half as long again.",
+  "branch": "people",
+  "specialist": "medic",
+  "cost": 80,
+  "seconds": 40,
+  "order": 50,
+  "effects": [
+    {
+      "stat": "injuredTime",
+      "amount": 0.5
+    }
+  ]
+}

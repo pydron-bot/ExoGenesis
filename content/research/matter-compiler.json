@@ -1,0 +1,17 @@
+{
+  "name": "Matter Compiler",
+  "description": "A better build plan for the Matter Printer's lattice. More alloys from the same power.",
+  "branch": "economy",
+  "requires": "isotope-cells",
+  "building": "printer",
+  "cost": 140,
+  "isotopes": 30,
+  "seconds": 60,
+  "order": 19,
+  "effects": [
+    {
+      "stat": "printer",
+      "amount": 0.4
+    }
+  ]
+}

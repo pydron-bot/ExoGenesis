@@ -1,0 +1,16 @@
+{
+  "name": "Cache Keys",
+  "description": "Ask a sealed cache for everything, not just what it offers. Relic caches pay out half as much again.",
+  "branch": "relic",
+  "requires": "handshake-codes",
+  "cost": 90,
+  "isotopes": 10,
+  "seconds": 40,
+  "order": 76,
+  "effects": [
+    {
+      "stat": "cacheYield",
+      "amount": 0.5
+    }
+  ]
+}

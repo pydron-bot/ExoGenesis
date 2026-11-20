@@ -1,0 +1,17 @@
+{
+  "name": "Seam Harmonics",
+  "description": "Tune the drill to the seam's own resonance. Deep-Core Mines dig faster.",
+  "branch": "economy",
+  "requires": "deep-survey",
+  "building": "deepmine",
+  "cost": 120,
+  "isotopes": 20,
+  "seconds": 55,
+  "order": 17,
+  "effects": [
+    {
+      "stat": "isotopeMining",
+      "amount": 0.3
+    }
+  ]
+}

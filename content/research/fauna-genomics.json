@@ -1,0 +1,17 @@
+{
+  "name": "Fauna Genomics",
+  "description": "Sequence tissue from a nest. A botanist runs the samples. Knowing how they grow, we can make a cleared nest site take longer to recover.",
+  "branch": "relic",
+  "specialist": "botanist",
+  "flag": "nest-destroyed",
+  "flagText": "Destroy a nest",
+  "cost": 100,
+  "seconds": 50,
+  "order": 72,
+  "effects": [
+    {
+      "stat": "nestRegrow",
+      "amount": 0.5
+    }
+  ]
+}

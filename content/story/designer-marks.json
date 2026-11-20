@@ -1,0 +1,15 @@
+{
+  "title": "Designer Marks",
+  "text": "Fauna Genomics, first results. The burrowers' genome has blocks no evolution wrote: clean repeats, a promoter library, a kill switch that was never thrown. Someone bred them to till soil. The spitters' acid is tuned to this world's crust. Someone terraformed here before us.",
+  "trigger": "flag",
+  "flag": "research-fauna-genomics",
+  "choices": [
+    { "label": "Look for who", "reply": "The marks carry no name. The sequence formatting matches our own archive's conventions." },
+    { "label": "Tell the colonists", "reply": "Logged and shared. Some colonists find it comforting that life here was meant to be lived with. Others don't." }
+  ],
+  "effects": [
+    { "after": 0, "kind": "flag", "flag": "designer-marks" },
+    { "after": 2, "kind": "stance", "amount": 1 }
+  ],
+  "chapter": "beyond-the-ridge"
+}

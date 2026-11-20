@@ -1,0 +1,19 @@
+{
+  "name": "Open Ledger",
+  "description": "Every decision the AI makes, logged where any colonist can read it. Trust grows a little every sol; sabotage is rarer.",
+  "branch": "people",
+  "building": "civic",
+  "cost": 90,
+  "seconds": 45,
+  "order": 53,
+  "effects": [
+    {
+      "stat": "stance",
+      "amount": 2
+    },
+    {
+      "stat": "sabotage",
+      "amount": 0.5
+    }
+  ]
+}

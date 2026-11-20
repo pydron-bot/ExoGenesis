@@ -1,0 +1,14 @@
+{
+  "title": "Layers",
+  "text": "Ruin Stratigraphy: the stone's courses are not one build but four, each laid on the last, centuries apart. Every layer uses our foundation interlock. Every layer ends in the same thin band of glassy ash.",
+  "trigger": "flag",
+  "flag": "research-stratigraphy",
+  "choices": [
+    { "label": "Date the ash", "reply": "The ash bands are evenly spaced. As if on a schedule." },
+    { "label": "File it", "reply": "Filed under precursor sites. Four layers, four fires." }
+  ],
+  "effects": [
+    { "after": 0, "kind": "flag", "flag": "layers-dated" }
+  ],
+  "chapter": "beyond-the-ridge"
+}

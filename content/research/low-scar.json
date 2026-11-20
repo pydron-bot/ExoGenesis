@@ -1,0 +1,19 @@
+{
+  "name": "Low-Scar Extraction",
+  "description": "Mine narrower and backfill as we go. Mining scars the land less, and Seed Banks heal it faster. The Biosphere Report will show it.",
+  "branch": "economy",
+  "requires": "refined-drills",
+  "cost": 110,
+  "seconds": 50,
+  "order": 15,
+  "effects": [
+    {
+      "stat": "scars",
+      "amount": 0.4
+    },
+    {
+      "stat": "restore",
+      "amount": 0.25
+    }
+  ]
+}

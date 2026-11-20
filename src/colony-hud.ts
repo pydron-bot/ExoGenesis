@@ -7,6 +7,7 @@ import type { ZoomCamera } from './camera';
 import type { BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, ResearchDef, StoryDef, UnitDef } from './content/defs';
 import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
+import { ResearchHud } from './research-hud';
 import { hourAt } from './sim/daylight';
 import type { Command, Snapshot } from './sim/types';
 import { factoryMakes } from './sim/rules';
@@ -69,12 +70,14 @@ export class ColonyHud {
   cur: Snapshot | null = null;
   readonly people: PeopleHud;
   readonly contact: ContactCard;
+  readonly tree: ResearchHud;
 
   constructor(private d: HudDeps) {
     this.people = new PeopleHud({
       defs: d.defs, inhabitants: d.inhabitants, rules: d.people, solSeconds: d.rules.solSeconds, ui: d.ui, cam: d.cam,
       command: (c) => d.command(c), select: () => this.selected(),
     });
+    this.tree = new ResearchHud({ research: d.research, defs: d.defs, units: d.units, people: d.people, command: (c) => d.command(c) });
     this.contact = new ContactCard({ inhabitants: d.inhabitants, story: d.story, cam: d.cam, command: (c) => d.command(c), pause: (on) => d.pause(on), opened: () => d.cardOpened?.() });
     // phones start with just the current goal showing
     if (innerWidth < 640) this.el.goals.classList.add('min');
@@ -135,6 +138,7 @@ export class ColonyHud {
     this.last = now;
     this.renderBar(s, speed);
     this.contact.update(s);
+    this.tree.update(s);
     this.renderGoals(s);
     if (this.el.menu.classList.contains('open')) this.renderMenu();
     this.renderCard(s);
@@ -395,7 +399,7 @@ export class ColonyHud {
       rows.push(...pe.rows);
       if (d.role === 'core') {
         rows.push(['Cryo bank', `${s.people.embryos} embryos · ${s.cryo.toFixed(1)}%`]);
-        rows.push(['Drones', `${s.drones.length} / ${this.d.rules.maxDrones}${s.fab.queued ? ` · fabricating ${Math.floor(s.fab.progress * 100)}%` : ''}`]);
+        rows.push(['Drones', `${s.drones.length} / ${s.droneCap ?? this.d.rules.maxDrones}${s.fab.queued ? ` · fabricating ${Math.floor(s.fab.progress * 100)}%` : ''}`]);
       }
       const btn: string[] = [];
       if (d.role === 'core') btn.push(`<button data-act="fab" title="Fabricate a worker drone">+ Drone <small>${this.d.rules.droneCost}◆</small></button>`);
@@ -417,21 +421,12 @@ export class ColonyHud {
       }
       let lab = '';
       if (d.role === 'lab' && b.progress >= 1) {
-        const R = s.research ?? { done: [], active: null };
-        const list = Object.entries(this.d.research).sort((a, b) => (a[1].order ?? 100) - (b[1].order ?? 100) || a[1].cost - b[1].cost);
-        const unlocks = (id: string) => [...Object.values(this.d.defs), ...Object.values(this.d.units)].filter((x) => x.research === id).map((x) => x.name).join(', ');
-        lab = `<div class="research">${list.map(([id, r]) => {
-          const isDone = R.done.includes(id), now = R.active?.id === id;
-          const ready = !r.requires || !this.d.research[r.requires] || R.done.includes(r.requires);
-          const what = unlocks(id);
-          const right = isDone ? '✓ done' : now ? `${Math.floor(R.active!.progress * 100)}%` : ready ? `${r.cost}◆${r.isotopes ? ` ${r.isotopes}◇` : ''} · ${r.seconds}s` : `after ${this.d.research[r.requires!].name}`;
-          return `<div class="rs ${isDone ? 'done' : now ? 'now' : ''}" title="${esc(r.description ?? '')}"><span>${esc(r.name)}${what ? ` → ${esc(what)}` : ''}</span><span>${esc(right)}</span></div>`;
-        }).join('')}</div>`;
-        if (R.active) btn.push('<button data-act="unresearch" title="Stop and get the cost back">Cancel research</button>');
-        else for (const [id, r] of list) {
-          if (R.done.includes(id) || (r.requires && this.d.research[r.requires] && !R.done.includes(r.requires))) continue;
-          btn.push(`<button data-act="research:${id}" class="${s.alloys < r.cost || (s.isotopes ?? 0) < (r.isotopes ?? 0) ? 'poor' : ''}" title="${esc(r.description ?? '')}">${esc(r.name)} <small>${r.cost}◆${r.isotopes ? ` ${r.isotopes}◇` : ''}</small></button>`);
-        }
+        const R = s.research ?? { done: [], active: null }, a = R.active, all = Object.keys(this.d.research).length;
+        rows.push(['Research', a ? `${this.d.research[a.id]?.name ?? a.id} · ${Math.floor(a.progress * 100)}%` : 'idle']);
+        rows.push(['Tree', `${R.done.length} of ${all} done · ${this.tree.ready(s)} ready to start`]);
+        if (a) lab = `<div class="pbar"><i style="width:${(a.progress * 100).toFixed(0)}%;background:#7ff7ff"></i></div>`;
+        btn.push(`<button data-act="tree" class="go" title="Every project by branch: what each does and what it waits on">Research tree</button>`);
+        if (a) btn.push('<button data-act="unresearch" title="Stop and get the cost back">Cancel research</button>');
       }
       btn.push(...pe.buttons);
       if (b.progress >= 1 && b.hp < d.hp) btn.push('<button data-act="repair">Repair</button>');
@@ -476,6 +471,7 @@ export class ColonyHud {
     else if (b && act.startsWith('produce:')) this.d.command({ type: 'produce', id: b.id, unit: act.slice(8) });
     else if (b && act === 'unqueue') this.d.command({ type: 'unqueue', id: b.id });
     else if (act.startsWith('research:')) this.d.command({ type: 'research', id: act.slice(9) });
+    else if (act === 'tree') { this.people.toggle(false); this.tree.toggle(true); }
     else if (act === 'unresearch') this.d.command({ type: 'unresearch' });
     else if (!b) return;
     else if (act === 'repair') this.d.command({ type: 'repair', id: b.id });

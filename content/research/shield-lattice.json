@@ -1,9 +1,10 @@
 {
   "name": "Shield Lattice",
   "description": "Isotope-charged field lattices: domes and bubbles that stop claws and acid from outside. Unlocks the Shield Projector and the Aegis Crawler.",
+  "branch": "defence",
   "requires": "deep-survey",
   "cost": 120,
   "isotopes": 20,
   "seconds": 60,
-  "order": 4
+  "order": 36
 }

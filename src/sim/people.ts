@@ -161,7 +161,7 @@ export class People {
 
   // ---------- the injured and the medevac ----------
   /** How long someone lying injured has (people rules). */
-  private downFor() { return P.downSeconds ?? 60; }
+  private downFor() { return (P.downSeconds ?? 60) * Math.max(0.2, 1 + this.sim.mod('injuredTime')); }
   /** Colonists lying injured, outdoors. */
   injured(): Colonist[] { return this.s.colonists.filter((c) => c.down !== undefined && c.at === -1); }
   /** A medevac takes them aboard: they're safe (and stop getting worse) while they ride. */
@@ -437,11 +437,12 @@ export class People {
     for (const b of this.sim.s.buildings) {
       const d = def(b);
       if (d?.role !== 'farm' || b.progress < 1 || !b.powered) continue;
-      made += (d.biomassRate ?? 0) * this.mult(b);
+      made += (d.biomassRate ?? 0) * this.mult(b) * Math.max(0, 1 + this.sim.mod('farm'));
     }
     const r = { lean: 0.75, normal: 1, generous: 1.4 }[s.policies.rations];
     let eaten = 0;
-    for (const c of s.colonists) eaten += P.eat * r * (this.adult(c) ? 1 : 0.5);
+    const k = clamp(1 - this.sim.mod('eat'), 0.3, 3);
+    for (const c of s.colonists) eaten += P.eat * r * k * (this.adult(c) ? 1 : 0.5);
     const podsFed = s.pods.filter((p) => this.podPowered(p)).length;
     eaten += podsFed * P.podBiomass;
     eaten += this.sim.planet.use; // seed banks (src/sim/planet.ts), last tick
@@ -479,7 +480,7 @@ export class People {
         continue;
       }
       p.dark = Math.max(0, p.dark - DT * 2);
-      p.progress += DT / (P.podSols * SOL);
+      p.progress += (DT * Math.max(0.1, 1 + this.sim.mod('podSpeed'))) / (P.podSols * SOL);
       if (p.progress >= 1) {
         s.pods.splice(s.pods.indexOf(p), 1);
         this.decant(p, b);
@@ -616,6 +617,7 @@ export class People {
       if (c.traits.includes('diligent')) add *= 1.5;
       if (c.stance > 75) add *= 1.1; // the Devoted work hard
       if (this.s.lead === 'partner') add *= P.partnerStaff;
+      add *= Math.max(0, 1 + this.sim.mod('staff'));
       this.mults.set(b.id, (this.mults.get(b.id) ?? 1) + add);
     }
     if (surge > 1) for (const [k, v] of this.mults) this.mults.set(k, v * surge);
@@ -732,6 +734,7 @@ export class People {
       if (c.partner >= 0) add('Partner', 5);
       if (s.surge > 0) add('Breakthrough', 6);
       if (c.hp < P.colonistHp * 0.5) add('Injured', -10);
+      add('Colony projects', this.sim.mod('wellbeing'));
       const target = clamp(50 + why.reduce((m, [, v]) => m + v, 0), 0, 100);
       c.wb += (target - c.wb) * k;
       why.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
@@ -744,6 +747,7 @@ export class People {
       if (c.traits.includes('trusting')) drift += 2;
       if (c.origin === 'born') drift -= 0.5;
       if (s.surge > 0) drift += 2;
+      drift += this.sim.mod('stance');
       if (c.home >= 0) {
         let m = 0, n = 0;
         for (const o of s.colonists) if (o !== c && o.home === c.home) { m += o.stance; n++; }
@@ -754,7 +758,7 @@ export class People {
       if (adult && !c.strike && c.wb < P.strikeBelow) { c.strike = true; c.job = -1; }
       else if (c.strike && c.wb > P.strikeBelow + 10) c.strike = false;
     }
-    s.grief *= Math.exp(-2 * (this.memorials ? MEMORIAL_GRIEF : 1) * dt / SOL);
+    s.grief *= Math.exp(-2 * (this.memorials ? MEMORIAL_GRIEF : 1) * Math.max(0.1, 1 + this.sim.mod('grief')) * dt / SOL);
     s.fear = this.alert ? 12 : s.fear * Math.exp(-dt / SOL * 12);
     const striking = s.colonists.filter((c) => c.strike).length;
     // announce a strike when it starts and when it has grown by half again; and when it ends
@@ -875,7 +879,7 @@ export class People {
     const watch = { light: 1.5, standard: 1, total: 0 }[s.policies.oversight];
     for (const c of adults) {
       if (blocOf(c.stance) !== 'autonomist' || c.wb >= P.sabotageBelow) continue;
-      if (this.sim.rnd() > P.sabotageChance * per * Math.max(watch, s.policies.oversight === 'total' ? 1 : 0)) continue;
+      if (this.sim.rnd() > P.sabotageChance * per * Math.max(0, 1 - this.sim.mod('sabotage')) * Math.max(watch, s.policies.oversight === 'total' ? 1 : 0)) continue;
       const targets = this.sim.s.buildings.filter((b) => b.progress >= 1 && b.kind !== 'core' && def(b)?.role !== 'wall');
       const t = targets[Math.floor(this.sim.rnd() * targets.length)];
       if (!t) continue;

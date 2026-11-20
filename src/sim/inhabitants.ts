@@ -77,6 +77,9 @@ export class Inhabitants {
     s.camps = s.camps.filter((c) => content.inhabitants[c.group]);
   }
 
+  /** Set a story flag (research gates and story events wait on contact-<group>, trust-<group>). */
+  private flag(f: string) { const st = this.sim.story.s; if (!st.flags.includes(f)) st.flags.push(f); }
+
   /** Trusted camps share sight of their land. */
   sight(see: (x: number, z: number, r: number) => void) {
     for (const c of this.camps) if (c.trusted && !c.gone) see(c.x, c.z, this.group(c)!.land);
@@ -110,6 +113,7 @@ export class Inhabitants {
         c.met = true;
         c.pending = true;
         this.sim.emit(`${g.contactTitle}: ${cap(g.name)} have seen us`, 'warn', 'discovery');
+        this.flag(`contact-${c.group}`); this.flag('inhabitants-met');
       }
       if ((s.tick + i) % EVERY) return;
       this.regard(c, g, EVERY * DT);
@@ -123,10 +127,11 @@ export class Inhabitants {
 
   private regard(c: Camp, g: InhabitantDef, secs: number) {
     const n = this.encroaching(c, g);
-    if (n > 0) c.regard -= (g.encroach * n * secs) / SOL;
+    const k = this.sim.mod('regard');
+    if (n > 0) c.regard -= (g.encroach * n * secs * Math.max(0.1, 1 - k / 2)) / SOL;
     else {
       const top = c.choice === 'approach' ? 100 : Math.max(g.regard, Math.min(100, c.regard));
-      if (c.regard < top) c.regard = Math.min(top, c.regard + (g.recover * secs) / SOL);
+      if (c.regard < top) c.regard = Math.min(top, c.regard + (g.recover * secs * Math.max(0, 1 + k)) / SOL);
     }
     c.regard = clamp(c.regard, 0, 100);
     if (c.regard <= 0) { this.leave(c, g.leaveText, 'bad'); return; }
@@ -140,6 +145,7 @@ export class Inhabitants {
       c.trusted = true;
       // the story plays once (the HUD shows it as a card); after that, a log line
       this.sim.emit(c.sang ? `${cap(g.name)} trust us again` : `${g.trustTitle}: ${cap(g.name)} trust us`, 'info', 'friend');
+      this.flag(`trust-${c.group}`);
       c.sang = true;
     }
   }

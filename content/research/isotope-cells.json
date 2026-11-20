@@ -1,9 +1,10 @@
 {
   "name": "Isotope Cells",
   "description": "Contained fusion fuelled by exotic isotopes: heavy power that doesn't care about the sun.",
+  "branch": "economy",
   "requires": "deep-survey",
   "cost": 120,
   "isotopes": 25,
   "seconds": 70,
-  "order": 2
+  "order": 16
 }

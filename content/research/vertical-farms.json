@@ -1,0 +1,16 @@
+{
+  "name": "Vertical Farms",
+  "description": "Stacked growing beds under the hydroponic tunnels. A botanist has to plan the light.",
+  "branch": "economy",
+  "building": "hydroponics",
+  "specialist": "botanist",
+  "cost": 100,
+  "seconds": 45,
+  "order": 14,
+  "effects": [
+    {
+      "stat": "farm",
+      "amount": 0.25
+    }
+  ]
+}

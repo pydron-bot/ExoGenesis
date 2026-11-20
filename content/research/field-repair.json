@@ -1,0 +1,20 @@
+{
+  "name": "Field Repair",
+  "description": "Better tools on the Repair Pads, and repair routines the drones can share.",
+  "branch": "defence",
+  "requires": "hardened-plating",
+  "building": "repairpad",
+  "cost": 90,
+  "seconds": 40,
+  "order": 32,
+  "effects": [
+    {
+      "stat": "repairPad",
+      "amount": 0.5
+    },
+    {
+      "stat": "droneWork",
+      "amount": 0.1
+    }
+  ]
+}

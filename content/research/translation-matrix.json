@@ -1,0 +1,16 @@
+{
+  "name": "Translation Matrix",
+  "description": "A working grammar built from everything the inhabitants have said near our sensors. Their regard recovers faster and wears down slower.",
+  "branch": "people",
+  "flag": "inhabitants-met",
+  "flagText": "Meet the inhabitants",
+  "cost": 80,
+  "seconds": 40,
+  "order": 56,
+  "effects": [
+    {
+      "stat": "regard",
+      "amount": 0.5
+    }
+  ]
+}

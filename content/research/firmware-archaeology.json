@@ -1,0 +1,22 @@
+{
+  "name": "Firmware Archaeology",
+  "description": "Read the relic firmware line by line, against our own. A technician signs off every comparison. The lab learns from it, and the sensor net learns the grid's early-warning tricks.",
+  "branch": "relic",
+  "requires": "stratigraphy",
+  "also": "handshake-codes",
+  "specialist": "technician",
+  "cost": 150,
+  "isotopes": 30,
+  "seconds": 70,
+  "order": 78,
+  "effects": [
+    {
+      "stat": "researchSpeed",
+      "amount": 0.15
+    },
+    {
+      "stat": "warning",
+      "amount": 30
+    }
+  ]
+}

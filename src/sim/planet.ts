@@ -75,8 +75,10 @@ export class Planet {
   }
 
   // ---------- events the sim reports ----------
-  mined(x: number, z: number, alloys: number) { this.scar(x, z, alloys * (R().scarPerAlloy ?? 0)); }
-  minedIsotopes(x: number, z: number, iso: number) { this.scar(x, z, iso * (R().scarPerIsotope ?? 0)); }
+  mined(x: number, z: number, alloys: number) { this.scar(x, z, alloys * (R().scarPerAlloy ?? 0) * this.lessScar()); }
+  minedIsotopes(x: number, z: number, iso: number) { this.scar(x, z, iso * (R().scarPerIsotope ?? 0) * this.lessScar()); }
+  /** Low-scar extraction research: mining scars less. */
+  private lessScar() { return Math.max(0, 1 - this.sim.mod('scars')); }
   buildingLost(x: number, z: number, wall: boolean) { this.scar(x, z, (R().scarBuildingLost ?? 0) * (wall ? 0.25 : 1)); }
   nestDestroyed(x: number, z: number) {
     this.harm(R().nestHarm ?? 0);
@@ -95,7 +97,7 @@ export class Planet {
       if (d?.role !== 'seedbank') continue;
       b.engaged = false;
       if (b.progress < 1 || !b.powered || !people) continue;
-      const rate = (d.restoreRate ?? 0) * sim.people.mult(b) * DT, cost = d.restoreCost ?? 0;
+      const rate = (d.restoreRate ?? 0) * sim.people.mult(b) * Math.max(0, 1 + sim.mod('restore')) * DT, cost = d.restoreCost ?? 0;
       if (rate <= 0) continue;
       // what it can afford from the surplus above the reserve
       const spare = Math.max(0, people.biomass - storage * RESERVE);

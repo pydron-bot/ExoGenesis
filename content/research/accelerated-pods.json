@@ -1,0 +1,16 @@
+{
+  "name": "Accelerated Pods",
+  "description": "Run the growth pods a little warmer. A quarter faster. The medics are not sure what it costs.",
+  "branch": "people",
+  "requires": "colony-medicine",
+  "building": "civic",
+  "cost": 140,
+  "seconds": 60,
+  "order": 51,
+  "effects": [
+    {
+      "stat": "podSpeed",
+      "amount": 0.25
+    }
+  ]
+}

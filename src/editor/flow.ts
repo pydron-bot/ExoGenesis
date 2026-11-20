@@ -117,7 +117,7 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
     for (const f of m.fails ?? []) wants(f, f.kind, at);
   }
   // flags the game itself sets (research-<id>, wreck-found, relic-woke…) are never "missing"
-  const builtin = (f: string) => f.startsWith('research-') || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed'].includes(f) || known.has(f);
+  const builtin = (f: string) => /^(research|contact|trust|relic)-/.test(f) || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed', 'inhabitants-met'].includes(f) || known.has(f);
   for (const [f, u] of flags) {
     if (!u.setBy.length && !builtin(f)) for (const w of u.waits) problems.push({ at: w, msg: `waits for flag "${f}", which nothing sets` });
   }

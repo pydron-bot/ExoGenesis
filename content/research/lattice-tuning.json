@@ -1,0 +1,16 @@
+{
+  "name": "Lattice Tuning",
+  "description": "Shield lattices that pull charge back in faster.",
+  "branch": "defence",
+  "requires": "shield-lattice",
+  "cost": 100,
+  "isotopes": 20,
+  "seconds": 50,
+  "order": 37,
+  "effects": [
+    {
+      "stat": "shieldRegen",
+      "amount": 0.4
+    }
+  ]
+}
