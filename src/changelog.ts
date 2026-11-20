@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.50.0',
+    date: '2026-11-20',
+    title: 'Sounds of the colony',
+    notes: [
+      'The title music now plays straight away where your browser allows it; where it doesn\'t, the title tells you to click anywhere for sound (before, only Options would start it)',
+      'Big moments have their own sounds: a child born, a colonist lost, research done, a new mission, an objective ticked, a mission won or failed, victory and defeat',
+      'And the smaller ones: discoveries, new friendships, a deposit running dry, refunds, messages and story cards',
+      'Selecting something and giving an order now sound too',
+      'The world is livelier: surf along the shore, drones clanking and welding as they build, wildlife calling, and voices near the camps you\'ve met',
+    ],
+  },
+  {
     version: '0.49.0',
     date: '2026-11-20',
     title: 'Import music',
