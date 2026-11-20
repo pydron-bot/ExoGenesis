@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.48.0',
+    date: '2026-11-20',
+    title: 'Outer Dark',
+    notes: [
+      'A new night piece, Outer Dark: slow strings and hushed voices in five, distant booms and a heartbeat, far-off calls, and a flute that comes in later',
+    ],
+  },
+  {
     version: '0.47.0',
     date: '2026-11-19',
     title: 'A wider soundtrack',

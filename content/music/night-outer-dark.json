@@ -1,0 +1,155 @@
+{
+  "name": "Night · Outer Dark",
+  "use": "night",
+  "order": "cycle",
+  "chords": [
+    {
+      "notes": "D3 A3 E4 F4 C5",
+      "bass": "D2",
+      "bells": "E5 F5 A5 C6 D6 E6"
+    },
+    {
+      "notes": "Eb3 Bb3 D4 G4 A4",
+      "bass": "Eb2",
+      "bells": "D5 G5 A5 Bb5 D6"
+    },
+    {
+      "notes": "C3 G3 D4 E4 B4",
+      "bass": "C2",
+      "bells": "D5 E5 G5 B5 D6"
+    },
+    {
+      "notes": "Bb2 F3 A3 D4 E4",
+      "bass": "Bb1",
+      "bells": "D5 E5 F5 A5 D6"
+    },
+    {
+      "notes": "G2 D3 A3 Bb3 F4",
+      "bass": "G1",
+      "bells": "F5 G5 A5 Bb5 D6"
+    },
+    {
+      "notes": "A2 E3 F3 C4 G4",
+      "bass": "A1",
+      "bells": "E5 F5 G5 C6 E6"
+    }
+  ],
+  "homePull": 0,
+  "chordMin": 16,
+  "chordMax": 16,
+  "barSteps": 20,
+  "swell": 5,
+  "release": 8,
+  "pad": 0.85,
+  "padTone": "strings",
+  "brightness": 0.72,
+  "vibrato": 0.25,
+  "detune": 8,
+  "glide": 12,
+  "choir": 0.35,
+  "choirVowel": "oo",
+  "bass": 0.9,
+  "bells": 0.65,
+  "bellTone": "glass",
+  "bellGapMin": 3,
+  "bellGapMax": 8,
+  "phrases": 0.35,
+  "pulse": 0.4,
+  "pulseRate": 75,
+  "drums": 0.55,
+  "drumsIn": 0,
+  "swing": 0,
+  "drumTracks": [
+    {
+      "sound": "thud",
+      "steps": "x... .... .... o... ....",
+      "level": 0.85,
+      "pan": 0
+    },
+    {
+      "sound": "clank",
+      "steps": ".... .... .... ..o. ....",
+      "level": 0.3,
+      "pan": 0.45
+    },
+    {
+      "sound": "rim",
+      "steps": ".... ..o. .... .... o...",
+      "level": 0.28,
+      "pan": -0.35
+    },
+    {
+      "sound": "shaker",
+      "steps": "o.o. .o.. o.o. .o.. o...",
+      "level": 0.2,
+      "pan": -0.25
+    }
+  ],
+  "arp": 0.4,
+  "arpTone": "glass",
+  "arpRate": "8ths",
+  "arpMode": "updown",
+  "arpShift": 0,
+  "arpOctaves": 1,
+  "arpGate": 0.45,
+  "arpBright": 0.7,
+  "lead": 0.6,
+  "leadTone": "flute",
+  "leadStep": "8ths",
+  "leadEvery": 1,
+  "leadVibrato": 0.35,
+  "leadGlide": 0.12,
+  "melody": [
+    {
+      "notes": ". . . . G4 - - A4 - Bb4 | - - - A4 - G4 - D4 - - | . . . ."
+    },
+    {
+      "notes": ". . . . E4 - - G4 - D5 | - - - B4 - G4 - - - - | . . . ."
+    },
+    {
+      "notes": ". . . . F4 - - A4 - E5 | - - - D5 - A4 - - - - | . . . ."
+    },
+    {
+      "notes": ". . . . D4 - - F4 - Bb4 | - - - A4 - G4 - - - - | . . . ."
+    },
+    {
+      "notes": ". . . . E4 - - F4 - C5 | - - - G4 - E4 - - - - | . . . ."
+    },
+    {
+      "notes": ". . . . A4 - - F4 - E4 | - - - D4 - - - - - - | . . . ."
+    }
+  ],
+  "calls": 0.32,
+  "callGapMin": 6,
+  "callGapMax": 14,
+  "sections": [
+    {
+      "chords": 4,
+      "layers": "pad bass bells"
+    },
+    {
+      "chords": 4,
+      "layers": "pad bass bells arp calls"
+    },
+    {
+      "chords": 4,
+      "layers": "pad bass choir arp drums pulse"
+    },
+    {
+      "chords": 4,
+      "layers": "pad bass bells melody drums"
+    },
+    {
+      "chords": 2,
+      "layers": "pad bass bells calls"
+    }
+  ],
+  "air": 1.2,
+  "echo": 0.5,
+  "echoSync": true,
+  "space": 0.85,
+  "room": 8.5,
+  "grit": 0.1,
+  "lofi": 0.08,
+  "level": 0.95
+}
