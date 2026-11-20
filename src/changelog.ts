@@ -15,6 +15,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.58.0',
+    date: '2026-11-20',
+    title: 'A colony with a life of its own',
+    notes: [
+      'The Tech Lab has a full research tree: 33 projects in Economy, Defence, People and Precursor. Some need a specialist, a building or a discovery out in the world',
+      'Your colony now faces small dilemmas: brownouts, lean months, who wakes next. Each choice has consequences that show up later',
+      'Trade with the Vell and the Choir, ask them for guides, lookouts or hunters, and mind their land: they remember',
+      'Outlying holdings now come under warned, escalating threats. Set standing orders so they can hold out until you get there',
+      'Colonists have backstories and speak up when things happen. They mourn the people they lost, and sometimes one of them holds the line',
+    ],
+  },
+  {
     version: '0.57.1',
     date: '2026-11-20',
     title: 'Skirmish fixes',
