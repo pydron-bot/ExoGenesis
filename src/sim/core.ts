@@ -24,7 +24,45 @@ import { compass, depositFor, factoryMakes, gateSnap, isBarrier, linePoints, pla
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
+  type Econ, type PlayerState, type SimStats, type SkirmishSetup,
 } from './types';
+
+/** Anything a player's guns can shoot: fauna, or another player's unit, drone or building. */
+type Foe = Hostile | Unit | Building | Drone;
+const isHostile = (f: Foe): f is Hostile => 'pack' in f;
+const isBuilding = (f: Foe): f is Building => 'kind' in f;
+const isDrone = (f: Foe): f is Drone => 'task' in f;
+/** Shooters pick anything that moves before a building, unless the building is this much closer (u). */
+const BUILDING_LAST = 10;
+
+/**
+ * Skirmish start spots: evenly round a ring at 62% of the way to the edge, each moved to the nearest dry, flat
+ * ground for a Command Core.
+ */
+export function skirmishHomes(n: number, lim: number): { x: number; z: number }[] {
+  const out: { x: number; z: number }[] = [];
+  const ok = (x: number, z: number) => {
+    let lo = Infinity, hi = -Infinity;
+    for (let a = 0; a < 8; a++) for (const r of [0, 6, 12]) {
+      const h = regionHeightRaw(x + Math.cos(a * 0.785) * r, z + Math.sin(a * 0.785) * r);
+      lo = Math.min(lo, h); hi = Math.max(hi, h);
+    }
+    return lo >= 0.8 && hi - lo <= 4;
+  };
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI * 0.25 + (i / n) * Math.PI * 2, r = lim * 0.62;
+    let best = { x: Math.cos(a) * r, z: Math.sin(a) * r };
+    search: for (let rr = 0; rr < lim * 0.5; rr += 4) {
+      for (let q = 0; q < Math.max(1, Math.round(rr)); q++) {
+        const t = (q / Math.max(1, Math.round(rr))) * Math.PI * 2;
+        const x = best.x + Math.cos(t) * rr, z = best.z + Math.sin(t) * rr;
+        if (Math.abs(x) < lim - 14 && Math.abs(z) < lim - 14 && ok(x, z)) { best = { x, z }; break search; }
+      }
+    }
+    out.push(best);
+  }
+  return out;
+}
 
 const RULES = content.colony;
 const THREATS = content.threats;
@@ -218,8 +256,177 @@ export class Sim {
   /** Missions: objectives, rewards, what comes next. */
   readonly missions: Missions = new Missions(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
 
-  constructor(readonly emit: EventSink, seed = 1337) {
+  /** Events for the local player (skirmish: what other players' economies do stays quiet). */
+  readonly emit: EventSink = (text, level, cue) => { if (this.team === 0) this.sink(text, level, cue); };
+
+  constructor(private readonly sink: EventSink, seed = 1337) {
     this.newGame(seed);
+  }
+
+  // ---------- players (skirmish) ----------
+  /** Whose view the economy steps and commands are running in (0 = the local player; the campaign is always 0). */
+  team = 0;
+  /** The whole lists while one player's view is swapped in (placement still has to see everyone's buildings). */
+  private all: { buildings: Building[]; drones: Drone[]; units: Unit[] } | null = null;
+  /** Each player's power result and fog (index = team; [0] is the local player's, `power` / `vis` / `exp` outside a swap). */
+  private powers: Sim['power'][] = [];
+  private fogs: { vis: Uint8Array<ArrayBuffer>; exp: Uint8Array<ArrayBuffer> }[] = [];
+  /** Players whose Command Core fell this tick (taken off the map at the end of the tick). */
+  private falling: number[] = [];
+  /** Foes per team this tick (see `foes`). */
+  private foeCache = new Map<number, Foe[]>();
+  private foeTick = -1;
+
+  get players(): PlayerState[] | undefined { return this.s.players; }
+  /** Same side (or the campaign, where there's only one). */
+  allied(a: number, b: number) {
+    const P = this.s.players;
+    return !P || a === b || P[a]?.side === P[b]?.side;
+  }
+  /** Players still in the game (all of them in order; just [0] in the campaign). */
+  private liveTeams() {
+    const P = this.s.players;
+    return P ? P.map((_, i) => i).filter((i) => !P[i].out) : [0];
+  }
+
+  /**
+   * Run `fn` as player `t` sees the world: its own buildings, drones and units in the lists, its alloys, isotopes,
+   * battery, research, drone fabrication, stats, power and fog in the top-level fields. Whatever `fn` adds to the lists
+   * becomes `t`'s; whatever it takes out is gone. The campaign (no players) runs `fn` as it is.
+   */
+  withTeam<T>(t: number, fn: () => T): T {
+    const s = this.s, P = s.players;
+    if (!P || this.all) return fn();
+    const all = { buildings: s.buildings, drones: s.drones, units: this.units };
+    const own = <X extends { team?: number }>(a: X[]) => a.filter((o) => (o.team ?? 0) === t);
+    s.buildings = own(all.buildings); s.drones = own(all.drones); s.units = own(all.units);
+    this.all = all;
+    const e = t ? P[t].econ : undefined;
+    if (e) this.swapEcon(e);
+    const power = this.power, vis = this.vis, exp = this.exp;
+    this.power = this.powerOf(t);
+    const f = this.fogOf(t);
+    this.vis = f.vis; this.exp = f.exp;
+    this.team = t;
+    try {
+      return fn();
+    } finally {
+      this.team = 0;
+      this.power = power; this.vis = vis; this.exp = exp;
+      if (e) this.swapEcon(e);
+      const merge = <X extends { team?: number }>(whole: X[], mine: X[]) => {
+        const keep = new Set(mine), had = new Set(whole);
+        const out = whole.filter((o) => (o.team ?? 0) !== t || keep.has(o));
+        for (const o of mine) if (!had.has(o)) { if (t) o.team = t; out.push(o); }
+        return out;
+      };
+      s.buildings = merge(all.buildings, s.buildings);
+      s.drones = merge(all.drones, s.drones);
+      s.units = merge(all.units, s.units!);
+      this.all = null;
+    }
+  }
+
+  /** Trade the top-level economy fields with `e` (twice puts them back). */
+  private swapEcon(e: Econ) {
+    const s = this.s;
+    [s.alloys, e.alloys] = [e.alloys, s.alloys];
+    [s.isotopes, e.isotopes] = [e.isotopes, s.isotopes ?? 0];
+    [s.stored, e.stored] = [e.stored, s.stored];
+    [s.research, e.research] = [e.research, s.research ?? { done: [], active: null }];
+    [s.fab, e.fab] = [e.fab, s.fab];
+    [s.stats, e.stats] = [e.stats, s.stats];
+  }
+
+  private powerOf(t: number) {
+    if (!t) return (this.powers[0] ??= this.power);
+    return (this.powers[t] ??= { gen: 0, draw: 0, short: 0, storageMax: 0, daylight: 1 });
+  }
+  private fogOf(t: number) {
+    if (!t) return (this.fogs[0] ??= { vis: this.vis, exp: this.exp });
+    return (this.fogs[t] ??= { vis: new Uint8Array(FOG_N * FOG_N), exp: new Uint8Array(FOG_N * FOG_N) });
+  }
+  /** A player's stats (outside a swap). */
+  private statsOf(t: number): SimStats {
+    return !t || this.all ? this.s.stats : this.s.players?.[t]?.econ?.stats ?? this.s.stats;
+  }
+
+  /**
+   * What player `t`'s guns and units fight: the fauna, and in a skirmish every unit, drone and building of a player on
+   * another side. In the campaign this is exactly `s.hostiles` (same array, same order).
+   */
+  private foes(t: number): Foe[] {
+    const s = this.s, P = s.players;
+    if (!P) return s.hostiles;
+    if (this.foeTick !== s.tick) { this.foeCache.clear(); this.foeTick = s.tick; }
+    let f = this.foeCache.get(t);
+    if (f) return f;
+    const B = this.all?.buildings ?? s.buildings, D = this.all?.drones ?? s.drones, U = this.all?.units ?? this.units;
+    const enemy = (o: { team?: number }) => !this.allied(t, o.team ?? 0);
+    f = [...s.hostiles, ...U.filter(enemy), ...D.filter(enemy), ...B.filter(enemy)];
+    this.foeCache.set(t, f);
+    return f;
+  }
+  /** A foe's body radius, and whether it flies. */
+  // (hot loops: plain property reads, not `in` checks; fauna and units have `unit`, buildings `kind`, drones neither)
+  private foeR(f: Foe) { const u = (f as Unit).unit; return u !== undefined ? content.units[u].radius : (f as Building).kind !== undefined ? bodyR(f as Building) : 1; }
+  private foeAir(f: Foe) { const u = (f as Unit).unit; return u !== undefined && flies(content.units[u]); }
+  /** Take a foe off the map: whatever kind it is. */
+  private kill(f: Foe) {
+    if (isHostile(f)) this.killHostile(f);
+    else if (isBuilding(f)) this.destroyBuilding(f);
+    else if (isDrone(f)) this.destroyDrone(f);
+    else this.destroyUnit(f);
+  }
+
+  /**
+   * A skirmish: the region's terrain with `setup.players` Command Cores on it, each with a worker drone and the starting
+   * alloys. No cryo bank, colonists, story or missions; fauna and predator packs only if asked for.
+   */
+  newSkirmish(setup: SkirmishSetup) {
+    this.newGame(setup.seed);
+    const s = this.s;
+    s.phase = 'deployed';
+    s.buildings = []; s.drones = []; s.units = []; s.hostiles = []; s.packs = [];
+    s.nests = []; s.relics = { grids: {}, caches: [] }; s.wrecks = [];
+    s.stats = { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 };
+    if (!setup.wildlife) { s.fauna = []; s.herds = []; }
+    s.skirmish = { fog: setup.fog !== false, packs: !!setup.packs };
+    if (this.story.s) this.story.s.locked = []; // everything buildable from the start (no tutorial gates)
+    if (!setup.packs) s.waves.next = Number.MAX_SAFE_INTEGER;
+    this.slotsUsed = 0;
+    const n = setup.players.length;
+    const homes = setup.homes ?? skirmishHomes(n, limit());
+    s.deposits = setup.deposits ?? s.deposits;
+    s.players = setup.players.map((p, i) => ({ name: p.name, side: p.side ?? i, color: p.color, ai: p.ai, home: homes[i] }));
+    this.powers = []; this.fogs = [];
+    s.alloys = setup.alloys;
+    s.players.forEach((p, i) => {
+      if (i) p.econ = { alloys: setup.alloys, isotopes: 0, stored: 0, research: { done: [], active: null }, fab: { queued: 0, progress: 0 }, stats: { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 } };
+      const team = i ? i : undefined, h = p.home;
+      s.buildings.push({ id: s.nextId++, team, kind: 'core', x: h.x, z: h.z, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
+      // the drone parks on the side of the Core toward the middle of the map
+      const a = Math.atan2(-h.x, -h.z);
+      s.drones.push({ id: s.nextId++, team, x: h.x + Math.sin(a) * 14, z: h.z + Math.cos(a) * 14, heading: a, hp: RULES.droneHp, task: { kind: 'idle' } });
+    });
+    for (const t of this.liveTeams()) this.withTeam(t, () => { this.fogOf(t).exp.fill(0); this.stepFog(true); });
+  }
+
+  /** A player's Command Core fell: everything of theirs goes, and the game ends when one side is left. */
+  private eliminate(t: number) {
+    const s = this.s, P = s.players!;
+    if (P[t].out) return;
+    P[t].out = true;
+    const mine = (o: { team?: number }) => (o.team ?? 0) === t;
+    for (const o of [...s.buildings.filter(mine), ...s.drones.filter(mine), ...this.units.filter(mine)]) this.fx.push(FX.DIE_BIG, o.x, o.z, 0, 0);
+    s.buildings = s.buildings.filter((o) => !mine(o));
+    s.drones = s.drones.filter((o) => !mine(o));
+    s.units = this.units.filter((o) => !mine(o));
+    this.emit(t === 0 ? 'Your Command Core has fallen. You are out of the game.' : `${P[t].name} has been defeated`, t === 0 ? 'bad' : 'info', t === 0 ? 'alarm' : 'packCleared');
+    const sides = new Set(P.filter((p) => !p.out).map((p) => p.side));
+    if (sides.size > 1) return;
+    if (P[0].out) { s.over = 'core'; s.overText = sides.size ? `Defeat: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won` : 'Defeat'; }
+    else this.end('won', `Victory: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won`);
   }
 
   // ---------- setup ----------
@@ -276,6 +483,8 @@ export class Sim {
     const kinds = regionHerdSpecies();
     for (const f of state.fauna) if (!f.sp || !content.wildlife[f.sp]) f.sp = state.herds[f.herd]?.sp && content.wildlife[state.herds[f.herd].sp!] ? state.herds[f.herd].sp : kinds[f.herd];
     this.s = state;
+    // a skirmish's other players start with fresh power and fog (worked out again on the next tick)
+    this.powers = []; this.fogs = []; this.falling = [];
     this.people.load();
     this.inhabitants.load(REGION.camps ?? []);
     this.story.load();
@@ -294,7 +503,8 @@ export class Sim {
     this.exp.fill(0);
     const ex = state.explored;
     if (ex?.length === this.exp.length) for (let i = 0; i < ex.length; i++) this.exp[i] = ex.charCodeAt(i) === 49 ? 1 : 0;
-    this.stepFog(true);
+    if (state.players) for (const t of this.liveTeams()) this.withTeam(t, () => this.stepFog(true));
+    else this.stepFog(true);
   }
 
   /** The region's predator spawns (a corner if it has none). */
@@ -472,7 +682,10 @@ export class Sim {
   get deployed() { return this.s.phase === 'deployed'; }
   get units(): Unit[] { return (this.s.units ??= []); }
   /** What placement rules see. */
-  private get world(): PlaceWorld { return { buildings: this.s.buildings, deposits: this.s.deposits, vents: VENTS, seams: this.s.seams, campSites: campSites(this.s.camps ?? []) }; }
+  private get world(): PlaceWorld {
+    const others = this.all ? this.all.buildings.filter((b) => (b.team ?? 0) !== this.team) : undefined;
+    return { buildings: this.s.buildings, others, deposits: this.s.deposits, vents: VENTS, seams: this.s.seams, campSites: campSites(this.s.camps ?? []) };
+  }
   private entity(id: number): Building | Drone | Unit | Colonist | undefined {
     return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id) ?? this.people.colonist(id);
   }
@@ -482,6 +695,28 @@ export class Sim {
     const s = this.s;
     if (s.over) return;
     s.tick++;
+    if (s.players && this.deployed) {
+      // skirmish: each player's economy in its own view, then one fight for everyone
+      for (const t of this.liveTeams()) this.withTeam(t, () => {
+        this.stepPower();
+        this.stepDrones();
+        this.stepFab();
+        this.stepFactories();
+        this.stepResearch();
+        this.stepMining();
+        this.stepRepairPads();
+      });
+      this.stepTurrets();
+      this.stepUnits();
+      this.stepShields();
+      this.stepHostiles();
+      this.stepNests();
+      if (s.skirmish?.packs) this.stepWaves();
+      for (const t of this.falling.splice(0)) this.eliminate(t);
+      if (s.tick % 5 === 0) for (const t of this.liveTeams()) this.withTeam(t, () => this.stepFog());
+      this.stepGrazers();
+      return;
+    }
     if (this.deployed) {
       this.stepPower();
       this.stepDrones();
@@ -632,7 +867,7 @@ export class Sim {
       if (this.story.s && !this.story.has('wreck-found')) this.story.s.flags.push('wreck-found');
       if (this.deployed) this.emit(`Wreck sighted ${compass(w.x, w.z)} of the Core. Field Engineers can salvage it.`, 'warn', 'warning');
     }
-    if (grew || force || !s.explored) {
+    if (this.team === 0 && (grew || force || !s.explored)) { // (the local player's: what saves keep)
       let str = '';
       for (let i = 0; i < exp.length; i++) str += exp[i] ? '1' : '0';
       s.explored = str;
@@ -642,7 +877,14 @@ export class Sim {
   /** Is region point (x, z) in sight right now? */
   visible(x: number, z: number) {
     const i = Math.floor((x + REGION_HALF) / FOG_CELL), j = Math.floor((z + REGION_HALF) / FOG_CELL);
-    return i >= 0 && j >= 0 && i < FOG_N && j < FOG_N && this.vis[j * FOG_N + i] === 1;
+    return i >= 0 && j >= 0 && i < FOG_N && j < FOG_N && (this.vis[j * FOG_N + i] === 1 || this.s.skirmish?.fog === false);
+  }
+  /** In sight of player `t` (outside a swap: `visible` is player 0's). */
+  private visibleTo(t: number, x: number, z: number) {
+    if (!t || !this.s.players) return this.visible(x, z);
+    if (this.s.skirmish?.fog === false) return true;
+    const i = Math.floor((x + REGION_HALF) / FOG_CELL), j = Math.floor((z + REGION_HALF) / FOG_CELL);
+    return i >= 0 && j >= 0 && i < FOG_N && j < FOG_N && this.fogOf(t).vis[j * FOG_N + i] === 1;
   }
 
   // ---------- drones ----------
@@ -716,9 +958,9 @@ export class Sim {
   }
 
   private nearestHostile(x: number, z: number) {
-    let best: Hostile | null = null, bd = Infinity;
-    for (const h of this.s.hostiles) {
-      if (h.under) continue;
+    let best: Foe | null = null, bd = Infinity;
+    for (const h of this.foes(this.team)) {
+      if ((isHostile(h) && h.under) || isBuilding(h) || h.hp <= 0) continue;
       const d = Math.hypot(h.x - x, h.z - z);
       if (d < bd) { bd = d; best = h; }
     }
@@ -861,14 +1103,14 @@ export class Sim {
   private unitDef(h: Hostile): UnitDef { return content.units[h.unit]; }
 
   /** Can the colony shoot at this hostile? Not while it's underground or out of sight. */
-  private targetable(h: Hostile) {
-    return !h.under && !h.dormant && this.visible(h.x, h.z);
+  private targetable(h: Foe, team = 0) {
+    return h.hp > 0 && !(h as Hostile).under && !(h as Hostile).dormant && this.visibleTo(team, h.x, h.z);
   }
 
   /** Can a shooter (anti-air or not) hit this hostile: targetable, and not a flyer unless it can hit flyers. */
-  private canHit(h: Hostile, antiAir: boolean | undefined, airOnly = false) {
-    if (!this.targetable(h)) return false;
-    const f = flies(this.unitDef(h));
+  private canHit(h: Foe, antiAir: boolean | undefined, airOnly = false, team = 0) {
+    if (!this.targetable(h, team)) return false;
+    const f = this.foeAir(h);
     return f ? !!antiAir : !airOnly;
   }
 
@@ -877,25 +1119,25 @@ export class Sim {
    * a chain jumps on to the nearest unhit hostile within `chainRange`, losing
    * 30% each jump. Effects are pushed here so every shooter looks the same.
    */
-  private strike(fx: number, fz: number, tgt: Hostile, dmg: number, fxKind: number, o: { splash?: number; chain?: number; chainRange?: number; antiAir?: boolean } = {}) {
-    const s = this.s;
+  private strike(fx: number, fz: number, tgt: Foe, dmg: number, fxKind: number, o: { splash?: number; chain?: number; chainRange?: number; antiAir?: boolean } = {}, team = 0) {
     const tx = tgt.x, tz = tgt.z;
+    const foes = this.foes(team);
     // splash stays at the target's level (a burst in the air catches flyers, one on the ground doesn't); a chain reaches flyers only if anti-air
-    const air = flies(this.unitDef(tgt));
+    const air = this.foeAir(tgt);
     this.fx.push(fxKind, fx, fz, tx, tz);
     tgt.hp -= dmg;
     if (o.splash) {
-      for (const h of [...s.hostiles]) {
-        if (h !== tgt && !h.under && flies(this.unitDef(h)) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.killHostile(h); }
+      for (const h of [...foes]) {
+        if (h !== tgt && h.hp > 0 && !(isHostile(h) && h.under) && this.foeAir(h) === air && Math.hypot(h.x - tx, h.z - tz) < o.splash) { h.hp -= dmg / 2; if (h.hp <= 0) this.kill(h); }
       }
     }
     if (o.chain && o.chainRange) {
-      const hit = new Set([tgt]);
-      let from = tgt, d = dmg;
+      const hit = new Set<Foe>([tgt]);
+      let from: Foe = tgt, d = dmg;
       for (let j = 0; j < o.chain; j++) {
-        let next: Hostile | null = null, bd = o.chainRange;
-        for (const h of s.hostiles) {
-          if (hit.has(h) || h.under || (!o.antiAir && flies(this.unitDef(h)))) continue;
+        let next: Foe | null = null, bd = o.chainRange;
+        for (const h of foes) {
+          if (hit.has(h) || h.hp <= 0 || (isHostile(h) && h.under) || (!o.antiAir && this.foeAir(h))) continue;
           const dist = Math.hypot(h.x - from.x, h.z - from.z);
           if (dist < bd) { bd = dist; next = h; }
         }
@@ -904,12 +1146,12 @@ export class Sim {
         this.fx.push(FX.ARC, from.x, from.z, next.x, next.z);
         next.hp -= d;
         hit.add(next);
-        if (from !== tgt && from.hp <= 0) this.killHostile(from);
+        if (from !== tgt && from.hp <= 0) this.kill(from);
         from = next;
       }
-      for (const h of hit) if (h !== tgt && h.hp <= 0) this.killHostile(h);
+      for (const h of hit) if (h !== tgt && h.hp <= 0) this.kill(h);
     }
-    if (tgt.hp <= 0) this.killHostile(tgt);
+    if (tgt.hp <= 0) this.kill(tgt);
   }
 
   private stepTurrets() {
@@ -918,19 +1160,21 @@ export class Sim {
       const d = def(b);
       if (!d.fireRange || !d.damage || !d.cooldown || b.progress < 1) continue;
       b.cd = Math.max(0, (b.cd ?? 0) - DT);
-      const min = d.minRange ?? 0;
-      let best: Hostile | null = null, bd = d.fireRange;
-      for (const h of s.hostiles) {
-        if (!this.canHit(h, d.antiAir, d.airOnly)) continue;
-        const dist = Math.hypot(h.x - b.x, h.z - b.z) - this.unitDef(h).radius;
-        if (dist <= bd && dist >= min) { bd = dist; best = h; }
+      const min = d.minRange ?? 0, team = b.team ?? 0;
+      let best: Foe | null = null, bs = Infinity;
+      for (const h of this.foes(team)) {
+        if (!this.canHit(h, d.antiAir, d.airOnly, team)) continue;
+        const dist = Math.hypot(h.x - b.x, h.z - b.z) - this.foeR(h);
+        // anything that moves before buildings
+        const score = dist + (isBuilding(h) ? BUILDING_LAST : 0);
+        if (dist <= d.fireRange && dist >= min && score <= bs) { bs = score; best = h; } // (ties: the later one, as before)
       }
       b.engaged = !!best;
       if (!best || !b.powered) continue;
       b.aim = Math.atan2(best.x - b.x, best.z - b.z);
       if (b.cd > 0) continue;
       b.cd = d.cooldown ?? 1;
-      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir });
+      this.strike(b.x, b.z, best, (d.damage ?? 0) * this.people.mult(b), weaponFx(d.weapon ?? (d.splash ? 'shell' : 'cannon'), true), { splash: d.splash, antiAir: d.antiAir }, team);
     }
     this.stepWardens();
   }
@@ -1054,13 +1298,19 @@ export class Sim {
   }
 
   /** Targetable hostiles at the building they're attacking (idle units answer these). */
-  private raiders() {
-    const byId = new Map(this.s.buildings.map((b) => [b.id, b]));
-    return this.s.hostiles.filter((h) => {
-      if (!this.targetable(h)) return false;
+  private raiders(team = 0): Foe[] {
+    const s = this.s;
+    const byId = new Map(s.buildings.map((b) => [b.id, b]));
+    const fauna = s.hostiles.filter((h) => {
+      if (!this.targetable(h, team)) return false;
       const b = byId.get(h.target);
-      return !!b && Math.hypot(b.x - h.x, b.z - h.z) <= bodyR(b) + 12;
+      return !!b && this.allied(team, b.team ?? 0) && Math.hypot(b.x - h.x, b.z - h.z) <= bodyR(b) + 12;
     });
+    if (!s.players) return fauna;
+    // skirmish: enemy units and drones in among our buildings too
+    const mine = s.buildings.filter((b) => this.allied(team, b.team ?? 0));
+    return [...fauna, ...this.foes(team).filter((f) => !isHostile(f) && !isBuilding(f) && this.targetable(f, team) &&
+      mine.some((b) => Math.hypot(b.x - f.x, b.z - f.z) <= bodyR(b) + 14))];
   }
 
   /** Building bodies onto the path grids these units use (gates are open to units: not obstacles). */
@@ -1173,7 +1423,7 @@ export class Sim {
     // gates are open to units: they aren't obstacles on the path grid
     if (us.length) this.setUnitBodies(us);
     const boarded: Unit[] = [];
-    let raiders: Hostile[] | undefined; // hostiles at a building, worked out once if an idle unit asks
+    const raiders = new Map<number, Foe[]>(); // hostiles at a building, worked out once per player if an idle unit asks
     for (const u of us) {
       const d = content.units[u.unit];
       u.cd = Math.max(0, u.cd - DT);
@@ -1181,35 +1431,38 @@ export class Sim {
       if (u.drop) { this.stepLanding(u, d); continue; }
       if (d.rescues) { this.stepMedevac(u, d); continue; }
       if (d.repairRate) { this.stepRepairer(u, d); continue; }
-      const moving = u.order.kind === 'move';
-      let tgt = u.target >= 0 ? s.hostiles.find((h) => h.id === u.target) : undefined;
-      if (tgt && !this.canHit(tgt, d.antiAir)) tgt = undefined;
+      const moving = u.order.kind === 'move', team = u.team ?? 0, foes = this.foes(team);
+      let tgt = u.target >= 0 ? foes.find((h) => h.id === u.target) : undefined;
+      if (tgt && !this.canHit(tgt, d.antiAir, false, team)) tgt = undefined;
       const leash = Math.max(d.aggro * LEASH, RULES.unitResponse + 10);
       const min = d.minRange ?? 0;
       if (!tgt || (s.tick + u.id) % 5 === 0) {
         const seek = moving ? d.range : d.aggro;
         let bd = Infinity;
         tgt = undefined;
-        for (const h of s.hostiles) {
-          if (!this.canHit(h, d.antiAir)) continue;
-          const dist = Math.hypot(h.x - u.x, h.z - u.z) - this.unitDef(h).radius;
-          if (dist <= seek && dist >= min && dist < bd) { bd = dist; tgt = h; }
+        for (const h of foes) {
+          if (!this.canHit(h, d.antiAir, false, team)) continue;
+          const dist = Math.hypot(h.x - u.x, h.z - u.z) - this.foeR(h);
+          const score = dist + (isBuilding(h) ? BUILDING_LAST : 0);
+          if (dist <= seek && dist >= min && score < bd) { bd = score; tgt = h; }
         }
         // idle: answer attacks on buildings near the guard post
         if (!tgt && !moving) {
-          for (const h of (raiders ??= this.raiders())) {
-            if (h.hp <= 0 || Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse || !this.canHit(h, d.antiAir)) continue; // (killed earlier this tick)
+          let rs = raiders.get(team);
+          if (!rs) raiders.set(team, (rs = this.raiders(team)));
+          for (const h of rs) {
+            if (h.hp <= 0 || Math.hypot(h.x - u.gx, h.z - u.gz) > RULES.unitResponse || !this.canHit(h, d.antiAir, false, team)) continue; // (killed earlier this tick)
             const dist = Math.hypot(h.x - u.x, h.z - u.z);
-            if (dist < bd && dist - this.unitDef(h).radius >= min) { bd = dist; tgt = h; }
+            if (dist < bd && dist - this.foeR(h) >= min) { bd = dist; tgt = h; }
           }
         }
       }
       if (tgt && !moving && Math.hypot(tgt.x - u.gx, tgt.z - u.gz) > leash) tgt = undefined;
       // too close for a gun with a minimum range: let it go (others deal with it)
-      if (tgt && min && Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.unitDef(tgt).radius < min) tgt = undefined;
+      if (tgt && min && Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.foeR(tgt) < min) tgt = undefined;
       if (!d.damage) tgt = undefined; // unarmed (a transport): never chases anything
       u.target = tgt?.id ?? -1;
-      const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.unitDef(tgt).radius - d.radius : Infinity;
+      const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.foeR(tgt) - d.radius : Infinity;
       if (tgt && gap <= d.range && d.damage > 0) {
         if (!moving) {
           let dh = Math.atan2(tgt.x - u.x, tgt.z - u.z) - u.heading;
@@ -1219,7 +1472,7 @@ export class Sim {
         if (u.cd <= 0) {
           u.cd = d.cooldown;
           const dead = tgt.hp <= d.damage;
-          this.strike(u.x, u.z, tgt, d.damage, weaponFx(unitWeapon(d), false), d); // (d carries antiAir)
+          this.strike(u.x, u.z, tgt, d.damage, weaponFx(unitWeapon(d), false), d, team); // (d carries antiAir)
           if (dead) u.target = -1;
         }
       }
@@ -1343,8 +1596,9 @@ export class Sim {
         const score = (isUnit ? 0 : 1000) + frac * 100 + from;
         if (score < bs) { bs = score; best = id; }
       };
-      for (const o of this.units) consider(o.id, o.x, o.z, o.hp / content.units[o.unit].hp, true);
-      for (const b of s.buildings) if (b.progress >= 1) consider(b.id, b.x, b.z, b.hp / maxHp(b), false);
+      const side = u.team ?? 0;
+      for (const o of this.units) if (this.allied(side, o.team ?? 0)) consider(o.id, o.x, o.z, o.hp / content.units[o.unit].hp, true);
+      for (const b of s.buildings) if (b.progress >= 1 && this.allied(side, b.team ?? 0)) consider(b.id, b.x, b.z, b.hp / maxHp(b), false);
       u.fix = best ?? -1;
       p = best !== null ? this.patient(best) : null;
     }
@@ -1744,11 +1998,19 @@ export class Sim {
     const i = s.buildings.indexOf(b);
     if (i < 0) return;
     s.buildings.splice(i, 1);
-    s.stats.buildingsLost++;
+    b.hp = Math.min(b.hp, 0);
+    const t = b.team ?? 0;
+    this.statsOf(t).buildingsLost++;
     this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
+    for (const u of this.units) if (u.fix === b.id) u.fix = -1;
+    if (s.players) {
+      if (t === 0) this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
+      else if (!this.allied(0, t) && b.kind !== 'core' && def(b).role !== 'wall') this.emit(`${s.players[t].name}'s ${def(b).name} destroyed`, 'info');
+      if (b.kind === 'core') this.falling.push(t);
+      return;
+    }
     this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm');
     this.planet.buildingLost(b.x, b.z, barrier(b));
-    for (const u of this.units) if (u.fix === b.id) u.fix = -1;
     this.people.buildingLost(b);
     if (b.kind === 'core') this.lose('core');
   }
@@ -1830,20 +2092,21 @@ export class Sim {
     const i = s.drones.indexOf(d);
     if (i < 0) return;
     s.drones.splice(i, 1);
-    s.stats.dronesLost++;
+    d.hp = Math.min(d.hp, 0);
+    this.statsOf(d.team ?? 0).dronesLost++;
     this.fx.push(FX.DIE_SMALL, d.x, d.z, 0, 0);
-    this.emit('Worker drone destroyed', 'bad', 'lost');
+    if (!d.team) this.emit('Worker drone destroyed', 'bad', 'lost');
   }
 
   private destroyUnit(u: Unit) {
-    const s = this.s;
     const i = this.units.indexOf(u);
     if (i < 0) return;
     this.units.splice(i, 1);
-    const aboard = u.cargo?.length ?? 0;
-    s.stats.unitsLost = (s.stats.unitsLost ?? 0) + 1 + aboard;
+    u.hp = Math.min(u.hp, 0);
+    const aboard = u.cargo?.length ?? 0, st = this.statsOf(u.team ?? 0);
+    st.unitsLost = (st.unitsLost ?? 0) + 1 + aboard;
     this.fx.push(dieFx(content.units[u.unit].radius), u.x, u.z, 0, 0);
-    this.emit(`${content.units[u.unit].name} destroyed${aboard ? ` with ${aboard} aboard` : ''}`, 'bad', 'lost');
+    if (!u.team) this.emit(`${content.units[u.unit].name} destroyed${aboard ? ` with ${aboard} aboard` : ''}`, 'bad', 'lost');
     if (u.pax?.length) this.people.spill(u.pax, u.x, u.z);
     for (const o of this.units) if (o.ride === u.id) { o.ride = undefined; this.arrive(o); }
   }
@@ -2025,7 +2288,13 @@ export class Sim {
   }
 
   // ---------- commands ----------
-  command(c: Command) {
+  /** A player's command (skirmish: `team` says whose; it acts only on that player's things and alloys). */
+  command(c: Command, team = 0) {
+    if (this.s.players && !this.s.players[team]?.out) return this.withTeam(team, () => this.run(c));
+    if (!this.s.players) this.run(c);
+  }
+
+  private run(c: Command) {
     const s = this.s;
     if (c.type === 'landing') { this.landing(c.stage); return; }
     if (!this.deployed || s.over) return;

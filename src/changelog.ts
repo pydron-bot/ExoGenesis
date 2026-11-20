@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.50.1',
+    date: '2026-11-20',
+    title: 'Skirmish groundwork',
+    notes: [
+      'Behind the scenes: the game can now run several players on one map, each with its own base, alloys, power, research and fog of war, fighting each other. This is the first step toward a full skirmish mode against computer players; the campaign plays exactly as before',
+    ],
+  },
+  {
     version: '0.50.0',
     date: '2026-11-20',
     title: 'A tidier screen',

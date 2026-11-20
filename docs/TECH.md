@@ -1370,3 +1370,38 @@ failure.
 - Tests: `tools/options-smoke.mjs` checks the menu (bar size, pauses, Options round trip, Esc behaviour, two-tap New
   game) on desktop and phone; `smoke.mjs`, `sound-smoke.mjs` and `music-smoke.mjs` go through the menu now.
   Headless desktop screenshots can catch the panel mid-fade (swiftshader holds the CSS animation for ~2 s).
+
+### Skirmish phase 1: players in the sim (v0.50.1)
+
+DESIGN §5.11. `src/sim/core.ts` runs any number of players on one map; the campaign is the one-player case and is
+unchanged (`tools/balance.mjs`, all nine strategies, output byte-identical before and after).
+
+- **Ownership:** `team` on `Building`, `Drone`, `Unit` (unset = player 0). `SimState.players` (absent in the campaign):
+  name, side (same side = allies), colour, `ai`, `out`, `home`, and for players ≥ 1 an `econ` (alloys, isotopes,
+  battery, research, drone fabrication, stats). Player 0 keeps its economy in the top-level fields, so the HUD,
+  saves and the campaign read it as before. `SimState.skirmish`: `{ fog, packs }`.
+- **`withTeam(t, fn)`:** runs `fn` as player `t` sees the world: the lists hold only `t`'s buildings, drones and
+  units; its econ is swapped into the top-level fields; `power`, `vis` and `exp` are its own. On the way out the
+  lists merge back (what `fn` added becomes `t`'s, what it removed is gone) and the econ swaps back. Placement sees
+  other players' buildings through `PlaceWorld.others` (spacing only: they don't extend your build area).
+- **Tick (skirmish):** each live player's economy in its own view (power, drones, fabrication, factories, research,
+  mining, repair pads), then one shared fight (turrets, units, shields, fauna, nests, packs if on), eliminations, fog
+  per player every 5 ticks. No cryo bank, people, planet, inhabitants, story, missions or encounters.
+- **Combat:** shooters pick from `foes(team)`: fauna plus every unit, drone and building of a player on another side
+  (the campaign's `foes(0)` is `s.hostiles` itself). Anything that moves comes before a building unless the building
+  is 10 u closer (`BUILDING_LAST`). `strike` splashes and chains over the shooter's foes; `kill` dispatches by kind.
+  Visibility is per shooter (`visibleTo`). Idle units also answer enemy units among their own buildings (`raiders`).
+  Field Engineers mend only their own side. Turret ties still go to the later target (as before: a `<` here changed
+  three balance runs).
+- **Commands:** `command(c, team)` runs in that player's view, so a player can only spend its own alloys and order
+  its own drones and units. Events from other players' views are dropped (`emit` passes only player 0's); enemy
+  buildings destroyed are reported to player 0.
+- **Defeat:** a Command Core destroyed queues its player (`falling`); at the end of the tick it's out and everything
+  of theirs goes. One side left: `end('won')` if player 0 is on it, otherwise `over = 'core'` with "Defeat: … won".
+- **Setup:** `newSkirmish({ seed, players, alloys, wildlife?, packs?, fog?, homes?, deposits? })`; `skirmishHomes(n,
+  limit)` spreads start spots round a ring at 62% of the way out, each moved to dry flat ground. Story locks are
+  cleared. Saves keep player 0's fog (`explored`); other players' fog is worked out again on load.
+- **Test:** `tools/skirmish-sim.mjs` (headless, 30 checks): separate economies and stats, commands limited to their
+  owner, per-player building and mining, turrets and units fighting across players, a Core falling takes its player
+  out and the last one wins, save/load, a four-player free-for-all, and allies holding fire. Sim cost (sim-bench):
+  3.2 → ~3.3 ms/tick, within its ±10% noise.
