@@ -719,6 +719,7 @@ if (rts) document.body.classList.add('rts');
 const help = $('help');
 let helped = false;
 const army = skirmish ? null : new ArmyView(scene);
+if (army) army.roof = (x, z) => region.roofAt(x, z, 2);
 const colonists = skirmish ? null : new ColonistView(region.details);
 const natives = skirmish ? null : new InhabitantView(region.details, content.inhabitants, content.assets, fogView.enabled, region.flora);
 const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {

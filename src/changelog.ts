@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.57.1',
+    date: '2026-11-20',
+    title: 'Skirmish fixes',
+    notes: [
+      'Fixed: other players\' buildings no longer glow solid in their colour; only their lights take it (the ring underneath still shows whose they are)',
+      'Units sent to the same place a few at a time (yours or a computer player\'s) take the next free spots around it instead of piling onto one point',
+      'Worker drones rise over buildings and walls instead of flying through them, and flyers climb over anything taller than they cruise',
+    ],
+  },
+  {
     version: '0.57.0',
     date: '2026-11-20',
     title: 'Smoother controls',

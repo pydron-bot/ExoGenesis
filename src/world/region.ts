@@ -850,7 +850,37 @@ export class RegionView {
   readonly flora: Flora | null;
   readonly core: THREE.Group;
   /** Interpolated drone positions this frame (for picking and HUD). */
-  readonly drones = new Map<number, { obj: THREE.Group; x: number; z: number; world: THREE.Vector3; team?: number }>();
+  readonly drones = new Map<number, { obj: THREE.Group; x: number; z: number; world: THREE.Vector3; team?: number; lift?: number }>();
+  /** This frame's buildings (for roofAt) and each kind's model extents: half width, half depth, height. */
+  private roofSrc: Building[] = [];
+  private kindBox = new Map<string, [number, number, number]>();
+  private lastUpdT = -1;
+  /** How high the top of a building at (x, z) stands above the ground (0: open ground), `pad` wider all round. */
+  roofAt(x: number, z: number, pad = 1): number {
+    let top = 0;
+    for (const b of this.roofSrc) {
+      const dx = x - b.x, dz = z - b.z;
+      const reach = (this.rules.defs[b.kind]?.clearance ?? 8) + 12;
+      if (dx * dx + dz * dz > reach * reach) continue;
+      const [hx, hz, h] = this.boxOf(b.kind);
+      const yaw = b.yaw ?? 0, c = Math.cos(yaw), sn = Math.sin(yaw);
+      if (Math.abs(dx * c - dz * sn) > hx + pad || Math.abs(dx * sn + dz * c) > hz + pad) continue;
+      top = Math.max(top, h * Math.min(1, Math.max(0.15, b.progress)));
+    }
+    return top;
+  }
+  private boxOf(kind: string): [number, number, number] {
+    let k = this.kindBox.get(kind);
+    if (!k) {
+      const g = this.modelFor(kind);
+      this.dropLod(g);
+      g.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(g);
+      k = box.isEmpty() ? [4, 4, 4] : [Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z), box.max.y];
+      this.kindBox.set(kind, k);
+    }
+    return k;
+  }
   /** Skirmish: a ring in its owner's colour under every building and drone (key 'b<id>' / 'd<id>'). */
   private teamRings = new Map<string, THREE.Mesh>();
   private teamRingGeo: THREE.BufferGeometry | null = null;
@@ -1158,6 +1188,9 @@ export class RegionView {
    */
   update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: RegionUi, dist: number, camera: THREE.Camera, gameT = t) {
     this.gameT = gameT;
+    this.roofSrc = cur.buildings;
+    const dt = this.lastUpdT < 0 ? 0 : Math.min(0.1, Math.max(0, t - this.lastUpdT));
+    this.lastUpdT = t;
     this.updateOverlay(dist, t);
     this.updateLod(dist);
 
@@ -1180,7 +1213,10 @@ export class RegionView {
       dh = Math.atan2(Math.sin(dh), Math.cos(dh));
       const bob = Math.sin(gameT * 3 + b.id) * 0.15;
       const held = this.droneHeld && b.id === this.firstDrone;
-      if (!held) orient(e.obj, x, z, a.heading + dh * alpha, 2.4 + bob);
+      // fly over buildings, not through them (rising ahead of a roof, settling back after it)
+      const want = Math.max(2.4, this.roofAt(x, z, 1.2) + 1.1);
+      e.lift = e.lift === undefined ? want : e.lift + (want - e.lift) * Math.min(1, dt * (want > e.lift ? 8 : 2.5));
+      if (!held) orient(e.obj, x, z, a.heading + dh * alpha, e.lift + bob);
       e.x = x; e.z = z;
       e.world.copy(e.obj.position);
       const pc = cur.players?.[b.team ?? 0]?.color;
@@ -1536,7 +1572,8 @@ export class RegionView {
             const c = mm.clone();
             (o as THREE.Mesh).material = c;
             // another skirmish player's building: its glow in their colour
-            if (pc && b.team && c.emissiveIntensity > 0) c.emissive.set(pc);
+            // (only real lights: a model's body can carry a faint emissive, and tinting that paints the whole building)
+            if (pc && b.team && c.emissiveIntensity > 0 && Math.max(c.emissive.r, c.emissive.g, c.emissive.b) > 0.3) c.emissive.set(pc);
             emissive.push([c, c.emissiveIntensity]);
           }
         });

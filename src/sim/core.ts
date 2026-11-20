@@ -2548,8 +2548,22 @@ export class Sim {
         sel.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
         // spots that land in a building (or the water, for a Rover) move to open ground beside it, a spot apart
         this.setUnitBodies(sel);
+        // spots already held near the point (units standing there, or on their way to it) stay theirs: reinforcements
+        // sent after the first group take the next free spots instead of all piling onto the middle
+        const held: number[] = [];
+        const near = SPREAD * Math.sqrt(sel.length + 40) + 6;
+        for (const o of this.units) {
+          if (sel.includes(o) || (o.team ?? 0) !== this.team) continue;
+          const px = o.order.kind === 'move' ? o.order.x : o.order.kind === 'idle' ? o.x : NaN, pz = o.order.kind === 'move' ? o.order.z : o.z;
+          if (Number.isFinite(px) && Math.hypot(px - x, pz - z) < near) held.push(px, pz);
+        }
+        const isHeld = (px: number, pz: number) => { for (let k = 0; k < held.length; k += 2) if (Math.hypot(held[k] - px, held[k + 1] - pz) < SPREAD * 0.8) return true; return false; };
         const taken: number[] = [];
-        sel.forEach((u, i) => {
+        let slot = 0;
+        sel.forEach((u) => {
+          let i = slot;
+          while (i < slot + 400 && isHeld(x + Math.cos(i * 2.39996) * SPREAD * Math.sqrt(i), z + Math.sin(i * 2.39996) * SPREAD * Math.sqrt(i))) i++;
+          slot = i + 1;
           const r = SPREAD * Math.sqrt(i) * (i ? 1 : 0), a = i * 2.39996;
           let ox = clamp(x + Math.cos(a) * r, -limit(), limit()), oz = clamp(z + Math.sin(a) * r, -limit(), limit());
           const m = moveOf(content.units[u.unit]);

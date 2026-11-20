@@ -164,5 +164,19 @@ const made = s.stats.printed ?? 0;
 check(printer.powered && made > 7.5 && made < 8.5, `on spare power it prints ${content.buildings.printer.mineRate}/s (${made.toFixed(1)} in 20 s; alloys +${(s.alloys - pa0).toFixed(1)})`);
 check(bat && content.buildings.printer.research === 'isotope-cells', 'it needs Isotope Cells');
 
+// ---------- reinforcements sent one by one to the same point spread out (not one pile) ----------
+{
+  const sm = setup(2), h = sm.s.players[1].home, px = h.x * 0.6, pz = h.z * 0.6;
+  sm.command({ type: 'debug', units: { unit: 'rover', x: h.x * 0.8, z: h.z * 0.8, n: 8 } }, 1);
+  const mine = sm.units.filter((u) => team(u) === 1);
+  sm.command({ type: 'order', ids: mine.slice(0, 3).map((u) => u.id), x: px, z: pz }, 1);
+  run(sm, 20);
+  for (const u of mine.slice(3)) sm.command({ type: 'order', ids: [u.id], x: px, z: pz }, 1);
+  const spots = mine.map((u) => (u.order.kind === 'move' ? u.order : u));
+  let close = Infinity;
+  for (let i = 0; i < spots.length; i++) for (let j = i + 1; j < spots.length; j++) close = Math.min(close, Math.hypot(spots[i].x - spots[j].x, spots[i].z - spots[j].z));
+  check(close > 2, `8 rovers sent there in 6 orders get their own spots (closest two ${close.toFixed(1)} u apart)`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall skirmish sim checks passed');
 process.exit(failed ? 1 : 0);

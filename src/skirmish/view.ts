@@ -115,6 +115,9 @@ export class ArmyView {
   private col = new THREE.Color();
   /** Skirmish: each player's colour (index = team); units of players other than 0 are drawn in theirs. */
   private teamCols: THREE.Color[] = [];
+  /** How tall the building at (x, z) is (flyers climb over it); set by whoever draws the buildings. */
+  roof?: (x: number, z: number) => number;
+  private cruise = new Float32Array(MAX_UNITS);
   setTeamColors(colors: string[]) {
     if (this.teamCols.length === colors.length && colors.every((c, i) => '#' + this.teamCols[i].getHexString() === c.toLowerCase())) return;
     this.teamCols = colors.map((c) => new THREE.Color(c));
@@ -195,7 +198,7 @@ export class ArmyView {
     for (let s = 0; s < cur.slots; s++) {
       const o = s * STRIDE;
       this.visible[s] = 0;
-      if (!b[o + F.ALIVE]) continue;
+      if (!b[o + F.ALIVE]) { this.cruise[s] = 0; continue; }
       const t = b[o + F.TYPE];
       let x = b[o], z = b[o + 1], h = b[o + 2], turn = 0;
       if (s < prevSlots && a[o + F.ALIVE] && a[o + F.GEN] === b[o + F.GEN]) {
@@ -214,7 +217,13 @@ export class ArmyView {
       if (mv) {
         const g = sampleRaw(x, z);
         const sea = Math.max(0, WATER_LIFT - Math.max(0, g));
-        lift = mv === 'air' ? sea + FLY_HEIGHT + (s % 5) * 0.5 + 0.35 * Math.sin(this.clock * 1.1 + s * 1.9)
+        if (mv === 'air') {
+          // cruise height, or higher over a tall building (climbing to it quickly, easing back down after)
+          const cruise = sea + FLY_HEIGHT + (s % 5) * 0.5, want = Math.max(cruise, (this.roof?.(x, z) ?? 0) + 2.5);
+          const was = this.cruise[s] > 0 ? this.cruise[s] : want;
+          this.cruise[s] = was + (want - was) * Math.min(1, dt * (want > was ? 6 : 1.5));
+        }
+        lift = mv === 'air' ? this.cruise[s] + 0.35 * Math.sin(this.clock * 1.1 + s * 1.9)
           : mv === 'hover' ? sea + 0.15 + 0.08 * Math.sin(this.clock * 2.3 + s * 1.7) : sea - 0.25 + 0.06 * Math.sin(this.clock * 1.4 + s * 2.1);
       }
       this.lift[s] = lift;
