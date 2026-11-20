@@ -53,7 +53,7 @@ const LOOKAHEAD = 1.2;
 
 interface Chord { pad: number[]; bass: number; bells: number[] }
 /** A queued chord: when it starts, which of the mood's chords, and (with sections) which layers play under it. */
-interface Queued { t: number; c: Chord; i: number; on: Set<string> | null; section: number }
+interface Queued { t: number; c: Chord; i: number; on: Set<string> | null; section: number; gains: GainNode[] }
 
 /** A mood's chord, parsed (bad words are skipped; content checks flag them). */
 function chordOf(c: MusicChord): Chord | null {
@@ -157,8 +157,8 @@ export class AmbientMusic {
   private nextCall = 0;
   /** Chords already queued, with their start times (bells and pulse follow whichever is sounding). */
   private queue: Queued[] = [];
-  /** The chord being played and when it ends (its pads release then). */
-  private chordEnd: { t: number; nodes: GainNode[] } | null = null;
+  /** Panned drum tracks, one panner each (made on first use; let go with everything else on stop). */
+  private drumPans: StereoPannerNode[] = [];
   /** Test and editor hook: what has been queued, and the chord now sounding (index into the mood's chords). */
   played = { chords: 0, bells: 0, pulses: 0, hits: 0, arps: 0, leads: 0, calls: 0, chord: -1, section: -1 };
 
@@ -266,10 +266,20 @@ export class AmbientMusic {
     setTimeout(() => { for (const n of this.nodes) { try { (n as AudioScheduledSourceNode).stop?.(); } catch { /* not started */ } n.disconnect(); } }, (fade + 0.3) * 1000);
   }
 
-  /** Move on to the next chord now (the editor's ⏭). */
+  /**
+   * Move on to the next chord now (the editor's ⏭). The next chord may already be queued (notes go out up
+   * to LOOKAHEAD ahead): it's silenced and dropped, as if it never was, and the one sounding fades out.
+   */
   skip() {
-    const t = this.c.currentTime + 0.05;
-    if (this.chordEnd) this.release(this.chordEnd.nodes, t);
+    const now = this.c.currentTime, t = now + 0.05;
+    const later = this.queue.filter((q) => q.t >= t);
+    for (const q of later) {
+      for (const g of q.gains) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, now); }
+    }
+    this.queue = this.queue.filter((q) => q.t < t);
+    this.played.chords -= later.length;
+    const cur = this.queue[this.queue.length - 1];
+    if (cur) { this.release(cur.gains, t); this.chord = cur.i; }
     this.nextChord = t;
     this.tick();
   }
@@ -364,11 +374,11 @@ export class AmbientMusic {
     const ch = all[i];
     const sec = this.section(this.played.chords, m);
     const on = (layer: string) => !sec || sec.on.has(layer);
-    this.queue.push({ t, c: ch, i, on: sec?.on ?? null, section: sec?.i ?? -1 });
+    const gains: GainNode[] = [];
+    this.queue.push({ t, c: ch, i, on: sec?.on ?? null, section: sec?.i ?? -1, gains });
     this.played.chords++;
     const swell = Math.max(0.02, Math.min(fin(m.swell, 4), len)), release = Math.max(0.05, fin(m.release, 6));
     const end = t + len;
-    const gains: GainNode[] = [];
     const stagger = Math.min(0.9, swell / 4);
     if (m.pad > 0 && on('pad')) ch.pad.forEach((n, k) => gains.push(this.padVoice(midiHz(n), t + k * rand(0.2, 1) * stagger, end, release, swell, m, ch.pad.length > 1 ? (k / (ch.pad.length - 1)) * 1.2 - 0.6 : 0)));
     // a choir singing the chord's top notes over the pad
@@ -378,7 +388,6 @@ export class AmbientMusic {
       top.forEach((n, k) => gains.push(this.padVoice(midiHz(n), t + 0.3 + k * rand(0.2, 0.8) * stagger, end, release, swell * 1.2, sing, top.length > 1 ? (k / (top.length - 1)) * 0.9 - 0.45 : 0)));
     }
     if (m.bass > 0 && on('bass')) gains.push(this.bass(midiHz(ch.bass), t, end, release, swell, m.bass));
-    this.chordEnd = { t: end, nodes: gains };
     // melody: a phrase at the start of every Nth chord, from the second on
     const every = Math.max(1, fin(m.leadEvery, 2));
     if (fin(m.lead, 0) > 0 && m.melody?.length && this.played.chords >= 2 && (this.played.chords - 2) % every === 0 && on('melody')) {
@@ -388,11 +397,13 @@ export class AmbientMusic {
     return len;
   }
 
-  /** Fade a chord's voices out from `t` (used when skipping ahead). */
+  /** Fade a sounding chord's voices out from `t` (used when skipping ahead), from wherever their swell has got to. */
   private release(gains: GainNode[], t: number) {
     const r = Math.max(0.5, Math.min(3, fin(this.mood().release, 2)));
     for (const g of gains) {
-      g.gain.cancelScheduledValues(t);
+      // hold the level reached at t (Firefox lacks cancelAndHoldAtTime: there a swell still rising stops short)
+      if (g.gain.cancelAndHoldAtTime) g.gain.cancelAndHoldAtTime(t);
+      else g.gain.cancelScheduledValues(t);
       g.gain.setTargetAtTime(0, t, r / 3);
     }
   }
@@ -451,6 +462,8 @@ export class AmbientMusic {
     } else lp.connect(g);
     g.connect(p).connect(this.pads);
     const oscs: OscillatorNode[] = [lfo];
+    /** The note's own oscillators: only these take the pitch movement (not the LFOs). */
+    const voices: OscillatorNode[] = [];
     // pitch movement shared by the note's oscillators (in cents): vibrato and warble
     const mods: AudioNode[] = [];
     const vib = fin(m.vibrato, 0), wob = fin(m.warble, 0);
@@ -472,13 +485,15 @@ export class AmbientMusic {
       og.gain.value = lvl;
       o.connect(og).connect(lp);
       oscs.push(o);
+      voices.push(o);
+      extra.push(og);
     }
     for (const [rate, cents] of pitchMods) {
       const l = c.createOscillator(), d = c.createGain();
       l.frequency.value = rate;
       d.gain.value = cents;
       l.connect(d);
-      for (const o of oscs.slice(1)) d.connect(o.detune);
+      for (const o of voices) d.connect(o.detune);
       oscs.push(l);
       mods.push(d);
     }
@@ -643,25 +658,29 @@ export class AmbientMusic {
     if (!(level > 0) || !m.drumTracks?.length || this.played.chords <= fin(m.drumsIn, 0) || !this.on('drums', t)) return dur;
     // swing: every other step a little late
     const at = t + (n % 2 ? dur * Math.min(0.5, fin(m.swing, 0)) : 0);
-    for (const tr of m.drumTracks) {
+    m.drumTracks.forEach((tr, k) => {
       const hit = HITS[tr?.sound];
       const { steps } = parseSteps(tr?.steps);
-      if (!hit || !steps.length) continue;
+      if (!hit || !steps.length) return;
       const v = steps[n % steps.length];
-      if (!v) continue;
+      if (!v) return;
       // a touch of human: velocity and timing vary slightly
       const peak = DRUM_PEAK * level * fin(tr.level, 0.7) * v * rand(0.88, 1.06);
       let out: AudioNode = this.drumBus;
       if (tr.pan) {
-        const p = this.c.createStereoPanner();
-        p.pan.value = Math.max(-1, Math.min(1, tr.pan));
-        p.connect(this.drumBus);
+        // one panner per track, kept (a timer to let go of a panner per hit fires even while the clock is stopped)
+        let p = this.drumPans[k];
+        if (!p) {
+          p = this.drumPans[k] = this.c.createStereoPanner();
+          p.connect(this.drumBus);
+          this.nodes.push(p);
+        }
+        p.pan.setValueAtTime(clamp(tr.pan, -1, 1), at);
         out = p;
-        setTimeout(() => p.disconnect(), (at - this.c.currentTime + 2) * 1000);
       }
       hit(this.c, out, at + rand(0, 0.006), peak, v);
       this.played.hits++;
-    }
+    });
     return dur;
   }
 
@@ -910,9 +929,13 @@ export class AmbientMusic {
   /** A faint, slowly sweeping band of noise: the hiss of distance. 11 s of it, played at a drifting speed, so it never audibly repeats. */
   private air() {
     const c = this.c;
-    const n = Math.floor(c.sampleRate * 11);
-    const b = c.createBuffer(2, n, c.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
+    let b = AIRS.get(c);
+    if (!b) {
+      const n = Math.floor(c.sampleRate * 11);
+      b = c.createBuffer(2, n, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
+      AIRS.set(c, b);
+    }
     const src = c.createBufferSource();
     src.buffer = b;
     src.loop = true;
@@ -950,8 +973,26 @@ function saturation(drive: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
+/**
+ * Buffers made once per context and reused: building a hall takes 15–70 ms (by size) and the air 10 ms, a
+ * dropped frame or four right when a fight starts and the music changes. Halls are kept by size (to 0.1 s).
+ */
+const HALLS = new WeakMap<BaseAudioContext, Map<number, AudioBuffer>>();
+const AIRS = new WeakMap<BaseAudioContext, AudioBuffer>();
+
 /** A synthetic stereo hall: decaying noise that darkens as it fades, slightly different per ear. */
-function hall(c: AudioContext, secs: number): AudioBuffer {
+function hall(c: BaseAudioContext, secs: number): AudioBuffer {
+  secs = Math.round(secs * 10) / 10;
+  let cache = HALLS.get(c);
+  if (!cache) HALLS.set(c, (cache = new Map()));
+  const have = cache.get(secs);
+  if (have) return have;
+  const b = makeHall(c, secs);
+  cache.set(secs, b);
+  return b;
+}
+
+function makeHall(c: BaseAudioContext, secs: number): AudioBuffer {
   const rate = c.sampleRate, n = Math.floor(rate * secs);
   const b = c.createBuffer(2, n, rate);
   for (let ch = 0; ch < 2; ch++) {

@@ -76,6 +76,12 @@ try {
   check((s.music?.hits ?? 0) > 0, `tension has its drums (${s.music?.mood}: ${s.music?.hits} hits)`);
   // the player's music volume: 0 is remembered
   await page.evaluate(() => { const el = document.getElementById('music-vol'); el.value = '0'; el.dispatchEvent(new Event('input')); });
+  await page.waitForTimeout(600);
+  check((await stats()).music === null, 'music volume 0 stops the music (nothing synthesised into silence)');
+  await page.evaluate(() => { const el = document.getElementById('music-vol'); el.value = '50'; el.dispatchEvent(new Event('input')); });
+  await page.waitForTimeout(600);
+  check((await stats()).music?.use === 'tension', `and it comes back when turned up (${(await stats()).music?.use})`);
+  await page.evaluate(() => { const el = document.getElementById('music-vol'); el.value = '0'; el.dispatchEvent(new Event('input')); });
   await page.reload();
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   check((await stats()).musicVolume === 0 && await page.$eval('#music-vol', (e) => e.value) === '0', 'music volume 0 is remembered');

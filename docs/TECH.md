@@ -796,6 +796,19 @@ First playtest build (2026-11-15).
     75 bpm, 16 s chords, five sections (bells; arp and calls; choir, drums and pulse; flute melody; a coda). Its
     phrases are written one chord ahead (phrase k fits chord k + 1), matching how the first phrase plays on the
     second chord. Measured −27.0 LUFS at level 0.95, as written.
+  - **Engine fixes (v0.48.0):** noise tails loop their 1 s of noise (`hiss()` in synth.ts and drums.ts started up
+    to 0.8 s in, so a tail over 0.2 s could run off the end with a click). Halls (15–70 ms to build, by size) and the
+    11 s of air (10 ms) are made once per context and reused (`HALLS` by size to 0.1 s, `AIRS`), so a mood change
+    doesn't drop frames as a fight starts. Pad pitch movement goes only to the note's oscillators (the warble used
+    to wobble the vibrato LFO too). **⏭ fix:** the next chord is often already queued (LOOKAHEAD); skip used to
+    cancel *its* fade-in, leaving its gain at the default 1, so it burst in ~24 dB loud (offline: 0.32 peak after a
+    skip against 0.21 before; now 0.21), while the chord sounding never faded. Each queued chord now keeps its
+    gains: skip silences and drops the queued ones (and takes back their chord count, so a cycle and its sections
+    don't jump), and fades the sounding one from where its swell got to (`cancelAndHoldAtTime`; Firefox lacks it).
+    Music volume 0 stops the music (`musicFor` wants none) instead of synthesising into silence; turning it up
+    starts a piece again. Panned drum tracks keep one panner each (a timer per hit could disconnect a panner while
+    the audio clock was stopped in a hidden tab, losing hits on return); `play()` lets go of its panner; pad
+    voices let go of their per-oscillator gains. `music-smoke` checks that volume 0 stops and turning up restarts.
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min

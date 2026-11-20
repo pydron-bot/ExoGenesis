@@ -20,6 +20,9 @@ export const CHANGELOG: Release[] = [
     title: 'Outer Dark',
     notes: [
       'A new night piece, Outer Dark: slow strings and hushed voices in five, distant booms and a heartbeat, far-off calls, and a flute that comes in later',
+      'Smoother when a fight starts: changing music no longer causes a brief stutter',
+      'Longer sounds (big explosions, heavy shots, booming drums) no longer cut off early with a click',
+      'Turning the music volume to zero now stops the music completely, saving a little battery',
     ],
   },
   {

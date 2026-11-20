@@ -182,6 +182,8 @@ export class GameAudio {
     this.musicVolume = Math.min(1, Math.max(0, v));
     this.save();
     if (this.ctx) this.musicOut.gain.setTargetAtTime(this.musicVolume, this.ctx.currentTime, 0.05);
+    // at 0, stop it rather than synthesising into silence (`musicFor` starts it again when it comes up)
+    if (this.musicVolume <= 0) this.stopMusic(0.3);
   }
 
   /**
@@ -208,6 +210,7 @@ export class GameAudio {
       }
       want = now < this.tenseUntil ? 'tension' : st.play ? (this.night ? 'night' : 'day') : null;
     }
+    if (this.musicVolume <= 0) want = null;
     if (want === (this.music?.use ?? null) || !this.live()) return;
     // cross-fade: quick into a fight, slow out of one
     const fade = want === 'tension' ? 2.5 : this.music?.use === 'tension' ? 8 : 6;
@@ -268,8 +271,9 @@ export class GameAudio {
     if (cat !== 'alerts' && (this.voices >= MAX_VOICES || (cat === 'combat' && this.combatVoices >= MAX_COMBAT))) { this.dropped++; return; }
     this.last[id] = now;
     let out: AudioNode = this.cats[cat];
+    let pn: StereoPannerNode | null = null;
     if (pan && c.createStereoPanner) {
-      const pn = c.createStereoPanner();
+      pn = c.createStereoPanner();
       pn.pan.value = Math.max(-1, Math.min(1, pan));
       pn.connect(out);
       out = pn;
@@ -297,6 +301,7 @@ export class GameAudio {
       this.voices--;
       if (cat === 'combat') this.combatVoices--;
       g.disconnect();
+      pn?.disconnect();
     }, (dur + 0.1) * 1000);
   }
 

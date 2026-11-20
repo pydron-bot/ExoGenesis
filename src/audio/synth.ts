@@ -52,6 +52,8 @@ function hiss(c: AudioContext, out: AudioNode, t: number, filter: BiquadFilterTy
   if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
   s.connect(f);
   f.connect(env(c, out, t, dur, peak, attack));
+  // loop, so a tail that starts late in the 1 s of noise doesn't run off its end
+  s.loop = true;
   s.start(t, Math.random() * 0.8);
   s.stop(t + dur + 0.02);
 }

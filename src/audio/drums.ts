@@ -72,6 +72,8 @@ function hiss(c: BaseAudioContext, out: AudioNode, t: number, type: BiquadFilter
   flt.Q.value = q;
   const g = env(c, out, t, peak, attack, dur);
   s.connect(flt).connect(g);
+  // loop, so a tail that starts late in the 1 s of noise doesn't run off its end
+  s.loop = true;
   s.start(t, Math.random() * 0.8);
   s.stop(t + dur + 0.02);
   s.onended = () => { s.disconnect(); flt.disconnect(); g.disconnect(); };
