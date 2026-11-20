@@ -83,10 +83,10 @@ try {
   // selecting and ordering: tap a drone (the first starts selected: let it go first), then open ground
   // (story cards can open over the map: retry the drone, and pick a ground point the map itself is under)
   await page.evaluate(() => { for (const id of ['contact', 'radio']) { const e = document.getElementById(id); if (e) e.style.visibility = 'hidden'; } });
-  await page.keyboard.press('Escape');
+  await page.evaluate(() => { __exo.ui.sel = null; }); // let go of the selection (Esc with nothing selected opens the menu)
   await wait(200);
   for (let k = 0; k < 4 && (await page.evaluate(() => __exo.ui.sel?.kind)) !== 'drone'; k++) {
-    await page.keyboard.press('Escape');
+    await page.evaluate(() => { __exo.ui.sel = null; }); // let go of the selection (Esc with nothing selected opens the menu)
     await page.evaluate(() => { __exo.cam.fx = __exo.sim.cur.drones[0].x; __exo.cam.fz = __exo.sim.cur.drones[0].z; });
     await wait(500);
     const dp = await page.evaluate(() => __exo.droneScreen(__exo.sim.cur.drones[0].id));
@@ -106,7 +106,7 @@ try {
   await wait(250);
   check(((await stats()).counts.order ?? 0) >= 1, 'sending it somewhere plays "order"');
   await page.evaluate(() => { for (const id of ['contact', 'radio']) { const e = document.getElementById(id); if (e) e.style.visibility = ''; } });
-  await page.keyboard.press('Escape');
+  await page.evaluate(() => { __exo.ui.sel = null; }); // let go of the selection (Esc with nothing selected opens the menu)
 
   // a camp's voices: none is met this early, so hand the bed one at the camera focus
   await page.evaluate(() => { __exo.audio.campTest = setInterval(() => __exo.audio.beds({ water: 0, sites: [], camps: [{ x: 0, z: 0 }], dt: 0.05, spatial: () => ({ gain: 1, pan: 0 }) }), 50); });
