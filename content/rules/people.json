@@ -4,6 +4,7 @@
   "cryoSafe": 50,
   "embryoLoss": 0.6,
   "podSols": 1,
+  "firstPodSols": 0.5,
   "podMW": 1.5,
   "podBiomass": 0.06,
   "podGrace": 60,

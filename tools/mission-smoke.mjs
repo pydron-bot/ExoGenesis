@@ -37,16 +37,18 @@ check(g.log.some((t) => t.startsWith('The cryo bank is stable')), 'its reward (a
 check(g.m().active.join() === 'groundwork', 'Groundwork follows');
 // objectives stay met: build a depot, then lose it
 build(g.sim, 'depot', -26, 22);
+build(g.sim, 'depot', 26, 22);
 steps(g.sim, 12);
 g.sim.s.buildings = g.sim.s.buildings.filter((b) => b.kind !== 'depot');
 steps(g.sim, 12);
 check(g.sim.snapshot().missions.active[0].marks[0] === true, 'an objective stays met (the depot was lost since)');
-check(g.log.includes('✓ Build a Mining Depot near an alloy deposit'), 'meeting an objective is logged');
+check(g.log.includes('✓ Build two Mining Depots on alloy deposits'), 'meeting an objective is logged');
 const alloys = g.sim.s.alloys;
 g.sim.s.drones.push({ ...g.sim.s.drones[0], id: g.sim.s.nextId++ });
 build(g.sim, 'battery', 0, 22);
 steps(g.sim, 12);
-check(g.m().done.includes('groundwork') && g.sim.s.alloys >= alloys + 60, 'Groundwork done in any order; its 60-alloy reward paid');
+check(g.m().done.includes('groundwork') && g.sim.s.alloys >= alloys + 120, 'Groundwork done in any order; its 120-alloy reward paid');
+check(g.sim.s.story.hint?.text.startsWith('Packs come from the edges'), 'its hint points at what comes next');
 check(g.m().active.join() === 'first-night', 'First Night follows');
 
 // ---------- events, story triggers, jump ----------
@@ -86,7 +88,7 @@ delete C.missions['t-m'];
 
 // ---------- browser ----------
 if (!process.argv.includes('--headless-only')) {
-  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? 'http://localhost:5176/';
+  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? `http://localhost:${process.env.PORT ?? 5176}/`;
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
   const page = await ctx.newPage();
@@ -105,7 +107,7 @@ if (!process.argv.includes('--headless-only')) {
   await page.waitForSelector('#story-sum div');
   const sum = await page.textContent('#story-sum');
   check(/Starts when “touchdown” is complete/.test(sum) && /Followed by: first-night/.test(sum), 'editor: the summary says what it follows and what follows it');
-  check(/Reward: add 60 alloys/.test(sum), 'editor: and its rewards');
+  check(/Reward: add 120 alloys/.test(sum), 'editor: and its rewards');
   // objectives: the condition picks the fields
   const last = page.locator('.row[data-key=objectives] .item-card').last();
   check(await last.locator('[data-item$=".building"]').count() === 1 && await last.locator('[data-item$=".sol"]').count() === 0, 'editor: a "built" objective shows Building, not Sol');

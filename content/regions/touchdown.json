@@ -3,6 +3,10 @@
   "description": "The landing region. Act 1 starts here.",
   "floraSeed": 1,
   "floraDensity": 1,
+  "startAlloys": 360,
+  "graceSeconds": 240,
+  "packScale": 0.8,
+  "waveInterval": 130,
   "herds": [
     {
       "x": 70.8,

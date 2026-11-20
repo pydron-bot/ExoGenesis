@@ -1614,3 +1614,46 @@ Quality of life in the colony (and the skirmish built on it; the old `?mode=skir
 - **Fix:** the selection card read the HUD's snapshot, which is refreshed by the frame loop and can be a frame behind
   the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
 - **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.
+
+### Opening pace: the first 20 minutes
+
+DESIGN §7's M1 exit test. Measured headless with `tools/opening.mjs`: the story playthrough bot (strategy `opening`, a
+first-timer's build with a turret by each depot) plays Touchdown at a human pace (`pace`: one build step every 8 s,
+`BalanceOptions.pace`), chasing each mission's objectives, and records when things first happen. A second is **dead
+waiting** when nothing is being built, no fight is on, no card or objective landed in the last 15 s and the bot can't
+afford its next step.
+
+- **What was wrong:** 200 starting alloys went on a solar, a battery and the second drone, and the depot came at ~2:45,
+  just as the first night stopped it (depots run on live power only), so alloys crawled in at the Core's 0.4/s until
+  ~5:30. Two waits of 91 s and 104 s before the first pack at 5:10. The tutorial colony never got its first colonist:
+  the pod takes a sol (6 min) and most runs fell to the third or fourth pack at 10–17 min.
+- **Changes** (content only, plus one rule):
+  - Touchdown region: `startAlloys` 360 (was 200 from the colony rules), `graceSeconds` 240 (300), `packScale` 0.8,
+    `waveInterval` 130 (110). Other regions and the skirmish keep the global numbers.
+  - Missions: Touchdown pays 50 alloys; Groundwork asks for **two** depots and pays 120 (60); First Night pays 150 (80).
+    Each finished tutorial mission puts up a hint (a `hint` reward) saying what comes next: depots on the deposits,
+    a turret by each depot, then Hydroponics and a Civilian Center.
+  - People rules `firstPodSols` 0.5: the colony's first pod (`Pod.first`, only while no one has been grown, born or
+    lost) matures in half a sol. Later pods take the full sol.
+- **Before → after** (5 seeds, pace 8 s):
+
+  | | before | after |
+  |---|---|---|
+  | first building up | 0:09 | 0:09 |
+  | Groundwork done | 2:43 | 0:57 |
+  | first fight / first kill | 5:10 / 5:25 | 4:05 / 4:08 |
+  | First Night done | 7:36 (3 of 5) | 4:10 |
+  | first pod (imprint choice) | 9:35–10:05 (2 of 5) | 4:35 |
+  | first colonist (Firstborn done) | never | 7:47 |
+  | first story choice | 5:23–9:07 (2 of 5) | 8:05 |
+  | longest wait | 1:44–1:50 | 1:06–1:46 |
+  | waiting in the first 10 min | 3:16–5:21 (most runs dead by 10–11 min) | ~4:05 (all alive) |
+  | standing at 20 min | 0 of 5 (fell at 10–17 min) | 5 of 5 |
+
+  The waits left are the first night (~3:15–5:45, when depots stop) and, after the tutorial, alloys for the bot's
+  next step while a human would be exploring for Beyond the Ridge.
+- **Balance harness** (`tools/balance.mjs`, Touchdown, 20 min): with seeds 1337 / 7 / 42, `balanced` and `mixed`
+  survive 3 / 3, `opening` 2 / 3, `people` falls at 17–20 min (was 16).
+- **Test:** `tools/opening-smoke.mjs` (headless: the tutorial beats in time, only the first pod primed; browser,
+  desktop and phone: the opening alloys, Touchdown's payout and hint, Groundwork's goals). `mission-smoke` follows the
+  new Groundwork. Smoke tools touched here take `PORT` (or `--url`).

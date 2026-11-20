@@ -151,6 +151,7 @@ export const peopleRulesShape = {
   cryoSafe: num({ label: 'Safe cryo integrity', min: 0, max: 100, unit: '%', help: 'Above this the embryos are safe. Below it they start dying, faster the lower it goes.' }),
   embryoLoss: num({ label: 'Embryo loss at 0%', min: 0, max: 20, step: 0.01, unit: '/s', help: 'Embryos lost per second when integrity is at 0 (scales down to 0 at the safe level).' }),
   podSols: num({ label: 'Pod cycle', min: 0.05, max: 20, step: 0.05, unit: 'sols', help: 'Time for a growth pod to mature an embryo into a young adult.' }),
+  firstPodSols: num({ label: 'First pod cycle', min: 0.05, max: 20, step: 0.05, unit: 'sols', optional: true, help: "The colony's very first pod: its own, shorter cycle (the bank primed that embryo in flight), so the first colonist arrives early. Blank: the usual cycle." }),
   podMW: num({ label: 'Pod power', min: 0, max: 20, step: 0.1, unit: 'MW', help: 'Each running pod. Pods share the cryo bank\'s top power priority.' }),
   podBiomass: num({ label: 'Pod biomass', min: 0, max: 5, step: 0.01, unit: '/s', help: 'Each running pod.' }),
   podGrace: num({ label: 'Pod blackout grace', min: 1, max: 600, unit: 's', help: 'How long a pod can go without power (or biomass) before the person inside dies.' }),
