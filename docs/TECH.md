@@ -1739,3 +1739,36 @@ DESIGN §5.10 A. `src/daily.ts`, wired in `main.ts` (`daily`, `finishDaily`, `da
   day boundary, links, a fortnight of maps, score order, the timeline and folding, the share text; browser, desktop
   and phone: the title entry, claiming the try, surrender → the card and Share copying the text, the result kept, a
   reload is practice, the title's look back).
+
+### The Chronicle
+
+DESIGN §5.10 C. A colony history from what the campaign already tracks. The skirmish end screen already has its
+battle summary (each player's units built, kills, losses, buildings lost and alloys mined), so the Chronicle is
+campaign only.
+
+- **Record** (`src/sim/chronicle.ts`, `SimState.chronicle`, saved with the game): once a second (`recordChronicle`,
+  from `Sim.step` while deployed) it diffs the colonists: anyone new is added (name, lineage, pod or born, imprint,
+  parents, when they appeared, partner); anyone gone gets an end, *died* with the memorial's cause and age, or *walked
+  out* (a walkout's memorial line, or no line at all). Every 30 s a sample of Partners / Autonomists / Devoted
+  (adults, by stance), children and embryos (480 kept; a long game keeps every other). Key moments: player 0's log
+  lines by cue (`chronicleEvent` in `Sim.emit`: births and pods, deaths and lines gone, partners and comings of age,
+  contact and discoveries, research done, the first pack beaten, nests, relic grids, Breakthroughs, the end), plus
+  missions done, story events fired, a change of leading bloc and walkouts, found by diffing. 600 moments kept
+  (everyday ones dropped first). No hooks in the people system, and no random numbers: balance runs are unchanged.
+  A save from before this starts its record when loaded (everyone living then counts from that moment).
+- **Page** (`src/chronicle.ts`: `chronicleModel` from a `sim.save()` copy, `openChronicle`): title and outcome; the
+  numbers (lived, grown, born, living, died, walked out, lines left of 24, generations, embryos); **how the blocs
+  shifted** (stacked areas on a canvas, sol ticks); the **family tree** (`treeLayout`: a row per generation, pod-grown
+  first in the order they came out with partners side by side, children under their parents, a curve to each parent;
+  borders cyan living, red died, amber walked out; an SVG that scrolls sideways on its own); **key moments** grouped by
+  sol with the time of day; the **memorial** (named dead, with cause and when; unnamed pod losses as one line), lines
+  that ended and walkouts. Game menu → **Chronicle** at any time (the game stays paused), and **Read the Chronicle**,
+  the first button on a campaign's end screen. Esc or × closes it (back to the end screen). It doesn't open by itself:
+  over the end screen it hid New game and Load (`smoke.mjs` caught it).
+- **Save image** (`chronicleCanvas`, `saveChronicleImage`): the same on one 1200 px wide canvas (the tree scaled to
+  fit, the last 18 key moments, 14 names) as `exo-chronicle-sol-N.png`; on a touch device that can share files, the
+  share sheet, otherwise a download.
+- **Test:** `tools/chronicle-smoke.mjs` (headless: a 55-minute peaceful colony recorded, children with both parents,
+  samples, moments, a death with its cause, a walkout, a save, the model's totals, the tree's rows and links, the
+  memorial; browser, desktop and phone: that colony loaded, the menu's page with tree, chart, moments and memorial,
+  fitting the screen, Save image as a 1200 px PNG, ×, and after a fallen Core the end screen's button).

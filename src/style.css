@@ -742,3 +742,58 @@ body.placing:not(.menu-open) #hud > #place-hint.on { display: block; }
 #over-daily .dl-share, #dl-card .dl-share { border-color: var(--cyan); color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, transparent); }
 #over-daily .dl-share:hover, #dl-card .dl-share:hover, #dl-card .dl-practice:hover { background: color-mix(in srgb, var(--cyan) 20%, transparent); }
 #dl-card .dl-practice { display: block; margin: 12px auto 0; font-size: 12px; }
+
+/* the Chronicle: a full-screen page over the game */
+#chronicle {
+  position: fixed; inset: 0; z-index: 70; overflow: auto; -webkit-overflow-scrolling: touch;
+  background: color-mix(in srgb, #02060a 82%, transparent); backdrop-filter: blur(3px);
+  padding: calc(var(--safe-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 24px);
+}
+#chronicle .ch-page { max-width: 980px; margin: 0 auto; background: var(--panel-base); border: 1px solid var(--line); border-radius: 6px; padding: 22px 24px 26px; }
+#chronicle .ch-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+#chronicle .ch-kicker { color: var(--amber); font-size: 11px; letter-spacing: 0.24em; }
+#chronicle h2 { margin: 6px 0 4px; font-size: 20px; font-weight: 600; letter-spacing: 0.04em; }
+#chronicle .ch-sub { opacity: 0.65; font-size: 12px; }
+#chronicle .ch-acts { display: flex; gap: 6px; flex: none; }
+#chronicle button { font: inherit; color: var(--text); background: transparent; border: 1px solid color-mix(in srgb, var(--text) 25%, transparent); border-radius: 3px; min-height: 40px; min-width: 40px; padding: 6px 12px; cursor: pointer; }
+#chronicle button.ch-img { border-color: var(--cyan); color: var(--cyan); }
+#chronicle button:hover { background: color-mix(in srgb, var(--cyan) 12%, transparent); }
+#chronicle .ch-chips { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 18px 0 6px; }
+#chronicle .ch-chip b { display: block; font-size: 20px; font-weight: 600; }
+#chronicle .ch-chip small { opacity: 0.6; font-size: 11px; }
+#chronicle section { margin-top: 20px; min-width: 0; }
+#chronicle h3 { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 8px; color: var(--cyan); font-weight: 600; }
+#chronicle h4 { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin: 14px 0 6px; color: var(--crimson); font-weight: 600; }
+#chronicle .ch-legend { font-size: 11px; opacity: 0.75; margin-bottom: 6px; }
+#chronicle .ch-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; vertical-align: -1px; }
+#chronicle .ch-legend i:first-child { margin-left: 0; }
+#chronicle .ch-blocs { width: 100%; height: 190px; display: block; }
+#chronicle .ch-treebox { overflow-x: auto; padding-bottom: 6px; }
+#chronicle .ch-tree path { fill: none; stroke: color-mix(in srgb, var(--text) 35%, transparent); stroke-width: 1.2; }
+#chronicle .ch-tree rect { fill: color-mix(in srgb, var(--panel-base) 92%, white); stroke-width: 1.5; }
+#chronicle .ch-tree text { fill: var(--text); font: 600 11.5px var(--mono); }
+#chronicle .ch-tree text.s { font-weight: 400; font-size: 10px; opacity: 0.6; }
+#chronicle .ch-node.died text, #chronicle .ch-node.left text { opacity: 0.6; }
+#chronicle .ch-cols { display: grid; grid-template-columns: 3fr 2fr; gap: 0 28px; }
+#chronicle .ch-moments { max-height: 420px; overflow: auto; padding-right: 6px; }
+#chronicle .ch-sol-h { font-size: 11px; letter-spacing: 0.2em; opacity: 0.55; margin: 10px 0 4px; }
+#chronicle .ch-m { display: grid; grid-template-columns: 16px 44px 1fr; gap: 4px; font-size: 12px; line-height: 1.45; padding: 1px 0; }
+#chronicle .ch-m i { font-style: normal; text-align: center; color: var(--amber); }
+#chronicle .ch-m .t { opacity: 0.5; }
+#chronicle .ch-m.birth i { color: var(--cyan); }
+#chronicle .ch-m.death i, #chronicle .ch-m.walkout i { color: var(--crimson); }
+#chronicle .ch-m.people { opacity: 0.7; }
+#chronicle .ch-mem div { font-size: 12px; padding: 3px 0; border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
+#chronicle .ch-mem small, #chronicle .ch-line-end small { display: block; opacity: 0.55; font-size: 11px; }
+#chronicle .ch-line-end { font-size: 12px; padding: 2px 0; }
+#chronicle .ch-empty { opacity: 0.55; font-size: 12px; padding: 8px 0; }
+@media (max-width: 700px) {
+  #chronicle { padding-left: 8px; padding-right: 8px; }
+  #chronicle .ch-page { padding: 16px 14px 20px; }
+  #chronicle .ch-cols { grid-template-columns: 1fr; }
+  #chronicle h2 { font-size: 17px; }
+  #chronicle .ch-top { flex-direction: column-reverse; }
+  #chronicle .ch-acts { align-self: flex-end; }
+}
+body.rts #over-chronicle { display: none; }
+#hud #over-chronicle { border: 1px solid var(--cyan); color: var(--cyan); margin-right: 6px; }

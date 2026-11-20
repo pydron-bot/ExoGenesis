@@ -11,6 +11,7 @@ import { biomeOf, herdCount, herdSpecies, wildlifeIds } from '../content/nature'
 import type { BuildingDef, RegionDef, UnitDef, Weapon } from '../content/defs';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
+import { chronicleEvent, recordChronicle } from './chronicle';
 import { daylight } from './daylight';
 import { PathGrid, moveOf, offLimits, straight, type Move } from './path';
 import { Buckets } from './spatial';
@@ -269,7 +270,11 @@ export class Sim {
   readonly missions: Missions = new Missions(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
 
   /** Events for the local player (skirmish: what other players' economies do stays quiet). */
-  readonly emit: EventSink = (text, level, cue, at) => { if (this.team === 0) this.sink(text, level, cue, at); };
+  readonly emit: EventSink = (text, level, cue, at) => {
+    if (this.team !== 0) return;
+    this.sink(text, level, cue, at);
+    if (this.s && !this.s.players) chronicleEvent(this.s, this.secs, text, cue);
+  };
   /** The last "under attack" alert (not saved: a load just alerts again). */
   private lastAlert = { tick: -1e9, x: 0, z: 0 };
   /**
@@ -797,6 +802,7 @@ export class Sim {
       this.story.step();
       this.stepEncounters();
       this.missions.step();
+      if (s.tick % TICK_HZ === 0 && this.deployed) recordChronicle(s, this.secs);
     }
     if (s.tick % 5 === 0) this.stepFog();
     this.stepGrazers();

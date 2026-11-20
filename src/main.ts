@@ -39,6 +39,7 @@ import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
 import { TitleScreen } from './title';
 import { VERSION } from './changelog';
+import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';
 import { registerServiceWorker } from './pwa';
@@ -1102,6 +1103,7 @@ function openGameMenu() {
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'chronicle', label: 'Chronicle', sub: 'The colony\'s story so far: moments, blocs, the family tree, the memorial', run: keep(() => void showChronicle(() => { menuOpen = false; reopen(); })) },
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
     { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },
@@ -1110,9 +1112,18 @@ function openGameMenu() {
   el.querySelector('.op-foot')?.classList.add('dim');
 }
 $('b-menu').onclick = () => openGameMenu();
+
+// ---------- the Chronicle (src/chronicle.ts) ----------
+/** The colony's history from a fresh copy of the sim's state. */
+async function showChronicle(onClose?: () => void) {
+  const st = await sim.save();
+  openChronicle(chronicleModel(st, { region: regionDef.name, solSeconds: content.colony.solSeconds, lineages: content.people.lineages }), content.colony.solSeconds, { tap: () => audio.play('tap'), onClose });
+}
+$('over-chronicle').onclick = () => { audio.play('tap'); void showChronicle(); };
+
 // Esc opens the menu when there's nothing else for it to do (no selection, not placing, no panel open)
 addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape' || e.repeat || cine || title || panelOpen() || document.getElementById('whatsnew')) return;
+  if (e.key !== 'Escape' || e.repeat || cine || title || panelOpen() || document.getElementById('whatsnew') || document.getElementById('chronicle')) return;
   if (ui.sel || ui.build || document.querySelector('#build-menu.open')) return;
   e.preventDefault();
   openGameMenu();

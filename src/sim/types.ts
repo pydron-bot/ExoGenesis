@@ -351,6 +351,7 @@ export interface PlanetSnap {
 
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
 
+import type { Chronicle } from './chronicle';
 export interface SimState {
   /** Region id (content/regions/<id>.json); older saves are Touchdown. */
   region?: string;
@@ -406,6 +407,8 @@ export interface SimState {
   camps?: Camp[];
   /** Colonists, embryos, pods, food, Trust (absent in saves from before people existed). */
   people?: PeopleState;
+  /** The Chronicle's record (campaign; src/sim/chronicle.ts). */
+  chronicle?: Chronicle;
   /** Set when the game ends: lost ('core', 'cryo', 'people', 'story': a fail effect or mission), or won (a win effect). */
   over: null | 'core' | 'cryo' | 'people' | 'story' | 'won';
   /** The end screen's text for 'story' and 'won'. */
