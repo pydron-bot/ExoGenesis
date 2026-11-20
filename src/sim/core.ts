@@ -92,7 +92,7 @@ const SPREAD = 3.4;
 const PATH_PAD = 1.4;
 /** Re-plan a followed path this often (ticks), so chases and new buildings are picked up. */
 const REPATH = 20;
-/** A unit that hasn't got closer to its goal for this many ticks re-plans, then gives up. */
+/** A unit that hasn't got any further along its path for this many ticks re-plans (three times that: gives up). */
 const STALL = 30;
 /** Building buckets cover each body plus this: more than any moving unit's radius (u). */
 const BODY_MARGIN = Math.max(2, ...Object.values(content.units).filter((u) => u.speed > 0).map((u) => u.radius)) + 1;
@@ -1063,6 +1063,12 @@ export class Sim {
     });
   }
 
+  /** Building bodies onto the path grids these units use (gates are open to units: not obstacles). */
+  private setUnitBodies(us: Unit[]) {
+    const bodies = this.s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) }));
+    const moves = new Set(us.map((u) => moveOf(content.units[u.unit])));
+    for (const m of moves) if (m !== 'air') this.unitGrid(m).setBodies(bodies, PATH_PAD);
+  }
   private unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
   private faunaGrid(m: Move) { return (this.faunaGrids[m] ??= new PathGrid(limit(), m)); }
 
@@ -1100,15 +1106,17 @@ export class Sim {
   }
 
   /** Turn and step toward (tx, tz), sliding around water (hover movers skim over it). */
-  private steer(o: { x: number; z: number; heading: number }, tx: number, tz: number, speed: number, move: Move = 'ground') {
+  private steer(o: { x: number; z: number; heading: number }, tx: number, tz: number, speed: number, move: Move = 'ground', brake = false) {
     let ang = Math.atan2(tx - o.x, tz - o.z);
-    const step = Math.min(speed * DT, Math.hypot(tx - o.x, tz - o.z));
+    let step = Math.min(speed * DT, Math.hypot(tx - o.x, tz - o.z));
     for (const off of [0, 0.5, -0.5, 1, -1, 1.6, -1.6]) {
       const a = ang + off;
       if (!this.blocked(o.x + Math.sin(a) * (step + 2), o.z + Math.cos(a) * (step + 2), move)) { ang = a; break; }
     }
     let dh = ang - o.heading;
     dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+    // slow into a sharp turn rather than swing wide (into a building, or round and round a waypoint)
+    if (brake) step *= 0.25 + 0.75 * Math.max(0, Math.cos(dh));
     o.heading += clamp(dh, -6 * DT, 6 * DT);
     o.x += Math.sin(o.heading) * step;
     o.z += Math.cos(o.heading) * step;
@@ -1129,11 +1137,21 @@ export class Sim {
       u.repath = t + REPATH + (u.id % 7);
     }
     const p = u.path;
-    while (p.length > 2 && Math.hypot(p[0] - u.x, p[1] - u.z) < 1.5) p.splice(0, 2);
+    // on to the next waypoint once at this one, or past it (heading along the next leg)
+    while (p.length > 2) {
+      const ax = p[0] - u.x, az = p[1] - u.z;
+      if (Math.hypot(ax, az) < 1.5 || (Math.hypot(ax, az) < 4 && ax * (p[2] - p[0]) + az * (p[3] - p[1]) < 0)) p.splice(0, 2);
+      else break;
+    }
     if (!p.length) return false;
-    this.steer(u, p[0], p[1], speed, moveOf(content.units[u.unit]));
-    const d = Math.hypot(tx - u.x, tz - u.z);
-    if (d < (u.best ?? Infinity) - 0.5) { u.best = d; u.stall = 0; }
+    // the goal is walled off or inside a building: the path ends at the nearest place it can get, so stop there
+    const ex = p[p.length - 2], ez = p[p.length - 1];
+    if (p.length === 2 && Math.hypot(ex - tx, ez - tz) > 2 && Math.hypot(ex - u.x, ez - u.z) < 1.5) return false;
+    this.steer(u, p[0], p[1], speed, moveOf(content.units[u.unit]), true);
+    // progress is what's left along the path, not as the crow flies: a detour round a base gets farther first
+    let left = Math.hypot(p[0] - u.x, p[1] - u.z);
+    for (let k = 2; k < p.length; k += 2) left += Math.hypot(p[k] - p[k - 2], p[k + 1] - p[k - 1]);
+    if (left < (u.best ?? Infinity) - 0.5) { u.best = left; u.stall = 0; }
     else if ((u.stall = (u.stall ?? 0) + 1) > STALL * 3) return false;
     else if (u.stall % STALL === 0) u.repath = t;
     return true;
@@ -1153,11 +1171,7 @@ export class Sim {
   private stepUnits() {
     const s = this.s, us = this.units;
     // gates are open to units: they aren't obstacles on the path grid
-    if (us.length) {
-      const bodies = s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) }));
-      const moves = new Set(us.map((u) => moveOf(content.units[u.unit])));
-      for (const m of moves) if (m !== 'air') this.unitGrid(m).setBodies(bodies, PATH_PAD);
-    }
+    if (us.length) this.setUnitBodies(us);
     const boarded: Unit[] = [];
     let raiders: Hostile[] | undefined; // hostiles at a building, worked out once if an idle unit asks
     for (const u of us) {
@@ -2195,9 +2209,24 @@ export class Sim {
         if (!offLimits('ground', regionHeightRaw(x, z))) sel = sel.filter((u) => !(u.cargo?.length && this.sendToLand(u, x, z)));
         // spread out around the point (sunflower), nearest units take the inner spots
         sel.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
+        // spots that land in a building (or the water, for a Rover) move to open ground beside it, a spot apart
+        this.setUnitBodies(sel);
+        const taken: number[] = [];
         sel.forEach((u, i) => {
           const r = SPREAD * Math.sqrt(i) * (i ? 1 : 0), a = i * 2.39996;
-          const ox = clamp(x + Math.cos(a) * r, -limit(), limit()), oz = clamp(z + Math.sin(a) * r, -limit(), limit());
+          let ox = clamp(x + Math.cos(a) * r, -limit(), limit()), oz = clamp(z + Math.sin(a) * r, -limit(), limit());
+          const m = moveOf(content.units[u.unit]);
+          if (m !== 'air' && this.unitGrid(m).isBlocked(ox, oz)) {
+            const g = this.unitGrid(m), free = (px: number, pz: number) => !g.isBlocked(px, pz) && !taken.some((_, k) => k % 2 === 0 && Math.hypot(taken[k] - px, taken[k + 1] - pz) < SPREAD * 0.8);
+            search: for (let rr = 2; rr < 40; rr += 2) {
+              const steps = Math.ceil((rr * 6.3) / 2);
+              for (let q = 0; q < steps; q++) {
+                const t = a + (q / steps) * Math.PI * 2, px = ox + Math.cos(t) * rr, pz = oz + Math.sin(t) * rr;
+                if (Math.abs(px) < limit() && Math.abs(pz) < limit() && free(px, pz)) { ox = px; oz = pz; break search; }
+              }
+            }
+          }
+          taken.push(ox, oz);
           u.order = { kind: 'move', x: ox, z: oz };
           u.target = -1;
         });

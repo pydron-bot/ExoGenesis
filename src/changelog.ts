@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.49.1',
+    date: '2026-11-20',
+    title: 'Units find their way round buildings',
+    notes: [
+      'Units sent the long way round a base no longer give up partway: they now judge progress by the road left to go, not the straight-line distance',
+      'Sent somewhere walled off or into a building, units go as close as they can get and stop there instead of milling about',
+      'A group ordered onto a building spreads out on open ground beside it instead of piling up at one spot',
+      'Fast units (Scouts, Rovers) slow into sharp turns, so they stop circling round corners and waypoints',
+    ],
+  },
+  {
     version: '0.49.0',
     date: '2026-11-20',
     title: 'Import music',

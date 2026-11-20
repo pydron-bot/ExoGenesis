@@ -1329,3 +1329,26 @@ base colour at the root to its tip colour at the top), `leaf`, `glow`.
   per-instance cull spheres by the radius ratio). The built-ins draw until then.
 - Editor: the Nature preview loads the models too, so a species or biome shows as the game draws it.
 - Checked: in-game renders of Touchdown as verdant and arid, editor previews of a shell, ray, serpent and the lush biome.
+
+### Unit movement round buildings (v0.49.1)
+
+`tools/path-bench.mjs` (headless, ~20 s): a packed base (rings round the core, as tight as placement allows), a
+base on a grid with 3 / 5 / 8 u lanes, and a walled yard with one gate; groups of every ground / hover combat unit
+ordered across, into the middle, onto a building and through the gate (12, 20 or 30 at a time). A unit passes if it
+ends within 4 u of its spot, or of the nearest point its path can reach when the spot is walled off. Exit 1 on any
+failure.
+
+- **Found:** 31 of 576 units gave up 15–45 u short going into the packed base. `goTo`'s stall check measured
+  straight-line distance to the goal, so a detour round the base (farther first) read as stuck: 9 s without getting
+  closer and it gave up. Scouts also took twice as long as needed, circling waypoints (turn radius 13 / 6 = 2.2 u
+  is wider than the 1.5 u "reached it" radius).
+- **Fixes (`src/sim/core.ts`):**
+  - Progress is the length left along the path (to the next waypoint plus the rest), still re-planned every `STALL`
+    ticks without progress and dropped after three times that.
+  - A waypoint counts as passed within 1.5 u, or within 4 u once the unit is past it along the next leg.
+  - When the path ends short of the goal (walled off, or inside a building), the unit stops on reaching its end.
+  - `steer(…, brake)`: units (not fauna) slow to as little as 25% into a sharp turn.
+  - `order`: a formation spot inside a building (or off-limits ground) moves to the nearest open ground at least
+    0.8 × `SPREAD` from spots already handed out, so a group sent onto a building spreads round it.
+- **After:** 976 / 976 (with the 30-unit and onto-a-building cases added); travel times unchanged except Scouts into
+  the packed base, 28.4 → 14.0 s. `tools/units-smoke.mjs` passes.
