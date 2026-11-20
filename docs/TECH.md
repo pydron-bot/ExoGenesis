@@ -792,7 +792,7 @@ First playtest build (2026-11-15).
       0.8 × music 0.6, BS.1770 K-weighted and gated: day and night ≈ −26.5 to −27 LUFS, tension ≈ −26 to −27, as
       the existing moods measure the same way. Plucks, mallets and the worn filter carry far less energy than
       pads, so these need overall levels above 2 (the field now goes to 4).
-  - **Night · Outer Dark (v0.48.0):** Derek's piece: strings and an "oo" choir over a six-chord cycle in 5/4 at
+  - **Night · Outer Dark (v0.48.0):** strings and an "oo" choir over a six-chord cycle in 5/4 at
     75 bpm, 16 s chords, five sections (bells; arp and calls; choir, drums and pulse; flute melody; a coda). Its
     phrases are written one chord ahead (phrase k fits chord k + 1), matching how the first phrase plays on the
     second chord. Measured −27.0 LUFS at level 0.95, as written.
