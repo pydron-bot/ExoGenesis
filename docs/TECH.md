@@ -1438,3 +1438,36 @@ unchanged (`tools/balance.mjs`, all nine strategies, output byte-identical befor
   owner, per-player building and mining, turrets and units fighting across players, a Core falling takes its player
   out and the last one wins, save/load, a four-player free-for-all, and allies holding fire. Sim cost (sim-bench):
   3.2 → ~3.3 ms/tick, within its ±10% noise.
+
+### Skirmish phase 2: generated maps (v0.51.0)
+
+DESIGN §5.11. `src/skirmish/mapgen.ts` `generateSkirmishMap(options, content.bodies)` → a region record (never saved
+to content), the start spots, and a report. ~90 ms median, 150 ms worst on hive1.
+
+- **Options:** seed, players (2–4), size (small / medium / large = 240 / 320 / 400 u, +40 for 3–4 players), world
+  (`SKIRMISH_WORLDS`: Home, Verdance, Dunmore, Rime, Cinder, Ash), water (none / some / lots: only Home and Verdance
+  have seas; `none` lets the usual site lift raise the map onto dry land, otherwise `keepSea` and the site is picked
+  from 18 random ones for a land share near 75% / 50%), relief (flat / rolling / rugged: local relief 4 / 9 / 18 u).
+- **Layout:** bases evenly round a ring at 60% of the half-size, turned by a random angle. Round each base, turned to
+  face the middle, the same layout (`LAYOUT`): two 3,000 deposits at 27 u, a 2,500 one at 62 u, a 600 isotope seam at
+  40 u, a geothermal vent at 34 u. Between each pair of neighbours a 5,000 contested deposit, a predator spawn out by
+  the edge and a herd partway; a 1,200 seam by the middle. 90-second grace for packs if they're on.
+- **Sculpt** (the region's height grid, target − generated): each base flat to 34 u at its own mean height (≥ 2 u),
+  easing out to 62 u; a small pad under every deposit, seam and vent outside a base (at the base's height when it's
+  near one, so it doesn't pull the base's rim); land roads raised from every base to the middle. Checked after: each
+  base dry (≥ 0.8 u) and flat (≤ 3 u over 28 u), every base reaching base 1 by land (`PathGrid.reaches`). Up to four
+  tries, raising and widening the roads each time.
+- **In the game:** `?skirmish=<seed>` plus options (`src/skirmish/setup.ts` lists them: players, size, world, water,
+  relief, alloys, fog, packs, wildlife, ai, teams). The page generates the map, plays it as region `skirmish` (no
+  autosave, no title or landing, the camera on your Core), and hands the record and a `SkirmishSetup` to the sim
+  worker (`init.skirmish` → `newSkirmish`; a restart starts it again). Snapshots carry `players` and each unit's and
+  drone's `team`. Skirmish Cores are drawn as buildings where they stand (`buildForRole('core')`); the campaign's
+  stays the landed probe at the origin.
+- **Test:** `tools/mapgen-check.mjs [--maps N] [--sheet file.png]`, headless (one module graph via
+  `tools/sim-entry.ts`: separate `runnerImport`s each get their own region state): every world × 2–4 players × size ×
+  water × relief; per map, the generator's checks, then in the sim each player can place a Solar Array by its Core, a
+  depot on each of its deposits, a Deep-Core Mine on its seam and a geothermal plant on its vent, and walks by land to
+  the middle and to the nearest enemy are within 25% of each other. 54 / 54 pass. `--sheet` draws them all.
+- Not yet (phase 3): enemy buildings and units in team colours and hidden in fog, the HUD's campaign counters.
+- Found on the way: `tools/build-smoke.mjs` fails its wall-line steps on v0.49.0 too (the opening story card sits
+  over the taps); `tools/region-smoke.mjs` expected no world name between a region and HERE in Options (fixed).

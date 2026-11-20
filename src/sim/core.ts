@@ -2604,7 +2604,7 @@ export class Sim {
       army[o + F.GEN] = u.id & 0xffff; army[o + F.ALIVE] = 1;
       const mv = u.order.kind === 'move' ? u.order : null;
       return {
-        id: u.id, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0,
+        id: u.id, team: u.team, unit: u.unit, slot: u.slot, x: u.x, z: u.z, hp: u.hp / d.hp, order: u.order.kind, tx: mv ? mv.x : u.gx, tz: mv ? mv.z : u.gz, engaged: u.target >= 0,
         cargo: d.carries ? u.cargo?.length ?? 0 : undefined, boarding: u.ride !== undefined || undefined, pax: d.rescues ? u.pax?.length ?? 0 : undefined,
         ...(d.shield && d.shieldRadius ? { sh: (u.sh ?? d.shield) / d.shield, shR: d.shieldRadius, shUp: !u.shDown && (u.sh ?? d.shield) > 0 } : {}),
       };
@@ -2628,7 +2628,7 @@ export class Sim {
         if (b) { tx = b.x; tz = b.z; }
       }
       const working = (t.kind === 'build' || t.kind === 'repair') && Math.hypot(tx - d.x, tz - d.z) < 14;
-      return { id: d.id, x: d.x, z: d.z, heading: d.heading, tx, tz, moving: t.kind !== 'idle', working, hp: d.hp / RULES.droneHp, task: t.kind, manual: !!d.manual };
+      return { id: d.id, team: d.team, x: d.x, z: d.z, heading: d.heading, tx, tz, moving: t.kind !== 'idle', working, hp: d.hp / RULES.droneHp, task: t.kind, manual: !!d.manual };
     });
     const packs = s.packs.map((p) => {
       let x = 0, z = 0, n = 0;
@@ -2638,6 +2638,7 @@ export class Sim {
     const inh = this.inhabitants.snapshot();
     return {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
+      players: s.players?.map((p) => ({ name: p.name, color: p.color, side: p.side, ai: p.ai, out: !!p.out, home: p.home })),
       drones, fauna: fa, buildings: s.buildings.map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
       wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),
       seams: (s.seams ?? []).map((v) => ({ ...v })), isotopes: s.isotopes ?? 0,

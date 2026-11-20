@@ -16,6 +16,7 @@ import { Provinces, type ProvinceData } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { SolarSystem } from './world/system';
 import { startSkirmish } from './skirmish/mode';
+import { skirmishFromUrl } from './skirmish/setup';
 import { Landing } from './landing';
 import { Cinematic, type CineHooks } from './cinematic';
 import { loadModel } from './assets/models';
@@ -138,7 +139,9 @@ const skirmishMode = params.get('mode') === 'skirmish';
 // ?scratch=1 neither reads nor writes the autosave; ?preview=1 plays the region
 // the editor's Play test button left in localStorage (unsaved edits included).
 const preview = params.get('preview') === '1' ? readPreview() : null;
-const scratch = params.get('scratch') === '1' || !!preview;
+/** ?skirmish=<seed>: you against computer players on a generated map (src/skirmish/setup.ts lists the options). */
+const rts = !skirmishMode && params.has('skirmish') ? skirmishFromUrl(params, content.bodies) : null;
+const scratch = params.get('scratch') === '1' || !!preview || !!rts;
 function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup; cinematic?: { id: string; def: CinematicDef }; interface?: InterfaceDef } | null {
   try {
     const p = JSON.parse(localStorage.getItem(PREVIEW_KEY) ?? 'null');
@@ -155,11 +158,11 @@ if (!skirmishMode && !scratch) {
 }
 const savedRegion = autosaved?.sim.region ?? 'touchdown';
 const askedRegion = params.get('region');
-const regionId = preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : 'touchdown';
+const regionId = rts ? 'skirmish' : preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : 'touchdown';
 /** ?biome=<id> tries another biome's plants and wildlife on this region (the sim plays the region with it). */
 const biomeParam = params.get('biome');
 const biomeTest = !!biomeParam && !!content.biomes[biomeParam];
-const regionDef: RegionDef = biomeTest ? { ...(preview?.def ?? content.regions[regionId]), biome: biomeParam! } : preview?.def ?? content.regions[regionId];
+const regionDef: RegionDef = rts ? rts.map.region : biomeTest ? { ...(preview?.def ?? content.regions[regionId]), biome: biomeParam! } : preview?.def ?? content.regions[regionId];
 const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
 /** The region's terrain with its body (a planet, moon, asteroid or comet) looked up: every worker gets this. */
 const terrain = regionTerrain(regionDef, content.bodies);
@@ -175,7 +178,7 @@ const audio = new GameAudio(content.sound, content.assets, skirmishMode || param
 const sim = new SimClient((t, l, cue) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l); else early.push([t, l]);
-}, !skirmishMode, regionId, biomeTest ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic);
+}, !skirmishMode, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup);
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
 if (preview?.mission) content.missions[preview.mission.id] = preview.mission.def;
@@ -377,7 +380,7 @@ function solTime(tick: number) {
  * The title screen comes first unless a URL asks to go straight in:
  * ?title=0 (resume or land as before), ?intro=0, ?new=1, ?view=…, skirmish.
  */
-const useTitle = !skirmishMode && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
+const useTitle = !skirmishMode && !rts && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
 if (useTitle) document.body.classList.add('title');
 let title: TitleScreen | null = null;
 
@@ -459,7 +462,12 @@ function playCinematic(id: string, def: CinematicDef, from = 0) {
   }));
   if (from > 0) cine.seek(from);
 }
-if (!skirmishMode && !useTitle) {
+if (rts) {
+  // a skirmish starts deployed: the camera on your Command Core
+  const h = rts.setup.homes![0];
+  cam.fx = h.x; cam.fz = h.z;
+  cam.targetDist = cam.dist = 110;
+} else if (!skirmishMode && !useTitle) {
   if (resumed) startResume();
   else if (params.get('intro') === '0' || params.get('view')) sim.command({ type: 'landing', stage: 'deploy' });
   else startLanding();

@@ -144,7 +144,7 @@ try {
   await page.getByText('OPTIONS', { exact: true }).click();
   await page.waitForSelector('#options');
   const op = await page.evaluate(() => document.getElementById('options').innerText);
-  check(/Region/i.test(op) && /Sound/.test(op) && /Smoke Test Basin\s*HERE/i.test(op), 'Options lists the regions (this one HERE) and the sound');
+  check(/Region/i.test(op) && /Sound/.test(op) && /Smoke Test Basin\s*(\S+\s*)?HERE/i.test(op), 'Options lists the regions (this one HERE) and the sound');
   await page.click('#options [data-id="region:touchdown"]');
   await page.waitForURL((u) => !u.searchParams.get('region'), { timeout: 20000 });
   check(true, 'picking a region in Options goes there (back to Touchdown)');

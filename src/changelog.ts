@@ -17,6 +17,16 @@ export const CHANGELOG: Release[] = [
   {
     version: '0.51.0',
     date: '2026-11-20',
+    title: 'Skirmish maps',
+    notes: [
+      'New skirmish maps are generated from a seed: 2 to 4 bases evenly round the map, each on flat ground with the same deposits, isotope seam and geothermal vent, rich deposits to fight over between them, and a land route from every base to the middle',
+      'Pick the world (Home, Verdance, Dunmore, Rime, Cinder, Ash), the size, how much sea and how rough the ground is',
+      'Preview for now: the skirmish setup screen comes next. Until then a link starts one, e.g. ?skirmish=42&players=3&world=rime&relief=rugged (no computer players yet)',
+    ],
+  },
+  {
+    version: '0.51.0',
+    date: '2026-11-20',
     title: 'Sounds of the colony',
     notes: [
       'The title music now plays straight away where your browser allows it; where it doesn\'t, the title tells you to click anywhere for sound (before, only Options would start it)',

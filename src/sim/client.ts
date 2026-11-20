@@ -1,5 +1,5 @@
 import type { CinematicDef, MissionDef, RegionDef, StoryDef } from '../content/defs';
-import { TICK_MS, type Command, type EventCue, type FromWorker, type SimState, type Snapshot } from './types';
+import { TICK_MS, type Command, type EventCue, type FromWorker, type SimState, type SkirmishSetup, type Snapshot } from './types';
 
 /** Most effect floats carried over between unseen snapshots (5 per effect). */
 const MAX_FX = 5 * 600;
@@ -16,7 +16,7 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue) => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }) {
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue) => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup) {
     // disabled (skirmish mode): a stub that never produces snapshots
     this.worker = enabled
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
@@ -47,7 +47,7 @@ export class SimClient {
       }
     };
     // the region comes first: the sim starts its first game from it
-    this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic });
+    this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic, skirmish });
   }
 
   /** 0..1 blend factor between prev and cur for this frame. */

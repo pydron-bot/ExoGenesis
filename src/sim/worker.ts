@@ -14,6 +14,8 @@ let region = 'touchdown';
 let sim: Sim = null!;
 let speed = 1;
 let autosave = false;
+/** A skirmish's setup (restarts start it again). */
+let skirmish: import('./types').SkirmishSetup | null = null;
 let saving = false;
 let lastSavedTick = -1;
 
@@ -52,6 +54,8 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
     if (msg.mission) content.missions[msg.mission.id] = msg.mission.def;
     if (msg.cinematic) content.cinematics[msg.cinematic.id] = msg.cinematic.def;
     sim = new Sim((text, level, cue) => post({ type: 'event', text, level, cue }));
+    skirmish = msg.skirmish ?? null;
+    if (skirmish) sim.newSkirmish(skirmish);
     snapshot();
     last = performance.now();
     setInterval(tick, TICK_MS / 2);
@@ -78,7 +82,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       post({ type: 'event', text: 'Save restored', level: 'info', cue: 'confirm' });
       return;
     case 'new':
-      sim.newGame(msg.seed);
+      if (skirmish) sim.newSkirmish(skirmish); else sim.newGame(msg.seed);
       lastSavedTick = -1;
       snapshot();
       return;

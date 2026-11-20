@@ -711,6 +711,7 @@ export function buildForKind(kind: string, role: string): THREE.Group {
 /** Built-in model for a building kind's role. */
 export function buildForRole(role: string): THREE.Group {
   switch (role) {
+    case 'core': return buildCore();
     case 'gate': return buildGate();
     case 'repair': return buildRepairPad();
     case 'geothermal': return buildGeothermal();
@@ -1434,7 +1435,8 @@ export class RegionView {
     const charge = cur.storageMax > 0 ? cur.stored / cur.storageMax : 0;
     for (const b of cur.buildings) {
       const d = this.rules.defs[b.kind];
-      if (b.kind === 'core') { coreSeen = true; this.hpBar(b, d, ui, camera, null); continue; }
+      // the campaign's Core is the landed probe (this.core, at the origin); a skirmish's Cores are buildings like any other
+      if (b.kind === 'core' && !cur.players) { coreSeen = true; this.hpBar(b, d, ui, camera, null); continue; }
       seen.add(b.id);
       const done = b.progress >= 1;
       let e = this.buildings.get(b.id);

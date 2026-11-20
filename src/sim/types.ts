@@ -500,7 +500,7 @@ export interface PlaySetup { sol?: number; alloys?: number; isotopes?: number; c
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
-  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef } }
+  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef }; skirmish?: SkirmishSetup }
   | { type: 'cmd'; cmd: Command }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }
@@ -515,10 +515,14 @@ export type ToWorker =
 export interface DroneSnap {
   id: number; x: number; z: number; heading: number; tx: number; tz: number;
   moving: boolean; working: boolean; hp: number; task: DroneTask['kind']; manual: boolean;
+  /** Owner (skirmish; unset = you). */
+  team?: number;
 }
 
 export interface UnitSnap {
   id: number; unit: string; slot: number; x: number; z: number; hp: number;
+  /** Owner (skirmish; unset = you). */
+  team?: number;
   order: Unit['order']['kind']; tx: number; tz: number; engaged: boolean;
   /** A transport: how many are aboard. */
   cargo?: number;
@@ -542,6 +546,8 @@ export interface CampSnap {
 export interface Snapshot {
   type: 'snap';
   tick: number;
+  /** Skirmish players (absent in the campaign). */
+  players?: { name: string; color: string; side: number; ai?: PlayerState['ai']; out: boolean; home: { x: number; z: number } }[];
   /** Game seconds since landing. */
   secs: number;
   /** False until the landing sequence has put the drone on the ground. */

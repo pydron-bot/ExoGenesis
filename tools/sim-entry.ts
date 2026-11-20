@@ -5,3 +5,8 @@
  */
 export { Sim, useRegion } from '../src/sim/core';
 export { content } from '../src/content';
+export { skirmishHomes } from '../src/sim/core';
+export { generateSkirmishMap, mapSide } from '../src/skirmish/mapgen';
+export { placeProblem } from '../src/sim/rules';
+export { PathGrid } from '../src/sim/path';
+export * as planet from '../src/world/planet';
