@@ -1384,6 +1384,47 @@ export interface Collection {
   group: string;
 }
 
+/**
+ * Colonists' voices (content/voices/<id>.json): what named colonists say when something happens (a short remark in
+ * the log and on their card, never more than one every so often), and the second half of their one-line backstory
+ * (`on: bio`). A record's filters pick who may say it; the most specific matching records are preferred.
+ * In lines: {name} = the speaker's first name, {other} = who it's about (the dead friend, the child, the camp),
+ * {building} = the building.
+ */
+export const VOICE_EVENTS = ['bio', 'decant', 'birth', 'death', 'packBeaten', 'lost', 'brownout', 'hungry', 'strike', 'research', 'contact', 'trust', 'threat', 'held', 'hero', 'heroHeld', 'rescued', 'idle'] as const;
+export type VoiceEvent = (typeof VOICE_EVENTS)[number];
+const VOICE_HELP: Record<VoiceEvent, string> = {
+  bio: 'The second half of a colonist\'s one-line backstory (after their line and where the donors came from).',
+  decant: 'Their first words out of the growth pod.',
+  birth: 'A parent, when their child is born ({other} = the child).',
+  death: 'Someone who loved the dead: a partner, a housemate, a parent or child ({other} = the dead).',
+  packBeaten: 'A predator pack beaten off.',
+  lost: 'One of our buildings destroyed ({building}).',
+  brownout: 'The cryo bank short of power.',
+  hungry: 'The colony out of food.',
+  strike: 'A striker, when a strike starts.',
+  research: 'Research done (a Technician first, if there is one; {other} = the project).',
+  contact: 'First contact with an inhabitant camp ({other} = who).',
+  trust: 'An inhabitant camp comes to trust us ({other} = who).',
+  threat: 'A threat announced on an outlying holding ({other} = the holding).',
+  held: 'A holding held through a threat ({other} = the holding).',
+  hero: 'Someone inside a building that\'s being torn apart decides to hold it ({building}).',
+  heroHeld: 'They held it ({building}).',
+  rescued: 'Someone brought in alive after lying injured.',
+  idle: 'Now and then, on a quiet day.',
+};
+export const voiceLineShape = { text: str({ label: 'Line', multiline: true }) } satisfies Shape;
+export const voiceShape = {
+  on: choice(VOICE_EVENTS, { label: 'When', helps: VOICE_HELP }),
+  bloc: choice(['partner', 'autonomist', 'devoted'], { label: 'Only a bloc', optional: true }),
+  trait: choice(['optimist', 'anxious', 'stoic', 'diligent', 'independent', 'trusting', 'frail'], { label: 'Only with a trait', optional: true }),
+  specialty: choice(SPECIALTIES, { label: 'Only a specialty', optional: true }),
+  origin: choice(['pod', 'born'], { label: 'Only pod-grown or born', optional: true }),
+  lines: list(voiceLineShape, { label: 'Lines', max: 24, help: 'One is picked at random. {name}, {other}, {building}.' }),
+  notes: str({ label: 'Writer\'s notes', multiline: true, optional: true }),
+} satisfies Shape;
+export type VoiceDef = Infer<typeof voiceShape>;
+
 export const COLLECTIONS = {
   units: { path: 'units', kind: 'many', shape: unitShape, label: 'Units', title: 'name', group: 'Game data' },
   buildings: { path: 'buildings', kind: 'many', shape: buildingShape, label: 'Buildings', title: 'name', group: 'Game data' },
@@ -1398,6 +1439,7 @@ export const COLLECTIONS = {
   story: { path: 'story', kind: 'many', shape: storyShape, label: 'Story events', title: 'title', group: 'Story' },
   inhabitants: { path: 'inhabitants', kind: 'many', shape: inhabitantShape, label: 'Inhabitants', title: 'name', group: 'Story' },
   characters: { path: 'characters', kind: 'many', shape: characterShape, label: 'Characters', title: 'name', group: 'Story' },
+  voices: { path: 'voices', kind: 'many', shape: voiceShape, label: 'Colonist voices', title: 'on', group: 'Story' },
   lore: { path: 'lore', kind: 'many', shape: loreShape, label: 'Story bible', title: 'title', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },

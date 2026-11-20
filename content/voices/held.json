@@ -1,0 +1,11 @@
+{
+  "on": "held",
+  "lines": [
+    {
+      "text": "The {other} held. Tell everyone."
+    },
+    {
+      "text": "We kept the {other}. That's ours now."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "on": "brownout",
+  "lines": [
+    {
+      "text": "The lights are flickering again."
+    },
+    {
+      "text": "Is the cryo bank all right? Tell me the bank is all right."
+    },
+    {
+      "text": "It's cold in here. Is that the power?"
+    }
+  ]
+}

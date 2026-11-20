@@ -1,0 +1,14 @@
+{
+  "on": "lost",
+  "lines": [
+    {
+      "text": "The {building} is gone. I worked there."
+    },
+    {
+      "text": "We built the {building} with our hands. We'll build it again."
+    },
+    {
+      "text": "Another hole in the perimeter."
+    }
+  ]
+}

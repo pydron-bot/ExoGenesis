@@ -1,0 +1,17 @@
+{
+  "on": "death",
+  "lines": [
+    {
+      "text": "{other} saved me a seat at every meal. I keep looking at it."
+    },
+    {
+      "text": "I didn't get to say goodbye to {other}."
+    },
+    {
+      "text": "Someone has to finish what {other} started. I will."
+    },
+    {
+      "text": "Put {other}'s name on the wall. Please."
+    }
+  ]
+}

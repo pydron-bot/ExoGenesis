@@ -1,0 +1,9 @@
+{
+  "on": "death",
+  "bloc": "devoted",
+  "lines": [
+    {
+      "text": "Did you keep a record of {other}? Every word? Good."
+    }
+  ]
+}

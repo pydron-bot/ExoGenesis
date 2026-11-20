@@ -1,0 +1,14 @@
+{
+  "on": "research",
+  "lines": [
+    {
+      "text": "{other} is done. It works, too."
+    },
+    {
+      "text": "We finished {other}. On to the next."
+    },
+    {
+      "text": "I understood about half of {other}. The useful half."
+    }
+  ]
+}

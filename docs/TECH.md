@@ -1761,3 +1761,36 @@ so the player has to go back out to them, and **standing orders** let a holding 
   unguarded holding loses 80 alloys to a Vell raid, a powered turret turns the raid back; a surge's sentinels open fire
   on the holding. The balance bots still lose Touchdown before 25 min with predators on, so the frontier (from 25 min)
   doesn't change those runs.
+
+### Colonists as people (campaign depth 5)
+
+Named colonists get a backstory, a voice, their own grief, and moments where one of them matters. Content:
+`content/voices/<id>.json` (new collection, editor: Story → Colonist voices; `voiceShape`): `on` (a moment from
+`VOICE_EVENTS`), optional filters (`bloc`, `trait`, `specialty`, `origin`) and `lines` (`{name}`, `{other}`,
+`{building}`). Code: the voices section of `src/sim/people.ts` (`say`, `bio`, `struck`, `heroGuard`, `moments`),
+hooks in `core.ts`, `inhabitants.ts`, `frontier.ts`; the colonist card and Colony panel in `src/people-hud.ts`.
+Test: `tools/voices-smoke.mjs` (`--headless-only`; browser half on `:5186`).
+
+- **Backstory** (`Colonist.bio`): "Okafor line, donor stock from the Niger delta." (`LINEAGE_FROM` in `names.ts`) or
+  "Born in the colony to Ada and Kofi.", then a line from the `bio` voices that fit their trait or origin, picked by
+  their id (no random draw, so an older save loading gets the same story). On the colonist card under the name.
+- **Remarks** (`People.say(on, who?, vars, force)`): an adult (the one it concerns, or anyone) says a line that fits
+  them (the most specific matching records 60% of the time, else any that match). Logged as `Name: “…”`, kept in
+  `PeopleState.voices` (last 30), on the speaker's card for a sol, and the last five in the Colony panel under
+  **Voices** (tap to find them). Throttled: one every 45 s and each kind every 150 s (`VOICE_GAP`,
+  `VOICE_KIND_GAP`), except a death, a birth and a hero. Moments: first words out of the pod, a birth (a parent), a
+  death (who loved them), a pack beaten, a building lost, a brownout, hunger, a strike starting, research done (a
+  Technician first), first contact, trust, a frontier threat and a holding held, a hero, someone rescued, and on a
+  quiet day (after 5 quiet minutes, about one in 150 s). 35 records, 93 lines.
+- **Mourning:** when someone dies, the people who loved them grieve on their own (`Colonist.sorrow`: a partner 30, a
+  parent or child 20, a housemate 12; reason "Mourning", fading over a couple of sols); the closest says something, and
+  the memorial records who mourned them (`Memorial.by`, "Mourned by …" in the Memorial tab).
+- **A hero** (`People.struck`, called when a predator's blow lands on a building): a building torn below half with
+  adults inside gets one of them to hold it (a Security officer first, then Autonomists, the stoic, the happiest):
+  logged, a line of their own, the building takes half damage for 25 s (`heroGuard`, in `buildingHarm`), their card
+  says "Holding the …". If it stands, the deed is theirs ("Held the Civilian Center when it was under attack, Sol 6",
+  shown with ★ on their card), +10 wellbeing for them and +3 for everyone; if it falls, "Stayed in the … until it
+  fell". One hero per building per fight (180 s).
+- **Measured** (headless): every colonist has a different backstory; one remark, then nothing within the gap; a quiet
+  sol gives 0–2 remarks; a partner's death: sorrow 30, a line, "mourned by" three names; a Brute's blow on a held
+  Civilian Center 48 → 24.

@@ -527,6 +527,11 @@ body.colony-open #goals { display: none !important; }
 #hud #colony .trade button { padding: 4px 7px; font-size: 11px; white-space: nowrap; }
 #colony .trade small { opacity: 0.6; }
 #hud #colony button.poor { opacity: 0.5; }
+#card .bio { font-size: 11px; font-style: italic; opacity: 0.75; margin: 2px 0 4px; line-height: 1.4; }
+#card .said { font-size: 12px; color: #ffd27a; margin: 2px 0 4px; }
+#card .deeds { font-size: 11px; color: #8affb4; margin: 2px 0 4px; }
+#hud #colony button.voice { display: block; width: 100%; text-align: left; font-size: 11.5px; line-height: 1.4; padding: 3px 6px; margin: 2px 0; }
+#colony button.voice small, #colony .mem .by { opacity: 0.55; }
 #card .why { display: flex; flex-wrap: wrap; gap: 3px; margin: 2px 0 6px; }
 #card .why span { font-size: 10.5px; padding: 0 4px; border-radius: 2px; border: 1px solid rgba(255,255,255,.15); }
 #card .why .neg { color: #ff8a7a; } #card .why .pos { color: #8affb4; }

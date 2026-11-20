@@ -1,0 +1,12 @@
+{
+  "on": "idle",
+  "bloc": "partner",
+  "lines": [
+    {
+      "text": "Good shift today. Good team."
+    },
+    {
+      "text": "You and us. It's working, isn't it?"
+    }
+  ]
+}

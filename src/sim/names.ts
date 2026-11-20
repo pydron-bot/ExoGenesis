@@ -10,6 +10,15 @@ export const LINEAGES = [
   'Halvorsen', 'Esposito', 'Takahashi', 'Nwosu', 'Calderón', 'Brennan', 'Sato', 'Mirza',
 ];
 
+/** Where each lineage's donors were found (same order as LINEAGES): backstories. */
+export const LINEAGE_FROM = [
+  'the Niger delta', 'the Osaka relief camps', 'a Gothenburg seed vault', 'Beirut', 'the Loire evacuation', 'a Murmansk bunker', 'the Altiplano', 'Kumasi',
+  'the Vistula floodlands', 'a Rotterdam sea-wall crew', 'Monterrey', 'Chennai', 'a Hokkaido fishing town', 'Ibadan', 'Sicily', 'the Zagreb archives',
+  'the Rift Valley', 'a Yorkshire hill farm', 'the Faroe Islands', 'Tripoli in Lebanon', 'Chongqing', 'Soweto', 'the Hungarian plain', 'Marseille',
+  'the Azores', 'Tabriz', 'Hilo', 'Lyon', 'the Black Forest', 'Busan', 'Abeokuta', 'a Volga river barge',
+  'a Bergen lab', 'Naples', 'the Kyoto archive', 'Enugu', 'the Atacama', 'Galway', 'Sendai', 'Lahore',
+];
+
 export const GIVEN = [
   'Ada', 'Amara', 'Anika', 'Aiyana', 'Beatriz', 'Chioma', 'Dalia', 'Elif', 'Esme', 'Farah',
   'Freya', 'Hana', 'Ines', 'Iris', 'Jun', 'Kaia', 'Leilani', 'Lena', 'Lucía', 'Mara',

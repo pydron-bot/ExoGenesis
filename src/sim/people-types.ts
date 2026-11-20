@@ -88,6 +88,14 @@ export interface Colonist {
   strike?: boolean;
   /** Parents' ids (born colonists). */
   parents?: [number, number];
+  /** One line about who they are (made when they arrive; older saves get one on load). */
+  bio?: string;
+  /** What they did that the colony remembers ("Held the Mining Depot, Sol 6"). */
+  deeds?: string[];
+  /** Their own grief for someone they loved (wellbeing points, fading). */
+  sorrow?: number;
+  /** Holding a building under attack (its id) until this game second. */
+  hero?: { b: number; until: number };
 }
 
 /** `Colonist.at` while aboard a medevac (-1 is outdoors, a building id is indoors). */
@@ -111,6 +119,8 @@ export interface Memorial {
   age: number;
   /** How they were lost ('predators', 'starvation', 'old age', 'pod failure', 'left'...). */
   cause: string;
+  /** Who mourned them (names). */
+  by?: string;
   /** Game seconds. */
   at: number;
 }
@@ -141,6 +151,11 @@ export interface PeopleState {
   gone: number[];
   /** The first colonist out of a pod (story cards call them {first}); kept after they die. */
   first?: { id: number; name: string };
+  /** What colonists have said lately (newest last), and when the last remark was (game seconds, per kind too). */
+  voices?: { id: number; name: string; text: string; at: number; on: string }[];
+  said?: Record<string, number>;
+  /** Buildings a hero held lately (building id → game second): one hero per building per fight. */
+  heroCd?: Record<number, number>;
   /** A line promised the next growth pod (a story choice); used once. */
   favour?: number;
   /** Totals for the end screen. */
@@ -159,6 +174,12 @@ export interface ColonistSnap {
   jobId: number; atId: number;
   /** Why their wellbeing is what it is (biggest effects first). */
   why: [string, number][];
+  bio?: string;
+  deeds: string[];
+  /** The last thing they said (if lately), and whether they're mourning someone, or holding a building now. */
+  said?: string;
+  mourning: boolean;
+  hero: boolean;
 }
 
 export interface PeopleSnap {
@@ -188,6 +209,8 @@ export interface PeopleSnap {
   /** Growth pods per civic building. */
   pods: { b: number; slots: number; running: { specialty: Specialty; curriculum: Curriculum; lineage: string; progress: number; dark: number }[] }[];
   roster: ColonistSnap[];
+  /** What colonists have said lately, newest first: name, words, game seconds. */
+  voices: { id: number; name: string; text: string; at: number }[];
   memorial: (Omit<Memorial, 'lineage'> & { lineage: string })[];
   /** Embryos per lineage name (for the cryo bank view). */
   bank: { name: string; embryos: number; living: number }[];

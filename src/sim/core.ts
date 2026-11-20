@@ -588,7 +588,7 @@ export class Sim {
   /** Seconds a destroyed nest takes to grow back. */
   nestRegrowSecs() { return (THREATS.nestRegrow ?? 600) * Math.max(0.1, 1 + this.mod('nestRegrow')); }
   /** Share of a blow a building takes (armour research). */
-  buildingHarm(b: Building) { return clamp(1 - this.mod('armor'), 0.2, 2) * this.frontier.harm(b); }
+  buildingHarm(b: Building) { return clamp(1 - this.mod('armor'), 0.2, 2) * this.frontier.harm(b) * (this.s.people ? this.people.heroGuard(b) : 1); }
   /** The region's pack size multiplier. */
   regionPackScale() { return packScale(); }
   /**
@@ -940,6 +940,7 @@ export class Sim {
           const text = th === 0 ? 'Cryo bank at 0%: the embryos are dying fast'
             : `Cryo bank integrity ${th}% — not enough power${th < safe ? ' · embryos are dying' : th - 25 < safe ? ' · embryos at risk below ' + safe + '%' : ''}`;
           this.emit(text, th < safe ? 'bad' : 'warn', 'alarm');
+          if (th === 75 && s.people) this.people.say('brownout');
         }
       }
     }
@@ -1178,6 +1179,7 @@ export class Sim {
     s.stats.researched = (s.stats.researched ?? 0) + 1;
     const unlocks = [...Object.values(DEFS), ...Object.values(content.units)].filter((x) => x.research === a.id).map((x) => x.name);
     this.emit(`Research complete: ${r.name}${unlocks.length ? ` · unlocks ${unlocks.join(', ')}` : ''}`, 'info', 'research');
+    if (s.people) this.people.say('research', s.people.colonists.find((c) => c.specialty === 'technician'), { other: r.name });
     const flag = `research-${a.id}`;
     if (this.story.s && !this.story.has(flag)) this.story.s.flags.push(flag);
   }
@@ -1961,6 +1963,7 @@ export class Sim {
           const left = this.soak(h, tgt.x, tgt.z, u.damage * (isC ? this.people.harm() : 1), weaponFx(unitWeapon(u), false));
           if (left <= 0) continue;
           tgt.hp -= isB ? left * this.buildingHarm(tgt as Building) : left;
+          if (isB && s.people) this.people.struck(tgt as Building);
           if (!isC) this.underAttack(tgt as Building | Unit | Drone);
           if (tgt.hp <= 0) isB ? this.destroyBuilding(tgt as Building) : isU ? this.destroyUnit(tgt as Unit) : isC ? this.people.kill(tgt as Colonist, 'killed by predators') : this.destroyDrone(tgt as Drone);
         }
@@ -2162,6 +2165,7 @@ export class Sim {
       return;
     }
     this.emit(`${def(b).name} destroyed`, 'bad', def(b).role === 'wall' ? 'lost' : 'alarm', { x: b.x, z: b.z });
+    if (def(b).role !== 'wall' && s.people) this.people.say('lost', undefined, { building: def(b).name });
     this.planet.buildingLost(b.x, b.z, barrier(b));
     this.people.buildingLost(b);
     if (b.kind === 'core') this.lose('core');

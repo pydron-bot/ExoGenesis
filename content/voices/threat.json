@@ -1,0 +1,14 @@
+{
+  "on": "threat",
+  "lines": [
+    {
+      "text": "The {other} again? We only just rebuilt it."
+    },
+    {
+      "text": "Who's out at the {other}? Bring them home."
+    },
+    {
+      "text": "I'll go. Someone has to."
+    }
+  ]
+}

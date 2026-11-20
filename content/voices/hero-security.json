@@ -1,0 +1,9 @@
+{
+  "on": "hero",
+  "specialty": "security",
+  "lines": [
+    {
+      "text": "This is the job. Hold the {building}."
+    }
+  ]
+}

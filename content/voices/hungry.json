@@ -1,0 +1,14 @@
+{
+  "on": "hungry",
+  "lines": [
+    {
+      "text": "The stores are empty. What are we eating tomorrow?"
+    },
+    {
+      "text": "The children are hungry."
+    },
+    {
+      "text": "I'd give a week's shift for a full plate."
+    }
+  ]
+}

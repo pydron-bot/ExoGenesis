@@ -1,0 +1,12 @@
+{
+  "on": "research",
+  "specialty": "technician",
+  "lines": [
+    {
+      "text": "{other}: signed off. Don't ask me to explain it twice."
+    },
+    {
+      "text": "Three nights on {other}. Worth it."
+    }
+  ]
+}

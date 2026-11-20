@@ -1,0 +1,9 @@
+{
+  "on": "death",
+  "bloc": "autonomist",
+  "lines": [
+    {
+      "text": "You watch everything. Where were you when {other} needed you?"
+    }
+  ]
+}

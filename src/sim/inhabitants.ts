@@ -115,6 +115,7 @@ export class Inhabitants {
         c.pending = true;
         this.sim.emit(`${g.contactTitle}: ${cap(g.name)} have seen us`, 'warn', 'discovery');
         this.flag(`contact-${c.group}`); this.flag('inhabitants-met');
+        if (s.people) this.sim.people.say('contact', undefined, { other: g.name });
       }
       if ((s.tick + i) % EVERY) return;
       this.regard(c, g, EVERY * DT);
@@ -147,6 +148,7 @@ export class Inhabitants {
       // the story plays once (the HUD shows it as a card); after that, a log line
       this.sim.emit(c.sang ? `${cap(g.name)} trust us again` : `${g.trustTitle}: ${cap(g.name)} trust us`, 'info', 'friend');
       this.flag(`trust-${c.group}`);
+      if (this.sim.s.people) this.sim.people.say('trust', undefined, { other: g.name });
       c.sang = true;
     }
   }

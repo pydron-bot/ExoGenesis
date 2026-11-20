@@ -14,10 +14,10 @@
  * AI?). Stance sorts them into blocs, and the blocs want different policies.
  */
 import { content } from '../content';
-import { SPECIALTIES, type BuildingDef, type Cast, type Specialty } from '../content/defs';
+import { SPECIALTIES, type BuildingDef, type Cast, type Specialty, type VoiceEvent } from '../content/defs';
 import type { Sim } from './core';
 import { hourAt } from './daylight';
-import { GIVEN, LINEAGES, TRAITS, type Trait } from './names';
+import { GIVEN, LINEAGES, LINEAGE_FROM, TRAITS, type Trait } from './names';
 import {
   AT_RIDE, BLOCS, CURRICULA, POLICIES, blocOf,
   type Bloc, type Colonist, type ColonistSnap, type PeopleCommand, type PeopleSnap, type PeopleState, type Pod, type PolicyKey,
@@ -62,6 +62,11 @@ const LIKES: Record<'council' | 'oversight', Record<string, Record<Bloc, number>
 /** Stance drift per sol from policy. */
 const PULL = { council: { directive: 3, joint: 0.5, assembly: -3 }, oversight: { light: 1, standard: 0, total: -2 } } as const;
 
+/** Remarks: at most one this often (game seconds), each kind of event at most this often (deaths, heroes and births aside). */
+const VOICE_GAP = 45, VOICE_KIND_GAP = 150;
+/** A hero holds a building this long (s), at this share of the damage; one hero per building per fight (cooldown, s). */
+const HERO_SECS = 25, HERO_GUARD = 0.5, HERO_CD = 180;
+const s0 = (x?: string) => (x ? x.split(' ')[0] : '');
 /** Grief fades this much faster while a Memorial stands. */
 const MEMORIAL_GRIEF = 1.75;
 /** A Med Bay caring for someone's home multiplies their yearly chance of dying of old age by this. */
@@ -121,6 +126,7 @@ export class People {
     }
     const s = this.s;
     s.colonists = s.colonists.filter((c) => !c.specialty || SPECIALTIES.includes(c.specialty));
+    for (const c of s.colonists) c.bio ??= this.bio(c);
     this.reset();
   }
 
@@ -181,6 +187,7 @@ export class People {
       c.hp = Math.max(c.hp, def(b)?.role === 'medbay' ? this.maxHp(c) : P.colonistHp * 0.5);
       c.stance = clamp(c.stance + 4, 0, 100);
       n++;
+      this.say('rescued', c);
     }
     return n;
   }
@@ -258,6 +265,7 @@ export class People {
         c.stance = clamp(c.stance + 3, 0, 100);
         this.stable.delete(c.id);
         this.emit(`${d.name}: ${c.name} was brought in on a stretcher`, 'info', 'online');
+        this.say('rescued', c);
       }
       this.treat.set(b.id, t);
     }
@@ -306,6 +314,7 @@ export class People {
   /** A building is gone: its people spill out (hurt), its pods are lost. */
   buildingLost(b: Building, hurt = true) {
     const s = this.s;
+    for (const c of s.colonists) if (c.hero?.b === b.id) { c.hero = undefined; (c.deeds ??= []).push(`Stayed in the ${def(b).name} until it fell, Sol ${Math.floor(this.secs / SOL) + 1}`); }
     let down = 0;
     for (const p of [...s.pods]) {
       if (p.b !== b.id) continue;
@@ -335,6 +344,9 @@ export class People {
     const s = this.s;
     const i = s.colonists.indexOf(c);
     if (i < 0) return;
+    // who will miss them: a partner most, then parents and children, then the people they lived with
+    const close = (o: Colonist) => (o.id === c.partner || o.partner === c.id ? 30 : c.parents?.includes(o.id) || o.parents?.includes(c.id) ? 20 : o.home >= 0 && o.home === c.home ? 12 : 0);
+    const mourners = left ? [] : s.colonists.filter((o) => o !== c && close(o) > 0).sort((a, b) => close(b) - close(a));
     s.colonists.splice(i, 1);
     for (const o of s.colonists) if (o.partner === c.id) o.partner = -1;
     this.memorialise(c.name, c.lineage, Math.floor(this.age(c)), cause);
@@ -343,6 +355,11 @@ export class People {
     this.sim.fxDeath(c.x, c.z);
     s.grief += 12;
     this.emit(`${c.name} (${Math.floor(this.age(c))}) has died: ${cause}`, 'bad', 'death');
+    for (const o of mourners) o.sorrow = Math.max(o.sorrow ?? 0, close(o));
+    if (mourners.length) {
+      s.memorial[s.memorial.length - 1].by = mourners.slice(0, 3).map((o) => o.name).join(', ');
+      this.say('death', mourners[0], { other: c.name.split(' ')[0] }, true);
+    }
     // deaths the AI might have prevented cost it trust
     if (cause !== 'old age') this.shock(cause.includes('starv') ? -3 : -1.5);
   }
@@ -449,10 +466,11 @@ export class People {
       this.lifecycle(dt);
       this.politics(dt);
       this.checkLines();
+      this.moments();
       if (sim.stats.packsBeaten > this.packsSeen) {
         // a pack beaten off with nobody hurt: a little faith in the AI
         this.packsSeen = sim.stats.packsBeaten;
-        if (s.colonists.length) this.shock(1);
+        if (s.colonists.length) { this.shock(1); this.say('packBeaten'); }
       }
       if (this.embryos() === 0 && !s.colonists.length && !s.pods.length) this.sim.lose(this.lastLoss);
     }
@@ -488,7 +506,7 @@ export class People {
     eaten += this.sim.planet.use; // seed banks (src/sim/planet.ts), last tick
     this.food = { made, eaten };
     s.biomass = clamp(s.biomass + (made - eaten) * DT, 0, this.storage());
-    if (s.biomass <= 0 && eaten > made) s.hungry += DT;
+    if (s.biomass <= 0 && eaten > made) { if (s.hungry === 0 && s.colonists.length) this.say('hungry'); s.hungry += DT; }
     else s.hungry = Math.max(0, s.hungry - DT * 3);
   }
 
@@ -562,6 +580,7 @@ export class People {
       origin: 'pod', wb: 65, stance: 50, hp: P.colonistHp * (traits.includes('frail') ? 0.6 : 1),
       home: -1, job: -1, at: b.id, goal: b.id, x: b.x, z: b.z, heading: 0, partner: -1, ...extra,
     };
+    c.bio = this.bio(c);
     s.colonists.push(c);
     return c;
   }
@@ -575,6 +594,7 @@ export class People {
     this.s.grown++;
     this.s.first ??= { id: c.id, name: c.name };
     this.emit(`${c.name} steps out of the growth pod · ${cap(p.specialty)}, ${cur.name} imprint`, 'info', 'birth');
+    this.say('decant', c);
   }
 
   // ---------- housing and jobs ----------
@@ -774,6 +794,8 @@ export class People {
         for (const [k, v] of best) add(k, v);
       }
       if (c.partner >= 0) add('Partner', 5);
+      if (c.sorrow) { add('Mourning', -c.sorrow * hard); c.sorrow *= Math.exp(-2.5 * dt / SOL); if (c.sorrow < 0.5) c.sorrow = undefined; }
+      if (c.hero) add('Holding the line', 4);
       if (s.surge > 0) add('Breakthrough', 6);
       if (c.hp < P.colonistHp * 0.5) add('Injured', -10);
       add('Colony projects', this.sim.mod('wellbeing'));
@@ -806,6 +828,7 @@ export class People {
     // announce a strike when it starts and when it has grown by half again; and when it ends
     if (striking > 0 && striking >= Math.max(1, Math.ceil(this.strikeSaid * 1.5))) {
       this.emit(`${striking} colonist${striking > 1 ? 's are' : ' is'} on strike`, 'warn', 'warning');
+      this.say('strike', s.colonists.find((c) => c.strike));
       this.strikeSaid = striking;
     } else if (striking === 0 && this.strikeSaid > 0) {
       this.emit('The strike is over: everyone is back at work', 'info', 'friend');
@@ -860,6 +883,7 @@ export class People {
       homeCount.set(home.id, (homeCount.get(home.id) ?? 0) + 1);
       s.births++;
       this.emit(`A child is born: ${kid.name}, to ${a.name.split(' ')[0]} and ${b.name.split(' ')[0]}`, 'info', 'birth');
+      this.say('birth', a, { other: kid.name.split(' ')[0] }, true);
     }
   }
 
@@ -977,6 +1001,94 @@ export class People {
     return clamp((tot * tot) / sq / s.bank.length * 100, 0, 100);
   }
 
+  // ---------- voices: remarks, backstories, heroes ----------
+  /** Lines a colonist could say for an event (content/voices): the most specific matching records, or now and then any that match. */
+  private voiceLines(on: VoiceEvent, c: Colonist): string[] {
+    const pools: string[][] = [];
+    for (const v of Object.values(content.voices ?? {})) {
+      if (v.on !== on || (v.bloc && blocOf(c.stance) !== v.bloc) || (v.trait && !c.traits.includes(v.trait as Trait)) || (v.specialty && c.specialty !== v.specialty) || (v.origin && c.origin !== v.origin)) continue;
+      const k = (v.bloc ? 1 : 0) + (v.trait ? 1 : 0) + (v.specialty ? 1 : 0) + (v.origin ? 1 : 0);
+      (pools[k] ??= []).push(...v.lines.map((l) => l.text));
+    }
+    const all = pools.flat();
+    const top = pools[pools.length - 1] ?? [];
+    return pools.length > 1 && this.sim.rnd() < 0.6 ? top : all;
+  }
+
+  /** Someone to say it: an adult who isn't lying hurt or riding a medevac. */
+  private speaker(): Colonist | undefined {
+    const ok = this.s.colonists.filter((c) => this.adult(c) && c.down === undefined && c.at !== AT_RIDE);
+    return ok.length ? ok[Math.floor(this.sim.rnd() * ok.length)] : undefined;
+  }
+
+  /**
+   * A colonist says something about what just happened: a line in the log and on their card. At most one remark every
+   * VOICE_GAP seconds, and each kind of event every VOICE_KIND_GAP, unless `force` (a death, a hero, a birth).
+   */
+  say(on: VoiceEvent, who?: Colonist, vars: { other?: string; building?: string } = {}, force = false): boolean {
+    const s = this.s, now = this.secs, said = (s.said ??= {});
+    if (!force && (now - (said._ ?? -1e9) < VOICE_GAP || now - (said[on] ?? -1e9) < VOICE_KIND_GAP)) return false;
+    const c = who && this.adult(who) && who.down === undefined ? who : this.speaker();
+    if (!c) return false;
+    const lines = this.voiceLines(on, c);
+    if (!lines.length) return false;
+    const text = lines[Math.floor(this.sim.rnd() * lines.length)]
+      .replaceAll('{name}', c.name.split(' ')[0]).replaceAll('{other}', vars.other ?? 'them').replaceAll('{building}', vars.building ?? 'the building');
+    said._ = now; said[on] = now;
+    const v = (s.voices ??= []);
+    v.push({ id: c.id, name: c.name, text, at: now, on });
+    if (v.length > 30) v.shift();
+    this.emit(`${c.name}: “${text}”`, 'info');
+    return true;
+  }
+
+  /** A one-line backstory: their line and where its donors came from (or their parents), then something about them (content/voices `bio`). */
+  private bio(c: Colonist): string {
+    const parents = (c.parents ?? []).map((id) => s0(this.colonist(id)?.name)).filter(Boolean);
+    const head = c.origin === 'born' ? `Born in the colony${parents.length ? ` to ${parents.join(' and ')}` : ''}.` : `${lineName(c.lineage)} line, donor stock from ${LINEAGE_FROM[c.lineage % LINEAGE_FROM.length]}.`;
+    // the same colonist always gets the same line (no random draw: a save loads to the same story)
+    const pool = Object.values(content.voices ?? {}).filter((v) => v.on === 'bio' && (!v.trait || c.traits.includes(v.trait as Trait)) && (!v.origin || v.origin === c.origin) && (!v.specialty || v.specialty === c.specialty));
+    const pref = pool.filter((v) => v.trait || v.specialty), use = (pref.length ? pref : pool).flatMap((v) => v.lines.map((l) => l.text));
+    return use.length ? `${head} ${use[(c.id * 7919) % use.length].replaceAll('{name}', c.name.split(' ')[0])}` : head;
+  }
+
+  /** A building was hit (Sim, predators): torn below half, someone inside may decide to hold it. */
+  struck(b: Building) {
+    const d = def(b), s = this.s;
+    if (!d || b.hp <= 0 || b.hp > d.hp * 0.5) return;
+    const cd = (s.heroCd ??= {});
+    if (this.secs - (cd[b.id] ?? -1e9) < HERO_CD) return;
+    const inside = s.colonists.filter((c) => c.at === b.id && this.adult(c) && c.down === undefined && !c.hero);
+    if (!inside.length) return;
+    const grit = (c: Colonist) => (c.specialty === 'security' ? 3 : 0) + (blocOf(c.stance) === 'autonomist' ? 1 : 0) + (c.traits.includes('stoic') ? 1 : 0) + c.wb / 100;
+    const h = inside.sort((x, y) => grit(y) - grit(x))[0];
+    cd[b.id] = this.secs;
+    h.hero = { b: b.id, until: this.secs + HERO_SECS };
+    this.emit(`${h.name} is holding the ${d.name}`, 'warn', 'warning');
+    this.say('hero', h, { building: d.name }, true);
+  }
+  /** Share of a blow a building takes while someone holds it. */
+  heroGuard(b: Building) { return this.s.colonists.some((c) => c.hero?.b === b.id) ? HERO_GUARD : 1; }
+
+  /** Once a second: heroes whose stand is over (held, or the building fell), and now and then a remark on a quiet day. */
+  private moments() {
+    const s = this.s, sol = Math.floor(this.secs / SOL) + 1;
+    for (const c of s.colonists) {
+      if (!c.hero || this.secs < c.hero.until) continue;
+      const b = this.building(c.hero.b);
+      c.hero = undefined;
+      if (b) {
+        const name = def(b).name;
+        (c.deeds ??= []).push(`Held the ${name} when it was under attack, Sol ${sol}`);
+        c.wb = clamp(c.wb + 10, 0, 100);
+        for (const o of s.colonists) o.wb = clamp(o.wb + 3, 0, 100);
+        this.emit(`${c.name} held the ${name}. The colony will remember it.`, 'info', 'friend');
+        this.say('heroHeld', c, { building: name }, true);
+      }
+    }
+    if (this.secs - (s.said?._ ?? -1e9) > 300 && !this.alert && this.sim.rnd() < 1 / 150) this.say('idle');
+  }
+
   // ---------- snapshot ----------
   snapshot(): PeopleSnap {
     const s = this.s, bs = this.sim.s.buildings;
@@ -994,7 +1106,7 @@ export class People {
     const living = this.livingPerLine();
     const roster: ColonistSnap[] = s.colonists.map((c) => {
       const g = this.building(c.goal), at = this.building(c.at);
-      const doing = c.at === AT_RIDE ? 'Aboard a Medevac'
+      const doing = c.hero ? `Holding the ${this.building(c.hero.b) ? def(this.building(c.hero.b)!).name : 'line'}` : c.at === AT_RIDE ? 'Aboard a Medevac'
         : c.down !== undefined ? (this.stable.has(c.id) ? `Injured: stabilised, a Med Bay crew is coming (${Math.ceil(c.down)} s)` : `Injured: needs a Medevac (${Math.ceil(c.down)} s)`)
         : c.strike && c.at >= 0 ? `On strike at ${at ? def(at).name : 'home'}`
         : c.at < 0 ? (this.alert ? `Running for shelter${g ? ` (${def(g).name})` : ''}` : `Walking to ${g ? (g.id === c.home ? 'home' : def(g).name) : '…'}`)
@@ -1006,6 +1118,8 @@ export class People {
         id: c.id, name: c.name, lineage: lineName(c.lineage), age: Math.floor(this.age(c)), specialty: c.specialty, traits: [...c.traits],
         origin: c.origin, imprint: c.imprint, wb: c.wb, stance: c.stance, bloc: blocOf(c.stance), hp: c.hp / P.colonistHp,
         home: name(c.home), job: name(c.job), doing, strike: !!c.strike, partner: pt?.name ?? null, x: c.x, z: c.z, outdoors: c.at === -1, jobId: c.job, atId: c.at, why: (this.why.get(c.id) ?? []).slice(0, 6),
+        bio: c.bio, deeds: [...(c.deeds ?? [])], mourning: !!c.sorrow, hero: !!c.hero,
+        said: [...(s.voices ?? [])].reverse().find((v) => v.id === c.id && this.secs - v.at < SOL)?.text,
       };
     });
     const housing = bs.reduce((m, b) => m + (b.progress >= 1 && def(b)?.role === 'civic' ? def(b).housing ?? 0 : 0), 0);
@@ -1022,6 +1136,7 @@ export class People {
         running: s.pods.filter((p) => p.b === b.id).map((p) => ({ specialty: p.specialty, curriculum: p.curriculum, lineage: lineName(p.lineage), progress: p.progress, dark: p.dark })),
       })),
       roster,
+      voices: [...(s.voices ?? [])].slice(-8).reverse().map((v) => ({ id: v.id, name: v.name, text: v.text, at: v.at })),
       memorial: s.memorial.slice(-40).reverse().map((m) => ({ ...m, lineage: lineName(m.lineage) })),
       bank: s.bank.map((n, l) => ({ name: lineName(l), embryos: n, living: living[l] })),
       walkers,

@@ -160,6 +160,7 @@ export class Frontier {
     sim.emit(`Frontier: ${KIND_TEXT[k.kind]}${who} is coming for the ${h.name} in ${Math.round(lead)} s`, 'bad', 'alarm', { x: h.x, z: h.z });
     const label = `${KIND_NAME[k.kind]}: ${h.name}`;
     sim.story.effect({ kind: 'countdown', timer: 'frontier', amount: lead, text: label });
+    if (S.people) sim.people.say('threat', undefined, { other: h.name });
     sim.story.effect({ kind: 'clearWaypoint', site: 'frontier' });
     const st = sim.story.s;
     st.marks = (st.marks ?? []).filter((m) => m.site !== 'frontier');
@@ -245,7 +246,7 @@ export class Frontier {
     if (left) return;
     const held = !!this.holdings().find((h) => h.sector === t.sector);
     this.sim.emit(held ? `Frontier: the ${t.sector} holding held` : `Frontier: the ${t.sector} holding is lost`, held ? 'info' : 'bad', held ? 'packCleared' : 'lost', { x: t.x, z: t.z });
-    if (held && S.people) for (const c of S.people.colonists) c.stance = Math.min(100, c.stance + 1);
+    if (held && S.people) { for (const c of S.people.colonists) c.stance = Math.min(100, c.stance + 1); this.sim.people.say('held', undefined, { other: `${t.sector} holding` }); }
     this.over(held);
   }
 

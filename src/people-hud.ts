@@ -160,6 +160,11 @@ export class PeopleHud {
       rows.push('<div class="h">IN FORCE</div>');
       for (const b of boosts) rows.push(`<div class="row"><span>${esc(b.text)}</span><span>${esc(modText(b.stat, b.amount))} · ${b.left < 0 ? 'lasting' : `${Math.floor(b.left / 60)}:${String(Math.floor(b.left % 60)).padStart(2, '0')} left`}</span></div>`);
     }
+    // what people have been saying
+    if (p.voices?.length) {
+      rows.push('<div class="h">VOICES</div>');
+      for (const v of p.voices.slice(0, 5)) rows.push(`<button class="voice" data-col="${v.id}"><b>${esc(v.name.split(' ')[0])}</b> “${esc(v.text)}” <small>Sol ${Math.floor(v.at / this.d.solSeconds) + 1}</small></button>`);
+    }
     rows.push('<div class="h">POLICY</div>');
     for (const [k, pol] of Object.entries(POLICIES) as [PolicyKey, (typeof POLICIES)[PolicyKey]][]) {
       const cur = p.policies[k];
@@ -237,7 +242,7 @@ export class PeopleHud {
     const st = p.stats;
     const head = `<div class="row"><span>Grown</span><span>${st.grown} from pods · ${st.births} born · ${st.deaths} lost · ${st.departed} left</span></div>`;
     if (!p.memorial.length) return head + '<p class="hint">No one has been lost.</p>';
-    return head + p.memorial.map((m) => `<div class="mem"><b>${esc(m.name)}</b>${m.age ? `, ${m.age}` : ''} <small>Sol ${Math.floor(m.at / sol) + 1}</small><div>${esc(m.cause)}</div></div>`).join('');
+    return head + p.memorial.map((m) => `<div class="mem"><b>${esc(m.name)}</b>${m.age ? `, ${m.age}` : ''} <small>Sol ${Math.floor(m.at / sol) + 1}</small><div>${esc(m.cause)}</div>${m.by ? `<div class="by">Mourned by ${esc(m.by)}</div>` : ''}</div>`).join('');
   }
 
   private panelAct(e: PointerEvent) {
@@ -297,7 +302,9 @@ export class PeopleHud {
     if (c.specialty) rows.push(['Work', c.strike ? 'on strike' : c.job ?? 'no job free']);
     if (c.partner) rows.push(['Partner', c.partner]);
     const why = c.why.map(([k, v]) => `<span class="${v < 0 ? 'neg' : 'pos'}">${esc(k)} ${v > 0 ? '+' : ''}${Math.round(v)}</span>`).join('');
-    return `<div class="t">${esc(c.name.toUpperCase())}</div><div class="s ${c.strike ? 'warn' : ''}">${c.age} · ${esc(c.doing)}</div>
+    const deeds = c.deeds.length ? `<div class="deeds">${c.deeds.slice(-3).map((d) => `<div>★ ${esc(d)}</div>`).join('')}</div>` : '';
+    return `<div class="t">${esc(c.name.toUpperCase())}</div><div class="s ${c.strike ? 'warn' : c.hero ? 'warn' : ''}">${c.age} · ${esc(c.doing)}${c.mourning ? ' · mourning' : ''}</div>
+      ${c.bio ? `<div class="bio">${esc(c.bio)}</div>` : ''}${c.said ? `<div class="said">“${esc(c.said)}”</div>` : ''}${deeds}
       <div class="hp"><i style="width:${(c.hp * 100).toFixed(0)}%;background:${c.hp > 0.6 ? '#5bff9a' : c.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
       <div class="meter"><span>Wellbeing</span>${bar(c.wb, wbColor(c.wb))}<b>${c.wb.toFixed(0)}</b></div>
       <div class="why">${why}</div>

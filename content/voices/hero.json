@@ -1,0 +1,14 @@
+{
+  "on": "hero",
+  "lines": [
+    {
+      "text": "Not the {building}. Not while I'm in it."
+    },
+    {
+      "text": "Everyone behind me. I've got the door."
+    },
+    {
+      "text": "Seal the {building}. I'm staying."
+    }
+  ]
+}

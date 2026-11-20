@@ -1,0 +1,14 @@
+{
+  "on": "birth",
+  "lines": [
+    {
+      "text": "{other}. We're calling them {other}."
+    },
+    {
+      "text": "Look at {other}'s hands. So small."
+    },
+    {
+      "text": "{other} was born under this sky. Born, not grown."
+    }
+  ]
+}

@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, MUSIC_LAYERS, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, type WildlifeDef, locate, regionCells } from './defs';
+import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, MUSIC_LAYERS, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, type VoiceDef, type WildlifeDef, locate, regionCells } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 import { parseNotes } from '../audio/notes';
 import { parseSteps } from '../audio/drums';
@@ -23,6 +23,8 @@ export interface ContentDb {
   story: Record<string, StoryDef>;
   missions: Record<string, MissionDef>;
   characters: Record<string, CharacterDef>;
+  /** Colonists' remarks and backstories (src/sim/people.ts). */
+  voices: Record<string, VoiceDef>;
   colony: ColonyRules;
   threats: ThreatRules;
   people: PeopleRules;
@@ -77,6 +79,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     story: recs.story,
     missions: recs.missions,
     characters: recs.characters,
+    voices: recs.voices,
     colony: recs.colony.colony,
     threats: recs.threats.threats,
     people: recs.people.people,
