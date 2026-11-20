@@ -199,10 +199,6 @@ body.menu-open #card { display: none !important; }
 #minimap.on { display: block; }
 #minimap.off { border-color: color-mix(in srgb, var(--amber) 50%, transparent); }
 #bar .sm { display: none; }
-#sound-vol { width: 84px; margin: 0 6px; align-self: center; accent-color: var(--cyan); }
-#music-vol { width: 64px; margin: 0 6px 0 2px; align-self: center; accent-color: var(--cyan); }
-#snd .mv { align-self: center; opacity: 0.7; font-size: 13px; }
-#snd.off #sound-vol, #snd.off #music-vol, #snd.nomusic #music-vol { opacity: 0.4; }
 .r.dim { opacity: 0.5; }
 #build-menu {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--above-bar);
@@ -293,13 +289,12 @@ body.skirmish #goals, body.skirmish #minimap, body.skirmish #card, body.skirmish
   #hud #build-menu button { min-width: 0; padding: 6px 8px; }
 }
 
-/* phones: Save / Load / Look / Skirmish live behind ⋯ so the bar stays two rows */
-.more-btn { display: none; }
-@media (max-width: 640px) {
-  .more-btn { display: flex; }
-  #bar .extra { display: none; }
-  body.more #bar .extra { display: flex; }
-}
+/* in game: no brand line (the title screen has it), stats only when asked for (Options → Performance stats),
+   and resource chips that don't apply yet (no Battery Bank, no radar, no army…) stay out of the way */
+#brand { display: none; }
+body:not(.stats) #tele { display: none; }
+#res .r.dim:not(#r-people) { display: none; }
+@media (min-width: 641px) { body:not(.stats) #minimap { top: calc(8px + var(--safe-top)); } }
 
 /* ---------- phones: compact HUD ---------- */
 @media (max-width: 640px) {
@@ -634,3 +629,14 @@ html.app #options { height: var(--app-h, 100%); bottom: auto; }
 }
 #options .op-row.on .op-state { color: #05080d; background: var(--cyan); border-color: var(--cyan); }
 #options .op-row:disabled .op-state { min-width: 0; letter-spacing: 0.04em; }
+
+/* game menu (☰ / Esc) and sliders, in the options panel */
+#options.menu .op-panel { width: min(380px, 100%); }
+#options .op-act { min-height: 50px; }
+#options .op-act.armed b { color: var(--amber); }
+#options .op-act.armed small { color: var(--amber); }
+#options .op-foot { padding: 10px 8px 2px; font-size: 11px; text-align: center; color: color-mix(in srgb, var(--text) 45%, transparent); }
+#options .op-slide { cursor: default; }
+#options .op-slide input { flex: 0 1 150px; min-width: 90px; accent-color: var(--cyan); }
+#options .op-val { flex: none; min-width: 7ch; text-align: right; font-size: 11px; color: color-mix(in srgb, var(--text) 62%, transparent); }
+#options .op-slide.dis { opacity: 0.55; }

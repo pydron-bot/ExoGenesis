@@ -25,7 +25,7 @@ import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
 import { Post } from './world/post';
-import { openOptions, type Toggle } from './options';
+import { openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
 import { InhabitantView } from './world/inhabitants';
@@ -540,7 +540,6 @@ function restartGame() {
   fogView.reset();
   ui.sel = null; setBuild(null);
   selectFirstDrone = true;
-  document.body.classList.remove('more');
 }
 const hud = new ColonyHud({
   defs: content.buildings, units: content.units, research: content.research, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
@@ -552,7 +551,7 @@ const hud = new ColonyHud({
     if (navigator.webdriver && !fireStory) return;
     if (on) { storyResume = speed || 1; setSpeed(0); } else if (speed === 0) setSpeed(storyResume);
   },
-  load: () => $('b-load').click(),
+  load: () => void loadGame(),
   log,
   onSelect: (kind, role) => storyHud.selected(kind, role),
 });
@@ -565,7 +564,6 @@ const storyHud = new StoryHud({
   },
 });
 $('b-build').onclick = () => hud.toggleMenu();
-$('b-new').onclick = () => { if (confirm('Start a new game? Your current colony will be lost (unless you Saved it).')) restartGame(); };
 if (!skirmishMode) {
   sim.autosave(!scratch);
   // phones throw hidden tabs away: save the moment the page goes to the background
@@ -623,7 +621,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
 });
 
 interface SaveFile { version: 1; savedAt: number; sim: SimState; camera: { dist: number; yaw: number; pitch: number; fx: number; fz: number } }
-$('b-save').onclick = async () => {
+async function saveGame() {
   try {
     const state = await sim.save();
     const file: SaveFile = { version: 1, savedAt: Date.now(), sim: state, camera: { dist: cam.targetDist, yaw: cam.yaw, pitch: cam.targetPitch, fx: cam.fx, fz: cam.fz } };
@@ -632,8 +630,8 @@ $('b-save').onclick = async () => {
   } catch (err) {
     log(`Save failed: ${(err as Error).message}`, 'bad');
   }
-};
-$('b-load').onclick = async () => {
+}
+async function loadGame() {
   try {
     const file = await getSave<SaveFile>('slot1');
     if (!file) { log('No save in this browser yet', 'warn'); return; }
@@ -645,15 +643,14 @@ $('b-load').onclick = async () => {
   } catch (err) {
     log(`Load failed: ${(err as Error).message}`, 'bad');
   }
-};
-
-const lookBtn = $<HTMLButtonElement>('b-look');
-lookBtn.textContent = look === 'smooth' ? 'Look: Smooth' : 'Look: Flat';
-lookBtn.onclick = () => {
+}
+/** Terrain style: reloads (the game autosaves first). */
+function switchLook() {
+  sim.flush();
   const u = new URL(location.href);
   u.searchParams.set('look', look === 'smooth' ? 'flat' : 'smooth');
   location.href = u.toString();
-};
+}
 
 if (previewModels || builtinModels) for (const d of UNIT_DEFS) {
   const a = content.assets[`exo-${d.id}`];
@@ -661,14 +658,12 @@ if (previewModels || builtinModels) for (const d of UNIT_DEFS) {
   else if (a) d.model = a;
 }
 const skirmish = skirmishMode ? startSkirmish({ scene, renderer, cam, region, log, params }) : null;
-$('b-news').textContent = `v${VERSION}`;
 $('brand-ver').textContent = `v${VERSION}`;
-$('b-news').onclick = () => { document.body.classList.remove('more'); $('b-more').classList.remove('on'); openWhatsNew(); };
-$('b-skirmish').onclick = () => {
+function goSkirmish() {
   const u = new URL(location.href);
   u.searchParams.set('mode', 'skirmish');
   location.href = u.toString();
-};
+}
 
 const help = $('help');
 let helped = false;
@@ -786,57 +781,44 @@ const barEl = $('bar');
 const syncBar = () => document.documentElement.style.setProperty('--bar-h', `${barEl.offsetHeight}px`);
 new ResizeObserver(syncBar).observe(barEl);
 syncBar();
-$('b-more').onclick = () => { document.body.classList.toggle('more'); $('b-more').classList.toggle('on'); };
 
-// ---------- sound controls (⋯ on phones) ----------
-const soundBtn = $<HTMLButtonElement>('b-sound');
-const volEl = $<HTMLInputElement>('sound-vol');
-const musicEl = $<HTMLInputElement>('music-vol');
+// ---------- sound (in Options) ----------
 /** The music volume to go back to when Options turns music on again. */
 let musicWas = audio.musicVolume || 1;
-function syncSound() {
-  musicEl.disabled = audio.disabled;
-  musicEl.value = String(Math.round(audio.musicVolume * 100));
-  $('snd').classList.toggle('nomusic', audio.musicVolume <= 0);
-  soundBtn.textContent = audio.disabled ? '♪ Off (URL)' : audio.on ? '♪ Sound' : '♪ Muted';
-  soundBtn.classList.toggle('on', audio.on && !audio.disabled);
-  soundBtn.disabled = volEl.disabled = audio.disabled;
-  volEl.value = String(Math.round(audio.volume * 100));
-  $('snd').classList.toggle('off', !audio.on || audio.disabled);
-}
-soundBtn.onclick = () => { audio.setOn(!audio.on); syncSound(); };
-volEl.oninput = () => { audio.setVolume(Number(volEl.value) / 100); if (!audio.on) audio.setOn(true); syncSound(); };
-musicEl.oninput = () => { audio.setMusicVolume(Number(musicEl.value) / 100); if (audio.musicVolume > 0) musicWas = audio.musicVolume; if (!audio.on) audio.setOn(true); syncSound(); };
-/** Sound and Music in Options (title screen and ⚙ Options). */
-const soundToggles: Toggle[] = [
+const soundLock = () => (audio.disabled ? 'OFF (URL)' : null);
+/** Sound and Music in Options (title screen and the game menu's Options). */
+const soundToggles: OptionRow[] = [
   {
     id: 'sound', section: 'Sound', label: 'Sound', help: 'Music, alarms and effects',
-    get: () => audio.on && !audio.disabled, set: (on) => { audio.setOn(on); syncSound(); },
-    locked: () => (audio.disabled ? 'OFF (URL)' : null),
+    get: () => audio.on && !audio.disabled, set: (on: boolean) => audio.setOn(on), locked: soundLock,
   },
   {
-    id: 'music', section: 'Sound', label: 'Music', help: 'Quiet ambient music on the title screen and now and then in play; tense when a fight starts. Volume: ⋯ menu.',
-    get: () => audio.musicVolume > 0 && !audio.disabled, set: (on) => { audio.setMusicVolume(on ? musicWas : 0); syncSound(); },
-    locked: () => (audio.disabled ? 'OFF (URL)' : null),
+    kind: 'slider', id: 'volume', section: 'Sound', label: 'Volume', help: 'Everything',
+    get: () => audio.volume * 100, set: (v: number) => { audio.setVolume(v / 100); if (!audio.on) audio.setOn(true); }, locked: soundLock,
+  },
+  {
+    id: 'music', section: 'Sound', label: 'Music', help: 'Quiet ambient music on the title screen and now and then in play; tense when a fight starts.',
+    get: () => audio.musicVolume > 0 && !audio.disabled, set: (on: boolean) => audio.setMusicVolume(on ? musicWas : 0), locked: soundLock,
+  },
+  {
+    kind: 'slider', id: 'music-volume', section: 'Sound', label: 'Music volume', help: '',
+    get: () => audio.musicVolume * 100,
+    set: (v: number) => { audio.setMusicVolume(v / 100); if (audio.musicVolume > 0) musicWas = audio.musicVolume; if (!audio.on) audio.setOn(true); },
+    locked: soundLock,
   },
 ];
-syncSound();
-const lightsBtn = $<HTMLButtonElement>('b-lights');
-function syncLights() {
-  lightsBtn.textContent = !lights ? '✦ Off (URL)' : lights.enabled ? '✦ Lights' : '✦ Lights off';
-  lightsBtn.classList.toggle('on', !!lights?.enabled);
-  lightsBtn.disabled = !lights;
-}
-lightsBtn.onclick = () => {
-  if (!lights) return;
-  lights.enabled = !lights.enabled;
-  try { localStorage.setItem(LIGHTS_KEY, lights.enabled ? 'on' : 'off'); } catch { /* private mode */ }
-  syncLights();
-};
-syncLights();
+// ---------- performance stats (top right: view, altitude, fps, draws) ----------
+const STATS_KEY = 'exo-stats';
+let statsOn = false;
+try { statsOn = localStorage.getItem(STATS_KEY) === 'on' || params.has('stats'); } catch { /* private mode */ }
+document.body.classList.toggle('stats', statsOn);
 // ---------- options (title screen OPTIONS, ⋯ menu ⚙ Options) ----------
 const urlLock = (param: string) => () => (params.has(param) ? 'Set in URL' : null);
 const graphicsToggles: Toggle[] = [
+  {
+    id: 'look', label: 'Terrain look', help: 'Flat: crisp low-poly facets. Smooth: soft shading with ground textures. Switching reloads the game (it saves first).',
+    get: () => look === 'smooth', set: () => switchLook(), state: () => (look === 'smooth' ? 'SMOOTH' : 'FLAT'),
+  },
   {
     id: 'glow', label: 'Glow', help: 'Lights, glow strips and gunfire spill soft light. Costs some speed on phones.',
     get: () => post.enabled, set: (v) => { post.enabled = v; remember(GLOW_KEY, v); }, locked: urlLock('bloom'),
@@ -856,12 +838,50 @@ const graphicsToggles: Toggle[] = [
   },
   {
     id: 'lights', label: 'Colony lights', help: 'Floodlights, headlights and gunfire light the ground at night. Off saves battery on older phones.',
-    get: () => !!lights?.enabled, set: (v) => { if (lights) { lights.enabled = v; remember(LIGHTS_KEY, v); syncLights(); } },
+    get: () => !!lights?.enabled, set: (v) => { if (lights) { lights.enabled = v; remember(LIGHTS_KEY, v); } },
     locked: () => (!lights ? 'Off in URL' : null),
   },
 ];
-const showOptions = (onClose?: () => void, extra: Toggle[] = soundToggles) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
-$('b-options').onclick = () => showOptions();
+const interfaceToggles: Toggle[] = [
+  {
+    id: 'stats', section: 'Interface', label: 'Performance stats', help: 'View, altitude, frame rate and draw calls, top right.',
+    get: () => statsOn, set: (v) => { statsOn = v; document.body.classList.toggle('stats', v); remember(STATS_KEY, v); },
+  },
+];
+const showOptions = (onClose?: () => void, extra: OptionRow[] = [...soundToggles, ...interfaceToggles]) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
+
+// ---------- game menu (☰ Menu / Esc): pauses while open ----------
+let menuOpen = false;
+function openGameMenu() {
+  if (menuOpen || panelOpen() || skirmish || title) return;
+  menuOpen = true;
+  const was = speed;
+  setSpeed(0);
+  let resume = true;
+  const back = () => { if (!resume) return; menuOpen = false; if (speed === 0) setSpeed(was || 1); };
+  const keep = (fn: () => void) => () => { resume = false; menuOpen = false; fn(); };
+  const reopen = () => { resume = true; openGameMenu(); };
+  // the menu's buttons close it first; ones that come back to it (Options, What's new) keep the game paused
+  const { el } = openMenu('Menu', [
+    { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
+    { id: 'save', label: 'Save', sub: 'To this browser (the game also autosaves)', run: () => void saveGame() },
+    { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
+    { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
+    { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
+    { id: 'skirmish', label: 'Skirmish', sub: 'Leave for a skirmish battle (your colony is autosaved)', run: keep(() => { sim.flush(); goSkirmish(); }) },
+    { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); const u = new URL(location.href); for (const k of ['title', 'intro', 'new', 'mode']) u.searchParams.delete(k); location.href = u.toString(); }) },
+    { id: 'new', label: 'New game', sub: 'Start over in this region', confirm: 'Your current colony will be lost (unless you Saved it) · tap again', run: () => restartGame() },
+  ], `v${VERSION} · M1`, () => audio.play('tap'), () => back());
+  el.querySelector('.op-foot')?.classList.add('dim');
+}
+$('b-menu').onclick = () => openGameMenu();
+// Esc opens the menu when there's nothing else for it to do (no selection, not placing, no panel open)
+addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || e.repeat || cine || title || panelOpen() || document.getElementById('whatsnew')) return;
+  if (ui.sel || ui.build || document.querySelector('#build-menu.open')) return;
+  e.preventDefault();
+  openGameMenu();
+}, true);
 // a soft tick for HUD buttons
 hudEl.addEventListener('pointerdown', (e) => { if ((e.target as Element).closest?.('button')) audio.play('tap'); });
 /** World sounds: quieter away from the camera focus and when zoomed out; panned by screen x. */
@@ -886,7 +906,7 @@ function showTitle() {
   const regions = Object.keys(content.regions).sort((a, b) => (a === 'touchdown' ? -1 : b === 'touchdown' ? 1 : bodyRank(a).localeCompare(bodyRank(b)) || regionLabel(a).localeCompare(regionLabel(b))));
   const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
   // the title screen's Options also holds where to land and the sound
-  const titleOptions: Toggle[] = [
+  const titleOptions: OptionRow[] = [
     ...soundToggles,
     ...(regions.length > 1 ? regions.map((id): Toggle => ({
       id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: bodyName(id),
@@ -901,7 +921,7 @@ function showTitle() {
       ...(autosaved && !scratch ? { confirm: `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` } : {}),
       run: go(startLanding),
     },
-    { id: 'skirmish', label: 'SKIRMISH', sub: 'Hundreds of units, one battlefield (prototype)', run: () => $('b-skirmish').click() },
+    { id: 'skirmish', label: 'SKIRMISH', sub: 'Hundreds of units, one battlefield (prototype)', run: goSkirmish },
     { id: 'options', label: 'OPTIONS', sub: regions.length > 1 ? 'Region, sound and graphics' : 'Sound and graphics', run: () => showOptions(undefined, titleOptions) },
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
   ];

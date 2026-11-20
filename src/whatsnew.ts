@@ -1,6 +1,6 @@
 /**
  * "What's new": the release notes (src/changelog.ts) in a panel, opened from
- * the version on the title screen or the ⋯ menu. Remembers the last version
+ * the version on the title screen or What's new in the game menu. Remembers the last version
  * the player opened it on, so a new release can show a NEW badge.
  */
 import { CHANGELOG, VERSION } from './changelog';

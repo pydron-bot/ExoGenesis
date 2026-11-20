@@ -448,7 +448,7 @@ How content is stored and edited in general (one JSON record per file, schemas i
     height. See-through parts (gate field, plumes) wait for the finished model. The construction work light is now
     cyan and dimmer (0.35). `?print=0` (or the option) brings back the scaffold box. `region.printing` switches it
     at runtime (buildings under construction rebuild).
-  - **Options** (`src/options.ts`): one panel, opened from OPTIONS on the title screen and ⚙ Options in the ⋯ menu
+  - **Options** (`src/options.ts`): one panel, opened from OPTIONS on the title screen and Options in the game menu
     (it replaces nothing; ✦ Lights stays). Toggles: glow (`exo.glow`), shadows (`exo.shadows`), printed construction
     (`exo.print`), colony lights (`exo.lights`), each remembered in localStorage. A URL param locks its row ("Set in
     URL"). Test: `tools/options-smoke.mjs` (title → options → every toggle flips and the game follows → remembered
@@ -1352,3 +1352,21 @@ failure.
     0.8 × `SPREAD` from spots already handed out, so a group sent onto a building spreads round it.
 - **After:** 976 / 976 (with the 30-unit and onto-a-building cases added); travel times unchanged except Scouts into
   the packed base, 28.4 → 14.0 s. `tools/units-smoke.mjs` passes.
+
+### Game menu and a slimmer HUD (v0.50.0)
+
+- **Bottom bar:** Build · ❚❚ ▶ ⏩ · Surface / Planet / System · ☰ Menu (8 buttons; was ~20 plus two sliders, with a ⋯
+  overflow on phones). Save, Load, New game, Look, Lights, Options, Skirmish, the version and Sound are gone from it.
+- **Game menu** (`openMenu` in `src/options.ts`, `openGameMenu` in `main.ts`): ☰ Menu, or Esc when nothing is selected,
+  nothing is being placed and no panel is open (a capture-phase listener, so the input's own Esc still deselects
+  first). Pauses while open and puts the speed back on close. Resume · Save · Load · Options · What's new · Skirmish ·
+  Title screen · New game (two taps: the button turns amber and says what will be lost). Options and What's new come
+  back to the menu when closed. It shares the options overlay (`#options.menu`), so only one panel is ever up.
+- **Options rows** can be `Slider`s (`kind: 'slider'`, 0–100): Volume and Music volume. New rows: Interface →
+  Performance stats (`exo-stats`, or `?stats`), Graphics → Terrain look (reloads; flushes the autosave first).
+- **Top:** `#brand` is hidden in game; `#tele` (view, altitude, fps, draws) only with `body.stats`, and the minimap moves
+  up into its place on desktop; `.r.dim` resource chips (nothing to show yet) are hidden, except the colonists chip,
+  which opens the Colony panel.
+- Tests: `tools/options-smoke.mjs` checks the menu (bar size, pauses, Options round trip, Esc behaviour, two-tap New
+  game) on desktop and phone; `smoke.mjs`, `sound-smoke.mjs` and `music-smoke.mjs` go through the menu now.
+  Headless desktop screenshots can catch the panel mid-fade (swiftshader holds the CSS animation for ~2 s).

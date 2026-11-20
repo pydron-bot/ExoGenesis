@@ -153,14 +153,14 @@ check(await page.evaluate(() => window.__threatSeen), `threat shown in the resou
 await page.evaluate(() => __exo.sim.setSpeed(1));
 
 // 6. save / reload / load
-await page.click('#b-save');
+await page.click('#b-menu'); await page.click('#options [data-id="save"]');
 await wait(600);
 const saved = await cur();
 await page.reload();
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
 await wait(800);
 check((await cur()).buildings.length === 1, 'reload starts a fresh game');
-await page.click('#b-load');
+await page.click('#b-menu'); await page.click('#options [data-id="load"]');
 await wait(1500);
 s = await cur();
 check(s.buildings.length === saved.buildings.length && s.tick >= saved.tick, `load restores the save (${s.buildings.length} buildings, tick ${saved.tick} → ${s.tick})`);

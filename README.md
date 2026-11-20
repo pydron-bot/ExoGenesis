@@ -91,7 +91,7 @@ height (`--app-h`, `viewH()`: use it instead of `innerHeight`), which iOS can un
 ## Versions
 
 `package.json` holds the version and `src/changelog.ts` the release notes players see under
-**What's new** (title screen footer, ⋯ menu). Every push that changes the game bumps both:
+**What's new** (title screen footer, game menu). Every push that changes the game bumps both:
 minor for features, patch for fixes. `npm run build` checks they agree (`npm run version:check`).
 
 ## Content and the editor

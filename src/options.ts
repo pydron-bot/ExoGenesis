@@ -1,7 +1,9 @@
 /**
- * Options: toggles in a panel, opened from OPTIONS on the title screen or ⚙ Options in the ⋯ menu.
- * Rows come in sections (the title screen adds Region and Sound above Graphics). Each option is
- * remembered by its owner (main.ts); this only draws the panel.
+ * Options: toggles and sliders in a panel, opened from OPTIONS on the title screen or Options in the
+ * game menu (☰ / Esc). Rows come in sections (the title screen adds Region above Graphics). Each option
+ * is remembered by its owner (main.ts); this only draws the panel.
+ *
+ * Also the in-game menu itself (`openMenu`): a list of big buttons in the same panel style.
  */
 
 export interface Toggle {
@@ -19,28 +21,71 @@ export interface Toggle {
   state?: (on: boolean) => string;
 }
 
+/** A 0–100 slider row (volumes). */
+export interface Slider {
+  kind: 'slider';
+  id: string;
+  label: string;
+  help: string;
+  section?: string;
+  get(): number;
+  set(v: number): void;
+  locked?: () => string | null;
+}
+
+export type OptionRow = Toggle | Slider;
+const isSlider = (r: OptionRow): r is Slider => (r as Slider).kind === 'slider';
+
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
-export function openOptions(toggles: Toggle[], tap?: () => void, onClose?: () => void) {
-  if (document.getElementById('options')) return;
+/** The shared overlay: one panel at a time; Esc or a tap outside closes it. */
+function panel(title: string, body: string, onClose?: () => void) {
+  document.getElementById('options')?.remove();
   const el = document.createElement('div');
   el.id = 'options';
   el.innerHTML = `
-    <div class="op-panel" role="dialog" aria-label="Options">
-      <div class="op-head"><b>OPTIONS</b><button class="op-x" aria-label="Close">✕</button></div>
-      <div class="op-list">${toggles.map((t, i) => `${(t.section ?? 'Graphics') !== (toggles[i - 1]?.section ?? (i ? 'Graphics' : '')) ? `<div class="op-sec">${esc(t.section ?? 'Graphics')}</div>` : ''}
-        <button class="op-row" data-id="${esc(t.id)}" role="switch">
+    <div class="op-panel" role="dialog" aria-label="${esc(title)}">
+      <div class="op-head"><b>${esc(title.toUpperCase())}</b><button class="op-x" aria-label="Close">✕</button></div>
+      <div class="op-list">${body}</div>
+    </div>`;
+  let closed = false;
+  const close = () => { if (closed) return; closed = true; el.remove(); removeEventListener('keydown', key, true); onClose?.(); };
+  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); close(); } };
+  el.addEventListener('pointerdown', (e) => { if (e.target === el) close(); });
+  el.querySelector<HTMLButtonElement>('.op-x')!.onclick = close;
+  addEventListener('keydown', key, true);
+  document.body.appendChild(el);
+  return { el, close };
+}
+
+export const panelOpen = () => !!document.getElementById('options');
+
+export function openOptions(rows: OptionRow[], tap?: () => void, onClose?: () => void) {
+  const sec = (r?: OptionRow) => r?.section ?? 'Graphics';
+  const { el } = panel('Options', rows.map((t, i) => `${!i || sec(t) !== sec(rows[i - 1]) ? `<div class="op-sec">${esc(sec(t))}</div>` : ''}
+    ${isSlider(t)
+      ? `<label class="op-row op-slide" data-id="${esc(t.id)}">
+          <span class="op-text"><b>${esc(t.label)}</b>${t.help ? `<small>${esc(t.help)}</small>` : ''}</span>
+          <input type="range" min="0" max="100" step="5" aria-label="${esc(t.label)}"><span class="op-val"></span>
+        </label>`
+      : `<button class="op-row" data-id="${esc(t.id)}" role="switch">
           <span class="op-text"><b>${esc(t.label)}</b>${t.help ? `<small>${esc(t.help)}</small>` : ''}</span>
           <span class="op-state"></span>
-        </button>`).join('')}
-      </div>
-    </div>`;
+        </button>`}`).join(''), onClose);
   const sync = () => {
-    for (const t of toggles) {
-      const row = el.querySelector<HTMLButtonElement>(`[data-id="${t.id}"]`)!;
+    for (const t of rows) {
+      const row = el.querySelector<HTMLElement>(`[data-id="${t.id}"]`)!;
       const lock = t.locked?.() ?? null;
+      if (isSlider(t)) {
+        const inp = row.querySelector('input')!;
+        inp.disabled = !!lock;
+        inp.value = String(Math.round(t.get()));
+        row.querySelector('.op-val')!.textContent = lock ?? `${Math.round(t.get())}%`;
+        row.classList.toggle('dis', !!lock);
+        continue;
+      }
       const on = t.get();
-      row.disabled = !!lock;
+      (row as HTMLButtonElement).disabled = !!lock;
       row.setAttribute('aria-checked', String(on));
       row.classList.toggle('on', on);
       const st = row.querySelector<HTMLElement>('.op-state')!;
@@ -48,15 +93,48 @@ export function openOptions(toggles: Toggle[], tap?: () => void, onClose?: () =>
       st.hidden = !st.textContent;
     }
   };
-  for (const t of toggles) {
-    el.querySelector<HTMLButtonElement>(`[data-id="${t.id}"]`)!.onclick = () => { tap?.(); t.set(!t.get()); sync(); };
+  for (const t of rows) {
+    const row = el.querySelector<HTMLElement>(`[data-id="${t.id}"]`)!;
+    if (isSlider(t)) row.querySelector('input')!.oninput = (e) => { t.set(Number((e.target as HTMLInputElement).value)); sync(); };
+    else row.onclick = () => { tap?.(); t.set(!t.get()); sync(); };
   }
-  const close = () => { el.remove(); removeEventListener('keydown', key, true); onClose?.(); };
-  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
-  el.addEventListener('pointerdown', (e) => { if (e.target === el) close(); });
-  el.querySelector<HTMLButtonElement>('.op-x')!.onclick = close;
-  addEventListener('keydown', key, true);
   sync();
-  document.body.appendChild(el);
-  el.querySelector<HTMLButtonElement>('.op-row:not(:disabled)')?.focus({ preventScroll: true });
+  el.querySelector<HTMLElement>('button.op-row:not(:disabled)')?.focus({ preventScroll: true });
+}
+
+export interface MenuItem {
+  id: string;
+  label: string;
+  /** One line under the label. */
+  sub?: string;
+  run(): void;
+  /** Ask first: the button says this and needs a second tap. */
+  confirm?: string;
+}
+
+/** The in-game menu: big buttons, one per action (each closes the menu, then runs). */
+export function openMenu(title: string, items: MenuItem[], foot: string, tap?: () => void, onClose?: () => void) {
+  const { el, close } = panel(title, `${items.map((m) => `
+    <button class="op-row op-act" data-id="${esc(m.id)}">
+      <span class="op-text"><b>${esc(m.label)}</b>${m.sub ? `<small>${esc(m.sub)}</small>` : ''}</span>
+    </button>`).join('')}<div class="op-foot">${foot}</div>`, onClose);
+  el.classList.add('menu');
+  for (const m of items) {
+    const b = el.querySelector<HTMLButtonElement>(`[data-id="${m.id}"]`)!;
+    let armed = false;
+    b.onclick = () => {
+      tap?.();
+      if (m.confirm && !armed) {
+        armed = true;
+        b.classList.add('armed');
+        b.querySelector('small')?.remove();
+        b.querySelector('.op-text')!.insertAdjacentHTML('beforeend', `<small>${esc(m.confirm)}</small>`);
+        return;
+      }
+      close();
+      m.run();
+    };
+  }
+  el.querySelector<HTMLElement>('.op-row')?.focus({ preventScroll: true });
+  return { el, close };
 }

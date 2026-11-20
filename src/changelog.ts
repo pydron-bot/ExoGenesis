@@ -1,6 +1,6 @@
 /**
  * Release notes, newest first: what players see under "What's new" (title
- * screen and the ⋯ menu). Every push to main that changes the game adds an
+ * screen and the game menu). Every push to main that changes the game adds an
  * entry here and bumps package.json to match (`npm run build` checks:
  * tools/version-check.mjs). Minor for features, patch for fixes. Write for
  * players, not for the code.
@@ -14,6 +14,18 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.50.0',
+    date: '2026-11-20',
+    title: 'A tidier screen',
+    notes: [
+      'The bottom bar is down to Build, speed, the three views and ☰ Menu',
+      'Menu (☰, or Esc with nothing selected) pauses the game and holds Save, Load, Options, What\'s new, Skirmish, the title screen and New game (which asks twice)',
+      'Options now has the sound and music volume sliders, the terrain look (Flat or Smooth) and Performance stats',
+      'The frame rate and altitude box is hidden unless you turn on Performance stats, and the radar moves up into its place',
+      'Resource counters that don\'t apply yet (no Battery Bank, no isotopes, no radar, no army) stay hidden until they do',
+    ],
+  },
   {
     version: '0.49.1',
     date: '2026-11-20',
