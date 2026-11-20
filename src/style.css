@@ -724,3 +724,21 @@ body.placing:not(.menu-open) #hud > #place-hint.on { display: block; }
 #card .grp.abil { display: flex; gap: 4px; }
 #hud #card .grp.abil button { flex: 1; min-height: 38px; font-weight: 600; letter-spacing: 0.04em; }
 #hud #card .grp.abil button.wait { opacity: 0.55; }
+
+/* Daily Planet: the score card on the end screen and in the title's look back */
+#over-daily, #dl-card { margin: 4px 0 12px; text-align: center; }
+#over-daily .dl-head, #dl-card .dl-head { font-size: 11px; letter-spacing: 0.16em; color: var(--amber); }
+#over-daily .dl-score, #dl-card .dl-score { font-size: 30px; font-weight: 600; letter-spacing: 0.04em; color: var(--cyan); margin: 4px 0 2px; }
+#over-daily .dl-score small, #dl-card .dl-score small { font-size: 12px; opacity: 0.6; margin-left: 4px; font-weight: 400; }
+#over-daily .dl-line, #dl-card .dl-line { font-size: 18px; letter-spacing: 2px; margin: 4px 0 6px; line-height: 1.3; word-break: break-all; }
+#over-daily .dl-parts, #dl-card .dl-parts { margin: 0 auto 8px; border-collapse: collapse; font-size: 11px; opacity: 0.8; }
+#over-daily .dl-parts td, #dl-card .dl-parts td { padding: 1px 8px; text-align: left; }
+#over-daily .dl-parts td:last-child, #dl-card .dl-parts td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+#over-daily .dl-note, #dl-card .dl-note { font-size: 11px; opacity: 0.7; margin-top: 6px; min-height: 1em; }
+#over-daily .dl-share, #dl-card .dl-share, #dl-card .dl-practice {
+  font: inherit; color: var(--text); background: transparent; border: 1px solid color-mix(in srgb, var(--text) 30%, transparent);
+  border-radius: 3px; min-height: 40px; padding: 8px 18px; margin-top: 4px; cursor: pointer; letter-spacing: 0.06em;
+}
+#over-daily .dl-share, #dl-card .dl-share { border-color: var(--cyan); color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, transparent); }
+#over-daily .dl-share:hover, #dl-card .dl-share:hover, #dl-card .dl-practice:hover { background: color-mix(in srgb, var(--cyan) 20%, transparent); }
+#dl-card .dl-practice { display: block; margin: 12px auto 0; font-size: 12px; }

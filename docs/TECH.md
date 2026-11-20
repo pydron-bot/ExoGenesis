@@ -1711,3 +1711,31 @@ Every armed Accord unit has one ability the player triggers, on a cooldown; comp
   touch-sized, it fires only that kind, counts down, and G). `tools/unit-duel.mjs --check`.
 - Known: `tools/roster-smoke.mjs` "packs bring spitters and burrowers" fails before this change too (the test clears
   every hostile, nests included, so later packs have no open spawn).
+
+### Daily Planet
+
+DESIGN §5.10 A. `src/daily.ts`, wired in `main.ts` (`daily`, `finishDaily`, `dailyChoice`). No server.
+
+- **Today's planet** (`dailyRules(date)`): everything follows from the UTC date (FNV hash of `exo-daily:<date>`): the
+  skirmish seed, the world (one of `SKIRMISH_WORLDS`), one or two computer rivals, map size, sea (only worlds with
+  one), ground, starting alloys (400 / 600 / 800); predator packs on; rivals Normal on weekdays and Hard at weekends.
+  Numbered from #1 on 2026-11-20; a new one at midnight UTC. It plays as an ordinary skirmish link with
+  `daily=<date>` (`dailyLink`), so the generator, the computer players and the end screen are the skirmish's own;
+  the seeded sim makes it the same planet for everyone (14 days checked: each map generates, twice over the same).
+- **One scored try:** opening today's link claims the day in `localStorage` (`exo-daily`: date → `{ started,
+  result }`, last 60 days). A reload, a Rematch, an old date or `practice=1` is practice (the log says which). A try
+  left unfinished stays unscored.
+- **Score** (`dailyScore`): a win 1,000 plus speed (2,400 s − time) / 4; a loss the time held / 3 (to 40 min); +5 a kill
+  of a rival's unit, drone or building; + alloys mined / 20; −8 a unit lost, −20 a building lost; never below 0.
+- **The shared line** (`DailyTracker`, fed every frame): one square per 2 minutes of play, 🟩 quiet, 🟨 a fight (any
+  loss or kill), 🟥 heavy (two buildings or six units lost), folded to at most 15 squares, then 🏆 or 💀. Share text:
+  `Exo Genesis · Daily Planet #N`, the world, rivals and level, the line, "Victory at mm:ss · N pts", the game's link:
+  nothing about the map. Share uses the Web Share sheet on touch devices and the clipboard elsewhere (a hidden
+  textarea copy as the last resort).
+- **Where:** title → **DAILY PLANET** ("#N · world · rivals · one scored try a day"; once played "Today: victory /
+  fell · N pts · tap to share", which opens the card with Share, the streak and a practice button). The end screen
+  adds the score card (score, line, how it was made, Share, days in a row) under the skirmish table.
+- **Test:** `tools/daily-smoke.mjs` (headless: same date same planet, next day another, numbering, weekends, the UTC
+  day boundary, links, a fortnight of maps, score order, the timeline and folding, the share text; browser, desktop
+  and phone: the title entry, claiming the try, surrender → the card and Share copying the text, the result kept, a
+  reload is practice, the title's look back).
