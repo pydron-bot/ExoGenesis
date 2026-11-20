@@ -412,7 +412,7 @@ export interface SimState {
    */
   players?: PlayerState[];
   /** Skirmish rules (absent in the campaign). */
-  skirmish?: { fog: boolean; packs: boolean };
+  skirmish?: { fog: boolean; packs: boolean; unitCap?: number };
 }
 
 /** How a skirmish starts (Sim.newSkirmish). */
@@ -431,6 +431,9 @@ export interface SkirmishSetup {
 }
 
 export type SimStats = { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number; unitsBuilt?: number; enemyKills?: number };
+
+/** A computer player's memory: waves sent, the raid under way (unit ids, whose base, when, how big), its rally point. */
+export interface AiBrain { wave: number; attack: number[]; target: number; launched: number; size: number; rally: { x: number; z: number } | null }
 
 /** One player's own economy (skirmish players other than 0). */
 export interface Econ {
@@ -454,6 +457,8 @@ export interface PlayerState {
   out?: boolean;
   /** Where it started (its Command Core). */
   home: { x: number; z: number };
+  /** A computer player's memory (src/sim/ai.ts). */
+  brain?: AiBrain;
   econ?: Econ;
 }
 
@@ -551,6 +556,8 @@ export interface Snapshot {
   type: 'snap';
   tick: number;
   /** Skirmish players (absent in the campaign). */
+  /** Combat units you may have (absent: the colony rules' maxUnits). */
+  unitCap?: number;
   players?: { name: string; color: string; side: number; ai?: PlayerState['ai']; out: boolean; home: { x: number; z: number }; stats: SimStats }[];
   /** Game seconds since landing. */
   secs: number;

@@ -31,7 +31,8 @@ function setup(n, extra = {}) {
   });
   const names = ['You', 'Crimson', 'Amber', 'Violet'], colors = ['#4fd1e8', '#e8574f', '#e8b04f', '#a46be8'];
   const sim = new core.Sim((text, level) => events.push({ t: sim?.s?.tick ?? 0, text, level }), seed);
-  sim.newSkirmish({ seed, alloys: 1200, homes, deposits, players: names.slice(0, n).map((name, i) => ({ name, color: colors[i], ai: i ? 'normal' : undefined })), ...extra });
+  // (no ai: scripted players; the computer players are tested by tools/ai-sim.mjs)
+  sim.newSkirmish({ seed, alloys: 1200, homes, deposits, players: names.slice(0, n).map((name, i) => ({ name, color: colors[i] })), ...extra });
   return sim;
 }
 const alloysOf = (sim, t) => (t ? sim.s.players[t].econ.alloys : sim.s.alloys);
