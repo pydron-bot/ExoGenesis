@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.66.0',
+    date: '2026-11-21',
+    title: 'A clearer, wider soundtrack',
+    notes: [
+      'The music sounds clearer and wider: pads have a slow stereo shimmer, the bass stays tight instead of booming in the reverb, and chords fade away more naturally',
+      'Choirs sound smoother and less nasal, and the faint hiss of space behind the music is softer and airier',
+      'Music can now be written out bar by bar in the editor, so a piece plays exactly the same every time',
+    ],
+  },
+  {
     version: '0.65.0',
     date: '2026-11-21',
     title: 'Three new pieces',

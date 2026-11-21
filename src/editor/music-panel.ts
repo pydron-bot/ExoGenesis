@@ -4,7 +4,7 @@
  * next chord or bell (⏭ moves on now). Its own AudioContext, made on the click.
  */
 import type { MusicDef, SoundRules } from '../content/defs';
-import { AmbientMusic } from '../audio/music';
+import { AmbientMusic, scoreBars } from '../audio/music';
 import { parseNotes } from '../audio/notes';
 
 let ctx: AudioContext | null = null;
@@ -74,8 +74,10 @@ export class MusicPanel {
       s.title = i === 0 ? 'Home chord' : `Chord ${i + 1}`;
       return s;
     }));
-    const p = this.music?.played;
-    this.now.textContent = p ? `chord ${p.chord + 1} of ${chords.length}${p.section >= 0 ? ` · section ${p.section + 1} of ${d.sections?.length ?? 0}` : ''} · ${p.bells} bells${p.pulses ? ` · ${p.pulses} beats` : ''}${p.hits ? ` · ${p.hits} drum hits` : ''}${p.arps ? ` · ${p.arps} arp steps` : ''}${p.leads ? ` · ${p.leads} phrases` : ''}${p.calls ? ` · ${p.calls} calls` : ''}` : '';
+    const p = this.music?.played, bars = scoreBars(d);
+    const where = !p ? '' : bars ? `bar ${p.chord + 1} of ${bars.length}${p.section >= 0 ? ` · ${d.score?.[p.section]?.name || `section ${p.section + 1}`}` : ''}`
+      : `chord ${p.chord + 1} of ${chords.length}${p.section >= 0 ? ` · section ${p.section + 1} of ${d.sections?.length ?? 0}` : ''}`;
+    this.now.textContent = p ? `${where} · ${p.bells} bells${p.pulses ? ` · ${p.pulses} beats` : ''}${p.hits ? ` · ${p.hits} drum hits` : ''}${p.arps ? ` · ${p.arps} arp steps` : ''}${p.leads ? ` · ${p.leads} phrases` : ''}${p.calls ? ` · ${p.calls} calls` : ''}` : '';
   }
 
   dispose() { this.stop(); }

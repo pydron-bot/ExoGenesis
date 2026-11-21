@@ -3,11 +3,12 @@
  * reference track) without opening the game. Runs the real engine (src/audio/music.ts) in a
  * headless browser against an OfflineAudioContext, with its scheduler driven by a fake clock.
  *
- *   node tools/music-render.mjs <mood id | path/to/mood.json> [--seconds 90] [--out music-drafts/<name>.wav] [--url http://localhost:5176/]
+ *   node tools/music-render.mjs <mood id | path/to/mood.json> [--seconds 90] [--out music-drafts/<name>.wav] [--seed N] [--url http://localhost:5176/]
  *
  * A .json path renders that file (say, an earlier version kept in music-drafts/) instead of content/music/<id>.json.
  *
- * Needs the dev server (it serves the TypeScript). Random choices differ run to run, as in the game.
+ * Needs the dev server (it serves the TypeScript). Random choices differ run to run, as in the game, unless
+ * --seed fixes them: the same seed plays the same notes, so two versions of a mood or of the engine compare fairly.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,12 +24,18 @@ const isFile = id.endsWith('.json');
 const name = isFile ? path.basename(id, '.json') : id;
 const out = path.resolve(root, arg('--out', `music-drafts/${name}.wav`));
 const url = arg('--url', 'http://localhost:5176/');
+const seed = arg('--seed', null);
 const mood = JSON.parse(fs.readFileSync(isFile ? path.resolve(id) : path.join(root, 'content/music', `${id}.json`), 'utf8'));
 
 const browser = await chromium.launch();
 try {
   const page = await browser.newPage();
   page.on('pageerror', (e) => console.error('page error:', e.message));
+  // a seeded Math.random (mulberry32), so a render can be repeated note for note
+  if (seed !== null) await page.addInitScript((s) => {
+    let a = s >>> 0;
+    Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }, Number(seed));
   await page.goto(`${url}editor.html?sw=0`);
   const b64 = await page.evaluate(async ({ mood, seconds }) => {
     const { AmbientMusic } = await import('/src/audio/music.ts');

@@ -119,6 +119,34 @@ try {
   check(/chord \d+ of 5/.test(txt), `editor: ⏭ moves on (${txt})`);
   await page.click('.music-panel .mp-play');
 
+  // ---- a written score plays the same every time ----
+  // rendered offline twice (Math.random left as it is): the same samples; a free-running mood differs
+  const takes = await page.evaluate(async () => {
+    const { AmbientMusic, scoreBars } = await import('/src/audio/music.ts');
+    const load = async (id) => (await fetch(`/content/music/${id}.json`)).json();
+    const render = async (mood, seconds) => {
+      const sr = 22050, off = new OfflineAudioContext(2, seconds * sr, sr);
+      let clock = 0;
+      const c = new Proxy(off, { get: (t, p) => (p === 'currentTime' ? clock : typeof t[p] === 'function' ? t[p].bind(t) : t[p]) });
+      const real = window.setInterval;
+      window.setInterval = () => 0;
+      const m = new AmbientMusic(c, off.destination, () => mood, 1, 0.5);
+      window.setInterval = real;
+      for (clock = 0; clock < seconds - 2; clock += 0.2) m.tick();
+      const d = (await off.startRendering()).getChannelData(0);
+      return { d, played: m.played, energy: d.reduce((a, v) => a + v * v, 0) };
+    };
+    const score = await load('score-example'), free = await load('night-void-drift');
+    const [a, b] = [await render(score, 20), await render(score, 20)];
+    const [f1, f2] = [await render(free, 20), await render(free, 20)];
+    const gap = (x, y) => { let e = 0; for (let i = 0; i < x.d.length; i++) e = Math.max(e, Math.abs(x.d[i] - y.d[i])); return e; };
+    return { bars: scoreBars(score)?.length, same: gap(a, b), free: gap(f1, f2), energy: a.energy, played: a.played };
+  });
+  check(takes.bars === 20, `the example score's form flattens to its bars (${takes.bars} of 20: intro A A B A outro)`);
+  check(takes.energy > 0 && takes.played.chords >= 5 && takes.played.bells > 0, `a score plays its bars and its written bells (${JSON.stringify(takes.played)})`);
+  check(takes.same < 1e-4, `a score renders the same twice (largest difference ${takes.same.toExponential(1)})`);
+  check(takes.free > 1e-3, `a free-running mood still varies (largest difference ${takes.free.toFixed(3)})`);
+
   check(errors.length === 0, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' | ')}` : ''}`);
 } catch (e) {
   console.log('FAIL ', e.message);

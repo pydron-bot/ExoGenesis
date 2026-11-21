@@ -25,7 +25,23 @@ import { midiHz, noteMidi, parseNotes } from './notes';
 import { HITS, parseSteps } from './drums';
 import { noise } from './synth';
 
-const rand = (a: number, b: number) => a + Math.random() * (b - a);
+/**
+ * Where random choices come from: Math.random, or, while a written score is being scheduled, that
+ * score's own seeded source for the part being scheduled (see AmbientMusic.run), so it plays the same every time.
+ */
+let random: () => number = Math.random;
+const rand = (a: number, b: number) => a + random() * (b - a);
+/** A small seeded random source (mulberry32): the same seed, the same numbers. */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 /** A mood number, or `d` while it's blank or half-typed in the editor. */
 const fin = (v: number | undefined, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
@@ -39,21 +55,46 @@ const ARP_PEAK = 0.09;
 const BASSLINE_PEAK = 0.18;
 const LEAD_PEAK = 0.1;
 const CALL_PEAK = 0.05;
-/** Makeup gain for the choir's narrow vowel filters, and the strings' many voices. */
-const CHOIR_GAIN = 4.5;
-/** Vowel formants: [Hz, Q, level]. */
+/** Makeup gain for the choir's vowel filters. */
+const CHOIR_GAIN = 3.3;
+/** Vowel formants: [Hz, Q, level]. Wide enough to sound smooth rather than nasal. */
 const VOWELS: Record<'choir-ah' | 'choir-oo', [number, number, number][]> = {
-  'choir-ah': [[800, 7, 1], [1150, 8, 0.6], [2900, 14, 0.25], [3900, 18, 0.1]],
-  'choir-oo': [[330, 5, 1], [700, 7, 0.45], [2500, 12, 0.1]],
+  'choir-ah': [[780, 3.0, 1], [1180, 3.5, 0.55], [2600, 4.5, 0.18]],
+  'choir-oo': [[320, 2.6, 1], [720, 3.2, 0.4], [2200, 4.5, 0.08]],
 };
 const STEPS_PER_BEAT = { '4ths': 1, '8ths': 2, triplets: 3, '16ths': 4 } as const;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-const AIR_PEAK = 0.024;
+const AIR_PEAK = 0.011;
 const LOOKAHEAD = 1.2;
 
 interface Chord { pad: number[]; bass: number; bells: number[] }
 /** A queued chord: when it starts, which of the mood's chords, and (with sections) which layers play under it. */
 interface Queued { t: number; c: Chord; i: number; on: Set<string> | null; section: number; gains: GainNode[] }
+/** A written score's bar, flattened from its sections in the order the form plays them. */
+interface ScoreBar { chord: Chord | null; bells?: string; melody?: string; section: number; on: Set<string> | null }
+
+/**
+ * A mood's written score as the bars it plays, in order (its form, or the sections as written), or null
+ * when it has none. A bar with no chord keeps the one before sounding.
+ */
+export function scoreBars(m: MusicDef): ScoreBar[] | null {
+  const secs = m.score ?? [];
+  if (!secs.length) return null;
+  const byName = new Map(secs.map((sec, i) => [(sec?.name ?? '').trim().toLowerCase(), i]));
+  const form = (m.form ?? '').split(/[\s,]+/).filter(Boolean).map((w) => byName.get(w.toLowerCase())).filter((i): i is number => i !== undefined);
+  const out: ScoreBar[] = [];
+  for (const i of form.length ? form : secs.map((_, k) => k)) {
+    const sec = secs[i];
+    const words = (sec?.layers ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
+    const on = words.length ? new Set(words) : null;
+    for (const b of sec?.bars ?? []) {
+      const chord = b?.chord?.trim() ? chordOf({ notes: b.chord, bass: b.bass ?? '', bells: '' }) : null;
+      out.push({ chord: chord && chord.pad.length ? chord : null, bells: b?.bells, melody: b?.melody, section: i, on });
+    }
+  }
+  return out.length ? out : null;
+}
+
 
 /** A mood's chord, parsed (bad words are skipped; content checks flag them). */
 function chordOf(c: MusicChord): Chord | null {
@@ -112,7 +153,7 @@ function pluckBuffer(c: BaseAudioContext, midi: number): { buf: AudioBuffer; rat
   const d = buf.getChannelData(0);
   // the pluck: one period of softened noise (a fingertip, not a pick), without DC
   let y = 0, mean = 0;
-  for (let i = 0; i <= N; i++) { y += 0.55 * ((Math.random() * 2 - 1) - y); d[i] = y; mean += y; }
+  for (let i = 0; i <= N; i++) { y += 0.55 * ((random() * 2 - 1) - y); d[i] = y; mean += y; }
   mean /= N + 1;
   for (let i = 0; i <= N; i++) d[i] -= mean;
   // extra loss per pass so it dies away in about `secs`
@@ -163,8 +204,20 @@ export class AmbientMusic {
   private drumPans: StereoPannerNode[] = [];
   /** Test and editor hook: what has been queued, and the chord now sounding (index into the mood's chords). */
   played = { chords: 0, bells: 0, pulses: 0, hits: 0, arps: 0, leads: 0, calls: 0, chord: -1, section: -1 };
+  /** A written score: a seeded random source for each part (null for a free-running mood). */
+  private rngs: Record<string, () => number> | null = null;
+  /** A written score: the chord now held (bars without one keep it) and its voices. */
+  private held: { c: Chord; gains: GainNode[] } | null = null;
 
   constructor(private c: AudioContext, dest: AudioNode, private mood: () => MusicDef, volume = 1, fadeIn = 6) {
+    // a written score plays the same every time: each part draws from its own seeded source, so the
+    // numbers don't depend on how the browser's timer happens to batch the parts
+    if (scoreBars(mood())) {
+      const seed = Math.round(fin(mood().seed, 1));
+      this.rngs = Object.fromEntries(['setup', 'chord', 'bell', 'pulse', 'drum', 'arp', 'call'].map((k, i) => [k, seeded(seed * 7919 + i * 104729)]));
+    }
+    const prev = random;
+    if (this.rngs) random = this.rngs.setup;
     const out = (this.out = c.createGain());
     out.gain.setValueAtTime(0, c.currentTime);
     out.gain.linearRampToValueAtTime(volume, c.currentTime + fadeIn);
@@ -183,15 +236,47 @@ export class AmbientMusic {
     this.wearHi.Q.value = 0.9;
     lvl.connect(this.shaper).connect(this.wearLo).connect(this.wearHi).connect(out);
 
-    // one room for everything (its size is set when the music starts)
-    const verb = c.createConvolver();
-    verb.buffer = hall(c, clamp(fin(mood().room, 6.5), 0.4, 12));
+    // one room for everything (its size is set when the music starts), high-passed so the
+    // low end never muddies the tail
+    const verb = c.createBiquadFilter();
+    verb.type = 'highpass';
+    verb.frequency.value = 220;
+    verb.Q.value = 0.7;
+    const hallNode = c.createConvolver();
+    hallNode.buffer = hall(c, clamp(fin(mood().room, 6.5), 0.4, 12));
     this.wet = c.createGain();
-    verb.connect(this.wet).connect(lvl);
+    verb.connect(hallNode).connect(this.wet).connect(lvl);
 
+    // pads: dry plus a slow stereo chorus (two drifting delays, left and right); the two sends are set so pads
+    // come out as loud as they did straight through before the chorus
     this.pads = c.createGain();
-    this.pads.connect(lvl);
-    this.pads.connect(verb);
+    const padDry = c.createGain();
+    padDry.gain.value = 0.95;
+    this.pads.connect(padDry).connect(lvl);
+    padDry.connect(verb);
+    const cL = c.createDelay(0.1), cR = c.createDelay(0.1);
+    cL.delayTime.value = 0.018;
+    cR.delayTime.value = 0.024;
+    const cLfoL = c.createOscillator(), cLfoR = c.createOscillator();
+    cLfoL.frequency.value = 0.17;
+    cLfoR.frequency.value = 0.23;
+    const cDepthL = c.createGain(), cDepthR = c.createGain();
+    cDepthL.gain.value = 0.004;
+    cDepthR.gain.value = 0.004;
+    cLfoL.connect(cDepthL).connect(cL.delayTime);
+    cLfoR.connect(cDepthR).connect(cR.delayTime);
+    const cMerge = c.createChannelMerger(2);
+    const cWet = c.createGain();
+    cWet.gain.value = 0.8;
+    this.pads.connect(cL);
+    this.pads.connect(cR);
+    cL.connect(cMerge, 0, 0);
+    cR.connect(cMerge, 0, 1);
+    cMerge.connect(cWet).connect(lvl);
+    cWet.connect(verb);
+    cLfoL.start();
+    cLfoR.start();
+    this.nodes.push(hallNode, padDry, cL, cR, cLfoL, cLfoR, cDepthL, cDepthR, cMerge, cWet);
 
     // bells: a stereo ping-pong echo (dark, so repeats sink back) into the reverb
     this.bellBus = c.createGain();
@@ -239,8 +324,9 @@ export class AmbientMusic {
       this.nodes.push(bus, r, e);
     }
 
+    // air: dry, outside the chorus and the hall
     this.airGain = c.createGain();
-    this.airGain.connect(this.pads);
+    this.airGain.connect(lvl);
     this.nodes.push(this.shaper, this.wearLo, this.wearHi);
     this.nodes.push(out, lvl, verb, this.wet, this.pads, this.bellBus, dry, send, dl, dr, fb, tone, merge, this.echoSend, this.airGain);
     this.air();
@@ -254,8 +340,18 @@ export class AmbientMusic {
     this.nextStep = t;
     this.nextArp = t;
     this.nextCall = t + rand(4, 8);
+    random = prev;
     this.tick();
     this.timer = window.setInterval(() => this.tick(), 200);
+  }
+
+  /** Run `f` with the part's seeded random source (a written score), or as is. */
+  private run<T>(part: string, f: () => T): T {
+    const r = this.rngs?.[part];
+    if (!r) return f();
+    const prev = random;
+    random = r;
+    try { return f(); } finally { random = prev; }
   }
 
   /** Fade out over `fade` seconds, then let go of everything. */
@@ -317,12 +413,14 @@ export class AmbientMusic {
   private tick() {
     const now = this.c.currentTime, ahead = now + LOOKAHEAD;
     this.levels();
-    while (this.nextChord < ahead) this.nextChord += this.playChord(this.nextChord);
-    while (this.nextBell < ahead) this.nextBell += this.bells(this.nextBell);
-    while (this.nextPulse < ahead) this.nextPulse += this.pulse(this.nextPulse);
-    while (this.nextStep < ahead) this.nextStep += this.drumStep(this.nextStep);
-    while (this.nextArp < ahead) this.nextArp += this.arpStep(this.nextArp);
-    while (this.nextCall < ahead) this.nextCall += this.call(this.nextCall);
+    const bars = scoreBars(this.mood());
+    while (this.nextChord < ahead) this.nextChord += this.run('chord', () => (bars ? this.playBar(this.nextChord, bars) : this.playChord(this.nextChord)));
+    // a score writes its bells out bar by bar (playBar)
+    while (this.nextBell < ahead) this.nextBell += bars ? 60 : this.run('bell', () => this.bells(this.nextBell));
+    while (this.nextPulse < ahead) this.nextPulse += this.run('pulse', () => this.pulse(this.nextPulse));
+    while (this.nextStep < ahead) this.nextStep += this.run('drum', () => this.drumStep(this.nextStep));
+    while (this.nextArp < ahead) this.nextArp += this.run('arp', () => this.arpStep(this.nextArp));
+    while (this.nextCall < ahead) this.nextCall += this.run('call', () => this.call(this.nextCall));
     while (this.queue.length > 2 && this.queue[1].t < now) this.queue.shift();
     const q = [...this.queue].reverse().find((x) => x.t <= now);
     if (q) { this.played.chord = q.i; this.played.section = q.section; }
@@ -369,9 +467,9 @@ export class AmbientMusic {
     let i: number;
     if (this.chord < 0) i = 0;
     else if (m.order === 'cycle') i = (this.chord + 1) % all.length;
-    else if (this.chord !== 0 && Math.random() < fin(m.homePull, 0.3)) i = 0;
+    else if (this.chord !== 0 && random() < fin(m.homePull, 0.3)) i = 0;
     else if (all.length === 1) i = 0;
-    else { do i = Math.floor(Math.random() * all.length); while (i === this.chord); }
+    else { do i = Math.floor(random() * all.length); while (i === this.chord); }
     this.chord = i;
     const ch = all[i];
     const sec = this.section(this.played.chords, m);
@@ -407,6 +505,61 @@ export class AmbientMusic {
     return len;
   }
 
+  /** One bar's length at the mood's tempo and time signature. */
+  private barLen(m: MusicDef): number {
+    return clamp(Math.round(fin(m.barSteps, 16)), 4, 32) / 4 * 60 / Math.max(20, fin(m.pulseRate, 70));
+  }
+
+  /**
+   * A written score's next bar at `t`; returns its length. A chord sounds from its bar until the next chord
+   * or the end of its section (a new section strikes the held chord again, with the new section's layers).
+   */
+  private playBar(t: number, bars: ScoreBar[]): number {
+    const m = this.mood(), bar = this.barLen(m);
+    const k = this.played.chords % bars.length, b = bars[k];
+    const starts = (j: number) => j === 0 || bars[j].section !== bars[j - 1].section;
+    const fresh = !!b.chord || starts(k) || !this.held;
+    const ch = b.chord ?? this.held?.c ?? null;
+    const on = (layer: string) => !b.on || b.on.has(layer);
+    let gains: GainNode[] = fresh ? [] : this.held!.gains;
+    if (ch && fresh) {
+      // how many bars it holds for
+      let n = 1;
+      while (n < bars.length && !bars[(k + n) % bars.length].chord && !starts((k + n) % bars.length)) n++;
+      const len = n * bar, end = t + len;
+      const swell = Math.max(0.02, Math.min(fin(m.swell, 4), len)), release = Math.max(0.05, fin(m.release, 6));
+      const stagger = Math.min(0.9, swell / 4);
+      if (m.pad > 0 && on('pad')) ch.pad.forEach((nt, j) => gains.push(this.padVoice(midiHz(nt), t + j * rand(0.2, 1) * stagger, end, release, swell, m, ch.pad.length > 1 ? (j / (ch.pad.length - 1)) * 1.2 - 0.6 : 0)));
+      if (fin(m.choir, 0) > 0 && on('choir')) {
+        const top = ch.pad.slice(-3);
+        const sing = { ...m, padTone: m.choirVowel === 'oo' ? 'choir-oo' : 'choir-ah', pad: m.choir!, vibrato: Math.max(0.3, fin(m.vibrato, 0)), glide: 0 } as MusicDef;
+        top.forEach((nt, j) => gains.push(this.padVoice(midiHz(nt), t + 0.3 + j * rand(0.2, 0.8) * stagger, end, release, swell * 1.2, sing, top.length > 1 ? (j / (top.length - 1)) * 0.9 - 0.45 : 0)));
+      }
+      if (m.bass > 0 && on('bass')) gains.push(this.bass(midiHz(ch.bass), t, end, release, swell, m.bass));
+      this.held = { c: ch, gains };
+    }
+    if (ch) this.queue.push({ t, c: ch, i: k, on: b.on, section: b.section, gains });
+    this.played.chords++;
+    // the bar's written lines
+    if (b.bells && m.bells > 0 && on('bells')) this.scoreBells(b.bells, t, m);
+    if (b.melody && fin(m.lead, 0) > 0 && on('melody')) this.phrase(b.melody, t + 0.02, m);
+    // the next bar starts a section that asks for a crash: a reverse cymbal over this bar, the crash on its downbeat
+    const nx = bars[(k + 1) % bars.length];
+    if (starts((k + 1) % bars.length) && nx.on?.has('crash') && fin(m.crash, 0) > 0) {
+      const v = DRUM_PEAK * fin(m.crash, 0);
+      HITS.swell(this.c, this.drumBus, t, v, 1, bar);
+      HITS.crash(this.c, this.drumBus, t + bar, v);
+      this.played.hits += 2;
+    }
+    return bar;
+  }
+
+  /** A score's bell line from `t`: one token per step (the mood's bell step), a note or . (a rest; - holds, as bells ring anyway). */
+  private scoreBells(text: string, t: number, m: MusicDef) {
+    const step = 60 / Math.max(20, fin(m.pulseRate, 70)) / STEPS_PER_BEAT[m.bellStep ?? '8ths'];
+    for (const nt of parsePhrase(text)) this.bell(midiHz(nt.midi), t + nt.at * step, rand(0.8, 1) * m.bells, rand(-0.6, 0.6), m);
+  }
+
   /** Fade a sounding chord's voices out from `t` (used when skipping ahead), from wherever their swell has got to. */
   private release(gains: GainNode[], t: number) {
     const r = Math.max(0.5, Math.min(3, fin(this.mood().release, 2)));
@@ -427,16 +580,18 @@ export class AmbientMusic {
     const c = this.c, tone = m.padTone ?? 'warm';
     const choir = tone === 'choir-ah' || tone === 'choir-oo';
     const peak = PAD_PEAK * m.pad * (choir ? CHOIR_GAIN : tone === 'strings' ? 1.5 : 1);
+    // a linear swell in, an exponential fade out (time constant release / 3), stopped 6 of them later (−52 dB)
+    const relAt = Math.max(t + swell, end);
     const g = c.createGain();
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + swell);
-    g.gain.setValueAtTime(peak, Math.max(t + swell, end));
-    g.gain.linearRampToValueAtTime(0, Math.max(t + swell, end) + release);
-    const stopAt = Math.max(t + swell, end) + release + 0.1;
+    g.gain.setValueAtTime(peak, relAt);
+    g.gain.setTargetAtTime(0, relAt, Math.max(0.05, release / 3));
+    const stopAt = relAt + Math.max(0.3, release * 2) + 0.1;
     const lp = c.createBiquadFilter();
     lp.type = 'lowpass';
     lp.Q.value = 0.6;
-    const cut = Math.min(choir ? 5000 : tone === 'organ' ? 9000 : 6000, (380 + f * 0.9) * Math.max(0.1, fin(m.brightness, 1)) * (choir ? 3 : tone === 'organ' ? 2.5 : tone === 'brass' ? 1.8 : 1));
+    const cut = Math.min(choir ? 2600 : tone === 'organ' ? 9000 : 6000, (380 + f * 0.9) * Math.max(0.1, fin(m.brightness, 1)) * (choir ? 2.2 : tone === 'organ' ? 2.5 : tone === 'brass' ? 1.8 : 1));
     lp.frequency.value = cut;
     if (tone === 'brass') {
       // horns open up as they swell
@@ -481,7 +636,7 @@ export class AmbientMusic {
     if (vib > 0) pitchMods.push([rand(4.8, 5.8), vib * 22]);
     if (wob > 0) pitchMods.push([rand(0.15, 0.7), wob * 80]);
     const spread = fin(m.detune, 0), glide = fin(m.glide, 0);
-    const from = glide > 0 ? 2 ** ((Math.random() < 0.5 ? -1 : 1) * glide * rand(0.6, 1) / 1200) : 1;
+    const from = glide > 0 ? 2 ** ((random() < 0.5 ? -1 : 1) * glide * rand(0.6, 1) / 1200) : 1;
     for (const [type, cents, lvl, oct] of PAD_TONES[tone] ?? PAD_TONES.warm) {
       const o = c.createOscillator();
       o.type = type;
@@ -515,13 +670,15 @@ export class AmbientMusic {
   /** The chord's root, low and round: a sine with its octave above so small speakers still hear it. */
   private bass(f: number, t: number, end: number, release: number, swell: number, level: number): GainNode {
     const c = this.c, peak = BASS_PEAK * level;
+    const relAt = Math.max(t + swell * 1.3, end);
     const g = c.createGain();
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(peak, t + swell * 1.3);
-    g.gain.setValueAtTime(peak, Math.max(t + swell * 1.3, end));
-    g.gain.linearRampToValueAtTime(0, Math.max(t + swell * 1.3, end) + release);
-    g.connect(this.pads);
-    const stopAt = Math.max(t + swell * 1.3, end) + release + 0.1;
+    g.gain.setValueAtTime(peak, relAt);
+    g.gain.setTargetAtTime(0, relAt, Math.max(0.05, release / 3));
+    // dry: the low end stays tight, out of the chorus and the hall
+    g.connect(this.lvl);
+    const stopAt = relAt + Math.max(0.3, release * 2) + 0.1;
     let left = 2;
     for (const [fr, lvl] of [[f, 1], [f * 2, 0.35]]) {
       const o = c.createOscillator();
@@ -543,18 +700,18 @@ export class AmbientMusic {
     const gap = () => rand(lo, Math.max(lo, fin(m.bellGapMax, lo)));
     const ch = this.sounding(t);
     if (!ch || !(m.bells > 0) || !this.on('bells', t)) return gap();
-    const r = Math.random();
+    const r = random();
     if (r < 0.12) return gap() * 1.5; // a rest
     const ph = fin(m.phrases, 0.4);
-    const n = Math.random() < ph ? (Math.random() < 0.7 ? 2 : 3) : 1;
-    let i = Math.floor(Math.random() * ch.bells.length), at = t;
-    const dir = Math.random() < 0.5 ? -1 : 1;
+    const n = random() < ph ? (random() < 0.7 ? 2 : 3) : 1;
+    let i = Math.floor(random() * ch.bells.length), at = t;
+    const dir = random() < 0.5 ? -1 : 1;
     for (let k = 0; k < n; k++) {
       const note = ch.bells[Math.max(0, Math.min(ch.bells.length - 1, i))];
       // now and then an octave down, softer
-      const low = Math.random() < 0.15;
+      const low = random() < 0.15;
       this.bell(midiHz(low ? note - 12 : note), at, rand(0.5, 1) * (low ? 0.8 : 1) * (k ? 0.75 : 1) * m.bells, rand(-0.7, 0.7), m);
-      i += dir * (1 + Math.floor(Math.random() * 2));
+      i += dir * (1 + Math.floor(random() * 2));
       at += rand(0.35, 0.8);
     }
     return at - t + gap();
@@ -745,7 +902,7 @@ export class AmbientMusic {
     const dur = 60 / Math.max(20, fin(m.pulseRate, 70)) / STEPS_PER_BEAT[m.arpRate ?? '16ths'];
     const level = fin(m.arp, 0);
     const q = this.at(t), ch = q?.c;
-    if (q !== this.arpOn) { this.arpOn = q; this.arpN = 0; }
+    if (q?.c !== this.arpOn?.c) { this.arpOn = q; this.arpN = 0; }
     if (!(level > 0) || !ch || !this.on('arp', t)) return dur;
     const shift = 12 * fin(m.arpShift, 1), octs = Math.max(1, Math.min(3, fin(m.arpOctaves, 1)));
     const up: number[] = [];
@@ -754,7 +911,7 @@ export class AmbientMusic {
     const i = this.arpN++;
     let notes: number[];
     if (mode === 'chord') notes = ch.pad.map((n) => n + shift);
-    else if (mode === 'random') notes = [up[Math.floor(Math.random() * up.length)]];
+    else if (mode === 'random') notes = [up[Math.floor(random() * up.length)]];
     else {
       const seq = mode === 'down' ? [...up].reverse() : mode === 'updown' ? [...up, ...up.slice(1, -1).reverse()] : up;
       notes = [seq[i % seq.length]];
@@ -887,7 +1044,7 @@ export class AmbientMusic {
     ng.gain.setValueAtTime(peak * 0.25, t);
     ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
     n.connect(nb).connect(ng).connect(g);
-    n.start(t, Math.random() * 0.5);
+    n.start(t, random() * 0.5);
     n.stop(t + 0.06);
     nodes.push(n, nb, ng);
     oscs[0].onended = () => { for (const x of nodes) x.disconnect(); };
@@ -954,7 +1111,7 @@ export class AmbientMusic {
       const ng = c.createGain();
       ng.gain.value = 0.12;
       nz.connect(bp).connect(ng).connect(lp);
-      nz.start(t, Math.random() * 0.5);
+      nz.start(t, random() * 0.5);
       nz.stop(t + ring);
       nodes.push(nz, bp, ng);
     }
@@ -971,10 +1128,10 @@ export class AmbientMusic {
     const ch = this.sounding(t);
     if (!(level > 0) || !ch || !this.on('calls', t)) return gap;
     const c = this.c;
-    const base = ch.bells[Math.floor(Math.random() * ch.bells.length)] - 12 * Math.floor(rand(0, 2));
-    const f = midiHz(base), bend = rand(2, 9) * (Math.random() < 0.5 ? -1 : 1);
-    const shape = Math.floor(Math.random() * 3); // 0 rises into the note, 1 falls away from it, 2 trills
-    const n = Math.random() < 0.4 ? Math.floor(rand(2, 4)) : 1;
+    const base = ch.bells[Math.floor(random() * ch.bells.length)] - 12 * Math.floor(rand(0, 2));
+    const f = midiHz(base), bend = rand(2, 9) * (random() < 0.5 ? -1 : 1);
+    const shape = Math.floor(random() * 3); // 0 rises into the note, 1 falls away from it, 2 trills
+    const n = random() < 0.4 ? Math.floor(rand(2, 4)) : 1;
     const pan = rand(-0.85, 0.85);
     let at = t;
     for (let k = 0; k < n; k++) {
@@ -1026,7 +1183,7 @@ export class AmbientMusic {
     if (!b) {
       const n = Math.floor(c.sampleRate * 11);
       b = c.createBuffer(2, n, c.sampleRate);
-      for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
+      for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = random() * 2 - 1; }
       AIRS.set(c, b);
     }
     const src = c.createBufferSource();
@@ -1038,11 +1195,11 @@ export class AmbientMusic {
     drift.connect(dd).connect(src.playbackRate);
     const bp = c.createBiquadFilter();
     bp.type = 'bandpass';
-    bp.frequency.value = 1800;
-    bp.Q.value = 2.5;
+    bp.frequency.value = 3800;
+    bp.Q.value = 0.7;
     const lfo = c.createOscillator(), depth = c.createGain();
     lfo.frequency.value = 0.021;
-    depth.gain.value = 900;
+    depth.gain.value = 1200;
     lfo.connect(depth).connect(bp.frequency);
     const g = c.createGain();
     g.gain.value = 0.5;
@@ -1095,7 +1252,7 @@ function makeHall(c: BaseAudioContext, secs: number): AudioBuffer {
       const u = i / n;
       // one-pole low-pass that closes over time: the tail loses its highs
       const a = 0.85 * (1 - u) + 0.04;
-      y += a * ((Math.random() * 2 - 1) - y);
+      y += a * ((random() * 2 - 1) - y);
       // short fade-in so there's no hard first reflection, then a smooth decay
       d[i] = y * Math.min(1, i / (rate * 0.03)) * Math.pow(1 - u, 2.2) * Math.exp(-u * 2.5);
     }

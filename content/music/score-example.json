@@ -1,0 +1,66 @@
+{
+  "name": "Score · Example",
+  "use": "none",
+  "score": [
+    {
+      "name": "intro",
+      "layers": "pad bass",
+      "bars": [
+        { "chord": "C3 G3 D4 Eb4", "bass": "C2" },
+        {}
+      ]
+    },
+    {
+      "name": "A",
+      "layers": "pad bass bells",
+      "bars": [
+        { "chord": "C3 G3 D4 Eb4", "bass": "C2", "bells": "G5 . . Eb5 . . D5 ." },
+        { "bells": ". . C6 . . . G5 ." },
+        { "chord": "Ab2 Eb3 Bb3 C4", "bass": "Ab1", "bells": "Eb5 . . G5 . . Bb5 ." },
+        { "chord": "Bb2 F3 C4 D4", "bass": "Bb1", "bells": "D5 . . . F5 . . ." }
+      ]
+    },
+    {
+      "name": "B",
+      "layers": "pad bass bells melody crash",
+      "bars": [
+        { "chord": "F2 C3 G3 Ab3", "bass": "F1", "melody": "C5 - - Eb5 D5 - C5 -", "bells": "Ab5 . . . . . . ." },
+        { "melody": "G4 - - - - - . ." },
+        { "chord": "G2 D3 A3 Bb3", "bass": "G1", "melody": "D5 - - F5 Eb5 - D5 -", "bells": "G5 . . . . . . ." },
+        { "melody": "B4 - - - - - - -" }
+      ]
+    },
+    {
+      "name": "outro",
+      "layers": "pad bass bells",
+      "bars": [
+        { "chord": "C3 G3 D4 Eb4", "bass": "C2", "bells": ". . . . G5 . . ." },
+        {}
+      ]
+    }
+  ],
+  "form": "intro A A B A outro",
+  "pulseRate": 60,
+  "barSteps": 16,
+  "bellStep": "8ths",
+  "leadStep": "8ths",
+  "swell": 2.5,
+  "release": 4,
+  "pad": 0.85,
+  "padTone": "glass",
+  "detune": 6,
+  "vibrato": 0.15,
+  "brightness": 0.7,
+  "bass": 0.9,
+  "bells": 0.55,
+  "bellTone": "glass",
+  "pulse": 0,
+  "lead": 0.5,
+  "leadTone": "flute",
+  "crash": 0.3,
+  "air": 0.8,
+  "echo": 0.45,
+  "space": 0.85,
+  "room": 7,
+  "level": 1
+}

@@ -152,9 +152,33 @@ function crossIssues(db: ContentDb): FileIssue[] {
       if (bad.length) out.push({ path: at, field: `sections[${i}].layers`, msg: `not a layer: ${bad.join(', ')} (use ${MUSIC_LAYERS.join(', ')})` });
     });
     if (m.bassline && /[^xXoO5.\-\s|]/.test(m.bassline)) out.push({ path: at, field: 'bassline', msg: 'use x (root), o (octave up), 5 (fifth) and . (rest)' });
-    if (m.use !== 'none' && !(m.chords ?? []).length) out.push({ path: at, field: 'chords', msg: 'needs at least one chord' });
+    // a written score: its notes, layers and form
+    const names = new Set((m.score ?? []).map((sec) => (sec?.name ?? '').trim().toLowerCase()));
+    (m.score ?? []).forEach((sec, i) => {
+      const f = `score[${i}]`;
+      if (!(sec?.name ?? '').trim()) out.push({ path: at, field: `${f}.name`, msg: 'needs a name (the form plays sections by name)' });
+      const badL = (sec?.layers ?? '').toLowerCase().split(/[\s,]+/).filter((w) => w && !(MUSIC_LAYERS as readonly string[]).includes(w));
+      if (badL.length) out.push({ path: at, field: `${f}.layers`, msg: `not a layer: ${badL.join(', ')} (use ${MUSIC_LAYERS.join(', ')})` });
+      if (!(sec?.bars ?? []).length) out.push({ path: at, field: `${f}.bars`, msg: 'needs at least one bar' });
+      (sec?.bars ?? []).forEach((bar, j) => {
+        for (const k of ['chord', 'bass'] as const) {
+          const { bad } = parseNotes(bar?.[k]);
+          if (bad.length) out.push({ path: at, field: `${f}.bars[${j}].${k}`, msg: `not a note: ${bad.join(', ')} (write e.g. C#4, Eb3)` });
+        }
+        if (bar?.bass && !bar.chord) out.push({ path: at, field: `${f}.bars[${j}].bass`, msg: 'a bass note goes with a chord: this bar has none' });
+        for (const k of ['bells', 'melody'] as const) {
+          const bad = (bar?.[k] ?? '').split(/\s+/).filter((w) => w && !['-', '.', '|'].includes(w) && parseNotes(w).bad.length);
+          if (bad.length) out.push({ path: at, field: `${f}.bars[${j}].${k}`, msg: `not a note, - or .: ${bad.join(', ')}` });
+        }
+      });
+    });
+    const unknown = (m.form ?? '').split(/[\s,]+/).filter((w) => w && !names.has(w.toLowerCase()));
+    if (unknown.length) out.push({ path: at, field: 'form', msg: `no section called ${unknown.map((w) => `"${w}"`).join(', ')}` });
+    const scored = (m.score ?? []).some((sec) => (sec?.bars ?? []).some((bar) => bar?.chord?.trim()));
+    if (m.score?.length && !scored) out.push({ path: at, field: 'score', msg: 'needs at least one bar with a chord' });
+    if (m.use !== 'none' && !m.score?.length && !(m.chords ?? []).length) out.push({ path: at, field: 'chords', msg: 'needs at least one chord (or a written score)' });
     for (const [a, b] of [['chordMin', 'chordMax'], ['bellGapMin', 'bellGapMax']] as const) {
-      if (m[a] > m[b]) out.push({ path: at, field: b, msg: `shorter than ${a === 'chordMin' ? 'the shortest chord' : 'the shortest gap'}` });
+      if (m[a] !== undefined && m[b] !== undefined && m[a] > m[b]) out.push({ path: at, field: b, msg: `shorter than ${a === 'chordMin' ? 'the shortest chord' : 'the shortest gap'}` });
     }
   }
   if (db.sound) {

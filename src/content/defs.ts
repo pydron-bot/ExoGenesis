@@ -334,6 +334,18 @@ export const musicDrumShape = {
 } satisfies Shape;
 /** The parts of a mood a section can switch on (music.ts checks these names). */
 export const MUSIC_LAYERS = ['pad', 'choir', 'bass', 'bells', 'pulse', 'drums', 'bassline', 'arp', 'melody', 'calls', 'crash'] as const;
+/** A written score's bar: its chord and the lines written over it. */
+export const musicBarShape = {
+  chord: str({ label: 'Chord', optional: true, help: 'The pad notes, low to high, e.g. "C3 G3 D4 Eb4". Empty = the chord before keeps sounding (to the end of the section).' }),
+  bass: str({ label: 'Bass', optional: true, help: 'The bass note under this chord, e.g. "C2". Empty = the chord\'s lowest note, an octave down. Goes with a chord.' }),
+  bells: str({ label: 'Bells', optional: true, help: 'One token per step (Bells · step): a note or . for a rest, e.g. "D5 . . G5 | . C6 . .". Empty = none this bar.' }),
+  melody: str({ label: 'Melody', optional: true, help: 'One token per step (Melody · step): a note, - to hold it, . for a rest, e.g. "E5 - D5 C5 | D5 - - -". Empty = none this bar.' }),
+} satisfies Shape;
+export const musicScoreSectionShape = {
+  name: str({ label: 'Name', help: 'What the form calls it, e.g. "intro", "A".' }),
+  layers: str({ label: 'Layers', optional: true, help: `Which parts play in it, e.g. "pad bass bells". Empty = all. Any of: ${MUSIC_LAYERS.join(', ')}.` }),
+  bars: list(musicBarShape, { label: 'Bars', max: 64 }),
+} satisfies Shape;
 export const musicShape = {
   name: str({ label: 'Name' }),
   use: choice(MUSIC_USES, {
@@ -346,14 +358,14 @@ export const musicShape = {
       none: 'Never: a sketch, or switched off.',
     },
   }),
-  chords: list(musicChordShape, { label: 'Chords', max: 12, help: 'It drifts from chord to chord at random (or plays them in order: Chord order). The first is home: it comes back there often (Home pull).' }),
+  chords: list(musicChordShape, { label: 'Chords', max: 12, optional: true, help: 'It drifts from chord to chord at random (or plays them in order: Chord order). The first is home: it comes back there often (Home pull).' }),
   order: choice(['drift', 'cycle'] as const, {
     label: 'Chord order', optional: true,
     helps: { drift: 'A random walk that keeps coming home to the first chord: floating, ambient.', cycle: 'In order, first to last, then round again: a progression, like a song. Home pull is ignored.' },
   }),
-  homePull: num({ label: 'Home pull', min: 0, max: 1, step: 0.05, help: 'How often the next chord is the first one. 0 = any chord equally.' }),
-  chordMin: num({ label: 'Chord length · shortest', min: 2, max: 60, step: 0.5, unit: 's' }),
-  chordMax: num({ label: 'Chord length · longest', min: 2, max: 60, step: 0.5, unit: 's' }),
+  homePull: num({ label: 'Home pull', min: 0, max: 1, step: 0.05, optional: true, help: 'How often the next chord is the first one. 0 = any chord equally.' }),
+  chordMin: num({ label: 'Chord length · shortest', min: 2, max: 60, step: 0.5, unit: 's', optional: true, help: 'Empty = 12. Not used by a written score.' }),
+  chordMax: num({ label: 'Chord length · longest', min: 2, max: 60, step: 0.5, unit: 's', optional: true, help: 'Empty = the shortest. Not used by a written score.' }),
   swell: num({ label: 'Swell', min: 0.05, max: 20, step: 0.05, unit: 's', help: 'How long a chord takes to fade in. Long swells blur one chord into the next.' }),
   release: num({ label: 'Release', min: 0.1, max: 20, step: 0.1, unit: 's', help: 'How long a chord takes to fade out after the next one starts.' }),
   pad: num({ label: 'Pad · level', min: 0, max: 1, step: 0.05, help: '0 = no pads.' }),
@@ -385,9 +397,9 @@ export const musicShape = {
       piano: 'A soft, felted piano note that rings out: intimate, cinematic.',
     },
   }),
-  bellGapMin: num({ label: 'Bells · gap shortest', min: 0.2, max: 60, step: 0.1, unit: 's' }),
-  bellGapMax: num({ label: 'Bells · gap longest', min: 0.2, max: 60, step: 0.1, unit: 's' }),
-  phrases: num({ label: 'Bells · phrases', min: 0, max: 1, step: 0.05, help: 'How often bells come as a run of 2 or 3 notes rather than one.' }),
+  bellGapMin: num({ label: 'Bells · gap shortest', min: 0.2, max: 60, step: 0.1, unit: 's', optional: true, help: 'Empty = 3. Not used by a written score.' }),
+  bellGapMax: num({ label: 'Bells · gap longest', min: 0.2, max: 60, step: 0.1, unit: 's', optional: true, help: 'Empty = the shortest. Not used by a written score.' }),
+  phrases: num({ label: 'Bells · phrases', min: 0, max: 1, step: 0.05, optional: true, help: 'How often bells come as a run of 2 or 3 notes rather than one.' }),
   pulse: num({ label: 'Pulse · level', min: 0, max: 1, step: 0.05, help: 'A low, steady throb on the bass note: heartbeat tension. 0 = none.' }),
   pulseRate: num({ label: 'Tempo', min: 20, max: 200, step: 1, unit: 'bpm', optional: true, help: 'Beats a minute for the pulse and the drums (a beat is 4 drum steps). Empty = 70.' }),
   barSteps: int({ label: 'Steps a bar', min: 4, max: 32, optional: true, help: 'Drum steps (16ths) in a bar, which sets the time signature: 16 = 4/4, 12 = 3/4 or 6/8, 20 = 5/4, 14 = 7/8. Chords on the beat change on bar lines. Empty = 16.' }),
@@ -450,6 +462,13 @@ export const musicShape = {
   room: num({ label: 'Reverb · room size', min: 0.4, max: 12, step: 0.1, unit: 's', optional: true, help: 'How long the reverb rings: 1 = a small, close room, 6.5 = a hall, 10+ = a cavern. Set when the music starts (in the editor: ■ Stop and ▶ Listen again). Empty = 6.5.' }),
   grit: num({ label: 'Colour · grit', min: 0, max: 1, step: 0.05, optional: true, help: 'Saturation over the whole piece: a little warms and thickens, a lot is crunchy and distorted. Empty = clean.' }),
   lofi: num({ label: 'Colour · worn', min: 0, max: 1, step: 0.05, optional: true, help: 'Rolls off the lows and highs: an old recording, or music on a far-off radio. Empty = full range.' }),
+  score: list(musicScoreSectionShape, {
+    label: 'Score · sections', max: 16, optional: true,
+    help: 'A written score: the piece played as written, the same every time, instead of drifting at random. Each section is a run of bars at the tempo (a bar is Steps a bar long); each bar can change the chord and write out bells and melody. Drums, bassline, arpeggio and pulse play over it as set below. With a score, Chords, Chord order, chord lengths, Sections, the bell gaps and Melody · phrases are not used.',
+  }),
+  form: str({ label: 'Score · form', optional: true, help: 'The order the score\'s sections play in, by name, then round again, e.g. "intro A A B A outro". Empty = as written.' }),
+  bellStep: choice(['4ths', '8ths', '16ths'] as const, { label: 'Score · bell step', optional: true, help: 'How long one step of a score\'s bell line is. Empty = 8ths.' }),
+  seed: int({ label: 'Score · seed', min: 0, max: 99999, optional: true, help: 'The small touches a written score still varies (detune, a bell\'s exact loudness and place) come out the same every time; a different seed gives a different take. Empty = 1.' }),
   level: num({ label: 'Overall level', min: 0, max: 4, step: 0.05, help: 'Balances this mood against the others. The Music volume in Rules → Sound sits on top.' }),
 } satisfies Shape;
 export type MusicDef = Infer<typeof musicShape>;

@@ -836,6 +836,41 @@ First playtest build (2026-11-15).
     pieces (E minor, F♯ minor) and a 16-step day piece with strings, a pluck arpeggio, a bassline and six drum tracks.
     180 s renders (ffmpeg ebur128) against Void Drift and Bright Works / Homestead Ridge: Silent Hull and Stellar
     Governance sit within 1 dB at level 0.95 as written; Last Star measured ≈ 2 dB loud and was set to 0.77.
+  - **Mix upgrade (v0.66.0):** the hall's input is high-passed at 220 Hz (one `BiquadFilterNode` that every reverb send
+    goes through), so low notes no longer smear into a long tail. The bass goes dry to the mood's level, outside the
+    hall. Pads go out dry (0.95) plus a slow stereo chorus (0.8: two delays, 18 and 24 ms, drifting ±4 ms at 0.17 and
+    0.23 Hz, one per side), both also into the hall; the two sends were set so pads come out about as loud as they
+    did straight through. Pad and bass releases are exponential (time constant release / 3, stopped 6 of them later, at
+    −52 dB); swells stay linear (an exponential approach climbs fastest at first, which makes a slow swell less
+    gradual). The choir's vowel formants are wider (Q 2.6–4.5, not 5–18) and its top is capped at 2.6 kHz (was 5 kHz),
+    with makeup 3.3 (was 4.5). Air is a wide band of noise (Q 0.7) around 3.8 kHz, ±1.2 kHz, going dry, at peak
+    0.011 (was 0.024 through the pads and hall).
+    Levels: every mood in use was rendered 90 s with the same seed on the old and new engine (`--seed`, below) and
+    measured (ffmpeg ebur128). Drum- and arpeggio-led moods moved under 0.5 dB; big-room pad moods lost 0.9–2.7 dB
+    (the hall's low end and the bass's share of it), and their `level` was scaled by the difference: Stellar
+    Governance 0.95 → 1.3, Silent Hull 0.95 → 1.25, Last Star 0.77 → 0.99, Void Drift 0.72 → 0.87, Stillness
+    0.7 → 0.8, Homestead Ridge 2.2 → 2.44, Landfall 1.38 → 1.46.
+  - **Repeatable renders (v0.66.0):** `tools/music-render.mjs --seed N` swaps in a seeded `Math.random` (mulberry32)
+    before the page loads, so a mood plays the same notes every render (two renders differ by at most 1 in 32767):
+    two versions of a mood, or of the engine, compare fairly.
+  - **Written scores (v0.66.0):** a mood with `score` plays a piece as written instead of drifting. `score` is a list
+    of sections (`name`, `layers`, `bars`); `form` names them in playing order ("intro A A B A outro"; empty = as
+    written), then round again. A bar is `Steps a bar` steps at the tempo; each bar can set `chord` (pad notes) and
+    `bass`, and write `bells` (one token per `bellStep`, default 8ths) and `melody` (per `leadStep`) in the melody
+    notation. A bar with no chord keeps the one before sounding, to the end of its section; a new section strikes the
+    held chord again with its own layers. `scoreBars()` flattens the form; `playBar()` replaces `playChord()` (the
+    queue gets an entry a bar, sharing the held chord's voices, so layers, skip and the editor's display work per
+    bar); random bells are off and the bar's written ones are scheduled at its start. Drums, bassline, arpeggio,
+    pulse and calls play over it as set (the arpeggio now restarts on a new chord, not on every bar of a held one;
+    `drumsIn` counts bars). Every random choice in music.ts goes through `random`, which a score swaps per part
+    (`run()`: setup, chord, bell, pulse, drum, arp, call) for its own seeded source (`seed`, default 1), so the
+    numbers don't depend on how the timer batches the parts: the smoke test renders the example score twice with
+    `Math.random` left alone and gets the same samples (largest difference ≈ 2e-5), where a free mood differs by 0.6.
+    With a score, `chords`, `order`, `homePull`, chord lengths, `sections`, bell gaps, `phrases` and `melody` are
+    unused, so those are optional now (the engine already had defaults). Content checks: notes in chords, bass,
+    bells and melody; layers; every name in the form exists; a bass note without a chord in its bar; at least one
+    chord. The editor shows sections and their bars as nested lists and ▶ Listen reports "bar 3 of 20 · A".
+    `content/music/score-example.json` (not played in the game) is a template.
   - **Engine fixes (v0.48.0):** noise tails loop their 1 s of noise (`hiss()` in synth.ts and drums.ts started up
     to 0.8 s in, so a tail over 0.2 s could run off the end with a click). Halls (15–70 ms to build, by size) and the
     11 s of air (10 ms) are made once per context and reused (`HALLS` by size to 0.1 s, `AIRS`), so a mood change
