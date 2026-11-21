@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.64.0',
+    date: '2026-11-21',
+    title: 'Stillness',
+    notes: [
+      'Stillness, a new night piece: glass pads and soft bells over a slow five-chord cycle in C minor, with a gentle pulse and distant calls in the middle',
+    ],
+  },
+  {
     version: '0.63.0',
     date: '2026-11-21',
     title: 'Guns that face the fight',
