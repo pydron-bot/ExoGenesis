@@ -24,12 +24,17 @@ export function roverGeo() {
 }
 export function roverGlow() { return merge([box(1.05, 0.1, 0.1, 0, 1.25, 0.27), box(0.1, 0.1, 0.1, 0, 1.5, 0.82)]); }
 export function tankGeo() {
+  return merge([box(2.0, 0.7, 2.8, 0, 0.75, 0), box(0.5, 0.6, 3.0, -1.1, 0.5, 0), box(0.5, 0.6, 3.0, 1.1, 0.5, 0)]);
+}
+/** The tank's turret and gun, around its pivot (TANK_TURRET_PIVOT on the hull): drawn separately, turned toward the target. */
+export function tankTurretGeo() {
   return merge([
-    box(2.0, 0.7, 2.8, 0, 0.75, 0), box(0.5, 0.6, 3.0, -1.1, 0.5, 0), box(0.5, 0.6, 3.0, 1.1, 0.5, 0),
-    box(1.2, 0.55, 1.3, 0, 1.38, -0.15),
-    new THREE.CylinderGeometry(0.14, 0.14, 1.8, 6).rotateX(Math.PI / 2).translate(0, 1.42, 1.3),
+    box(1.2, 0.55, 1.3, 0, 0, 0),
+    new THREE.CylinderGeometry(0.14, 0.14, 1.8, 6).rotateX(Math.PI / 2).translate(0, 0.04, 1.45),
+    box(1.25, 0.08, 0.1, 0, 0.02, 0.67),
   ]);
 }
+const TANK_TURRET_PIVOT: [number, number, number] = [0, 1.38, -0.15];
 /** Lancer (far-off look): a long low tracked hull, capacitor drums behind, the rail lance far past the nose. */
 export function lancerGeo() {
   return merge([
@@ -40,7 +45,7 @@ export function lancerGeo() {
   ]);
 }
 export function lancerGlow() { return merge([box(0.1, 0.1, 2.6, 0, 1.68, 1.9), box(1.7, 0.08, 0.08, 0, 1.1, -1.62)]); }
-export function tankGlow() { return merge([box(1.25, 0.08, 0.1, 0, 1.4, 0.52), box(2.05, 0.08, 0.08, 0, 1.12, -1.38)]); }
+export function tankGlow() { return merge([box(2.05, 0.08, 0.08, 0, 1.12, -1.38)]); }
 export function creatureGeo(spiky: boolean) {
   const parts: THREE.BufferGeometry[] = [];
   const body = new THREE.IcosahedronGeometry(0.7, 0);
@@ -287,7 +292,13 @@ export function medevacGlow() {
   return merge([box(0.9, 0.14, 0.24, 0, 2.0, 0.1), box(0.14, 0.5, 0.06, 0, 1.4, -1.41), box(0.5, 0.14, 0.06, 0, 1.4, -1.41), box(1.42, 0.1, 0.1, 0, 1.45, 1.52)]);
 }
 
-export interface BuiltinUnitLook { geo(): THREE.BufferGeometry; glow?(): THREE.BufferGeometry; material(): THREE.Material }
+export interface BuiltinUnitLook {
+  geo(): THREE.BufferGeometry;
+  glow?(): THREE.BufferGeometry;
+  material(): THREE.Material;
+  /** A part drawn separately that turns toward the unit's target, and where it pivots on the hull (model space). */
+  turret?: { geo(): THREE.BufferGeometry; pivot: [number, number, number] };
+}
 
 /**
  * Built-in look per unit id. A unit record with no entry here (one added in the
@@ -295,7 +306,7 @@ export interface BuiltinUnitLook { geo(): THREE.BufferGeometry; glow?(): THREE.B
  */
 export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   rover: { geo: roverGeo, glow: roverGlow, material: () => accordMaterial() },
-  tank: { geo: tankGeo, glow: tankGlow, material: () => accordMaterial(0.5) },
+  tank: { geo: tankGeo, glow: tankGlow, material: () => accordMaterial(0.5), turret: { geo: tankTurretGeo, pivot: TANK_TURRET_PIVOT } },
   artillery: { geo: artilleryGeo, glow: artilleryGlow, material: () => accordMaterial(0.5) },
   arc: { geo: arcGeo, glow: arcGlow, material: () => accordMaterial(0.45) },
   engineer: { geo: engineerGeo, glow: engineerGlow, material: () => accordMaterial(0.35) },
@@ -318,5 +329,10 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   sentinel: { geo: sentinelGeo, material: () => faunaMaterial('#c9c0ae', '#4a3a8a') },
   gridnode: { geo: gridNodeGeo, material: () => faunaMaterial('#b9b0a0', '#5a3cff') },
 };
+/** A look's hull with its turret seated on it (previews, which don't turn turrets). */
+export function wholeGeo(look: BuiltinUnitLook) {
+  if (!look.turret) return look.geo();
+  return merge([look.geo(), look.turret.geo().translate(...look.turret.pivot)]);
+}
 export const builtinUnitLook = (id: string, faction: string): BuiltinUnitLook =>
   BUILTIN_UNITS[id] ?? BUILTIN_UNITS[faction === 'accord' ? 'rover' : 'swarmer'];

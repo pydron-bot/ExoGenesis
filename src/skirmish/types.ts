@@ -17,9 +17,10 @@ export const SK_TICK_MS = 1000 / SK_TICK_HZ;
 export const MAX_UNITS = 1500;
 
 /** Per-slot floats in the snapshot buffer. */
-export const STRIDE = 8;
+export const STRIDE = 9;
 /** TEAM: the owner of one of our units (skirmish players; 0 = you, and the PoC's armies). */
-export const F = { X: 0, Z: 1, HEADING: 2, TYPE: 3, HP: 4, GEN: 5, ALIVE: 6, TEAM: 7 } as const;
+/** AIM: where the unit's gun points (world yaw, like HEADING); the hull's heading when it has no target. */
+export const F = { X: 0, Z: 1, HEADING: 2, TYPE: 3, HP: 4, GEN: 5, ALIVE: 6, TEAM: 7, AIM: 8 } as const;
 
 /** Per-event floats in the effects buffer: kind, x1, z1, x2, z2. */
 export const FX_STRIDE = 5;

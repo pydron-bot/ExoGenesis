@@ -297,6 +297,8 @@ export class BattleFx {
         break;
       case FX.TANK_SHOT: case FX.TURRET_SHOT:
         regionPoint(x1, z1, 1.45 + h1, P); regionPoint(x2, z2, 1.0 + h2, Q);
+        // a tank's turret faces the target: the round leaves from the end of its barrel
+        if (k === FX.TANK_SHOT) this.toward(P, Q, 1.6);
         this.muzzle(P, Q, 1.7, COL.tankShot, true);
         this.bolt(P, Q, 95, 0.15, 3.2, 0.42, COL.tankShot, Hit.Cannon);
         break;
@@ -690,6 +692,15 @@ export class BattleFx {
     this.sLife[j] = this.sMax[j] = life;
     this.sAlpha[j] = a;
     if (j > this.sHi) this.sHi = j;
+  }
+
+  /** Move p d units along the ground toward q (to a barrel's end). */
+  private toward(p: THREE.Vector3, q: THREE.Vector3, d: number) {
+    this.upv.copy(p).normalize();
+    this.v3.copy(q).sub(p);
+    this.v3.addScaledVector(this.upv, -this.v3.dot(this.upv));
+    const l = this.v3.length();
+    if (l > d * 1.5) p.addScaledVector(this.v3, d / l);
   }
 
   /** Region coordinates under a world point (inverse of regionPoint, ignoring height). */

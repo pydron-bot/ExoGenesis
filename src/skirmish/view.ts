@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { placeMatrix, regionPoint, sampleRaw } from '../world/heightGrid';
 import { WATER_LIFT } from '../world/water';
-import { flattenForInstancing, loadModel } from '../assets/models';
+import { flattenForInstancing, loadModel, splitPart } from '../assets/models';
 import { builtinUnitLook } from './models';
 import { content } from '../content';
 import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, type SkSnapshot } from './types';
@@ -59,6 +59,9 @@ const C = {
 };
 /** How long a unit glows after it's hit (s). */
 const HIT_GLOW = 0.14;
+/** How fast a turret swings (radians/s). */
+const TURRET_SLEW = 6;
+interface Turret { mesh: THREE.InstancedMesh; pivot: THREE.Vector3 }
 /** Unit types that are creatures (fauna) rather than machines. */
 const ORGANIC = DEFS.map((d) => (content.units[d.id]?.faction === 'fauna' ? 1 : 0));
 
@@ -95,6 +98,13 @@ export class ArmyView {
   private hit = new Float32Array(MAX_UNITS);
   /** Per slot: 1 if the unit last drawn there was a creature (its death splatters rather than burns). */
   private creature = new Uint8Array(MAX_UNITS);
+  /** Turrets (a part drawn apart from the hull, turned toward the target), per type: the built-in's and the model's. */
+  private bTur: (Turret | null)[] = [];
+  private mTur: (Turret | null)[] = [];
+  /** Per slot: the turret's world yaw now (eased toward the aim), and the unit generation it belongs to. */
+  private tyaw = new Float32Array(MAX_UNITS);
+  private tgen = new Float32Array(MAX_UNITS).fill(-1);
+  private tm = new THREE.Matrix4();
   private lastTick = -1;
   private clock = 0;
   private m = new THREE.Matrix4();
@@ -123,6 +133,7 @@ export class ArmyView {
       if (d.team === 0) im.setColorAt(0, C.white);
       this.group.add(im);
       this.bodies.push(im);
+      this.bTur.push(look.turret ? this.turretMesh(look.turret.geo(), im.material, new THREE.Vector3(...look.turret.pivot), d.team === 0) : null);
       if (look.glow) {
         const g = new THREE.InstancedMesh(look.glow(), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, fog: false }), MAX_UNITS);
         g.count = 0;
@@ -134,9 +145,16 @@ export class ArmyView {
     }
     // asset models draw instead of the built-ins up close (the glow strips belong to the built-ins)
     this.models = DEFS.map(() => null);
+    this.mTur = DEFS.map(() => null);
     DEFS.forEach((d, t) => {
       if (!d.model) return;
       loadModel(d.model).then((root) => {
+        // a part named "turret" turns on its own (the model's own origin for it is the pivot)
+        const tur = splitPart(root, 'turret');
+        if (tur) {
+          const f = flattenForInstancing(tur.part);
+          this.mTur[t] = this.turretMesh(f.geometry, f.materials, tur.pivot, d.team === 0);
+        }
         const { geometry, materials } = flattenForInstancing(root);
         const im = new THREE.InstancedMesh(geometry, materials, MAX_UNITS);
         im.count = 0;
@@ -165,6 +183,15 @@ export class ArmyView {
     this.group.add(this.rings);
 
     this.fx = new BattleFx(this.group);
+  }
+
+  private turretMesh(geo: THREE.BufferGeometry, mat: THREE.Material | THREE.Material[], pivot: THREE.Vector3, player: boolean): Turret {
+    const mesh = new THREE.InstancedMesh(geo, mat, MAX_UNITS);
+    mesh.count = 0;
+    mesh.frustumCulled = false;
+    mesh.setColorAt(0, player ? C.white : this.col.setRGB(1, 1, 1));
+    this.group.add(mesh);
+    return { mesh, pivot };
   }
 
   /**
@@ -223,6 +250,18 @@ export class ArmyView {
       const model = near ? this.models[t] : null;
       const body = model ?? this.bodies[t];
       body.setMatrixAt(i, this.m);
+      // the turret: seated on its pivot on the hull, swinging toward the aim at a turret's pace
+      const tur = model ? this.mTur[t] : this.bTur[t];
+      if (tur) {
+        const aim = b[o + F.AIM];
+        if (this.tgen[s] !== b[o + F.GEN]) { this.tgen[s] = b[o + F.GEN]; this.tyaw[s] = aim; }
+        let d = aim - this.tyaw[s];
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        this.tyaw[s] += Math.max(-TURRET_SLEW * dt, Math.min(TURRET_SLEW * dt, d));
+        this.v1.copy(tur.pivot).applyMatrix4(this.m);
+        placeMatrix(x, z, this.tyaw[s], lift, scale, this.tm).setPosition(this.v1);
+        tur.mesh.setMatrixAt(i, this.tm);
+      }
       this.lx[s] = x; this.lz[s] = z; this.hd[s] = h;
       this.wx[s] = this.m.elements[12]; this.wy[s] = this.m.elements[13]; this.wz[s] = this.m.elements[14];
       this.visible[s] = 1;
@@ -251,6 +290,7 @@ export class ArmyView {
           this.rings.setMatrixAt(rings++, this.m);
         }
       }
+      if (tur) tur.mesh.setColorAt(i, this.col); // the hull's colour (set just above), hit flash and all
       if (hp < 0.995 || sel) {
         const r = DEFS[t].radius;
         regionPoint(x, z, r * 1.3 + 1.6 + (mv === 'air' ? lift : 0), this.v1);
@@ -273,6 +313,13 @@ export class ArmyView {
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
       const idle = useModel ? this.bodies[t] : model;
       if (idle) idle.count = 0;
+      const tOn = useModel ? this.mTur[t] : this.bTur[t], tOff = useModel ? this.bTur[t] : this.mTur[t];
+      if (tOn) {
+        tOn.mesh.count = counts[t];
+        tOn.mesh.instanceMatrix.needsUpdate = true;
+        if (tOn.mesh.instanceColor) tOn.mesh.instanceColor.needsUpdate = true;
+      }
+      if (tOff) tOff.mesh.count = 0;
       const g = this.glows[t];
       if (g) {
         g.count = useModel ? 0 : counts[t];

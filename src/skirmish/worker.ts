@@ -8,7 +8,7 @@ import { HALF, regionTerrain, setRegionTerrain } from '../world/planet';
 import { content } from '../content';
 import { GRID_N, rawGrid } from '../world/heightGrid';
 import {
-  DEFS, FX, FX_STRIDE, MAX_UNITS, SK_TICK_HZ, SK_TICK_MS, STRIDE, UT,
+  DEFS, F, FX, FX_STRIDE, MAX_UNITS, SK_TICK_HZ, SK_TICK_MS, STRIDE, UT,
   type SkFromWorker, type SkSnapshot, type SkToWorker,
 } from './types';
 
@@ -408,7 +408,7 @@ function snapshot() {
   let players = 0, enemies = 0;
   for (let s = 0; s < slots; s++) {
     const o = s * STRIDE;
-    buf[o] = ux[s]; buf[o + 1] = uz[s]; buf[o + 2] = head[s];
+    buf[o] = ux[s]; buf[o + 1] = uz[s]; buf[o + 2] = head[s]; buf[o + F.AIM] = head[s];
     buf[o + 3] = utype[s]; buf[o + 4] = Math.max(0, hp[s] / DEFS[utype[s]].hp);
     buf[o + 5] = gen[s]; buf[o + 6] = alive[s];
     if (alive[s]) { if (DEFS[utype[s]].team === 0) players++; else enemies++; }

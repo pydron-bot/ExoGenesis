@@ -15,6 +15,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.60.1',
+    date: '2026-11-21',
+    title: 'Turning turrets',
+    notes: [
+      'Tank turrets turn to face what they are shooting at, so tanks no longer fire out of their sides while driving past a fight, and the shot leaves from the end of the barrel',
+    ],
+  },
+  {
     version: '0.60.0',
     date: '2026-11-20',
     title: 'Battles you can feel',

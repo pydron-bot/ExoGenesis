@@ -399,13 +399,15 @@ def tank(M):
         for k in range(4):
             parts.append(cyl(0.22, 0.3, (sx * 1.15, -1.05 + k * 0.7, 0.32), M["dark"], verts=8, rot=(0, math.pi / 2, 0), bevel=0))
         parts.append(box((0.65, 3.0, 0.1), (sx * 1.15, 0, 0.8), M["hull2"], bevel=0.03))   # track guard
-    parts.append(cyl(0.78, 0.55, (0, 0.15, 1.4), M["hull2"], verts=8, bevel=0.08))         # turret
-    parts.append(box((1.1, 0.9, 0.45), (0, 0.4, 1.45), M["hull"], bevel=0.1))
-    parts.append(cyl(0.13, 1.9, (0, -1.15, 1.45), M["dark"], verts=8, rot=(math.pi / 2, 0, 0)))
-    parts.append(cyl(0.2, 0.35, (0, -2.05, 1.45), M["black"], verts=8, rot=(math.pi / 2, 0, 0)))
-    parts.append(box((1.2, 0.06, 0.1), (0, -0.33, 1.6), M["cyan"], bevel=0))
     parts.append(box((2.05, 0.08, 0.08), (0, 1.48, 1.1), M["red"], bevel=0))
-    export("tank", [join(parts, "body")])
+    # the turret is its own object, pivoting on the turret ring: the game swings it toward the target
+    top = []
+    top.append(cyl(0.78, 0.55, (0, 0.15, 1.4), M["hull2"], verts=8, bevel=0.08))
+    top.append(box((1.1, 0.9, 0.45), (0, 0.4, 1.45), M["hull"], bevel=0.1))
+    top.append(cyl(0.13, 1.9, (0, -1.15, 1.45), M["dark"], verts=8, rot=(math.pi / 2, 0, 0)))
+    top.append(cyl(0.2, 0.35, (0, -2.05, 1.45), M["black"], verts=8, rot=(math.pi / 2, 0, 0)))
+    top.append(box((1.2, 0.06, 0.1), (0, -0.33, 1.6), M["cyan"], bevel=0))
+    export("tank", [join(parts, "body"), join(top, "turret", pivot=(0, 0.15, 1.4))])
 
 
 # ---------------------------------------------------------------- set v2 helpers

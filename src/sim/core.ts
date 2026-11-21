@@ -1689,6 +1689,7 @@ export class Sim {
       if (tgt && min && Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.foeR(tgt) < min) tgt = undefined;
       if (!d.damage) tgt = undefined; // unarmed (a transport): never chases anything
       u.target = tgt?.id ?? -1;
+      u.aim = tgt ? Math.atan2(tgt.x - u.x, tgt.z - u.z) : undefined;
       const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.foeR(tgt) - d.radius : Infinity;
       if (tgt && gap <= range && d.damage > 0) {
         if (!moving) {
@@ -2867,7 +2868,7 @@ export class Sim {
     for (const h of s.hostiles) {
       if (h.under || !this.visible(h.x, h.z)) continue; // underground or in the fog: not drawn (radar shows it as a blip)
       const o = h.slot * STRIDE;
-      army[o + F.X] = h.x; army[o + F.Z] = h.z; army[o + F.HEADING] = h.heading;
+      army[o + F.X] = h.x; army[o + F.Z] = h.z; army[o + F.HEADING] = army[o + F.AIM] = h.heading;
       army[o + F.TYPE] = unitType(h.unit);
       army[o + F.HP] = h.hp / this.unitDef(h).hp;
       army[o + F.GEN] = h.id & 0xffff; army[o + F.ALIVE] = 1;
@@ -2878,7 +2879,7 @@ export class Sim {
     if (P) for (const b of s.buildings) if (!b.seen && known(b)) b.seen = true;
     const units: UnitSnap[] = this.units.filter(known).map((u) => {
       const o = u.slot * STRIDE, d = content.units[u.unit];
-      army[o + F.X] = u.x; army[o + F.Z] = u.z; army[o + F.HEADING] = u.heading;
+      army[o + F.X] = u.x; army[o + F.Z] = u.z; army[o + F.HEADING] = u.heading; army[o + F.AIM] = u.aim ?? u.heading;
       army[o + F.TYPE] = unitType(u.unit);
       army[o + F.HP] = u.hp / d.hp;
       army[o + F.GEN] = u.id & 0xffff; army[o + F.ALIVE] = 1; army[o + F.TEAM] = u.team ?? 0;

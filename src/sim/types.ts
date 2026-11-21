@@ -185,6 +185,8 @@ export interface Unit {
   gz: number;
   /** Hostile id it's shooting at (-1 none). */
   target: number;
+  /** Where its gun points (world yaw, as `heading`) while it has a target; unset = along the hull. Drawn only (turrets). */
+  aim?: number;
   /** Repairers: id of the unit or building being repaired (-1 none). */
   fix?: number;
   /** Waypoints being followed (flat x, z pairs) toward `goal`; re-planned every few seconds. */

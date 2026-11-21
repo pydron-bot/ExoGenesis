@@ -86,6 +86,27 @@ export function flattenForInstancing(root: THREE.Object3D): { geometry: THREE.Bu
   return { geometry, materials };
 }
 
+/**
+ * Take the part named `name` (e.g. a tank's `turret`) out of a model, for drawing separately: returns it
+ * wrapped so its geometry sits around its own origin (the pivot it turns on), with the model's scale and
+ * turn kept, and the pivot's position in the model. Null if the model has no such part. The rest of
+ * `root` no longer contains it.
+ */
+export function splitPart(root: THREE.Object3D, name: string): { part: THREE.Object3D; pivot: THREE.Vector3 } | null {
+  root.updateMatrixWorld(true);
+  const node = root.getObjectByName(name);
+  if (!node || node === root) return null;
+  const pivot = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+  node.matrixWorld.decompose(pivot, q, s);
+  node.removeFromParent();
+  node.position.set(0, 0, 0);
+  node.quaternion.copy(q);
+  node.scale.copy(s);
+  const part = new THREE.Group();
+  part.add(node);
+  return { part, pivot };
+}
+
 /** Triangles, vertices, meshes, materials and size of a model, for the asset browser. */
 export function modelStats(root: THREE.Object3D) {
   let tris = 0, verts = 0, meshes = 0;

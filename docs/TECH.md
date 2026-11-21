@@ -1988,3 +1988,19 @@ landing boom 0.5 s later. In the mixer, world sounds get a distance factor `far`
 gain: a low-pass from 16 kHz down to ~1.1 kHz and a larger send to a shared **echo** (a convolver on a
 generated 1.4 s stereo impulse with four early slaps, low-passed, into the Combat category). Combat
 voice caps rose to 10 (14 overall) since tails are longer.
+
+### Turrets that turn (v0.60.1)
+
+Units used to be one rigid mesh, and the sim turns a hull toward its target only while standing still
+(and fires without waiting for the turn), so a tank driving past a fight shot out of its side.
+
+- **Sim:** a unit's `aim` (world yaw to its target, unset without one) goes out in the army snapshot as
+  `F.AIM` (STRIDE is now 9; the hull's heading when there's no target, and for hostiles and the old
+  skirmish worker). It is drawn only: firing rules are unchanged.
+- **Models:** a model part named `turret` is drawn as its own instanced mesh (`splitPart()` in
+  `src/assets/models.ts`), pivoting on that object's origin. In `blender/build.py` that's
+  `join(parts, "turret", pivot=...)` beside the body. Built-ins give `turret: { geo, pivot }` in
+  `BUILTIN_UNITS` (`wholeGeo()` seats it for the editor's previews). Only the Tank has one so far.
+- **View:** `ArmyView` keeps each slot's turret yaw and swings it toward `F.AIM` at `TURRET_SLEW`
+  (6 rad/s), placed at the pivot transformed by the hull's matrix; it takes the hull's colour (hit flash
+  included). A Tank's shot (FX.TANK_SHOT) starts 1.6 u toward its target, at the barrel's end.

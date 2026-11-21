@@ -8,7 +8,7 @@ import { buildBattery, buildCannon, buildCore, buildDeposit, buildDepot, buildDr
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
 import { BODY_PLAN_NAMES, buildCreatureLook, creatureMaterial } from '../world/fauna-models';
 import { STANDINS } from '../world/inhabitant-models';
-import { BUILTIN_UNITS, creatureGeo, roverGeo, roverGlow, tankGeo, tankGlow, unitMaterials } from '../skirmish/models';
+import { BUILTIN_UNITS, creatureGeo, roverGeo, roverGlow, tankGlow, unitMaterials, wholeGeo } from '../skirmish/models';
 
 export interface Builtin {
   id: string;
@@ -62,16 +62,16 @@ export const BUILTINS: Builtin[] = [
   { id: 'scaffold', name: 'Construction scaffold', group: 'Buildings', where: 'src/world/region.ts buildScaffold()', swappable: false, note: 'Shown while any building is under construction.', build: buildScaffold },
   { id: 'drone', name: 'Worker drone', group: 'Units', where: 'src/world/region.ts buildDrone()', swappable: false, note: 'Not a content record: the game uses the exo-drone asset when there is one (drones and ore haulers), this built-in when zoomed out.', build: buildDrone },
   { id: 'rover', name: 'Rover', group: 'Units', where: 'src/skirmish/models.ts roverGeo()', usedBy: { coll: 'units', id: 'rover' }, swappable: true, build: () => unit(roverGeo(), unitMaterials()[0], roverGlow()) },
-  { id: 'tank', name: 'Tank', group: 'Units', where: 'src/skirmish/models.ts tankGeo()', usedBy: { coll: 'units', id: 'tank' }, swappable: true, build: () => unit(tankGeo(), unitMaterials()[1], tankGlow()) },
+  { id: 'tank', name: 'Tank', group: 'Units', where: 'src/skirmish/models.ts tankGeo()', usedBy: { coll: 'units', id: 'tank' }, swappable: true, build: () => unit(wholeGeo(BUILTIN_UNITS.tank), unitMaterials()[1], tankGlow()) },
   { id: 'swarmer', name: 'Swarmer', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(false)', usedBy: { coll: 'units', id: 'swarmer' }, swappable: true, build: () => unit(creatureGeo(false), unitMaterials()[2]) },
   { id: 'brute', name: 'Brute', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(true)', usedBy: { coll: 'units', id: 'brute' }, swappable: true, build: () => unit(creatureGeo(true), unitMaterials()[3]) },
   ...(['artillery', 'arc', 'engineer', 'scout', 'skiff', 'gunboat', 'barge'] as const).map((id): Builtin => ({
     id, name: id[0].toUpperCase() + id.slice(1), group: 'Units', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
-    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+    build: () => unit(wholeGeo(BUILTIN_UNITS[id]), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
   })),
   ...(['spitter', 'burrower', 'strider', 'lurker'] as const).map((id): Builtin => ({
     id, name: id[0].toUpperCase() + id.slice(1), group: 'Fauna', where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
-    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material()),
+    build: () => unit(wholeGeo(BUILTIN_UNITS[id]), BUILTIN_UNITS[id].material()),
   })),
   ...BODY_PLAN_NAMES.map((body): Builtin => ({
     id: `wild-${body}`, name: `Wildlife: ${body}`, group: 'Wildlife', where: 'src/world/fauna-models.ts PLANS', swappable: false,
@@ -105,7 +105,7 @@ BUILTINS.push(
   ...([['lancer', 'Lancer', 'Units'], ['nest', 'Nest', 'Fauna'], ['sentinel', 'Relic Sentinel', 'Relics'], ['gridnode', 'Grid Node', 'Relics']] as const).map(([id, name, group]): Builtin => ({
     id, name, group, where: `src/skirmish/models.ts BUILTIN_UNITS.${id}`, usedBy: { coll: 'units', id }, swappable: true,
     note: `The far-off look of exo-${id} (the army draws it beyond the zoom threshold).`,
-    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+    build: () => unit(wholeGeo(BUILTIN_UNITS[id]), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
   })),
   { id: 'wreck', name: 'Wreck', group: 'World', where: 'src/world/roster-models.ts buildWreck()', swappable: false, note: 'Region wrecks: drawn instead of exo-wreck when zoomed out.', build: buildWreck },
   { id: 'cache', name: 'Relic Cache', group: 'Relics', where: 'src/world/roster-models.ts buildCache()', swappable: false, note: 'Relic caches: drawn instead of exo-cache when zoomed out.', build: buildCache },
@@ -125,7 +125,7 @@ BUILTINS.push(
   })),
   ...([['aegis', 'Aegis Crawler'], ['medevac', 'Medevac']] as const).map(([id, name]): Builtin => ({
     id, name, group: 'Units', where: `src/skirmish/models.ts BUILTIN_UNITS.${id}`, usedBy: { coll: 'units', id }, swappable: true,
-    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+    build: () => unit(wholeGeo(BUILTIN_UNITS[id]), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
   })),
 );
 
@@ -149,6 +149,6 @@ BUILTINS.push(
   ...([['gunship', 'Gunship', 'Units'], ['skimmerwing', 'Skimmerwing', 'Fauna']] as const).map(([id, name, group]): Builtin => ({
     id, name, group, where: `src/skirmish/models.ts ${id}Geo()`, usedBy: { coll: 'units', id }, swappable: true,
     note: 'Flies: drawn 10 u up with a shadow on the ground under it.',
-    build: () => unit(BUILTIN_UNITS[id].geo(), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
+    build: () => unit(wholeGeo(BUILTIN_UNITS[id]), BUILTIN_UNITS[id].material(), BUILTIN_UNITS[id].glow?.()),
   })),
 );
