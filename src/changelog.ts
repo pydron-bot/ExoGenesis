@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.65.0',
+    date: '2026-11-21',
+    title: 'Three new pieces',
+    notes: [
+      'Last Star, a new night piece: hollow pads, metal bells and a soft "oo" choir over a slow E minor cycle',
+      'Silent Hull, a new night piece: dark, worn pads and an "ah" choir drifting through F sharp minor',
+      'Stellar Governance, a new day piece: strings, a plucked arpeggio, a sequenced bassline and machine-shop percussion in D minor',
+    ],
+  },
+  {
     version: '0.64.0',
     date: '2026-11-21',
     title: 'Stillness',

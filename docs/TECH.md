@@ -832,6 +832,10 @@ First playtest build (2026-11-15).
   - **Night · Stillness (v0.64.0):** glass pads and bells over five chords in C minor (Void Drift's four plus Eb), 18–24 s
     chords, a 70 bpm pulse and calls in the middle of six sections, no choir. Written at level 0.95 it measured ≈ 3.5 dB
     above Void Drift and Vigil (240 s renders through `tools/music-render.mjs`, ffmpeg ebur128); set to 0.7 to match.
+  - **Night · Last Star, Night · Silent Hull, Day · Stellar Governance (v0.65.0):** two slow choir-and-bells night
+    pieces (E minor, F♯ minor) and a 16-step day piece with strings, a pluck arpeggio, a bassline and six drum tracks.
+    180 s renders (ffmpeg ebur128) against Void Drift and Bright Works / Homestead Ridge: Silent Hull and Stellar
+    Governance sit within 1 dB at level 0.95 as written; Last Star measured ≈ 2 dB loud and was set to 0.77.
   - **Engine fixes (v0.48.0):** noise tails loop their 1 s of noise (`hiss()` in synth.ts and drums.ts started up
     to 0.8 s in, so a tail over 0.2 s could run off the end with a click). Halls (15–70 ms to build, by size) and the
     11 s of air (10 ms) are made once per context and reused (`HALLS` by size to 0.1 s, `AIRS`), so a mood change
