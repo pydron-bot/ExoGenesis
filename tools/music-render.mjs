@@ -3,7 +3,9 @@
  * reference track) without opening the game. Runs the real engine (src/audio/music.ts) in a
  * headless browser against an OfflineAudioContext, with its scheduler driven by a fake clock.
  *
- *   node tools/music-render.mjs <mood id> [--seconds 90] [--out music-drafts/<id>.wav] [--url http://localhost:5176/]
+ *   node tools/music-render.mjs <mood id | path/to/mood.json> [--seconds 90] [--out music-drafts/<name>.wav] [--url http://localhost:5176/]
+ *
+ * A .json path renders that file (say, an earlier version kept in music-drafts/) instead of content/music/<id>.json.
  *
  * Needs the dev server (it serves the TypeScript). Random choices differ run to run, as in the game.
  */
@@ -17,9 +19,11 @@ const id = argv.find((a, i) => !a.startsWith('--') && !argv[i - 1]?.startsWith('
 if (!id) { console.error('usage: node tools/music-render.mjs <mood id> [--seconds 90] [--out file.wav]'); process.exit(1); }
 const root = path.resolve(import.meta.dirname, '..');
 const seconds = Number(arg('--seconds', 90));
-const out = path.resolve(root, arg('--out', `music-drafts/${id}.wav`));
+const isFile = id.endsWith('.json');
+const name = isFile ? path.basename(id, '.json') : id;
+const out = path.resolve(root, arg('--out', `music-drafts/${name}.wav`));
 const url = arg('--url', 'http://localhost:5176/');
-const mood = JSON.parse(fs.readFileSync(path.join(root, 'content/music', `${id}.json`), 'utf8'));
+const mood = JSON.parse(fs.readFileSync(isFile ? path.resolve(id) : path.join(root, 'content/music', `${id}.json`), 'utf8'));
 
 const browser = await chromium.launch();
 try {

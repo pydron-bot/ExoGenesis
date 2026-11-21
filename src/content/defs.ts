@@ -390,7 +390,7 @@ export const musicShape = {
   pulse: num({ label: 'Pulse · level', min: 0, max: 1, step: 0.05, help: 'A low, steady throb on the bass note: heartbeat tension. 0 = none.' }),
   pulseRate: num({ label: 'Tempo', min: 20, max: 200, step: 1, unit: 'bpm', optional: true, help: 'Beats a minute for the pulse and the drums (a beat is 4 drum steps). Empty = 70.' }),
   barSteps: int({ label: 'Steps a bar', min: 4, max: 32, optional: true, help: 'Drum steps (16ths) in a bar, which sets the time signature: 16 = 4/4, 12 = 3/4 or 6/8, 20 = 5/4, 14 = 7/8. Chords on the beat change on bar lines. Empty = 16.' }),
-  drums: num({ label: 'Drums · level', min: 0, max: 1, step: 0.05, optional: true, help: 'Percussion from the drum tracks below. Empty or 0 = no drums.' }),
+  drums: num({ label: 'Drums · level', min: 0, max: 1.5, step: 0.05, optional: true, help: 'Percussion from the drum tracks below. Above 1 pushes them to the front. Empty or 0 = no drums.' }),
   drumTracks: list(musicDrumShape, { label: 'Drum tracks', max: 8, optional: true, help: 'Each track is one drum playing a looping step pattern at the tempo above.' }),
   swing: num({ label: 'Drums · swing', min: 0, max: 0.5, step: 0.05, optional: true, help: 'Delays every other step for a lilting, uneven feel. Empty = straight.' }),
   drumsIn: int({ label: 'Drums · come in after', min: 0, max: 12, optional: true, help: 'Chords to wait before the drums start, so the music can settle first. Empty = straight away.' }),
@@ -409,22 +409,27 @@ export const musicShape = {
   arpRate: choice(['4ths', '8ths', 'triplets', '16ths'] as const, { label: 'Arpeggio · speed', optional: true, help: 'Notes per beat. Empty = 16ths.' }),
   arpOctaves: int({ label: 'Arpeggio · octaves', min: 1, max: 3, optional: true, help: 'How many octaves it climbs through. Empty = 1.' }),
   arpShift: int({ label: 'Arpeggio · octave shift', min: -2, max: 3, optional: true, help: 'Plays the chord this many octaves up (or down). Empty = 1 up.' }),
-  arpTone: choice(['pluck', 'square', 'glass', 'saw', 'string', 'marimba', 'piano'] as const, {
+  arpTone: choice(['pluck', 'square', 'glass', 'saw', 'string', 'marimba', 'piano', 'bowed'] as const, {
     label: 'Arpeggio · tone', optional: true,
     helps: {
       pluck: 'A short, resonant synth pluck.', square: 'Hollow and retro, like an old computer.', glass: 'Clean sine blips.', saw: 'Buzzy and bright: aggressive.',
       string: 'A plucked guitar or harp string: fingerpicking.', marimba: 'Wooden bars: knocking, mechanical patterns.',
       piano: 'A soft piano, notes left to ring as if the pedal were down: a film-score ostinato.',
+      bowed: 'A bowed string section playing short, driving notes (cellos and violas, by register): the film-score action ostinato. Note length sets how clipped.',
     },
   }),
   arpGate: num({ label: 'Arpeggio · note length', min: 0.1, max: 1, step: 0.05, optional: true, help: 'How much of each step a note lasts: short = staccato, 1 = legato. Empty = 0.5.' }),
   arpBright: num({ label: 'Arpeggio · brightness', min: 0.2, max: 3, step: 0.05, optional: true, help: 'How open its filter is. Empty = 1.' }),
   bassline: str({ label: 'Bassline', optional: true, help: 'A sequenced bass on the chord\'s root, 16 steps a bar at the tempo: x = root, o = octave up, 5 = fifth, . = rest, e.g. "x..x ..o. x..5 ..x.". Usually with the drone Bass at 0.' }),
   basslineLevel: num({ label: 'Bassline · level', min: 0, max: 1, step: 0.05, optional: true, help: 'Empty = 0.7.' }),
+  basslineTone: choice(['synth', 'strings'] as const, {
+    label: 'Bassline · tone', optional: true,
+    helps: { synth: 'A filtered synth bass: electronic.', strings: 'Cellos and double basses bowing short, hard notes: orchestral.' },
+  }),
   lead: num({ label: 'Melody · level', min: 0, max: 1, step: 0.05, optional: true, help: 'A lead instrument playing the phrases below. Empty or 0 = no melody.' }),
-  leadTone: choice(['flute', 'soft', 'glass', 'saw', 'piano'] as const, {
+  leadTone: choice(['flute', 'soft', 'glass', 'saw', 'piano', 'violin'] as const, {
     label: 'Melody · instrument', optional: true,
-    helps: { flute: 'Breathy and airy, like a wooden flute.', soft: 'A round, mellow synth.', glass: 'Pure and bell-like, a music box.', saw: 'A singing, brassy synth lead.', piano: 'A soft piano: each note struck, then left to ring (holds and glide don\'t apply).' },
+    helps: { flute: 'Breathy and airy, like a wooden flute.', soft: 'A round, mellow synth.', glass: 'Pure and bell-like, a music box.', saw: 'A singing, brassy synth lead.', piano: 'A soft piano: each note struck, then left to ring (holds and glide don\'t apply).', violin: 'Violins playing the line together: bowed, with vibrato on held notes.' },
   }),
   melody: list({ notes: str({ label: 'Notes', help: 'One token per step: a note (E5, C#4), - to hold it, . for a rest; | is ignored, e.g. "E5 - D5 C5 | D5 - - - | . . G4 - | A4 - - -".' }) }, {
     label: 'Melody · phrases', max: 12, optional: true, help: 'Played in order, one at the start of a chord, then round again. Write them in the same scale as the chords so they fit whichever chord is playing.',

@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.62.0',
+    date: '2026-11-20',
+    title: 'A new soundtrack',
+    notes: [
+      'All-new music: Landfall on the title screen; Bright Works, Quiet Harbor and Homestead Ridge by day; Void Drift at night; and Vanguard, Iron March, Citadel and Last Stand in battle',
+      'The music has real strings now: driving cellos and violas, violins on the melody, and cellos and basses on the bass line',
+      'Every piece is balanced to the same loudness, so the music no longer jumps up or down from one track to the next',
+    ],
+  },
+  {
     version: '0.61.0',
     date: '2026-11-20',
     title: 'New music',

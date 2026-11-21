@@ -1,6 +1,6 @@
 /**
  * Music and the region picker. Title: where autoplay is blocked, no music until a click (the title says
- * so); where it's allowed it starts by itself; either way it keeps queuing chords and bells. Options lists
+ * so); where it's allowed it starts by itself; either way it keeps queuing chords and notes. Options lists
  * each region with the world it's on and a Music switch; leaving the title (New
  * Game) fades the music out. Play: quiet at first, then a day (or night) stretch,
  * tension when a fight starts; the player's music volume is remembered.
@@ -53,7 +53,8 @@ try {
 
   await page.waitForTimeout(9000);
   const m1 = (await stats()).music;
-  check(m1 && m1.bells > 0, `bells keep coming (${JSON.stringify(m1)})`);
+  // notes keep coming: bells, or (moods without bells, like Landfall) arpeggio or melody
+  check(m1 && m1.bells + m1.arps + m1.leads > 0, `notes keep coming (${JSON.stringify(m1)})`);
 
   await page.click('#title [data-id="new"]');
   await page.click('#title [data-id="new"]').catch(() => {}); // confirm, if a save asked
