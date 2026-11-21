@@ -6,7 +6,7 @@
  */
 import { noise } from './synth';
 
-export const DRUMS = ['kick', 'thud', 'tom', 'snare', 'rim', 'hat', 'shaker', 'clank', 'taiko', 'hand', 'clap', 'block', 'zap'] as const;
+export const DRUMS = ['kick', 'thud', 'tom', 'snare', 'rim', 'hat', 'shaker', 'clank', 'taiko', 'hand', 'clap', 'block', 'zap', 'crash', 'swell'] as const;
 export type Drum = (typeof DRUMS)[number];
 
 /** What each drum sounds like, for the editor's help. */
@@ -24,6 +24,8 @@ export const DRUM_HELP: Record<Drum, string> = {
   clap: 'A hand clap: a few quick bursts and a short tail.',
   block: 'Wood block: a dry, hollow knock. Mechanical, clockwork.',
   zap: 'A falling laser blip: retro sci-fi.',
+  crash: 'Crash cymbal: a bright splash that rings out for a few seconds. Mark the start of a big section.',
+  swell: 'Reverse cymbal: rises over one bar from the hit and cuts off at the bar line, so put it a bar before a crash.',
 };
 
 /** A step pattern: x = hit, o = soft hit (ghost note), . or - = rest; spaces and | are ignored. */
@@ -38,8 +40,8 @@ export function parseSteps(s: string | undefined): { steps: number[]; bad: strin
   return { steps, bad };
 }
 
-/** `step` is the pattern's mark: 1 for x, under 1 for o (a drum may play its soft hit differently). */
-type Hit = (c: BaseAudioContext, out: AudioNode, t: number, v: number, step?: number) => number;
+/** `step` is the pattern's mark: 1 for x, under 1 for o (a drum may play its soft hit differently); `bar` the bar's length (s). */
+type Hit = (c: BaseAudioContext, out: AudioNode, t: number, v: number, step?: number, bar?: number) => number;
 
 function env(c: BaseAudioContext, out: AudioNode, t: number, peak: number, attack: number, dur: number) {
   const g = c.createGain();
@@ -157,5 +159,32 @@ export const HITS: Record<Drum, Hit> = {
     osc(c, out, t, 'square', 2200, 160, 0.13, v * 0.16, 0.16, 0.001);
     osc(c, out, t, 'sine', 1100, 90, 0.16, v * 0.3, 0.2, 0.001);
     return 0.2;
+  },
+  crash: (c, out, t, v) => {
+    // a wash of bright noise, plus a band of shimmer that dies first
+    hiss(c, out, t, 'highpass', 5200, 0.6, v * 0.5, 3.6, 0.003);
+    hiss(c, out, t, 'bandpass', 3400, 1.6, v * 0.3, 1.2, 0.002);
+    hiss(c, out, t, 'bandpass', 8800, 2, v * 0.2, 2.2, 0.002);
+    return 3.6;
+  },
+  swell: (c, out, t, v, _step, bar = 3.4) => {
+    // noise that grows (and brightens) over one bar, then stops dead on the bar line
+    const s = c.createBufferSource();
+    s.buffer = noise(c as AudioContext);
+    s.loop = true;
+    const flt = c.createBiquadFilter();
+    flt.type = 'highpass';
+    flt.Q.value = 0.7;
+    flt.frequency.setValueAtTime(9000, t);
+    flt.frequency.exponentialRampToValueAtTime(3800, t + bar);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(v * 0.55, t + bar - 0.01);
+    g.gain.linearRampToValueAtTime(0, t + bar);
+    s.connect(flt).connect(g).connect(out);
+    s.start(t, Math.random() * 0.8);
+    s.stop(t + bar + 0.02);
+    s.onended = () => { s.disconnect(); flt.disconnect(); g.disconnect(); };
+    return bar;
   },
 };

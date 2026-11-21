@@ -15,7 +15,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.61.0',
+    version: '0.63.0',
     date: '2026-11-21',
     title: 'Guns that face the fight',
     notes: [
@@ -24,11 +24,31 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
-    version: '0.60.1',
+    version: '0.62.1',
     date: '2026-11-21',
     title: 'Turning turrets',
     notes: [
       'Tank turrets turn to face what they are shooting at, so tanks no longer fire out of their sides while driving past a fight, and the shot leaves from the end of the barrel',
+    ],
+  },
+  {
+    version: '0.62.0',
+    date: '2026-11-20',
+    title: 'A new soundtrack',
+    notes: [
+      'All-new music: Landfall on the title screen; Bright Works, Quiet Harbor and Homestead Ridge by day; Void Drift at night; and Vanguard, Iron March, Citadel and Last Stand in battle',
+      'The music has real strings now: driving cellos and violas, violins on the melody, and cellos and basses on the bass line',
+      'Every piece is balanced to the same loudness, so the music no longer jumps up or down from one track to the next',
+    ],
+  },
+  {
+    version: '0.61.0',
+    date: '2026-11-20',
+    title: 'New music',
+    notes: [
+      'Landfall, a new title theme: a soft piano over warm pads and voices that builds to a cymbal swell and crash',
+      'Last Stand, a new battle theme: a low, menacing drone with driving synth bass, strings, taiko drums and an urgent lead',
+      'The music now has a piano, crash cymbals and cymbal swells that rise into a big moment',
     ],
   },
   {

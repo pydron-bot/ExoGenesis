@@ -1,0 +1,50 @@
+{
+  "_note": "Prompts for tools/music-gen.mjs. Describe style, never name real artists or songs (ElevenLabs terms). Keep total length small: Starter allows ~17 generated minutes a month.",
+  "tracks": [
+    {
+      "name": "title",
+      "seconds": 90,
+      "prompt": "Instrumental main theme for a sci-fi colony strategy game. A caretaker AI wakes alone on an alien world, carrying the last sleeping humans. Slow, wide, hopeful but lonely. Warm analog synth pads, a soft piano motif that repeats and grows, distant choir-like textures, gentle sub bass, no drums for the first half, then a restrained pulse. Cinematic, spacious, 70 BPM, ends by settling back to calm."
+    },
+    {
+      "name": "combat",
+      "seconds": 75,
+      "prompt": "Instrumental battle music for a real-time strategy game set on an alien planet. Tense and driving but not overwhelming, so it can sit under gunfire sound effects. Pulsing arpeggiated synth bass, taiko-style low drums, metallic percussion, staccato low strings, an urgent minor-key motif. 128 BPM, steady intensity, no big climax, no vocals."
+    },
+    {
+      "name": "night",
+      "seconds": 90,
+      "prompt": "Instrumental night ambience for a colony on an alien world. Quiet, watchful, slightly uneasy. Sparse glassy bell tones, soft evolving drones, faint alien wildlife-like textures, very slow, lots of space and reverb, no drums, no melody that demands attention. Suitable as background for a long play session."
+    },
+    {
+      "name": "day-frontier",
+      "seconds": 75,
+      "prompt": "Instrumental daytime music for a colony-building strategy game on an alien world. Purposeful and quietly hopeful: the colony is growing. Steady mid-tempo groove at 96 BPM, warm plucked synths and a bright marimba-like ostinato, soft brushed percussion, a gentle bass line, a simple optimistic melody on a mellow lead that comes and goes. Suitable for long play sessions, never busy or distracting, no vocals."
+    },
+    {
+      "name": "night-relics",
+      "seconds": 75,
+      "prompt": "Instrumental night music for an alien world littered with the ruins of a vanished civilisation. Eerie, ancient and mysterious, slightly threatening. Low bowed string drones, distant metallic resonances like struck ancient machinery, slow glassy synth tones in an unusual mode, faint deep pulses, a lot of reverb and space. Very slow, no drums, no vocals, sits quietly in the background."
+    },
+    {
+      "name": "tension-swarm",
+      "seconds": 60,
+      "prompt": "Instrumental combat music for a real-time strategy game: the colony is overrun by a swarm of alien creatures. Frantic and relentless at 150 BPM. Rapid staccato strings, skittering metallic percussion, pounding low drums, a growling distorted synth bass, short dissonant brass stabs. High energy but leaves room for gunfire sound effects, no vocals, no big ending."
+    },
+    {
+      "name": "day-harvest",
+      "seconds": 75,
+      "prompt": "Instrumental daytime music for a calm moment in a colony-building game on an alien world: crops growing, people at work, all is well. Gentle and pastoral at 84 BPM. Fingerpicked acoustic guitar and harp-like plucks, a warm solo cello or low flute melody, soft hand percussion, light sustained strings underneath. Open, unhurried, a little wistful, never busy, no vocals."
+    },
+    {
+      "name": "night-hearth",
+      "seconds": 75,
+      "prompt": "Instrumental night music for a small human colony at rest on a distant alien world: lights on in the habitats, people safe for now. Warm, intimate and tender. Soft electric piano, a slow warm synth pad, gentle low strings, a faint music-box melody that drifts in and out, very slow, no drums, a hint of melancholy for a lost Earth, no vocals."
+    },
+    {
+      "name": "tension-relic-guardians",
+      "seconds": 60,
+      "prompt": "Instrumental combat music for a real-time strategy game: ancient alien machines guarding the ruins of a vanished race have woken and are attacking. Ominous, mechanical and relentless at 120 BPM. Deep pounding drums, clockwork-like metallic percussion in odd patterns, low droning brass, a cold pulsing synth arpeggio, eerie choir swells, an alien minor-key motif. Heavy but leaves room for gunfire sound effects, no vocals, no big ending."
+    }
+  ]
+}

@@ -70,6 +70,8 @@ node tools/opening.mjs # headless: the campaign's first 20 minutes at a human pa
 node tools/unit-duel.mjs --check # headless: every combat unit against every other at equal cost, and against a gun line
 node tools/roster-smoke.mjs # headless checks for every unit, building and predator mechanic
 node tools/shot.mjs    # headless screenshots of each zoom level → shots/
+node tools/music-render.mjs <mood> [--seconds 90]  # render a music mood to music-drafts/<mood>.wav (needs the dev server)
+node tools/music-gen.mjs [--only title] [--dry-run]  # reference tracks from ElevenLabs Music (tools/music-prompts.json; key in ~/.config/elevenlabs/api_key) → music-drafts/
 npm run content:check  # validate content/ against src/content/defs.ts
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 node tools/editor-checks-smoke.mjs  # undo, content checks, Problems, Rename, Compare, Text, Since last release

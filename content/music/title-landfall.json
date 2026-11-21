@@ -1,0 +1,124 @@
+{
+  "name": "Title · Landfall",
+  "use": "title",
+  "chords": [
+    {
+      "notes": "G3 B3 E4",
+      "bass": "C2",
+      "bells": "E5 G5 B5 C6"
+    },
+    {
+      "notes": "E3 B3 C4",
+      "bass": "A1",
+      "bells": "C5 E5 A5 B5"
+    },
+    {
+      "notes": "G3 B3 E4",
+      "bass": "C2",
+      "bells": "E5 G5 B5 C6"
+    },
+    {
+      "notes": "E3 G3 C4",
+      "bass": "A1",
+      "bells": "C5 E5 G5 A5"
+    }
+  ],
+  "order": "cycle",
+  "homePull": 0,
+  "chordMin": 6.86,
+  "chordMax": 6.86,
+  "barSteps": 16,
+  "swell": 3.5,
+  "release": 4.5,
+  "pad": 0.7,
+  "padTone": "warm",
+  "detune": 5,
+  "brightness": 0.65,
+  "choir": 0.32,
+  "choirVowel": "oo",
+  "bass": 0.95,
+  "bells": 0,
+  "bellTone": "piano",
+  "bellGapMin": 3,
+  "bellGapMax": 7,
+  "phrases": 0.3,
+  "pulse": 0.25,
+  "pulseRate": 70,
+  "sections": [
+    {
+      "chords": 2,
+      "layers": "arp"
+    },
+    {
+      "chords": 2,
+      "layers": "pad arp bass"
+    },
+    {
+      "chords": 4,
+      "layers": "pad arp bass choir melody"
+    },
+    {
+      "chords": 4,
+      "layers": "pad arp bass choir melody pulse drums crash"
+    },
+    {
+      "chords": 2,
+      "layers": "pad arp bass"
+    }
+  ],
+  "arp": 0.72,
+  "arpMode": "updown",
+  "arpRate": "8ths",
+  "arpOctaves": 1,
+  "arpShift": 0,
+  "arpTone": "piano",
+  "arpGate": 0.65,
+  "arpBright": 0.9,
+  "lead": 0.85,
+  "leadTone": "piano",
+  "leadStep": "8ths",
+  "leadEvery": 1,
+  "leadVibrato": 0,
+  "melody": [
+    {
+      "notes": "E5 - - - - - D5 - | C5 - - - B4 - - -"
+    },
+    {
+      "notes": "G5 - - - E5 - - - | D5 - - - E5 - - -"
+    },
+    {
+      "notes": "E5 - - - - - G4 - | A4 - - - B4 - C5 -"
+    },
+    {
+      "notes": "E5 - - - G5 - - - | B4 - - - - - - -"
+    }
+  ],
+  "air": 0.4,
+  "echo": 0.2,
+  "echoSync": true,
+  "space": 0.55,
+  "room": 5.5,
+  "level": 1.38,
+  "drums": 0.7,
+  "drumTracks": [
+    {
+      "sound": "thud",
+      "steps": "x... .... .... ....",
+      "level": 0.9,
+      "pan": 0
+    },
+    {
+      "sound": "kick",
+      "steps": "x... .... x... ..o.",
+      "level": 0.7,
+      "pan": 0
+    },
+    {
+      "sound": "shaker",
+      "steps": "o.o. o.o. o.o. o.o.",
+      "level": 0.16,
+      "pan": 0.2
+    }
+  ],
+  "crash": 0.65
+}

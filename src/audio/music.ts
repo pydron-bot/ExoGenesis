@@ -91,6 +91,8 @@ const BELL_TONES: Record<MusicDef['bellTone'], BellTone> = {
   kalimba: { ratio: 1, index: 0, mellow: 0.1, ring: [1.3, 2], attack: 0.002, partials: [[5.4, 0.3, 0.07], [2.01, 0.12, 0.4]] },
   keys: { ratio: 1, index: 1.1, mellow: 0.7, ring: [2.4, 3.6], attack: 0.003, partials: [[14.02, 0.14, 0.05], [3, 0.08, 0.4]] },
   harp: { ratio: 1, index: 0, mellow: 0.1, ring: [2, 3], attack: 0.002 },
+  // felt piano: a little hammer brightness that mellows fast, then a few harmonics, the higher ones dying first
+  piano: { ratio: 1, index: 0.55, mellow: 0.25, ring: [3.2, 4.5], attack: 0.004, partials: [[2, 0.32, 1.4], [3, 0.14, 0.7], [4.01, 0.07, 0.35], [5.02, 0.035, 0.2]] },
 };
 
 /** Plucked-string samples (Karplus–Strong), made once per context and note. */
@@ -388,6 +390,14 @@ export class AmbientMusic {
       top.forEach((n, k) => gains.push(this.padVoice(midiHz(n), t + 0.3 + k * rand(0.2, 0.8) * stagger, end, release, swell * 1.2, sing, top.length > 1 ? (k / (top.length - 1)) * 0.9 - 0.45 : 0)));
     }
     if (m.bass > 0 && on('bass')) gains.push(this.bass(midiHz(ch.bass), t, end, release, swell, m.bass));
+    // a section that asks for a crash: a reverse cymbal rising over this chord's last bar, the crash as the section starts
+    const next = this.section(this.played.chords, m);
+    if (next && next.i !== sec?.i && next.on.has('crash') && fin(m.crash, 0) > 0) {
+      const v = DRUM_PEAK * fin(m.crash, 0), at = t + len;
+      HITS.swell(this.c, this.drumBus, Math.max(t, at - bar), v, 1, Math.min(bar, len));
+      HITS.crash(this.c, this.drumBus, at, v);
+      this.played.hits += 2;
+    }
     // melody: a phrase at the start of every Nth chord, from the second on
     const every = Math.max(1, fin(m.leadEvery, 2));
     if (fin(m.lead, 0) > 0 && m.melody?.length && this.played.chords >= 2 && (this.played.chords - 2) % every === 0 && on('melody')) {
@@ -678,7 +688,7 @@ export class AmbientMusic {
         p.pan.setValueAtTime(clamp(tr.pan, -1, 1), at);
         out = p;
       }
-      hit(this.c, out, at + rand(0, 0.006), peak, v);
+      hit(this.c, out, at + rand(0, 0.006), peak, v, dur * clamp(Math.round(fin(m.barSteps, 16)), 4, 32));
       this.played.hits++;
     });
     return dur;
@@ -697,8 +707,14 @@ export class AmbientMusic {
     while (root < 36) root += 12;
     const f = midiHz(root + off), c = this.c;
     const len = dur * 1.7;
-    const g = c.createGain();
     const peak = BASSLINE_PEAK * fin(m.basslineLevel, 0.7) * rand(0.9, 1.05);
+    // cellos with the double basses an octave under
+    if (m.basslineTone === 'strings') {
+      this.bowed(f, t, len, peak * 0.9, rand(-0.15, 0.15), this.drumBus, 0.01, 0, 0.8);
+      this.bowed(f / 2, t, len, peak * 0.8, 0, this.drumBus, 0.014, 0, 0.6);
+      return;
+    }
+    const g = c.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(peak, t + 0.006);
     g.gain.setTargetAtTime(peak * 0.6, t + 0.02, len * 0.4);
@@ -756,6 +772,9 @@ export class AmbientMusic {
     // acoustic tones: a plucked string (let ring a while past the step) or a mallet
     if (tone === 'string') return this.pluck(f, t, peak * 1.8, rand(-0.3, 0.3), this.arpBus, gate * 2 + 0.15);
     if (tone === 'marimba') return this.strike(f, t, peak * 1.1, Math.min(1, bright), rand(-0.3, 0.3), this.arpBus, BELL_TONES.marimba, Math.max(0.25, gate * 3));
+    // pedal down: each note rings well past its step
+    if (tone === 'piano') return this.strike(f, t, peak * 1.3, Math.min(1, 0.6 * bright), rand(-0.3, 0.3), this.arpBus, BELL_TONES.piano, Math.max(1.2, gate * 8));
+    if (tone === 'bowed') return this.bowed(f, t, gate, peak * 1.6, rand(-0.35, 0.35), this.arpBus, 0.012, 0, bright);
     const g = c.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(peak, t + 0.004);
@@ -803,9 +822,83 @@ export class AmbientMusic {
     if (notes.length) this.played.leads++;
   }
 
+  /**
+   * A bowed string-section note: a few detuned saws (players never quite agree), the scrape of the bow
+   * at the start, a body filter, vibrato that comes in on held notes. `len` s, then a short release.
+   */
+  private bowed(f: number, t: number, len: number, peak: number, pan: number, bus: AudioNode, attack: number, vib: number, bright: number) {
+    const c = this.c, end = t + Math.max(attack + 0.02, len), stop = end + 0.25;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + attack);
+    // short notes dig in, then ease off a little
+    g.gain.setTargetAtTime(peak * 0.7, t + attack, 0.09);
+    g.gain.setTargetAtTime(0.0001, end, 0.06);
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.8;
+    const top = Math.min(9000, f * 7 * bright);
+    lp.frequency.setValueAtTime(top * 1.5, t);
+    lp.frequency.exponentialRampToValueAtTime(top, t + 0.08);
+    // the wooden body: a broad bump, and the low end thinned so sections don't turn to mud
+    const body = c.createBiquadFilter();
+    body.type = 'peaking';
+    body.frequency.value = Math.min(3000, Math.max(250, f * 2.5));
+    body.Q.value = 1.1;
+    body.gain.value = 5;
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = Math.max(30, f * 0.6);
+    const p = c.createStereoPanner();
+    p.pan.value = pan;
+    lp.connect(body).connect(hp).connect(g).connect(p).connect(bus);
+    const nodes: AudioNode[] = [g, lp, body, hp, p];
+    // vibrato once the note has settled
+    const lfo = c.createOscillator(), vd = c.createGain();
+    lfo.frequency.value = rand(5, 6);
+    vd.gain.setValueAtTime(0, t);
+    vd.gain.linearRampToValueAtTime(vib * 18, t + Math.min(len, 0.3) + 0.2);
+    lfo.connect(vd);
+    lfo.start(t);
+    lfo.stop(stop);
+    nodes.push(lfo, vd);
+    const oscs = [-9, -3, 4, 10].map((cents) => {
+      const o = c.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      o.detune.value = cents + rand(-2, 2);
+      vd.connect(o.detune);
+      const og = c.createGain();
+      og.gain.value = 0.28;
+      o.connect(og).connect(lp);
+      o.start(t + rand(0, 0.008));
+      o.stop(stop);
+      nodes.push(o, og);
+      return o;
+    });
+    // bow scrape: a breath of noise at the start
+    const n = c.createBufferSource();
+    n.buffer = noise(c as AudioContext);
+    const nb = c.createBiquadFilter();
+    nb.type = 'bandpass';
+    nb.frequency.value = Math.min(6000, f * 6);
+    nb.Q.value = 1.5;
+    const ng = c.createGain();
+    ng.gain.setValueAtTime(peak * 0.25, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    n.connect(nb).connect(ng).connect(g);
+    n.start(t, Math.random() * 0.5);
+    n.stop(t + 0.06);
+    nodes.push(n, nb, ng);
+    oscs[0].onended = () => { for (const x of nodes) x.disconnect(); };
+  }
+
   private leadNote(f: number, t: number, len: number, from: number | null, m: MusicDef) {
     const c = this.c, tone = m.leadTone ?? 'flute';
     const peak = LEAD_PEAK * fin(m.lead, 0) * rand(0.92, 1.03);
+    // a struck note left to ring (a little past a long one, as if the pedal were down)
+    if (tone === 'piano') return this.strike(f, t, peak, 0.6, rand(-0.12, 0.12), this.leadBus, BELL_TONES.piano, Math.max(1.5, len + 1.5));
+    if (tone === 'violin') return this.bowed(f, t, len, peak * 1.2, rand(-0.15, 0.15), this.leadBus, 0.07, fin(m.leadVibrato, 0.3), 1.3);
     const attack = tone === 'flute' ? 0.07 : tone === 'glass' ? 0.005 : 0.035;
     const end = t + len, ring = tone === 'glass' ? Math.max(len, 0.6) + 0.8 : len + 0.18;
     const g = c.createGain();
