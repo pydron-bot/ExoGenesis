@@ -285,20 +285,21 @@ export class BattleFx {
 
   /**
    * One sim FX event. `h1`/`h2`: heights above the ground at each end (muzzle, or a flyer's altitude);
-   * `organic`: a death that was a creature (splatter rather than fire).
+   * `organic`: a death that was a creature (splatter rather than fire); `reach`: how far toward the target
+   * the shooter's gun ends (its turret, or a hull that turned to fire, faces the target).
    */
-  spawn(k: number, x1: number, z1: number, x2: number, z2: number, h1: number, h2: number, organic = false) {
+  spawn(k: number, x1: number, z1: number, x2: number, z2: number, h1: number, h2: number, organic = false, reach = 0) {
     const P = this.v1, Q = this.v2;
     switch (k) {
       case FX.ROVER_SHOT:
         regionPoint(x1, z1, 1.3 + h1, P); regionPoint(x2, z2, 1.0 + h2, Q);
+        if (reach) this.toward(P, Q, reach);
         this.muzzle(P, Q, 0.9, COL.roverShot);
         this.bolt(P, Q, 110, 0.12, 2.2, 0.22, COL.roverShot, Hit.Bolt);
         break;
       case FX.TANK_SHOT: case FX.TURRET_SHOT:
         regionPoint(x1, z1, 1.45 + h1, P); regionPoint(x2, z2, 1.0 + h2, Q);
-        // a tank's turret faces the target: the round leaves from the end of its barrel
-        if (k === FX.TANK_SHOT) this.toward(P, Q, 1.6);
+        if (reach) this.toward(P, Q, reach);
         this.muzzle(P, Q, 1.7, COL.tankShot, true);
         this.bolt(P, Q, 95, 0.15, 3.2, 0.42, COL.tankShot, Hit.Cannon);
         break;
@@ -314,6 +315,7 @@ export class BattleFx {
         break;
       case FX.SHELL: {
         regionPoint(x1, z1, 2.4 + h1, P); regionPoint(x2, z2, 0.6 + h2, Q);
+        if (reach) this.toward(P, Q, reach);
         this.muzzle(P, Q, 2.6, COL.shell, true);
         this.puffs(P, 4, 0.8, COL.smokeLight, 1.2, 0.45);
         this.bolt(P, Q, 0, SHELL_FLIGHT, 2.4, 0.5, COL.shell, Hit.Shell, 0, 0, 4 + P.distanceTo(Q) * 0.22, SHELL_FLIGHT);
@@ -330,6 +332,7 @@ export class BattleFx {
       case FX.RAIL: {
         // the whole line at once: a white-hot core, a wider glow, and a trail of motes that drifts off
         regionPoint(x1, z1, 1.7 + h1, P); regionPoint(x2, z2, 1.0 + h2, Q);
+        if (reach) this.toward(P, Q, reach);
         this.beam(P, Q, 0.16, 0.28, COL.rail);
         this.beam(P, Q, 0.6, 0.5, COL.railGlow);
         const n = Math.round(Math.min(26, P.distanceTo(Q) * 0.8) * this.detail);

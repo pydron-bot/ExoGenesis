@@ -19,10 +19,11 @@ export function roverGeo() {
     box(1.3, 0.5, 2.0, 0, 0.75, 0), box(1.0, 0.45, 0.9, 0, 1.2, -0.2),
     cyl(0.32, 0.25, -0.75, 0.35, 0.65), cyl(0.32, 0.25, 0.75, 0.35, 0.65),
     cyl(0.32, 0.25, -0.75, 0.35, -0.65), cyl(0.32, 0.25, 0.75, 0.35, -0.65),
-    box(0.12, 0.12, 0.9, 0, 1.5, 0.35),
   ]);
 }
-export function roverGlow() { return merge([box(1.05, 0.1, 0.1, 0, 1.25, 0.27), box(0.1, 0.1, 0.1, 0, 1.5, 0.82)]); }
+/** The Rover's roof gun on its mount, around its pivot. */
+export function roverTurretGeo() { return merge([box(0.3, 0.2, 0.35, 0, 0, 0), box(0.12, 0.12, 0.9, 0, 0.05, 0.4), box(0.1, 0.1, 0.1, 0, 0.05, 0.87)]); }
+export function roverGlow() { return merge([box(1.05, 0.1, 0.1, 0, 1.25, 0.27)]); }
 export function tankGeo() {
   return merge([box(2.0, 0.7, 2.8, 0, 0.75, 0), box(0.5, 0.6, 3.0, -1.1, 0.5, 0), box(0.5, 0.6, 3.0, 1.1, 0.5, 0)]);
 }
@@ -119,12 +120,18 @@ export function skiffGeo() {
   const fanL = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 8).rotateX(Math.PI / 2).translate(-0.55, 1.15, -1.55);
   const fanR = fanL.clone().translate(1.1, 0, 0);
   return merge([
-    hull, skirt, prow, fanL, fanR, box(0.8, 0.4, 0.9, 0, 1.18, 0.1),
-    new THREE.CylinderGeometry(0.08, 0.08, 1.2, 5).rotateX(Math.PI / 2).translate(-0.18, 1.3, 0.95),
-    new THREE.CylinderGeometry(0.08, 0.08, 1.2, 5).rotateX(Math.PI / 2).translate(0.18, 1.3, 0.95),
+    hull, skirt, prow, fanL, fanR,
   ]);
 }
-export function skiffGlow() { return merge([box(1.9, 0.06, 0.08, 0, 0.58, 0.9), box(0.82, 0.08, 0.08, 0, 1.25, 0.56), box(1.6, 0.06, 0.06, 0, 1.15, -1.75)]); }
+/** The Skiff's twin-gun turret, around its pivot. */
+export function skiffTurretGeo() {
+  return merge([
+    box(0.8, 0.4, 0.9, 0, 0, 0), box(0.82, 0.08, 0.08, 0, 0.07, 0.46),
+    new THREE.CylinderGeometry(0.08, 0.08, 1.2, 5).rotateX(Math.PI / 2).translate(-0.18, 0.12, 0.85),
+    new THREE.CylinderGeometry(0.08, 0.08, 1.2, 5).rotateX(Math.PI / 2).translate(0.18, 0.12, 0.85),
+  ]);
+}
+export function skiffGlow() { return merge([box(1.9, 0.06, 0.08, 0, 0.58, 0.9), box(1.6, 0.06, 0.06, 0, 1.15, -1.75)]); }
 
 /** Strider: a wader on four long jointed legs, a small body slung high, a long probing snout. */
 export function striderGeo() {
@@ -146,9 +153,14 @@ export function gunboatGeo() {
   const bow = new THREE.ConeGeometry(1.0, 1.6, 6).rotateX(Math.PI / 2).scale(1, 0.9, 1).translate(0, 0.5, 2.4);
   return merge([
     hull, bow, box(1.2, 0.9, 1.4, 0, 1.3, -1.0), box(0.9, 0.3, 0.9, 0, 1.9, -1.1),
-    new THREE.CylinderGeometry(0.5, 0.6, 0.45, 8).translate(0, 1.15, 1.0),
-    new THREE.CylinderGeometry(0.1, 0.1, 1.6, 5).rotateX(Math.PI / 2).translate(0, 1.25, 1.85),
     new THREE.CylinderGeometry(0.04, 0.04, 1.2, 4).translate(0, 2.6, -1.1),
+  ]);
+}
+/** The Gunboat's deck gun, around its pivot. */
+export function gunboatTurretGeo() {
+  return merge([
+    new THREE.CylinderGeometry(0.5, 0.6, 0.45, 8),
+    new THREE.CylinderGeometry(0.1, 0.1, 1.6, 5).rotateX(Math.PI / 2).translate(0, 0.1, 0.85),
   ]);
 }
 export function gunboatGlow() { return merge([box(1.24, 0.12, 0.08, 0, 1.45, -0.3), box(2.0, 0.06, 0.06, 0, 0.95, -2.75), box(0.12, 0.12, 0.12, 0, 3.25, -1.1)]); }
@@ -298,6 +310,8 @@ export interface BuiltinUnitLook {
   material(): THREE.Material;
   /** A part drawn separately that turns toward the unit's target, and where it pivots on the hull (model space). */
   turret?: { geo(): THREE.BufferGeometry; pivot: [number, number, number] };
+  /** How far toward its target (u, along the ground) a shot starts: the end of the gun, which faces the target. */
+  muzzle?: number;
 }
 
 /**
@@ -305,15 +319,15 @@ export interface BuiltinUnitLook {
  * editor) borrows the Rover's or Swarmer's look by faction until it gets a model.
  */
 export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
-  rover: { geo: roverGeo, glow: roverGlow, material: () => accordMaterial() },
-  tank: { geo: tankGeo, glow: tankGlow, material: () => accordMaterial(0.5), turret: { geo: tankTurretGeo, pivot: TANK_TURRET_PIVOT } },
-  artillery: { geo: artilleryGeo, glow: artilleryGlow, material: () => accordMaterial(0.5) },
+  rover: { geo: roverGeo, glow: roverGlow, material: () => accordMaterial(), turret: { geo: roverTurretGeo, pivot: [0, 1.45, -0.05] }, muzzle: 0.5 },
+  tank: { geo: tankGeo, glow: tankGlow, material: () => accordMaterial(0.5), turret: { geo: tankTurretGeo, pivot: TANK_TURRET_PIVOT }, muzzle: 1.6 },
+  artillery: { geo: artilleryGeo, glow: artilleryGlow, material: () => accordMaterial(0.5), muzzle: 1.8 },
   arc: { geo: arcGeo, glow: arcGlow, material: () => accordMaterial(0.45) },
   engineer: { geo: engineerGeo, glow: engineerGlow, material: () => accordMaterial(0.35) },
   scout: { geo: scoutGeo, glow: scoutGlow, material: () => accordMaterial(0.6) },
-  skiff: { geo: skiffGeo, glow: skiffGlow, material: () => accordMaterial(0.5) },
+  skiff: { geo: skiffGeo, glow: skiffGlow, material: () => accordMaterial(0.5), turret: { geo: skiffTurretGeo, pivot: [0, 1.18, 0.1] }, muzzle: 1.1 },
   strider: { geo: striderGeo, material: () => faunaMaterial('#4f7f86', '#0f3a40') },
-  gunboat: { geo: gunboatGeo, glow: gunboatGlow, material: () => accordMaterial(0.5) },
+  gunboat: { geo: gunboatGeo, glow: gunboatGlow, material: () => accordMaterial(0.5), turret: { geo: gunboatTurretGeo, pivot: [0, 1.15, 1.0] }, muzzle: 2.2 },
   barge: { geo: bargeGeo, glow: bargeGlow, material: () => accordMaterial(0.4) },
   lurker: { geo: lurkerGeo, material: () => faunaMaterial('#2f5a5e', '#3ad6c8') },
   gunship: { geo: gunshipGeo, glow: gunshipGlow, material: () => accordMaterial(0.5) },
@@ -322,7 +336,7 @@ export const BUILTIN_UNITS: Record<string, BuiltinUnitLook> = {
   brute: { geo: () => creatureGeo(true), material: () => faunaMaterial('#8a3550', '#3a0a1c') },
   spitter: { geo: spitterGeo, material: () => faunaMaterial('#6f8a2e', '#2a4008') },
   burrower: { geo: burrowerGeo, material: () => faunaMaterial('#7a5a3a', '#2e1a08') },
-  lancer: { geo: lancerGeo, glow: lancerGlow, material: () => accordMaterial(0.55) },
+  lancer: { geo: lancerGeo, glow: lancerGlow, material: () => accordMaterial(0.55), muzzle: 3.2 },
   aegis: { geo: aegisGeo, glow: aegisGlow, material: () => accordMaterial(0.5) },
   medevac: { geo: medevacGeo, glow: medevacGlow, material: () => accordMaterial(0.35) },
   nest: { geo: nestGeo, material: () => faunaMaterial('#8a5048', '#3a1410') },

@@ -10,6 +10,7 @@
   "cooldown": 3.5,
   "splash": 6,
   "weapon": "shell",
+  "fixedGun": true,
   "radius": 1.2,
   "aggro": 46,
   "sight": 30,

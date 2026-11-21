@@ -101,6 +101,10 @@ const packScale = () => REGION.packScale ?? 1;
 const graceSeconds = () => REGION.graceSeconds ?? THREATS.graceSeconds;
 const waveInterval = () => REGION.waveInterval ?? THREATS.waveInterval;
 
+/** A gun fixed to its hull fires when the target is within this of straight ahead (radians, ~17°). */
+const FIXED_GUN_ARC = 0.3;
+/** …and one this close to the end of its move, with a target in range, halts there to turn and fire (u). */
+const FIXED_GUN_HALT = 8;
 const DT = 1 / TICK_HZ;
 const WALK = 2.2;
 const RUN = 7.5;
@@ -1656,7 +1660,8 @@ export class Sim {
       if (u.drop) { this.stepLanding(u, d); continue; }
       if (d.rescues) { this.stepMedevac(u, d); continue; }
       if (d.repairRate) { this.stepRepairer(u, d); continue; }
-      const moving = u.order.kind === 'move', team = u.team ?? 0, foes = this.foes(team);
+      let moving = u.order.kind === 'move';
+      const team = u.team ?? 0, foes = this.foes(team);
       const pw = d.abilityPower ?? 1, sieged = abilityOn(u, d, 'siege');
       const range = d.range * (sieged ? pw : 1), speed = d.speed * (abilityOn(u, d, 'boost') ? pw : 1);
       let tgt = u.target >= 0 ? foes.find((h) => h.id === u.target) : undefined;
@@ -1692,12 +1697,17 @@ export class Sim {
       u.aim = tgt ? Math.atan2(tgt.x - u.x, tgt.z - u.z) : undefined;
       const gap = tgt ? Math.hypot(tgt.x - u.x, tgt.z - u.z) - this.foeR(tgt) - d.radius : Infinity;
       if (tgt && gap <= range && d.damage > 0) {
+        // a fixed gun nearly where it was sent stops there to fight (a crowd at the goal never quite arrives)
+        if (moving && d.fixedGun && u.order.kind === 'move' && Math.hypot(u.order.x - u.x, u.order.z - u.z) < FIXED_GUN_HALT) { this.arrive(u); moving = false; }
+        let dh = Math.atan2(tgt.x - u.x, tgt.z - u.z) - u.heading;
+        dh = Math.atan2(Math.sin(dh), Math.cos(dh));
         if (!moving) {
-          let dh = Math.atan2(tgt.x - u.x, tgt.z - u.z) - u.heading;
-          dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-          u.heading += clamp(dh, -8 * DT, 8 * DT);
+          const turn = clamp(dh, -8 * DT, 8 * DT);
+          u.heading += turn;
+          dh -= turn;
         }
-        if (u.cd <= 0) {
+        // a gun fixed to the hull fires only along it (turrets turn to their target: drawn only)
+        if (u.cd <= 0 && (!d.fixedGun || Math.abs(dh) < FIXED_GUN_ARC)) {
           u.cd = d.cooldown / (abilityOn(u, d, 'overdrive') ? pw : 1);
           const charged = abilityOn(u, d, 'charge');
           const dmg = d.damage * (sieged ? pw : 1) * (charged ? pw : 1) * (isBuilding(tgt) ? d.vsBuildings ?? 1 : 1);

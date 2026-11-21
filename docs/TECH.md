@@ -2000,7 +2000,18 @@ Units used to be one rigid mesh, and the sim turns a hull toward its target only
 - **Models:** a model part named `turret` is drawn as its own instanced mesh (`splitPart()` in
   `src/assets/models.ts`), pivoting on that object's origin. In `blender/build.py` that's
   `join(parts, "turret", pivot=...)` beside the body. Built-ins give `turret: { geo, pivot }` in
-  `BUILTIN_UNITS` (`wholeGeo()` seats it for the editor's previews). Only the Tank has one so far.
+  `BUILTIN_UNITS` (`wholeGeo()` seats it for the editor's previews). Tank, Gunboat, Skiff and Rover
+  have one (v0.61.0).
 - **View:** `ArmyView` keeps each slot's turret yaw and swings it toward `F.AIM` at `TURRET_SLEW`
   (6 rad/s), placed at the pivot transformed by the hull's matrix; it takes the hull's colour (hit flash
-  included). A Tank's shot (FX.TANK_SHOT) starts 1.6 u toward its target, at the barrel's end.
+  included). A shot starts `muzzle` u toward its target (per built-in look: the gun's end; it faces
+  the target, by turret or by turning the hull), passed to `BattleFx.spawn` as `reach`.
+
+**Fixed guns (v0.61.0).** A unit with `fixedGun` (Lancer, Artillery) fires only when its target is within
+`FIXED_GUN_ARC` (0.3 rad) of its heading: standing still it turns to face first (8 rad/s, as before);
+driving, it fires only at what's ahead, except that within `FIXED_GUN_HALT` (8 u) of its move's end, with
+a target in range, it arrives there and fights (needed: a crowd sent to one spot never quite arrives, and
+the AI's siege lines stalled; the four-way normal free-for-all in `tools/ai-sim.mjs --check` ran past 80 min
+without it, ends at 49.9 min with it, 38.7 min with free guns). Measured (3 v 3 Brutes, headless): standing, no change (Lancers
+5.5 s → 5.6 s to clear; Artillery 16.9 s both); ordered to drive past the pack, Lancers 8.4 s → 13.6 s
+and Artillery 10.4 s → 24.1 s, with no extra losses.

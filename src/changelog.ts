@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.61.0',
+    date: '2026-11-21',
+    title: 'Guns that face the fight',
+    notes: [
+      'Gunboats, Hover Skiffs and Rovers now turn their guns toward what they are shooting, like tanks, and shots leave from the end of the barrel',
+      'Lancers and Artillery carry guns fixed to their hulls: they now turn to face a target before firing, and while driving they only fire at what is ahead. Nearly at the spot you sent them to, they stop there to fight',
+    ],
+  },
+  {
     version: '0.60.1',
     date: '2026-11-21',
     title: 'Turning turrets',

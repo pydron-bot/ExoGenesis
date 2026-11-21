@@ -8,6 +8,7 @@
   "damage": 110,
   "cooldown": 2.8,
   "weapon": "rail",
+  "fixedGun": true,
   "radius": 1.1,
   "aggro": 30,
   "sight": 40,

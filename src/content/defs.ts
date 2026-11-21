@@ -38,6 +38,7 @@ export const unitShape = {
   cooldown: num({ label: 'Attack cooldown', min: 0.05, max: 30, step: 0.05, unit: 's' }),
   splash: num({ label: 'Splash radius', min: 0, max: 50, step: 0.1, unit: 'u', optional: true, help: 'Units inside take half damage.' }),
   minRange: num({ label: 'Minimum range', min: 0, max: 200, step: 0.5, unit: 'u', optional: true, help: 'Can\'t fire at anything closer than this (artillery).' }),
+  fixedGun: bool({ label: 'Gun fixed to hull', optional: true, help: 'Its gun can\'t turn (no turret): it fires only when the whole vehicle faces its target, turning to face it when standing still. While driving, it fires only at what is ahead.' }),
   vsBuildings: num({ label: 'Against buildings', min: 0, max: 10, step: 0.05, optional: true, help: 'Accord units: damage to buildings × this (2 = siege weapon, 0.5 = poor at it). Empty = 1.' }),
   chain: int({ label: 'Chain jumps', min: 0, max: 12, optional: true, help: 'Each hit arcs on to this many more hostiles, each within Chain range of the last, for 70% of the previous hit.' }),
   chainRange: num({ label: 'Chain range', min: 0, max: 40, step: 0.5, unit: 'u', optional: true }),

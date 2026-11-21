@@ -8,7 +8,7 @@ import { buildBattery, buildCannon, buildCore, buildDeposit, buildDepot, buildDr
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
 import { BODY_PLAN_NAMES, buildCreatureLook, creatureMaterial } from '../world/fauna-models';
 import { STANDINS } from '../world/inhabitant-models';
-import { BUILTIN_UNITS, creatureGeo, roverGeo, roverGlow, tankGlow, unitMaterials, wholeGeo } from '../skirmish/models';
+import { BUILTIN_UNITS, creatureGeo, roverGlow, tankGlow, unitMaterials, wholeGeo } from '../skirmish/models';
 
 export interface Builtin {
   id: string;
@@ -61,7 +61,7 @@ export const BUILTINS: Builtin[] = [
   { id: 'deposit', name: 'Alloy deposit', group: 'Terrain', where: 'src/world/region.ts buildDeposit()', swappable: false, note: 'Placed with the map editor (Deposits).', build: () => buildDeposit(1) },
   { id: 'scaffold', name: 'Construction scaffold', group: 'Buildings', where: 'src/world/region.ts buildScaffold()', swappable: false, note: 'Shown while any building is under construction.', build: buildScaffold },
   { id: 'drone', name: 'Worker drone', group: 'Units', where: 'src/world/region.ts buildDrone()', swappable: false, note: 'Not a content record: the game uses the exo-drone asset when there is one (drones and ore haulers), this built-in when zoomed out.', build: buildDrone },
-  { id: 'rover', name: 'Rover', group: 'Units', where: 'src/skirmish/models.ts roverGeo()', usedBy: { coll: 'units', id: 'rover' }, swappable: true, build: () => unit(roverGeo(), unitMaterials()[0], roverGlow()) },
+  { id: 'rover', name: 'Rover', group: 'Units', where: 'src/skirmish/models.ts roverGeo()', usedBy: { coll: 'units', id: 'rover' }, swappable: true, build: () => unit(wholeGeo(BUILTIN_UNITS.rover), unitMaterials()[0], roverGlow()) },
   { id: 'tank', name: 'Tank', group: 'Units', where: 'src/skirmish/models.ts tankGeo()', usedBy: { coll: 'units', id: 'tank' }, swappable: true, build: () => unit(wholeGeo(BUILTIN_UNITS.tank), unitMaterials()[1], tankGlow()) },
   { id: 'swarmer', name: 'Swarmer', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(false)', usedBy: { coll: 'units', id: 'swarmer' }, swappable: true, build: () => unit(creatureGeo(false), unitMaterials()[2]) },
   { id: 'brute', name: 'Brute', group: 'Fauna', where: 'src/skirmish/models.ts creatureGeo(true)', usedBy: { coll: 'units', id: 'brute' }, swappable: true, build: () => unit(creatureGeo(true), unitMaterials()[3]) },

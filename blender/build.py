@@ -383,11 +383,11 @@ def rover(M):
     for x in (-0.78, 0.78):
         for y in (-0.7, 0.0, 0.7):
             parts.append(cyl(0.34, 0.28, (x, y, 0.36), M["black"], verts=10, rot=(0, math.pi / 2, 0), bevel=0.03))
-    parts.append(box((0.14, 0.95, 0.14), (0, -0.45, 1.5), M["dark"]))     # gun
-    parts.append(box((0.35, 0.4, 0.25), (0, 0.05, 1.5), M["dark"]))
+    # the roof gun on its mount is its own object (the game turns it toward the target)
+    top = [box((0.14, 0.95, 0.14), (0, -0.45, 1.5), M["dark"]), box((0.35, 0.4, 0.25), (0, 0.05, 1.5), M["dark"])]
     parts.append(box((0.04, 0.04, 0.8), (0.45, 0.6, 1.75), M["dark"], bevel=0))  # antenna
     parts.append(box((1.0, 0.06, 0.08), (0, -0.25, 1.4), M["cyan"], bevel=0))
-    export("rover", [join(parts, "body")])
+    export("rover", [join(parts, "body"), join(top, "turret", pivot=(0, 0.05, 1.4))])
 
 
 def tank(M):
@@ -1768,10 +1768,12 @@ def skiff(M):
     # prow: a wedge from the hull's front edge to a low nose
     v = [(0, -2.45, 0.68), (-0.85, -1.25, 0.5), (0.85, -1.25, 0.5), (0.75, -1.25, 0.98), (-0.75, -1.25, 0.98)]
     parts.append(solid_poly(v, [(0, 2, 1), (0, 3, 2), (0, 4, 3), (0, 1, 4), (1, 2, 3, 4)], M["hull2"], "prow"))
-    parts.append(box((0.8, 0.9, 0.4), (0, -0.1, 1.18), M["hull2"], bevel=0.08))
-    parts.append(box((0.6, 0.4, 0.22), (0, 0.15, 1.45), M["glass"], bevel=0.06))
+    # the twin-gun turret is its own object (the game turns it toward the target)
+    top = [box((0.8, 0.9, 0.4), (0, -0.1, 1.18), M["hull2"], bevel=0.08)]
+    top.append(box((0.6, 0.4, 0.22), (0, 0.15, 1.45), M["glass"], bevel=0.06))
     for x in (-0.18, 0.18):
-        parts.append(cyl(0.08, 1.2, (x, -0.95, 1.3), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+        top.append(cyl(0.08, 1.2, (x, -0.95, 1.3), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    top.append(box((0.82, 0.08, 0.08), (0, -0.56, 1.25), M["cyan"], bevel=0))
     for x in (-0.55, 0.55):
         bpy.ops.mesh.primitive_torus_add(major_radius=0.42, minor_radius=0.08, major_segments=12, minor_segments=4,
                                          location=(x, 1.55, 1.15), rotation=(math.pi / 2, 0, 0))
@@ -1780,9 +1782,8 @@ def skiff(M):
         parts.append(box((0.7, 0.04, 0.08), (x, 1.55, 1.15), M["hull2"], bevel=0, rot=(0, 0.6, 0)))
         parts.append(box((0.08, 0.2, 0.5), (x, 1.2, 0.95), M["dark"], bevel=0))
     parts.append(box((1.9, 0.06, 0.08), (0, -0.9, 0.58), M["cyan"], bevel=0))
-    parts.append(box((0.82, 0.08, 0.08), (0, -0.56, 1.25), M["cyan"], bevel=0))
     parts.append(box((1.6, 0.06, 0.06), (0, 1.75, 1.15), M["red"], bevel=0))
-    export("skiff", [join(parts, "body")])
+    export("skiff", [join(parts, "body"), join(top, "turret", pivot=(0, -0.1, 1.18))])
 
 
 def strider(M):
@@ -1819,15 +1820,16 @@ def gunboat(M):
     parts.append(cyl(0.04, 1.2, (0, 1.1, 2.6), M["dark"], verts=4, bevel=0))
     parts.append(box((0.6, 0.04, 0.04), (0, 1.1, 2.9), M["dark"], bevel=0))
     parts.append(sphere(0.07, (0, 1.1, 3.25), M["cyan"], seg=6, rings=4))
-    parts.append(cyl(0.6, 0.45, (0, -1.0, 1.15), M["hull2"], verts=8, r2=0.5, bevel=0.04))
-    parts.append(box((0.6, 0.6, 0.3), (0, -0.9, 1.45), M["hull"], bevel=0.06))
-    parts.append(cyl(0.1, 1.6, (0, -1.85, 1.25), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
-    parts.append(cyl(0.14, 0.25, (0, -2.6, 1.25), M["black"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    # the gun turret is its own object (the game turns it toward the target)
+    top = [cyl(0.6, 0.45, (0, -1.0, 1.15), M["hull2"], verts=8, r2=0.5, bevel=0.04)]
+    top.append(box((0.6, 0.6, 0.3), (0, -0.9, 1.45), M["hull"], bevel=0.06))
+    top.append(cyl(0.1, 1.6, (0, -1.85, 1.25), M["dark"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
+    top.append(cyl(0.14, 0.25, (0, -2.6, 1.25), M["black"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
     for sx in (-1, 1):   # life rafts and the stern light
         parts.append(cyl(0.18, 0.7, (sx * 0.85, 1.9, 1.15), M["accent"], verts=6, rot=(math.pi / 2, 0, 0), bevel=0))
     parts.append(box((1.24, 0.12, 0.08), (0, 0.29, 1.65), M["cyan"], bevel=0))
     parts.append(box((2.0, 0.06, 0.06), (0, 2.75, 0.95), M["red"], bevel=0))
-    export("gunboat", [join(parts, "body")])
+    export("gunboat", [join(parts, "body"), join(top, "turret", pivot=(0, -1.0, 1.15))])
 
 
 def barge(M):

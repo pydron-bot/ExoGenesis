@@ -59,6 +59,8 @@ const C = {
 };
 /** How long a unit glows after it's hit (s). */
 const HIT_GLOW = 0.14;
+/** Per unit type: how far toward its target a shot starts (the gun's end). */
+const MUZZLE = DEFS.map((d) => builtinUnitLook(d.id, d.team === 0 ? 'accord' : 'fauna').muzzle ?? 0);
 /** How fast a turret swings (radians/s). */
 const TURRET_SLEW = 6;
 interface Turret { mesh: THREE.InstancedMesh; pivot: THREE.Vector3 }
@@ -373,7 +375,8 @@ export class ArmyView {
       if (b >= 0 && k !== FX.REPAIR) this.hit[b] = HIT_GLOW;
       colonyLights?.fx(k, x1, z1, x2, z2);
       const organic = (k === FX.DIE_SMALL || k === FX.DIE_BIG) && this.creatureDied(x1, z1);
-      this.fx.spawn(k, x1, z1, x2, z2, h1, h2, organic);
+      const fromUnit = a >= 0 && k !== FX.TURRET_SHOT && k !== FX.PD_SHOT; // (those two are buildings)
+      this.fx.spawn(k, x1, z1, x2, z2, h1, h2, organic, fromUnit ? MUZZLE[this.type[a]] : 0);
     }
   }
 }
