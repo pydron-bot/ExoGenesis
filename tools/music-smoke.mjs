@@ -97,8 +97,11 @@ try {
   await musicVol('0');
   await page.waitForTimeout(600);
   check((await stats()).music === null, 'music volume 0 stops the music (nothing synthesised into silence)');
+  // the first fight may be over by now (tension hangs on only so long after the last bite): start another, so
+  // what's tested is the volume bringing the music back, not whether the fight lasted
+  await page.evaluate(() => __exo.sim.command({ type: 'debug', spawn: { unit: 'swarmer', x: 10, z: 10, n: 6 } }));
   await musicVol('50');
-  await page.waitForTimeout(600);
+  await page.waitForFunction(() => __exo.audio.stats().music?.use === 'tension', null, { timeout: 15000, polling: 250 }).catch(() => {});
   check((await stats()).music?.use === 'tension', `and it comes back when turned up (${(await stats()).music?.use})`);
   await musicVol('0');
   await page.reload();
