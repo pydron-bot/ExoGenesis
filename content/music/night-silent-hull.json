@@ -1,49 +1,97 @@
 {
   "name": "Night · Silent Hull",
   "use": "night",
-  "order": "cycle",
-  "homePull": 0.2,
-  "chords": [
-    { "notes": "F#2 C#3 G#3 A3", "bass": "F#1", "bells": "G#5 A5 C#6 F#6" },
-    { "notes": "G2 D3 A3 C#4", "bass": "G1", "bells": "A5 C#6 D6 F#6" },
-    { "notes": "D2 A2 E3 F#3", "bass": "D1", "bells": "E5 F#5 A5 C#6" },
-    { "notes": "C#2 G#2 A2 E3", "bass": "C#1", "bells": "G#5 A5 C#6 E6" },
-    { "notes": "B2 F#3 C#4 D4", "bass": "B1", "bells": "F#5 A5 C#6 D6" }
+  "seed": 37,
+  "score": [
+    {
+      "name": "intro",
+      "layers": "pad bass",
+      "bars": [
+        { "chord": "F#2 C#3 G#3 A3", "bass": "F#1" },
+        {},
+        {},
+        {}
+      ]
+    },
+    {
+      "name": "A",
+      "layers": "pad bass bells",
+      "bars": [
+        { "chord": "G2 D3 A3 C#4", "bass": "G1", "bells": ". . . . A5 . . ." },
+        { "bells": ". . C#6 . . . . ." },
+        { "bells": ". . . . . F#6 . ." },
+        { "bells": ". . . . . . . ." },
+        { "chord": "D2 A2 E3 F#3", "bass": "D1", "bells": ". . E5 . . . . ." },
+        { "bells": ". . . . . A5 . ." },
+        { "bells": ". . . F#5 . . . ." },
+        { "bells": ". . . . . . . ." }
+      ]
+    },
+    {
+      "name": "B",
+      "layers": "pad bass bells choir",
+      "bars": [
+        { "chord": "C#2 G#2 A2 E3", "bass": "C#1", "bells": "G#5 . . . . C#6 . ." },
+        { "bells": ". . . . E6 . . ." },
+        { "bells": ". . A5 . . . . ." },
+        { "bells": ". . . . . . . ." },
+        { "chord": "B2 F#3 C#4 D4", "bass": "B1", "bells": ". . F#5 . . . C#6 ." },
+        { "bells": ". . . . D6 . . ." },
+        { "bells": ". . . A5 . . . ." },
+        { "bells": ". . . . . . . ." }
+      ]
+    },
+    {
+      "name": "C",
+      "layers": "pad bass choir",
+      "bars": [
+        { "chord": "F#2 C#3 G#3 A3", "bass": "F#1" },
+        {},
+        {},
+        {},
+        { "chord": "G2 D3 A3 C#4", "bass": "G1" },
+        {},
+        {},
+        {}
+      ]
+    },
+    {
+      "name": "outro",
+      "layers": "pad bass bells",
+      "bars": [
+        { "chord": "F#2 C#3 G#3 A3", "bass": "F#1", "bells": ". . . . C#6 . . ." },
+        { "bells": ". . . . . . . ." },
+        { "bells": ". . G#5 . . . . ." },
+        {}
+      ]
+    }
   ],
-  "chordMin": 20,
-  "chordMax": 26,
-  "swell": 8,
-  "release": 11,
-  "pad": 0.9,
-  "padTone": "hollow",
-  "detune": 11,
+  "form": "intro A B C A outro",
+  "pulseRate": 70,
+  "barSteps": 16,
+  "bellStep": "8ths",
+  "swell": 6,
+  "release": 9,
+  "pad": 0.85,
+  "padTone": "warm",
+  "detune": 10,
   "vibrato": 0.14,
-  "brightness": 0.52,
-  "choir": 0.45,
+  "brightness": 0.48,
+  "choir": 0.48,
   "choirVowel": "ah",
-  "bass": 1.0,
-  "bells": 0.48,
+  "bass": 0.95,
+  "bells": 0.52,
   "bellTone": "metal",
-  "bellGapMin": 4.5,
-  "bellGapMax": 11,
-  "phrases": 0.2,
   "pulse": 0,
   "drums": 0,
   "arp": 0,
   "lead": 0,
-  "sections": [
-    { "chords": 2, "layers": "pad bass" },
-    { "chords": 2, "layers": "pad bass bells" },
-    { "chords": 3, "layers": "pad bass bells choir" },
-    { "chords": 2, "layers": "pad bass" },
-    { "chords": 1, "layers": "pad bass bells" }
-  ],
-  "air": 1.5,
+  "air": 1.15,
   "echo": 0.55,
   "echoSync": false,
-  "space": 0.95,
+  "space": 0.92,
   "room": 12,
-  "grit": 0.16,
-  "lofi": 0.14,
+  "grit": 0.14,
+  "lofi": 0.12,
   "level": 1.25
 }

@@ -468,6 +468,14 @@ export const musicShape = {
   }),
   form: str({ label: 'Score · form', optional: true, help: 'The order the score\'s sections play in, by name, then round again, e.g. "intro A A B A outro". Empty = as written.' }),
   bellStep: choice(['4ths', '8ths', '16ths'] as const, { label: 'Score · bell step', optional: true, help: 'How long one step of a score\'s bell line is. Empty = 8ths.' }),
+  scoreThen: choice(['repeat', 'drift'] as const, {
+    label: 'Score · afterwards', optional: true,
+    helps: {
+      repeat: 'Plays the score again from the top.',
+      drift: 'Plays the score once, then drifts on at random over its chords, as a free mood would (Chord length, Bells gaps): a soundscape that is different every time.',
+    },
+  }),
+  scoreThenLayers: str({ label: 'Score · drift layers', optional: true, help: `Which parts play while it drifts afterwards, e.g. "pad bass bells". Empty = pad, choir, bass and bells. Any of: ${MUSIC_LAYERS.join(', ')}.` }),
   seed: int({ label: 'Score · seed', min: 0, max: 99999, optional: true, help: 'The small touches a written score still varies (detune, a bell\'s exact loudness and place) come out the same every time; a different seed gives a different take. Empty = 1.' }),
   level: num({ label: 'Overall level', min: 0, max: 4, step: 0.05, help: 'Balances this mood against the others. The Music volume in Rules → Sound sits on top.' }),
 } satisfies Shape;

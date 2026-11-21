@@ -15,6 +15,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.67.0',
+    date: '2026-11-21',
+    title: 'Written-out music',
+    notes: [
+      'Landfall, the title theme, is rewritten as a piece that plays the same every time: a piano figure, then the full theme with choir, drums and a cymbal crash; afterwards it drifts into a quiet, ever-changing soundscape until you start',
+      'Stillness, Last Star and Silent Hull are rewritten bar by bar, each with its own shape: a slow opening, bells, a choir or a gentle pulse in the middle, and a quiet close',
+    ],
+  },
+  {
     version: '0.66.0',
     date: '2026-11-21',
     title: 'A clearer, wider soundtrack',

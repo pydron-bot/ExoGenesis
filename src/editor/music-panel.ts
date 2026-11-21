@@ -75,7 +75,7 @@ export class MusicPanel {
       return s;
     }));
     const p = this.music?.played, bars = scoreBars(d);
-    const where = !p ? '' : bars ? `bar ${p.chord + 1} of ${bars.length}${p.section >= 0 ? ` · ${d.score?.[p.section]?.name || `section ${p.section + 1}`}` : ''}`
+    const where = !p ? '' : bars && p.drift ? `drifting after the score · chord ${p.chord + 1}` : bars ? `bar ${p.chord + 1} of ${bars.length}${p.section >= 0 ? ` · ${d.score?.[p.section]?.name || `section ${p.section + 1}`}` : ''}`
       : `chord ${p.chord + 1} of ${chords.length}${p.section >= 0 ? ` · section ${p.section + 1} of ${d.sections?.length ?? 0}` : ''}`;
     this.now.textContent = p ? `${where} · ${p.bells} bells${p.pulses ? ` · ${p.pulses} beats` : ''}${p.hits ? ` · ${p.hits} drum hits` : ''}${p.arps ? ` · ${p.arps} arp steps` : ''}${p.leads ? ` · ${p.leads} phrases` : ''}${p.calls ? ` · ${p.calls} calls` : ''}` : '';
   }

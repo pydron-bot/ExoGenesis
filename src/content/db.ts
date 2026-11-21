@@ -172,6 +172,8 @@ function crossIssues(db: ContentDb): FileIssue[] {
         }
       });
     });
+    const badT = (m.scoreThenLayers ?? '').toLowerCase().split(/[\s,]+/).filter((w) => w && !(MUSIC_LAYERS as readonly string[]).includes(w));
+    if (badT.length) out.push({ path: at, field: 'scoreThenLayers', msg: `not a layer: ${badT.join(', ')} (use ${MUSIC_LAYERS.join(', ')})` });
     const unknown = (m.form ?? '').split(/[\s,]+/).filter((w) => w && !names.has(w.toLowerCase()));
     if (unknown.length) out.push({ path: at, field: 'form', msg: `no section called ${unknown.map((w) => `"${w}"`).join(', ')}` });
     const scored = (m.score ?? []).some((sec) => (sec?.bars ?? []).some((bar) => bar?.chord?.trim()));

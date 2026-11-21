@@ -871,6 +871,15 @@ First playtest build (2026-11-15).
     bells and melody; layers; every name in the form exists; a bass note without a chord in its bar; at least one
     chord. The editor shows sections and their bars as nested lists and ▶ Listen reports "bar 3 of 20 · A".
     `content/music/score-example.json` (not played in the game) is a template.
+  - **Scored pieces and drifting afterwards (v0.67.0):** Stillness, Last Star, Silent Hull (night) and Landfall
+    (title) are written scores now. `scoreThen: "drift"` plays the score once, then drifts as a free mood over the
+    score's own chords (each once, in the order they first come; a mood's `chords` list wins if it has one), with
+    `scoreThenLayers` (empty = pad, choir, bass and bells) and the free settings' defaults (12 s chords, bells every
+    3 s or so). The drift draws on `Math.random` (the written part stays seeded), so it differs every time. Landfall
+    does this: about 96 s as written, then a soundscape until the title closes. Levels: the full forms rendered and
+    measured against Void Drift (−18.9 LUFS): Stillness −19.1 and Last Star −20.4 at 0.95 as written; Silent Hull
+    −22.4 at 0.95, set to 1.25 (−20.2); Landfall −22.7 at 1, set to 1.46 (−19.4, as the old one measured).
+    Smoke test: the example score with `form: "intro"` and drift plays its 2 bars, then drifts with bells.
   - **Engine fixes (v0.48.0):** noise tails loop their 1 s of noise (`hiss()` in synth.ts and drums.ts started up
     to 0.8 s in, so a tail over 0.2 s could run off the end with a click). Halls (15–70 ms to build, by size) and the
     11 s of air (10 ms) are made once per context and reused (`HALLS` by size to 0.1 s, `AIRS`), so a mood change

@@ -1,71 +1,86 @@
 {
   "name": "Title · Landfall",
   "use": "title",
-  "chords": [
+  "seed": 7,
+  "score": [
     {
-      "notes": "G3 B3 E4",
-      "bass": "C2",
-      "bells": "E5 G5 B5 C6"
+      "name": "intro",
+      "layers": "arp",
+      "bars": [
+        { "chord": "G3 B3 E4", "bass": "C2" },
+        {},
+        { "chord": "E3 B3 C4", "bass": "A1" },
+        {}
+      ]
     },
     {
-      "notes": "E3 B3 C4",
-      "bass": "A1",
-      "bells": "C5 E5 A5 B5"
+      "name": "A",
+      "layers": "pad arp bass bells",
+      "bars": [
+        { "chord": "G3 B3 E4", "bass": "C2", "bells": "E5 . . . . . . ." },
+        { "bells": ". . . . B4 . . ." },
+        { "chord": "E3 G3 C4", "bass": "A1", "bells": "C5 . . . . . . ." },
+        { "bells": ". . . . G4 . . ." }
+      ]
     },
     {
-      "notes": "G3 B3 E4",
-      "bass": "C2",
-      "bells": "E5 G5 B5 C6"
+      "name": "B",
+      "layers": "pad arp bass choir melody bells",
+      "bars": [
+        { "chord": "G3 B3 E4", "bass": "C2", "melody": "E5 - - - - - D5 -", "bells": "B5 . . . . . . ." },
+        { "melody": "C5 - - - B4 - - -", "bells": ". . . . G5 . . ." },
+        { "chord": "E3 B3 C4", "bass": "A1", "melody": "G5 - - - E5 - - -", "bells": "C6 . . . . . . ." },
+        { "melody": "D5 - - - E5 - - -", "bells": ". . . . A5 . . ." },
+        { "chord": "G3 B3 E4", "bass": "C2", "melody": "E5 - - - - - G4 -", "bells": "E6 . . . . . . ." },
+        { "melody": "A4 - - - B4 - C5 -", "bells": ". . . . B5 . . ." },
+        { "chord": "E3 G3 C4", "bass": "A1", "melody": "E5 - - - G5 - - -", "bells": "C6 . . . . . . ." },
+        { "melody": "B4 - - - - - - -", "bells": ". . . . G5 . . ." }
+      ]
     },
     {
-      "notes": "E3 G3 C4",
-      "bass": "A1",
-      "bells": "C5 E5 G5 A5"
+      "name": "C",
+      "layers": "pad arp bass choir melody pulse drums crash",
+      "bars": [
+        { "chord": "G3 B3 E4", "bass": "C2", "melody": "E5 - - - - - D5 -" },
+        { "melody": "C5 - - - B4 - - -" },
+        { "chord": "E3 B3 C4", "bass": "A1", "melody": "G5 - - - E5 - - -" },
+        { "melody": "D5 - - - E5 - - -" },
+        { "chord": "G3 B3 E4", "bass": "C2", "melody": "E5 - - - - - G4 -" },
+        { "melody": "A4 - - - B4 - C5 -" },
+        { "chord": "E3 G3 C4", "bass": "A1", "melody": "E5 - - - G5 - - -" },
+        { "melody": "B4 - - - - - - -" }
+      ]
+    },
+    {
+      "name": "outro",
+      "layers": "pad arp bass bells",
+      "bars": [
+        { "chord": "G3 B3 E4", "bass": "C2", "bells": "E5 . . . . . . ." },
+        {},
+        { "chord": "E3 G3 C4", "bass": "A1", "bells": "C5 . . . . . . ." },
+        {}
+      ]
     }
   ],
-  "order": "cycle",
-  "homePull": 0,
-  "chordMin": 6.86,
-  "chordMax": 6.86,
+  "form": "intro A B C outro",
+  "scoreThen": "drift",
+  "pulseRate": 70,
   "barSteps": 16,
+  "bellStep": "8ths",
+  "leadStep": "8ths",
   "swell": 3.5,
-  "release": 4.5,
-  "pad": 0.7,
+  "release": 5,
+  "pad": 0.72,
   "padTone": "warm",
   "detune": 5,
-  "brightness": 0.65,
-  "choir": 0.32,
+  "vibrato": 0.15,
+  "brightness": 0.68,
+  "choir": 0.35,
   "choirVowel": "oo",
   "bass": 0.95,
-  "bells": 0,
+  "bells": 0.42,
   "bellTone": "piano",
-  "bellGapMin": 3,
-  "bellGapMax": 7,
-  "phrases": 0.3,
-  "pulse": 0.25,
-  "pulseRate": 70,
-  "sections": [
-    {
-      "chords": 2,
-      "layers": "arp"
-    },
-    {
-      "chords": 2,
-      "layers": "pad arp bass"
-    },
-    {
-      "chords": 4,
-      "layers": "pad arp bass choir melody"
-    },
-    {
-      "chords": 4,
-      "layers": "pad arp bass choir melody pulse drums crash"
-    },
-    {
-      "chords": 2,
-      "layers": "pad arp bass"
-    }
-  ],
+  "pulse": 0.22,
   "arp": 0.72,
   "arpMode": "updown",
   "arpRate": "8ths",
@@ -73,52 +88,23 @@
   "arpShift": 0,
   "arpTone": "piano",
   "arpGate": 0.65,
-  "arpBright": 0.9,
-  "lead": 0.85,
+  "arpBright": 0.85,
+  "lead": 0.82,
   "leadTone": "piano",
-  "leadStep": "8ths",
-  "leadEvery": 1,
   "leadVibrato": 0,
-  "melody": [
-    {
-      "notes": "E5 - - - - - D5 - | C5 - - - B4 - - -"
-    },
-    {
-      "notes": "G5 - - - E5 - - - | D5 - - - E5 - - -"
-    },
-    {
-      "notes": "E5 - - - - - G4 - | A4 - - - B4 - C5 -"
-    },
-    {
-      "notes": "E5 - - - G5 - - - | B4 - - - - - - -"
-    }
-  ],
-  "air": 0.4,
-  "echo": 0.2,
-  "echoSync": true,
-  "space": 0.55,
-  "room": 5.5,
-  "level": 1.46,
-  "drums": 0.7,
+  "drums": 0.72,
+  "drumsIn": 0,
+  "swing": 0,
   "drumTracks": [
-    {
-      "sound": "thud",
-      "steps": "x... .... .... ....",
-      "level": 0.9,
-      "pan": 0
-    },
-    {
-      "sound": "kick",
-      "steps": "x... .... x... ..o.",
-      "level": 0.7,
-      "pan": 0
-    },
-    {
-      "sound": "shaker",
-      "steps": "o.o. o.o. o.o. o.o.",
-      "level": 0.16,
-      "pan": 0.2
-    }
+    { "sound": "thud", "steps": "x... .... .... ....", "level": 0.9, "pan": 0 },
+    { "sound": "kick", "steps": "x... .... x... ..o.", "level": 0.7, "pan": 0 },
+    { "sound": "shaker", "steps": "o.o. o.o. o.o. o.o.", "level": 0.16, "pan": 0.2 }
   ],
-  "crash": 0.65
+  "crash": 0.65,
+  "air": 0.35,
+  "echo": 0.25,
+  "echoSync": true,
+  "space": 0.6,
+  "room": 6.0,
+  "level": 1.46
 }

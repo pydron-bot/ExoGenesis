@@ -140,11 +140,14 @@ try {
     const [a, b] = [await render(score, 20), await render(score, 20)];
     const [f1, f2] = [await render(free, 20), await render(free, 20)];
     const gap = (x, y) => { let e = 0; for (let i = 0; i < x.d.length; i++) e = Math.max(e, Math.abs(x.d[i] - y.d[i])); return e; };
-    return { bars: scoreBars(score)?.length, same: gap(a, b), free: gap(f1, f2), energy: a.energy, played: a.played };
+    // set to drift afterwards: the intro's 2 bars (8 s), then a random soundscape over the score's chords
+    const drift = await render({ ...score, form: 'intro', scoreThen: 'drift' }, 24);
+    return { bars: scoreBars(score)?.length, same: gap(a, b), free: gap(f1, f2), energy: a.energy, played: a.played, drift: drift.played };
   });
   check(takes.bars === 20, `the example score's form flattens to its bars (${takes.bars} of 20: intro A A B A outro)`);
   check(takes.energy > 0 && takes.played.chords >= 5 && takes.played.bells > 0, `a score plays its bars and its written bells (${JSON.stringify(takes.played)})`);
   check(takes.same < 1e-4, `a score renders the same twice (largest difference ${takes.same.toExponential(1)})`);
+  check(takes.drift.drift && takes.drift.chords > 2 && takes.drift.bells > 0, `a score set to drift plays through once, then drifts with bells (${JSON.stringify(takes.drift)})`);
   check(takes.free > 1e-3, `a free-running mood still varies (largest difference ${takes.free.toFixed(3)})`);
 
   check(errors.length === 0, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' | ')}` : ''}`);

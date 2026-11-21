@@ -203,9 +203,11 @@ export class AmbientMusic {
   /** Panned drum tracks, one panner each (made on first use; let go with everything else on stop). */
   private drumPans: StereoPannerNode[] = [];
   /** Test and editor hook: what has been queued, and the chord now sounding (index into the mood's chords). */
-  played = { chords: 0, bells: 0, pulses: 0, hits: 0, arps: 0, leads: 0, calls: 0, chord: -1, section: -1 };
+  played = { chords: 0, bells: 0, pulses: 0, hits: 0, arps: 0, leads: 0, calls: 0, chord: -1, section: -1, drift: false };
   /** A written score: a seeded random source for each part (null for a free-running mood). */
   private rngs: Record<string, () => number> | null = null;
+  /** A written score set to drift afterwards: played through once, now drifting at random over its chords. */
+  private drifting = false;
   /** A written score: the chord now held (bars without one keep it) and its voices. */
   private held: { c: Chord; gains: GainNode[] } | null = null;
 
@@ -347,7 +349,8 @@ export class AmbientMusic {
 
   /** Run `f` with the part's seeded random source (a written score), or as is. */
   private run<T>(part: string, f: () => T): T {
-    const r = this.rngs?.[part];
+    // the written part plays the same every time; the drift after it is random, like any free mood
+    const r = this.drifting ? undefined : this.rngs?.[part];
     if (!r) return f();
     const prev = random;
     random = r;
@@ -384,7 +387,18 @@ export class AmbientMusic {
 
   // ---------- internals ----------
   private chords(): Chord[] {
-    return (this.mood().chords ?? []).map(chordOf).filter((c): c is Chord => !!c);
+    const m = this.mood();
+    if (m.chords?.length || !m.score?.length) return (m.chords ?? []).map(chordOf).filter((c): c is Chord => !!c);
+    // a score drifting afterwards: its own chords, each once, in the order they first come
+    const seen = new Map<string, Chord>();
+    for (const b of scoreBars(m) ?? []) if (b.chord) seen.set(`${b.chord.pad.join(' ')}/${b.chord.bass}`, seen.get(`${b.chord.pad.join(' ')}/${b.chord.bass}`) ?? b.chord);
+    return [...seen.values()];
+  }
+
+  /** The layers a score plays while it drifts afterwards. */
+  private driftOn(m: MusicDef): Set<string> {
+    const words = (m.scoreThenLayers ?? '').toLowerCase().split(/[\s,]+/).filter(Boolean);
+    return new Set(words.length ? words : ['pad', 'choir', 'bass', 'bells']);
   }
 
   /** Bus levels from the mood (live: the editor tweaks them while it plays). */
@@ -413,10 +427,18 @@ export class AmbientMusic {
   private tick() {
     const now = this.c.currentTime, ahead = now + LOOKAHEAD;
     this.levels();
-    const bars = scoreBars(this.mood());
-    while (this.nextChord < ahead) this.nextChord += this.run('chord', () => (bars ? this.playBar(this.nextChord, bars) : this.playChord(this.nextChord)));
+    const m = this.mood(), bars = scoreBars(m);
+    while (this.nextChord < ahead) {
+      // a score set to drift: once it has played through, it drifts on over its chords (and its bells come back)
+      if (bars && !this.drifting && m.scoreThen === 'drift' && this.played.chords >= bars.length) {
+        this.drifting = true;
+        this.nextBell = this.nextChord + rand(2, 4);
+      }
+      this.nextChord += this.run('chord', () => (bars && !this.drifting ? this.playBar(this.nextChord, bars) : this.playChord(this.nextChord)));
+    }
+    this.played.drift = this.drifting;
     // a score writes its bells out bar by bar (playBar)
-    while (this.nextBell < ahead) this.nextBell += bars ? 60 : this.run('bell', () => this.bells(this.nextBell));
+    while (this.nextBell < ahead) this.nextBell += bars && !this.drifting ? 60 : this.run('bell', () => this.bells(this.nextBell));
     while (this.nextPulse < ahead) this.nextPulse += this.run('pulse', () => this.pulse(this.nextPulse));
     while (this.nextStep < ahead) this.nextStep += this.run('drum', () => this.drumStep(this.nextStep));
     while (this.nextArp < ahead) this.nextArp += this.run('arp', () => this.arpStep(this.nextArp));
@@ -472,7 +494,7 @@ export class AmbientMusic {
     else { do i = Math.floor(random() * all.length); while (i === this.chord); }
     this.chord = i;
     const ch = all[i];
-    const sec = this.section(this.played.chords, m);
+    const sec = this.drifting ? { i: -1, on: this.driftOn(m) } : this.section(this.played.chords, m);
     const on = (layer: string) => !sec || sec.on.has(layer);
     const gains: GainNode[] = [];
     this.queue.push({ t, c: ch, i, on: sec?.on ?? null, section: sec?.i ?? -1, gains });
@@ -489,7 +511,7 @@ export class AmbientMusic {
     }
     if (m.bass > 0 && on('bass')) gains.push(this.bass(midiHz(ch.bass), t, end, release, swell, m.bass));
     // a section that asks for a crash: a reverse cymbal rising over this chord's last bar, the crash as the section starts
-    const next = this.section(this.played.chords, m);
+    const next = this.drifting ? null : this.section(this.played.chords, m);
     if (next && next.i !== sec?.i && next.on.has('crash') && fin(m.crash, 0) > 0) {
       const v = DRUM_PEAK * fin(m.crash, 0), at = t + len;
       HITS.swell(this.c, this.drumBus, Math.max(t, at - bar), v, 1, Math.min(bar, len));
