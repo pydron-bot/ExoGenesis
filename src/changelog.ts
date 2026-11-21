@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.61.0',
+    date: '2026-11-20',
+    title: 'New music',
+    notes: [
+      'Landfall, a new title theme: a soft piano over warm pads and voices that builds to a cymbal swell and crash',
+      'Last Stand, a new battle theme: a low, menacing drone with driving synth bass, strings, taiko drums and an urgent lead',
+      'The music now has a piano, crash cymbals and cymbal swells that rise into a big moment',
+    ],
+  },
+  {
     version: '0.60.0',
     date: '2026-11-20',
     title: 'Battles you can feel',

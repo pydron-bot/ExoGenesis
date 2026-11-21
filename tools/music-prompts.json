@@ -1,0 +1,20 @@
+{
+  "_note": "Prompts for tools/music-gen.mjs. Describe style, never name real artists or songs (ElevenLabs terms). Keep total length small: Starter allows ~17 generated minutes a month.",
+  "tracks": [
+    {
+      "name": "title",
+      "seconds": 90,
+      "prompt": "Instrumental main theme for a sci-fi colony strategy game. A caretaker AI wakes alone on an alien world, carrying the last sleeping humans. Slow, wide, hopeful but lonely. Warm analog synth pads, a soft piano motif that repeats and grows, distant choir-like textures, gentle sub bass, no drums for the first half, then a restrained pulse. Cinematic, spacious, 70 BPM, ends by settling back to calm."
+    },
+    {
+      "name": "combat",
+      "seconds": 75,
+      "prompt": "Instrumental battle music for a real-time strategy game set on an alien planet. Tense and driving but not overwhelming, so it can sit under gunfire sound effects. Pulsing arpeggiated synth bass, taiko-style low drums, metallic percussion, staccato low strings, an urgent minor-key motif. 128 BPM, steady intensity, no big climax, no vocals."
+    },
+    {
+      "name": "night",
+      "seconds": 90,
+      "prompt": "Instrumental night ambience for a colony on an alien world. Quiet, watchful, slightly uneasy. Sparse glassy bell tones, soft evolving drones, faint alien wildlife-like textures, very slow, lots of space and reverb, no drums, no melody that demands attention. Suitable as background for a long play session."
+    }
+  ]
+}

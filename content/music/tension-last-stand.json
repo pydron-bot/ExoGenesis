@@ -1,0 +1,84 @@
+{
+  "name": "Tension · Last Stand",
+  "use": "tension",
+  "chords": [
+    {
+      "notes": "D3 A3 D4 F4",
+      "bass": "D2",
+      "bells": "D5 F5 A5"
+    },
+    {
+      "notes": "D3 G3 A#3 D#4",
+      "bass": "D2",
+      "bells": "D#5 G5 A#5"
+    },
+    {
+      "notes": "D3 A3 C#4 F4",
+      "bass": "D2",
+      "bells": "C#5 F5 A5"
+    },
+    {
+      "notes": "D3 A3 C4 F4",
+      "bass": "D2",
+      "bells": "C5 F5 A5"
+    }
+  ],
+  "order": "cycle",
+  "homePull": 0,
+  "chordMin": 3.72,
+  "chordMax": 3.72,
+  "swell": 0.6,
+  "release": 1.5,
+  "pad": 0.55,
+  "padTone": "strings",
+  "vibrato": 0.3,
+  "brightness": 0.9,
+  "bass": 0,
+  "bells": 0,
+  "bellTone": "metal",
+  "bellGapMin": 4,
+  "bellGapMax": 10,
+  "phrases": 0.3,
+  "pulse": 0,
+  "pulseRate": 129,
+  "bassline": "x.xx x.xx x.xx x.o.",
+  "basslineLevel": 0.8,
+  "arp": 0.35,
+  "arpMode": "updown",
+  "arpRate": "16ths",
+  "arpOctaves": 2,
+  "arpShift": 0,
+  "arpTone": "saw",
+  "arpGate": 0.3,
+  "arpBright": 1.2,
+  "lead": 0.55,
+  "leadTone": "saw",
+  "leadStep": "8ths",
+  "leadEvery": 1,
+  "leadVibrato": 0.2,
+  "melody": [
+    { "notes": "D#5 . D#5 D5 D#5 . A#4 . | D#5 . D5 C#5 D5 . . ." },
+    { "notes": "D5 . D5 C#5 D5 . F5 . | E5 . C#5 . D5 . A4 ." },
+    { "notes": "D5 . C5 . A4 . F4 . | A4 . C5 . C#5 . D5 ." },
+    { "notes": "D5 . D5 C#5 D5 . A4 . | D5 . D5 D#5 D5 C#5 A4 ." }
+  ],
+  "drums": 0.8,
+  "drumTracks": [
+    { "sound": "taiko", "steps": "x..x ..x. x... x.x.", "level": 0.8 },
+    { "sound": "kick", "steps": "x... x... x... x...", "level": 0.55 },
+    { "sound": "clank", "steps": "x... ..x. .... ....", "level": 0.3, "pan": -0.35 },
+    { "sound": "hat", "steps": "x.o. x.o. x.o. x.oo", "level": 0.18, "pan": 0.4 },
+    { "sound": "tom", "steps": ".... .... .... .... .... .... .... x.xx", "level": 0.45 }
+  ],
+  "sections": [
+    { "chords": 4, "layers": "pad bassline arp drums" },
+    { "chords": 8, "layers": "pad bassline arp drums melody crash" },
+    { "chords": 3, "layers": "pad bassline drums" },
+    { "chords": 5, "layers": "pad bassline arp drums melody crash" }
+  ],
+  "crash": 0.6,
+  "air": 0.2,
+  "echo": 0.2,
+  "space": 0.4,
+  "level": 1.3
+}
