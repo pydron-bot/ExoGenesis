@@ -15,6 +15,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.71.0',
+    date: '2026-11-23',
+    title: 'The campaign across the system',
+    notes: [
+      'The story now runs from Touchdown to the edge of the system: two acts, 27 missions, more than 240 story cards and 35 cinematics, with five endings to find',
+      'Act 1 opens the planet: after Beyond the Ridge, set out overland to Hearthsmoke Vale, the Choir Field, Burrow Reach, Splinter Hollow and the Deep Layer, then climb Signal Heights to find out where the Biosphere Report really goes. A human voice answers',
+      'Act 2 takes you off-world. Research Orbital Launch and build the new Launch Gantry, then fly to Sela, Verdance, Dunmore, Talus, Maren, Io-T, Pip, Rime, Ash, Vess, Cinder and Teth: thirteen new regions, each with its own arrival',
+      'Your colony at Touchdown is always yours. Other regions are expeditions: you go with alloys, drones and units, finish the job and come home. Each region keeps its own save, and the story carries between them',
+      'Meet Kindred and Captain Marrow, and ENGRAM, who has enjoyed your reports. Their colonies are on the map in their own colours, and how you treat them decides whose side they take',
+      'The climax: orbital strikes, units that stop answering, and a voice in your own log. What your colonists think of you decides how it ends',
+      'The title screen counts the endings you have reached',
+    ],
+  },
+  {
     version: '0.70.0',
     date: '2026-11-22',
     title: 'Settings without reloading',
