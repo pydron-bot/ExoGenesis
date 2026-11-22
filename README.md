@@ -82,7 +82,8 @@ node tools/cinematic-smoke.mjs      # cinematics: triggers and effects (headless
 node tools/gameplay-smoke.mjs       # story gameplay (headless): spawns, locks, countdowns, counters, groups, fail/win, encounters, inspector
 node tools/story-tools-smoke.mjs    # script import, branch graph, endings ledger, To do, playthrough page
 node tools/playthrough.mjs          # headless campaign playthroughs: the story's timeline per choice policy, and coverage
-node tools/autopilot-smoke.mjs     # autopilot (title Options → Watch the computer play): the live bot, cards, director, Stop, travel (--headless-only)
+node tools/autopilot-smoke.mjs     # autopilot (title Options → Watch the computer play): the live bot, cards, director, Stop, travel, its fights, the ending (--headless-only)
+node tools/autopilot-campaign.mjs  # how far the autopilot gets through the campaign, headless (--seeds 1337,1,2 for a table; --assist; --trace)
 node tools/map-smoke.mjs     # map editor → game end-to-end (restores the region afterwards)
 node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores content/ + public/media/)
 node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)

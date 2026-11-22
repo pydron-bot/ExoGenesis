@@ -22,7 +22,10 @@ export const CHANGELOG: Release[] = [
       'New in the title screen\'s Options: Watch the computer play. The autopilot plays your campaign (your own colony) while you watch: it builds, reads each story card for a moment and answers it, sits through the cinematics and travels between regions when the story calls',
       'A director camera follows what matters: the card\'s place, a strike, a fight, a group on its way, a building going up. Move the camera yourself and it stands back for a few seconds',
       'The AUTOPILOT badge says what it is doing, runs it at ×1, ×2 or ×3, and Stop hands control straight back. Turn it on again from the game menu',
-      'Options also choose how it answers (the first choice, the honest one, at random or the last) and an Assist that finishes an objective it has been stuck on for six minutes',
+      'It plays the colony like a player: enough batteries, geothermal and fusion for the nights, depots on every deposit it can reach (a relay toward the far ones), Deep-Core Mines, research, Matter Printers, guns that grow with the packs and a gun by every outlying building',
+      'Its army defends the colony, raids the nests, fights for objectives (the Choir wall, the relic grids, the Lantern\'s core), escorts the survey team on Dunmore, holds the Long Ear\'s three plates at once and pulls back to mend. It never fires on a neutral faction',
+      'It plays on to an ending: it reads the epilogue\'s pages and stops on the end screen, leaving it there',
+      'Options also choose how it answers (the first choice, the honest one, at random or the last) and an Assist that finishes an objective it has been stuck on for six minutes and holds off a pack or a failing cryo bank that would end the colony',
     ],
   },
   {

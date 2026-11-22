@@ -2515,26 +2515,89 @@ The computer plays the campaign in the real game while you watch, for testing th
   steps `Autopilot.tick()` before every `sim.step()` inside `withTeam(0)`). It reuses the headless bots:
   `BalanceBot` (`src/sim/balance.ts`: `runBalance`'s per-tick plan, people plan, growth pods and army as a class;
   `prune()` drops the plan steps a colony taken over already has) and the playthrough's `chase` (exported, with
-  its command sink). At home the plan is the **fortress** strategy then farms and homes (the people plan alone
-  falls to the second sol's packs: `balance.mjs --strategy people --minutes 45`); on an expedition the **mixed**
-  build; when the plan runs out and alloys pile up it adds depots, turrets and an army. `chase` now: only missions
-  set in the region being played (headless, everywhere is here, so nothing changes there); an `after` objective
-  chases its event's trigger (one level: the brood mound, the stone circle); a building that needs research
-  researches first; research that costs isotopes puts a Deep-Core Mine on the nearest seam first (new build step
-  where `seam`). Cards and cinematics are *not* the worker's: the renderer reads them on screen.
+  its command sink and an optional `go(x, z)`: the autopilot picks who walks to a site). `PilotBot` (a subclass)
+  adds plan steps placed at a spot the autopilot chose (`[kind, 'at', x, z]`), waits for a step's isotopes instead
+  of having the order refused, keeps back a `reserve` for a mission (steps not `exempt` wait; the exempt ones are
+  moved up), places through the autopilot's search (`Sim.placeProblemAt`, the build order's own check, and clear of
+  our units: a building put down round them boxed them in for good), and leaves the army to the autopilot (`army()`
+  is a protected method of `BalanceBot`, a no-op here). At home the plan starts as the **fortress** strategy then
+  farms and homes; on an expedition the **mixed** build. A plan step stuck at the front for a minute (an unreachable
+  spot) is dropped, or sent to the back when it has waited 3 minutes for alloys. `chase` (unchanged for the
+  playthrough): only missions set in the region being played; an `after` objective chases its event's trigger; a
+  building that needs research researches first; research that costs isotopes puts a Deep-Core Mine on a seam first.
+  Faction units and buildings are read with `Sim.othersInView()` (the colony's view holds only ours).
+- **The colony** (`manage`, every 5 s, most urgent first):
+  - *Power*: a sol and a half worked through ahead in 5 s steps (`powerNeed`: the sun by the clock, `daylight`;
+    steady generation; the batteries as they stand; turrets at a quarter of their draw, factories and repair pads
+    at 0.3, depots and printers left out as the sim leaves them; the cryo bank, drones and full growth pods, ×1.05).
+    Short in the last night: a battery when the day makes enough, else generation: geothermal on a free vent (a
+    relay toward one within 110 u), a Fusion Cell with isotopes coming in, solar. The step goes to the front.
+  - *Drones* to one per depot or so; *depots* on every deposit it can reach, nearest first (the spot checked to mine
+    *that* deposit; out of the build area, a Relay Tower at the reachable spot nearest it), while fewer than three
+    rich deposits are worked, the guns are nearly enough or alloys pile up. The fortress plan's later depots are
+    dropped for these.
+  - *Home*: a Tech Lab once two depots and most of the guns stand (after 10 minutes or the third pack); Deep Survey
+    as soon as it does, then a Deep-Core Mine on the nearest seam (two; one when isotopes are plentiful), urgent when
+    a mission's isotopes are short; a farm ahead of the colonists and pods, homes as they fill; Matter Printers on
+    steady power (a Fusion Cell for every two, up to three, fuelled from the seams), urgent once every deposit is
+    below 300. A wreck is stripped by a Field Engineer. A repair pad once three units stand.
+  - *Saving for a mission* (`needs`): what the missions here still need to research and build (the research chain
+    from the first project that can start, the buildings not up yet), in alloys and isotopes. While it waits, the
+    plan keeps back up to 320 alloys (its own steps, depots, labs, mines, printers and fusion exempt), and no new
+    guns unless they are four short, no army, homes or research of its own.
+  - *Research* when the lab is idle and no mission's research is waiting (`RESEARCH`: Deep Survey, Refined Drills,
+    Hardened Plating, Isotope Cells, Tracking Arrays, Matter Compiler, Deep Cells, Fire Control, Seismic Listening,
+    Orbital Launch, Shield Lattice, …), saving up for the next in line. *An expedition* builds a lab once it has
+    420 alloys to spare and spends what it brought on Deep Survey → Isotope Cells → Orbital Launch, then the list
+    (research is the campaign's: the Gantry's research is often done on an Act 1 expedition), and stays to see a
+    project through (6 minutes at most).
+  - *Defence* (`defence`): guns wanted at home 3 + ¾ per pack so far (at most 24; an expedition 2 + 0.4 per pack, at
+    most 12): turret, siege cannon, point defence, cannon in turn, toward the spawns; past eight guns the army comes
+    first until six units stand. A gun beside every outlying building (a far depot, a relay, geothermal; two by a
+    Deep-Core Mine, which draws packs, and by the gantry). A Shield Projector by the Core once researched.
+  - *Units* at the bay: at home none until the guns stand (they hold the colony), then eight (four or six while a
+    fight for an objective is on); on an expedition six, or as many as it may for a fight (tank, lancer, rover, tank,
+    artillery … whatever is researched), keeping 120 alloys back at home until eight guns stand.
+- **The army** (`army`, every 3 s; combat units only):
+  - *Mending*: a unit below 30% goes to the repair pad until it is 85% whole.
+  - *Raids*: hostiles (awake, not nests; flyers only with anti-air of our own) within 40 u of our buildings: the group
+    nearest the Core (not the middle between two), by the nearest idle units when they are strong enough, by everyone
+    when it is at the Core.
+  - *Objectives* (`objectiveFight` → `need`): first an *escort*: a faction's encounter whose death is a fail flag of a
+    mission here (Dunmore's survey team) is followed every 6 s. Then each objective not met: a `flag` is traced back
+    to what sets it, up to four steps: an encounter here with that `doneFlag` (its units, if their faction is
+    hostile; not there yet: the flag that brings it), a relic grid (`relic-<grid>-opened`: its nodes), a hostile
+    faction's outpost with that `story` flag (an attack order), a story event that sets it (its trigger: flags,
+    sites, `after` events). A site with something awake within 26 u (36 u for a relic sentinel) is cleared first;
+    asleep, a relic only scans us. A site where the one sent was lost on the way (`SimState.pilot.lost`, in the
+    region's save) is walked by everyone. `kills`: the nearest predators. `factionLost`: a hostile faction's
+    buildings. Several sites in one `all` objective (the Long Ear's plates) split the force between them. A neutral
+    faction's encounter or outpost is never a target (an attack would set `<faction>-attacked`).
+  - *A fight*: at home a third of the army (at least two) stays unless the fight is within 60 u. It gathers by the
+    rally point (the repair pad, the bay, the Core) until it is 1.3× as strong as what stands there (√(hp × dps)
+    summed), or 4 minutes have passed, or it is at its cap; then it moves in (an `attack` order for a building);
+    worn below 35% with fewer than three, it pulls back to mend.
+  - *Nest raids*: with nothing to fight for and no raid, five fit units go for the nearest standing nest (that side's
+    packs stop until it grows back) and see it down.
+  - *Walks*: a site with nothing in the way gets one unit (or a drone), posted there while it is asked for (so one
+    standing on a plate isn't taken for the next); an idle unit far from the rally point comes back.
 - **Travel.** Every 5 s: nothing while a card waits, a cinematic is queued, a pack fights at the colony (up to 2
-  minutes) or in the first 90 s at home / 30 s on an expedition. If no mission here has moved for 5 minutes (8 with
-  the assist, so it steps in first) or none is under way here: from home, the first mission under way in a region
-  that is routed or visited and reachable (overland on this world; off it only with a finished Launch Gantry,
-  which it rebuilds when one is researched and missions wait off-world); from an expedition, home (the Core's
-  "Return to Touchdown"). It sets `SimState.travel` as a story `travel` effect does, and `main.ts` saves and goes
-  through `travelTo` (the veil, the reload with `travel=1`).
+  minutes), predators are within 45 u of the home Core (up to 6 minutes: we would come back to it falling, as time at
+  home stands still while away) or in the first 90 s at home / 30 s on an expedition. If no mission here has moved
+  for 5 minutes (twice that while a fight for one is being built up; 8 with the assist, so it steps in first) or none
+  is under way here: from home, a mission under way in a region that is routed or visited and reachable (overland on
+  this world; off it only with a finished Launch Gantry, which it rebuilds when one is researched and missions wait
+  off-world): the story's own before an optional one (a summary starting "Optional."), and an optional one tried
+  twice without getting anywhere (`CampaignInfo.pilotTrips`) only when there is nothing else; from an expedition,
+  home (the Core's "Return to Touchdown"). It sets `SimState.travel` as a story `travel` effect does, and `main.ts`
+  saves and goes through `travelTo` (the veil, the reload with `travel=1`).
 - **Assist** (off by default; Options or the badge): an objective here with no progress for `assistMinutes`
-  (6) is ticked off the inspector's way (`inspect` → objective), not clocks (`time`, `timer`); at home with
-  missions waiting off-world and no gantry for as long, a Launch Gantry and its research chain are set up
-  (`debug` setup); a pack (not nests or relic guards) within 70 u of a Command Core below 35% is sent away and the
-  next pack held 3 min (once a minute at most). Each logs "Autopilot assist: …" in the log in violet
-  (`LogStyle` `'assist'`, `.ev.assist`).
+  (6; twice that while a fight for it is being built up) is ticked off the inspector's way (`inspect` → objective),
+  not clocks (`time`, `timer`); at home with missions waiting off-world and no gantry for as long, a Launch Gantry and
+  its research chain are set up (`debug` setup); predators (not nests or relic guards) within 70 u of a Command Core
+  below half its strength are sent away and the next pack held 4 min (every 45 s at most, 10 s below a quarter); a
+  cryo bank below the safe level (50%: embryos start to die) is brought back to 75% (every 2 minutes at most). Each
+  logs "Autopilot assist: …" in the log in violet (`LogStyle` `'assist'`, `.ev.assist`).
 - **Readable** (`src/autopilot.ts`, `AutopilotView`). A story card (or a first contact: Approach; a trust story:
   Continue) stays for 2.5 s + 40 ms a character, at most 9 s (÷1.5 at ×2, ÷2 at ×3); conversation pages are read
   the same way; then the chosen button lights violet (`.ap-pick`) for 0.9 s and is pressed (a `pointerdown`, as a
@@ -2544,6 +2607,12 @@ The computer plays the campaign in the real game while you watch, for testing th
   and radio lines close by themselves as for a player (automated browsers still skip cinematics, as before). The
   caption under the badge is the worker's: "Building a Radar", "Going to the ritual loop round the pylon",
   "Researching Deep Survey", "Travelling to Sela", "Working on: <objective>" when it is waiting.
+- **The end** (`AutopilotView.ending`, from the renderer's `outcome()`: the game over and no cinematic or travel on
+  screen). An ending (an epilogue, the home colony lost, a win): each epilogue page is read for 3 s + 45 ms a
+  character (at most 14 s; quicker at ×2 and ×3), its Next (then "The end") lights violet and is pressed; on the end
+  screen, after 6 s, the autopilot stops (remembered off) and leaves it there ("The end: COVENANT" in
+  `autopilot.answered`). An expedition lost without an ending: after 6 s it presses "Back to Touchdown" and plays on at
+  home, still on.
 - **The director.** The worker's status (about twice a second, `{ type: 'pilot', status }`) carries places worth
   a look: a strike ring, a fight (hostiles or enemy units within 25 u of ours), the card's site or camp (its
   trigger), the unit or drone walking to a site, the building going up, the Core. The director takes the most
@@ -2555,25 +2624,41 @@ The computer plays the campaign in the real game while you watch, for testing th
 - **Tests.** `tools/autopilot-smoke.mjs` (headless; the browser half against the dev server, `--url`, default
   :5176; `--headless-only`): the playthrough's tutorial missions on the refactored bot finish at the same seconds;
   `pickChoice` per policy; the brain waits for the landing, builds, finishes the first tutorials and says so, does
-  nothing when off; travel after the grace, not while a card waits, to the routed region, an expedition home;
-  assist ticks off a stuck objective (logged), not when off; a pack at a falling Core sent away. Browser: a fresh
-  colony, then title → OPTIONS → ×3 → Watch the computer play; the badge and the stored state; a card fired and
-  answered (lit first); buildings without input; the camera moving; a caption; Stop (badge gone, nothing more
-  built); the game menu turns it on; a mission jumped to on Splinter Hollow: the travel reload keeps it on, it
-  plays there and comes home by itself, still on; no page errors.
-  The refactor: `node tools/balance.mjs` and `node tools/playthrough.mjs --peaceful --minutes 40` were
-  byte-identical after `BalanceBot`; `chase` chasing `after` objectives then changed the playthrough's *first* run
-  from 34:23 on (it walks to the brood mound and the stone circle instead of the Works gate, so events fire in
-  another order); every mission finishes at the same seconds in all three runs.
-- **How far it gets** (`tools/autopilot-campaign.mjs [--minutes 240] [--assist]`: the brain on the real sim
-  region by region with saves and the shared state, cards answered at once with the first choice, cinematics at
-  once). Without the assist: the tutorials (18 min), all of Act 1 including the Deep Layer and Signal (~43 min),
-  then stuck on **The Gantry** (Isotope Cells needs isotopes, and the home economy runs dry: two or three
-  deposits, no alloys to spare), and the home Core falls to the packs at ~67 min (12 of 27 missions). With the
-  assist: The Gantry ticked off and a gantry set up, then Sela, Ash, Verdance, Talus, Vess, Dunmore (19 of 27
-  missions); the home colony falls at ~97 min (cryo, after the Core assists): its gantry keeps being lost to
-  packs while it is away, and nothing earns alloys. Expedition missions are quick (often under a minute).
-- **Not yet.** The bot never fights for a mission (the Choir wall's spitters, Dunmore's escort and the climax's
-  fight are its army's idle defence, or the assist); it doesn't expand to new deposits beyond its plan or keep
-  power for the growth pods at night (pods fail from Sol 2); it doesn't turn the epilogue's pages or leave the
-  end screen (a game over is where it stops); it doesn't pick among several expeditions by any order but the missions'.
+  nothing when off; travel after the grace, not while a card waits, to the routed region, an expedition home (after
+  its lab's project); assist ticks off a stuck objective (logged), not when off; a pack at a falling Core sent away.
+  Its own play: 15 minutes at home (no packs) put depots on all four deposits with relays toward the far ones,
+  batteries for the nights (cryo full), a lab, Deep Survey and a Deep-Core Mine; the Choir wall's spitters fought for
+  their flag; Dunmore's survey team escorted, Kindred never fired on, Dustfall done; the Long Ear's three plates held
+  at once; a nest raided by six tanks. Browser: a fresh colony, then title → OPTIONS → ×3 → Watch the computer play;
+  the badge and the stored state; a card fired and answered (lit first); buildings without input; the camera
+  moving; a caption; Stop (badge gone, nothing more built); the game menu turns it on; a mission jumped to on
+  Splinter Hollow: the travel reload keeps it on, it plays there and comes home by itself, still on; Cycle fired:
+  the card answered, the epilogue's pages turned (Next lit first) and it stops on the end screen; no page errors.
+  `node tools/balance.mjs` is byte-identical (the `BalanceBot` hooks change nothing it uses), and the playthrough's
+  tutorial seconds are unchanged (`chase`'s `go` is optional).
+- **How far it gets** (`tools/autopilot-campaign.mjs [--minutes 300] [--assist] [--seed n] [--policy first]
+  [--trace]`, or `--seeds 1337,1,2 [--jobs 3]` for several in parallel and one table: the brain on the real sim region
+  by region with saves and the shared state, each region's sim its own seed, cards answered at once by the policy,
+  cinematics at once; it prints the missions done with their times, the ending or how it stopped, the home colony's
+  state, every assist and every loss; `--trace` a line a minute with the plan, guns, power, research and deposits,
+  and what was spent where). Six seeds (1337, 1–5), 360 minutes at most:
+
+  | | Before | Now |
+  |---|---|---|
+  | Without assist | no ending: 3–12 of 27 missions, the home Core falls at 47–67 min | **3 of 6 reach an ending** (Inheritance at 87–122 min, 22–24 missions); two lose the home Core early (seed 2 at 23 min, seed 5 at 34), one is stuck at home after Ash with its gantry lost and every deposit spent (15 missions at 360 min) |
+  | With assist | one ending (Severance, 87 min); five lose the home colony (cryo) at 57–97 min, 14–22 missions | **6 of 6 reach an ending** (Inheritance ×3 at 85–94 min, Covenant at 112, Cycle ×2 at 119–127), 21–25 missions, 1–69 assists |
+
+  Without the assist the tutorials take 9–11 min, Act 1 ends with Signal at 30–34 min, the Gantry at 39–76 min,
+  then Act 2's expeditions go by in a few minutes each (an expedition's package is plenty), the Foundry at 59–95 min
+  and the climax at home. The Inheritance endings are Trust deciding: the colony's few adults are Devoted (the
+  growth pods often fail or are lost with the homes, so the colony stays small). The Lantern itself (seed 2 with
+  the assist) was won with its expedition package: the Lid opened and the army walked in to the core. The assist's work is mostly the
+  home colony: predators sent away at the Core and the cryo bank kept up (seed 5: 69 times), a stuck objective
+  ticked off (the Radar on the second sol, Orbital Launch before the isotopes come in), a gantry set up again.
+- **Not yet.** The home economy is the weak spot: Touchdown's four deposits (5,400 alloys) and two wrecks are spent
+  by ~60 minutes of home time, packs grow every two minutes while it is there, and a colony that falls behind on
+  guns early (seeds 2 and 5) loses the Core before Act 1 ends. Printers and fusion come late, nest raids need an
+  army the economy can rarely afford at home, and the colony rarely grows past a few adults (pods fail when the
+  Civilian Center or its power is lost), so the climax is mostly decided by Trust (Inheritance). The policy tuning
+  is sensitive: moving guns ahead of the plan or letting cheap steps jump an expensive one made every seed worse.
+  It doesn't pick among several expeditions by any order but the missions' (and optional ones last).
