@@ -2,7 +2,8 @@
  * The simulation worker: owns the game state and runs src/sim/core.ts at a
  * fixed tick; the main thread only renders snapshots and sends commands.
  */
-import { AUTOSAVE, delSave, putSave, type AutoSave } from '../save';
+import { CAMPAIGN, delSave, putSave, regionKey, type AutoSave, type CampaignSave } from '../save';
+import { applyShared, HOME_REGION, sharedOf } from './campaign';
 import { content } from '../content';
 import { Sim, useRegion } from './core';
 import { TICK_MS, type FromWorker, type ToWorker } from './types';
@@ -19,23 +20,48 @@ let skirmish: import('./types').SkirmishSetup | null = null;
 let saving = false;
 let lastSavedTick = -1;
 
-/** Write the game to the autosave slot (or clear it once the colony is lost). */
+/**
+ * Write the game to this region's save and the campaign record (or clear the region's save once its colony is
+ * lost: an expedition lost sends the campaign home; the home colony lost ends it).
+ */
 async function autoSave() {
   if (!autosave || saving) return;
   const s = sim.s;
   if (s.phase !== 'deployed') return;
   saving = true;
   try {
-    if (s.over) await delSave(AUTOSAVE);
-    else if (s.tick !== lastSavedTick) {
-      const file: AutoSave = { version: 2, savedAt: Date.now(), sim: s };
-      await putSave(AUTOSAVE, file);
+    if (s.over) {
+      await delSave(regionKey(region));
+      if (region === HOME_REGION || s.over === 'won') await delSave(CAMPAIGN);
+      else await putSave(CAMPAIGN, { version: 1, savedAt: Date.now(), current: HOME_REGION, shared: sharedOf(s) } satisfies CampaignSave);
+    } else if (s.tick !== lastSavedTick) {
+      const savedAt = Date.now();
+      const file: AutoSave = { version: 2, savedAt, sim: s };
+      await putSave(regionKey(region), file);
+      await putSave(CAMPAIGN, { version: 1, savedAt, current: region, shared: sharedOf(s) } satisfies CampaignSave);
       lastSavedTick = s.tick;
     }
   } catch (e) {
     console.warn('autosave failed', e);
   } finally {
     saving = false;
+  }
+}
+
+/** Campaign travel: save this region as it is, make `to` the current region (with the shared state), stop autosaving. */
+async function travel(to: string) {
+  autosave = false;
+  while (saving) await new Promise((r) => setTimeout(r, 20));
+  const s = sim.s;
+  try {
+    delete s.travel;
+    const savedAt = Date.now();
+    await putSave(regionKey(region), { version: 2, savedAt, sim: s } satisfies AutoSave);
+    await putSave(CAMPAIGN, { version: 1, savedAt: savedAt + 1, current: to, shared: sharedOf(s) } satisfies CampaignSave);
+    post({ type: 'travelled', to, ok: true });
+  } catch (e) {
+    console.warn('travel save failed', e);
+    post({ type: 'travelled', to, ok: false });
   }
 }
 setInterval(() => void autoSave(), 10000);
@@ -56,6 +82,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
     sim = new Sim((text, level, cue, at, style) => post({ type: 'event', text, level, cue, at, style }));
     skirmish = msg.skirmish ?? null;
     if (skirmish) sim.newSkirmish(skirmish);
+    else if (msg.shared) { applyShared(sim.s, msg.shared, region); sim.arrived(); }
     snapshot();
     last = performance.now();
     setInterval(tick, TICK_MS / 2);
@@ -102,6 +129,9 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       return;
     case 'flush':
       void autoSave();
+      return;
+    case 'travel':
+      void travel(msg.to);
       return;
   }
 };

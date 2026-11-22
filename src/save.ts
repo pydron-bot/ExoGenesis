@@ -44,6 +44,47 @@ export async function delSave(key: string): Promise<void> {
   db.close();
 }
 
-/** The continuous autosave (written by the sim worker, read at startup). */
+export async function saveKeys(): Promise<string[]> {
+  const db = await open();
+  const v = await new Promise<string[]>((res, rej) => {
+    const r = db.transaction(STORE).objectStore(STORE).getAllKeys();
+    r.onsuccess = () => res((r.result as IDBValidKey[]).map(String));
+    r.onerror = () => rej(r.error);
+  });
+  db.close();
+  return v;
+}
+
+/**
+ * The old single autosave (before campaign travel). Read once at startup and moved to its region's key
+ * (`migrateAutosave`); nothing writes it any more.
+ */
 export const AUTOSAVE = 'auto';
 export interface AutoSave { version: 2; savedAt: number; sim: import('./sim/types').SimState }
+
+/** Each region's colony, autosaved by the sim worker while it's played (campaign travel: TECH.md "Campaign travel"). */
+export const regionKey = (region: string) => `region:${region}`;
+/** The campaign: which region is being played, and the state every region shares (src/sim/campaign.ts). */
+export const CAMPAIGN = 'campaign';
+export interface CampaignSave { version: 1; savedAt: number; current: string; shared?: import('./sim/campaign').SharedState }
+
+/** A save worth resuming: this version, deployed, not over. */
+export const playable = (a: AutoSave | undefined): a is AutoSave => a?.version === 2 && !!a.sim && !a.sim.over && a.sim.phase === 'deployed';
+
+/** An autosave from before campaign travel becomes its region's save, and that region the campaign's current one. */
+export async function migrateAutosave(): Promise<void> {
+  const a = await getSave<AutoSave>(AUTOSAVE);
+  if (!a) return;
+  if (playable(a)) {
+    const region = a.sim.region ?? 'touchdown';
+    const there = await getSave<AutoSave>(regionKey(region));
+    if (!there || there.savedAt < a.savedAt) await putSave(regionKey(region), a);
+    if (!(await getSave<CampaignSave>(CAMPAIGN))) await putSave(CAMPAIGN, { version: 1, savedAt: a.savedAt, current: region } satisfies CampaignSave);
+  }
+  await delSave(AUTOSAVE);
+}
+
+/** NEW GAME: every region's save and the campaign go (`keep`: keys to leave alone). Manual Save slots stay. */
+export async function wipeCampaign(keep: string[] = []): Promise<void> {
+  for (const k of await saveKeys()) if ((k === AUTOSAVE || k === CAMPAIGN || k.startsWith('region:')) && !keep.includes(k)) await delSave(k);
+}

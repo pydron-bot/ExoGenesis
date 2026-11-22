@@ -26,6 +26,8 @@ export interface InspectorDeps {
   cur(): Snapshot | null;
   command(c: Command): void;
   log(text: string, level?: 'info' | 'warn' | 'bad'): void;
+  /** Campaign travel: save this region and go to that one. */
+  travel?(region: string): void;
 }
 
 export class Inspector {
@@ -89,7 +91,7 @@ export class Inspector {
     if (!force && a instanceof HTMLInputElement && this.el.contains(a)) return;
     const C = this.d.content, st = s.story, m = s.missions;
     const sol = C.colony.solSeconds;
-    const key = JSON.stringify([Math.floor(s.secs), st, m, s.alloys | 0, this.filter, this.live, s.over]);
+    const key = JSON.stringify([Math.floor(s.secs), st, m, s.alloys | 0, this.filter, this.live, s.over, s.campaign]);
     if (key === this.key) return;
     this.key = key;
     const btn = (act: string, label: string, title = '') => `<button data-act="${esc(act)}" title="${esc(title)}">${esc(label)}</button>`;
@@ -139,6 +141,21 @@ export class Inspector {
     if (st.hint) out.push(`<div class="in-li">Hint at ${esc(st.hint.target)}: <small>${esc(st.hint.text)}</small></div>`);
     if (st.marks.length) out.push(`<div class="in-li">Waypoints: <small>${st.marks.map((x) => esc(x.site)).join(', ')}</small></div>`);
     out.push('</details>');
+
+    // ---- campaign travel
+    const c = s.campaign;
+    if (c) {
+      const name = (id: string) => esc(C.regions[id]?.name ?? id);
+      out.push('<details open><summary>Campaign</summary>');
+      out.push(`<div class="in-li">Here: <b>${name(c.here)}</b>${c.expedition ? ' <small>expedition, no colonists</small>' : ''}${c.here === c.home ? ' <small>home</small>' : ''}</div>`);
+      out.push(`<div class="in-li">Visited: <small>${c.visited.map(name).join(', ') || 'none'}</small></div>`);
+      out.push(`<div class="in-sub">Routes</div><div class="in-chips">${c.routes.map((id) => `<span class="chip">${name(id)} <button data-act="unroute:${esc(id)}" title="Take the route off">×</button></span>`).join('') || '<small>no routes</small>'}</div>`);
+      out.push('<div class="in-sub">Travel</div>');
+      for (const id of Object.keys(C.regions).filter((x) => x !== c.here)) {
+        out.push(`<div class="in-li">${name(id)}${c.visited.includes(id) ? ' <small>visited</small>' : ''} ${c.routes.includes(id) ? '' : btn(`route:${id}`, 'Route', 'Add it to the routes')}${btn(`travel:${id}`, 'Travel', 'Save this region and go there now')}</div>`);
+      }
+      out.push('</details>');
+    }
     const open = [...this.el.querySelectorAll('details')].map((x) => x.open);
     const scroll = this.el.scrollTop;
     this.el.innerHTML = out.join('');
@@ -172,6 +189,9 @@ export class Inspector {
       case 'unflag': this.send({ type: 'inspect', unflag: arg }); return;
       case 'expire': this.send({ type: 'inspect', expire: arg }); return;
       case 'unlock': this.send({ type: 'inspect', unlock: arg }); return;
+      case 'route': this.send({ type: 'inspect', route: arg }); return;
+      case 'unroute': this.send({ type: 'inspect', unroute: arg }); return;
+      case 'travel': this.d.travel?.(arg); return;
     }
   }
 

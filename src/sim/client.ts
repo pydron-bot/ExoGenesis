@@ -1,4 +1,5 @@
 import type { CinematicDef, MissionDef, RegionDef, StoryDef } from '../content/defs';
+import type { SharedState } from './campaign';
 import { TICK_MS, type Command, type EventCue, type FromWorker, type SimState, type SkirmishSetup, type Snapshot } from './types';
 
 /** Most effect floats carried over between unseen snapshots (5 per effect). */
@@ -16,7 +17,7 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue, at?: { x: number; z: number }, style?: 'clause') => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup) {
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue, at?: { x: number; z: number }, style?: 'clause') => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup, shared?: SharedState) {
     // disabled (skirmish mode): a stub that never produces snapshots
     this.worker = enabled
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
@@ -42,12 +43,15 @@ export class SimClient {
       } else if (m.type === 'saved') {
         this.pending.get(m.reqId)?.(m.state);
         this.pending.delete(m.reqId);
+      } else if (m.type === 'travelled') {
+        this.onTravelled?.(m.ok);
+        this.onTravelled = null;
       } else if (m.type === 'event') {
         this.onEvent(m.text, m.level, m.cue, m.at, m.style);
       }
     };
     // the region comes first: the sim starts its first game from it
-    this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic, skirmish });
+    this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic, skirmish, shared });
   }
 
   /** 0..1 blend factor between prev and cur for this frame. */
@@ -64,6 +68,15 @@ export class SimClient {
   flush() { this.worker.postMessage({ type: 'flush' }); }
   /** Live story edits: replace these content collections in the worker. */
   patchContent(patch: Record<string, Record<string, unknown>>) { this.worker.postMessage({ type: 'content', patch }); }
+
+  private onTravelled: ((ok: boolean) => void) | null = null;
+  /** Campaign travel: the worker saves this region and makes `to` the current one (resolves false if saving failed). */
+  travel(to: string): Promise<boolean> {
+    return new Promise((res) => {
+      this.onTravelled = res;
+      this.worker.postMessage({ type: 'travel', to });
+    });
+  }
 
   save(): Promise<SimState> {
     const reqId = ++this.reqId;

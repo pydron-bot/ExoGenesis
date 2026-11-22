@@ -238,6 +238,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if ((kind === 'site' || kind === 'explored') && typeof c.site === 'string') { const miss = siteMissing(c.site, region); if (miss) out.push({ path, field: `${pre}site`, msg: miss }); }
     if ((kind === 'built' || kind === 'placed') && !c.building) out.push({ path, field: `${pre}building`, msg: `required when the condition is ${kind}` });
     if (kind === 'opened' && !c.panel) out.push({ path, field: `${pre}panel`, msg: 'required when the condition is opened' });
+    if ((kind === 'here' || kind === 'visited') && !c.place) out.push({ path, field: `${pre}place`, msg: `required when the condition is ${kind}` });
     if ((kind === 'all' || kind === 'any') && !(c.of as unknown[] | undefined)?.length) out.push({ path, field: `${pre}of`, msg: `an ${kind} group needs at least one condition` });
     ((c.of as Record<string, unknown>[] | undefined) ?? []).forEach((x, n) => condIssues(path, `${pre}of[${n}]`, x?.kind as string, x, region));
     if (kind === 'faction' || kind === 'factionLost') {
@@ -261,6 +262,8 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if (k === 'spawn' && !e.unit) out.push({ path, field: `${field}.unit`, msg: 'a spawn needs a unit' });
     if ((k === 'lock' || k === 'unlock') && !e.building && !e.unit) out.push({ path, field: `${field}.building`, msg: `${k}: pick a building or a unit` });
     if (k === 'camera' && !e.site && !e.building) out.push({ path, field: `${field}.site`, msg: 'camera: pick a story site or a building' });
+    if ((k === 'travel' || k === 'route' || k === 'unroute') && !e.region) out.push({ path, field: `${field}.region`, msg: `${k}: pick a region` });
+    if (k === 'travel' && typeof e.region === 'string' && e.region === region) out.push({ path, field: `${field}.region`, msg: 'travels to the region it is already in' });
     if (k === 'hint' && e.target === 'buildItem' && !e.building) out.push({ path, field: `${field}.building`, msg: 'a build-menu hint needs the building' });
     if (k === 'spawn' && typeof e.unit === 'string' && db.units[e.unit]?.nest) out.push({ path, field: `${field}.unit`, msg: 'nests grow on predator spawns; spawn the creatures instead' });
     if ((TEXT_NEEDED.includes(k) || (k === 'glitch' && (e.glitch ?? 'log') === 'log')) && !e.text) out.push({ path, field: `${field}.text`, msg: k === 'glitch' ? 'a log glitch needs the Text (the line the Clause writes)' : `required when the effect is ${k}` });
@@ -373,6 +376,8 @@ function crossIssues(db: ContentDb): FileIssue[] {
     const b = r.body ? db.bodies?.[r.body] : db.bodies?.home;
     if (b?.kind === 'giant') out.push({ path: P, field: 'body', msg: `${b.name} is a gas giant: nothing can land on it` });
     if (b && typeof b.radius === 'number' && b.radius < half * 3) out.push({ path: P, field: 'size', msg: `too big for ${b.name} (radius ${b.radius} u): at most ${Math.floor((b.radius / 3) * 2 / REGION_SIZE_STEP) * REGION_SIZE_STEP} u there` });
+    (r.expedition?.[0]?.units ?? []).forEach((u, k) => { if (u?.unit && db.units[u.unit] && db.units[u.unit].faction !== 'accord') out.push({ path: P, field: `expedition[0].units[${k}].unit`, msg: 'an expedition brings Accord units' }); });
+    if (id === 'touchdown' && r.expedition?.length) out.push({ path: P, field: 'expedition', msg: 'Touchdown is the home colony, not an expedition' });
     const n = regionCells(half);
     for (const g of ['height', 'flora', 'ground'] as const) {
       const v = r[g];

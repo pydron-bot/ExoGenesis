@@ -1,0 +1,16 @@
+{
+  "name": "Launch Gantry",
+  "description": "A lattice tower with a shuttle on its rail. Select it to fly to another world on the campaign's routes. Trips on this world go overland from the Command Core.",
+  "role": "launch",
+  "research": "orbital-launch",
+  "buildable": true,
+  "cost": 320,
+  "isotopes": 60,
+  "hp": 800,
+  "powerMW": -4,
+  "buildSeconds": 40,
+  "clearance": 13,
+  "lightColor": "#ffd9a0",
+  "lightRadius": 14,
+  "lightIntensity": 1
+}

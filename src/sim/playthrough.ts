@@ -6,6 +6,11 @@
  * different choice policies show coverage: events that never fired, choices
  * nobody took, missions that never started.
  *
+ * Campaign travel: the run stays in one region and one sim, with `sim.everywhere` on, so every region counts as
+ * the one being played (story events and missions set elsewhere fire and are checked here, against their own
+ * region's story sites, which the bot walks to on this map). A `travel` effect is recorded as a beat (and the
+ * region as visited) instead of loading the region; what an expedition would bring and its map are not played.
+ *
  * Shared by `node tools/playthrough.mjs` and the editor's Story → Playthrough
  * page (in a worker on the editor's content, src/editor/playthrough-worker.ts).
  */
@@ -40,7 +45,7 @@ export interface PlaythroughOptions {
   onTick?: (sim: Sim, tick: number, plan: Step[]) => void;
 }
 
-export type BeatKind = 'mission' | 'objective' | 'done' | 'failed' | 'event' | 'choice' | 'flag' | 'unflag' | 'counter' | 'countdown' | 'cinematic' | 'end';
+export type BeatKind = 'mission' | 'objective' | 'done' | 'failed' | 'event' | 'choice' | 'flag' | 'unflag' | 'counter' | 'countdown' | 'cinematic' | 'travel' | 'end';
 export interface Beat { t: number; kind: BeatKind; id: string; text: string }
 
 export interface PlaythroughResult {
@@ -96,6 +101,7 @@ function chase(sim: Sim, plan: Step[], tick: number) {
     const d = s.drones.find((x) => x.task.kind === 'idle') ?? s.drones[s.drones.length - 1];
     if (d) sim.command({ type: 'move', drone: d.id, x, z });
   };
+  let sites = sim.story.region().sites;
   const want = (kind: Condition, c: ConditionDef) => {
     const n = c.count ?? 1;
     switch (kind) {
@@ -130,7 +136,7 @@ function chase(sim: Sim, plan: Step[], tick: number) {
         return;
       }
       case 'site': case 'explored': {
-        const site = sim.story.region().sites.find((x) => x.id === c.site);
+        const site = sites.find((x) => x.id === c.site);
         if (site) go(site.x, site.z);
         return;
       }
@@ -151,6 +157,7 @@ function chase(sim: Sim, plan: Step[], tick: number) {
   };
   for (const id of m.active) {
     const def = content.missions[id];
+    sites = sim.story.world(def?.region).sites;
     def?.objectives.forEach((o, i) => {
       if (m.marks[id]?.includes(i)) return;
       for (const x of conditionsIn(o.kind, o)) want(x.kind, x.c);
@@ -170,8 +177,16 @@ export function runPlaythrough(o: PlaythroughOptions = {}): PlaythroughResult {
 
   const hook = (sim: Sim, tick: number, plan: Step[]) => {
     last = sim;
+    sim.everywhere = true;
     o.onTick?.(sim, tick, plan);
     if (tick % TICK_HZ) return;
+    // travel: recorded, not played (see the top of this file)
+    if (sim.s.travel) {
+      const to = sim.s.travel, c = sim.s.campaign;
+      add(sim.secs, 'travel', to, `Travel to ${content.regions[to]?.name ?? to}`);
+      if (c && !c.visited.includes(to)) c.visited.push(to);
+      delete sim.s.travel;
+    }
     if (tick % (5 * TICK_HZ) === 0) chase(sim, plan, tick);
     const s = sim.s, st = s.story, t = sim.secs;
     if (!st) return;

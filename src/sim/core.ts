@@ -8,7 +8,8 @@
  */
 import { content } from '../content';
 import { biomeOf, herdCount, herdSpecies, wildlifeIds } from '../content/nature';
-import type { BuildingDef, ModStat, RegionDef, UnitDef, Weapon } from '../content/defs';
+import { expeditionOf, type BuildingDef, type ModStat, type RegionDef, type UnitDef, type Weapon } from '../content/defs';
+import { HOME_REGION, newCampaign } from './campaign';
 import { F, FX, STRIDE, unitType } from '../skirmish/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { chronicleEvent, recordChronicle } from './chronicle';
@@ -98,6 +99,8 @@ export function useRegion(id: string, draft?: RegionDef) {
   return REGION_ID;
 }
 useRegion('touchdown');
+/** The region the sim is playing (campaign travel: `here` conditions, the snapshot). */
+export const regionNow = () => REGION_ID;
 /** The region's own difficulty, falling back to the threat rules. */
 const packScale = () => REGION.packScale ?? 1;
 const graceSeconds = () => REGION.graceSeconds ?? THREATS.graceSeconds;
@@ -274,10 +277,15 @@ export class Sim {
   readonly inhabitants: Inhabitants = new Inhabitants(this);
   /** Story events: triggers, cards, effects. */
   readonly story: Story = new Story(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
+  /**
+   * Headless playthroughs (src/sim/playthrough.ts) play the whole campaign in one region: every region counts as
+   * here (story events, missions and `here` conditions), each reading its own region's story sites. Not saved.
+   */
+  everywhere = false;
   /** The frontier: threats to outlying holdings, standing orders. */
   readonly frontier: Frontier = new Frontier(this);
   /** Missions: objectives, rewards, what comes next. */
-  readonly missions: Missions = new Missions(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
+  readonly missions: Missions = new Missions(this);
 
   /** Events for the local player (skirmish: what other players' economies do stays quiet). */
   readonly emit: EventSink = (text, level, cue, at, style) => {
@@ -523,6 +531,7 @@ export class Sim {
     if (!setup.wildlife) { s.fauna = []; s.herds = []; }
     s.skirmish = { fog: setup.fog !== false, packs: !!setup.packs };
     s.factions = undefined;
+    delete s.campaign;
     if (this.story.s) this.story.s.locked = []; // everything buildable from the start (no tutorial gates)
     if (!setup.packs) s.waves.next = Number.MAX_SAFE_INTEGER;
     this.slotsUsed = 0;
@@ -598,11 +607,41 @@ export class Sim {
     s.seams = this.regionSeams();
     s.research = { done: [], active: null };
     s.planet = Planet.fresh();
+    s.campaign = newCampaign(REGION_ID);
+    this.expedition();
     this.initNests();
     this.initRelics();
     this.exp.fill(0);
     this.stepFog(true);
     this.initFactions();
+  }
+
+  /** A region you travel to (its `expedition`): what the expedition brings; without colonists, no cryo bank or people. */
+  private expedition() {
+    const ex = expeditionOf(REGION), s = this.s;
+    if (!ex) return;
+    if (ex.alloys !== undefined) s.alloys = ex.alloys;
+    s.isotopes = ex.isotopes ?? 0;
+    const drones = ex.drones ?? 1;
+    s.drones = [];
+    for (let i = 0; i < drones; i++) {
+      const a = Math.PI + (i - (drones - 1) / 2) * 0.5;
+      s.drones.push({ id: s.nextId++, x: Math.sin(a) * 14, z: Math.cos(a) * 14, heading: a, hp: RULES.droneHp, task: { kind: 'idle' } });
+    }
+    let row = 0;
+    for (const u of ex.units ?? []) if (content.units[u.unit]?.faction === 'accord') { this.spawnAt(u.unit, u.count ?? 1, -9, 12 + row * 4); row += Math.ceil((u.count ?? 1) / 4); }
+    if (!ex.people) {
+      s.expedition = true;
+      if (s.people) s.people.bank = s.people.bank.map(() => 0);
+    }
+  }
+
+  /** Campaign travel: the region being played counts as visited (a new game, a load, the shared state laid over). */
+  arrived() {
+    const s = this.s;
+    if (s.players) return;
+    const c = (s.campaign ??= newCampaign(REGION_ID));
+    if (!c.visited.includes(REGION_ID)) c.visited.push(REGION_ID);
   }
 
   load(state: SimState) {
@@ -623,6 +662,7 @@ export class Sim {
     this.inhabitants.load(REGION.camps ?? []);
     this.story.load();
     this.missions.load();
+    this.arrived();
     if (this.s.phase !== 'deployed') { this.s.phase = 'deployed'; this.s.panic = 0; }
     this.slotsUsed = [...state.hostiles, ...state.units].reduce((m, h) => Math.max(m, h.slot + 1), 0);
     state.wrecks ??= this.regionWrecks();
@@ -938,8 +978,7 @@ export class Sim {
         this.stepRelics();
         this.stepWaves();
         this.frontier.step();
-        this.stepCryo();
-        this.people.step();
+        if (!s.expedition) { this.stepCryo(); this.people.step(); } // an expedition has no cryo bank or colonists
         this.planet.step();
         this.inhabitants.step();
         this.story.step();
@@ -992,7 +1031,7 @@ export class Sim {
       } else b.powered = true;
     }
     const drones = s.drones.reduce((m, d) => m + (d.task.kind === 'idle' ? RULES.droneIdleDrawMW : RULES.droneBusyDrawMW), 0);
-    const essential = (s.players ? 0 : RULES.cryoDrawMW) + drones; // (a skirmish has no cryo bank)
+    const essential = (s.players || s.expedition ? 0 : RULES.cryoDrawMW) + drones; // (a skirmish or an expedition has no cryo bank)
     loads.push({ b: null, mw: essential, rank: 1, battery: true });
     loads.sort((a, b) => a.rank - b.rank);
     s.stored = Math.min(s.stored, cap);
@@ -2838,6 +2877,9 @@ export class Sim {
       case 'ui':
         this.story.opened(c.what);
         return;
+      case 'travelled':
+        delete s.travel;
+        return;
       case 'inspect': {
         const st = this.story.s;
         if (c.flag && !st.flags.includes(c.flag)) st.flags.push(c.flag);
@@ -2848,6 +2890,8 @@ export class Sim {
         if (c.fail) this.missions.fail(c.fail, 'failed from the story inspector');
         if (c.expire) { st.countdowns = (st.countdowns ?? []).filter((x) => x.id !== c.expire); if (!(st.expired ??= []).includes(c.expire)) st.expired.push(c.expire); }
         if (c.unlock && st.locked) st.locked = st.locked.filter((x) => x !== c.unlock);
+        if (c.route) this.story.effect({ kind: 'route', region: c.route });
+        if (c.unroute) this.story.effect({ kind: 'unroute', region: c.unroute });
         if (c.skip && c.skip > 0) this.skip(c.skip);
         return;
       }
@@ -3062,9 +3106,10 @@ export class Sim {
       const deficit = RULES.cryoDrawMW + RULES.droneIdleDrawMW - DEFS.core.powerMW;
       this.emit(`Touchdown. Cryo bank on reserve power: ${deficit.toFixed(1)} MW short.`, 'warn', 'message');
     } else if (stage === 'deploy') {
-      if (s.phase === 'descent') this.landing('touchdown');
+      if (s.phase === 'descent' && !s.expedition) this.landing('touchdown');
       s.phase = 'deployed';
-      this.emit('Worker drone deployed. Build a Solar Array to stabilize the cryo bank.', 'info', 'message');
+      if (s.expedition) this.emit(`Expedition down in ${REGION.name}. The Command Core is up.`, 'info', 'message');
+      else this.emit('Worker drone deployed. Build a Solar Array to stabilize the cryo bank.', 'info', 'message');
     }
   }
 
@@ -3142,6 +3187,7 @@ export class Sim {
       research: { done: [...(s.research?.done ?? [])], active: s.research?.active ? { ...s.research.active } : null },
       nests: (s.nests ?? []).map((n) => ({ x: this.spawns()[n.spawn]?.x ?? 0, z: this.spawns()[n.spawn]?.z ?? 0, alive: n.id >= 0 })),
       army, armySlots: slots, fx, fog, blips, hostiles: s.hostiles.length, units, camps: inh.camps, natives: inh.natives, story: this.story.snapshot(), missions: this.missions.snapshot(),
+      campaign: s.campaign ? { here: REGION_ID, home: HOME_REGION, visited: [...s.campaign.visited], routes: [...s.campaign.routes], travel: s.travel, expedition: !!s.expedition } : undefined,
       alloys: s.alloys, cryo: s.cryo, gen: this.power.gen, draw: this.power.draw, short: this.power.short,
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,

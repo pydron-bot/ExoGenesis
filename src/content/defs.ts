@@ -74,7 +74,7 @@ export const unitShape = {
 } satisfies Shape;
 export type UnitDef = Infer<typeof unitShape>;
 
-export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay', 'lab', 'deepmine', 'reactor', 'generator', 'shield', 'seedbank', 'medbay', 'memorial', 'printer'] as const;
+export const BUILDING_ROLES = ['core', 'solar', 'depot', 'battery', 'turret', 'radar', 'factory', 'wall', 'gate', 'repair', 'geothermal', 'civic', 'farm', 'sensor', 'relay', 'lab', 'deepmine', 'reactor', 'generator', 'shield', 'seedbank', 'medbay', 'memorial', 'printer', 'launch'] as const;
 export type BuildingRole = (typeof BUILDING_ROLES)[number];
 
 export const buildingShape = {
@@ -82,7 +82,7 @@ export const buildingShape = {
   description: str({ label: 'Description', multiline: true, optional: true }),
   role: choice(BUILDING_ROLES, {
     label: 'Role',
-    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core. lab: runs research (Tech Lab). deepmine: mines exotic isotopes from an isotope seam within Range. reactor: steady power while it burns isotopes (Fuel use). generator: steady power (its Power), day and night, no conditions (a Tidal Generator). shield: a shield dome (Shield, Shield radius, Shield recharge) over everything near it, while powered (a Shield Projector). seedbank: heals scarred land within Range (planet health), spending surplus biomass; with nothing to heal it rewilds (a Seed Bank). medbay: stabilises colonists lying injured within Range and brings them in (Treatment time each), cares for the homes within Range and lets people there live longer (a Med Bay). memorial: the names of the dead; homes within Range feel its Comfort, and grief fades faster while one stands (a Memorial). printer: turns spare power into alloys (Mining rate a second while powered); last in line for power and never from the batteries, and it leaves no scars (a Matter Printer).',
+    help: 'What it does. core: the landed pod (build radius = Range). solar: power that follows daylight. depot: mines the nearest deposit within Range. battery: stores power. turret: shoots hostiles within Range. radar: early warning + minimap. factory: produces combat units (units with a cost). wall: placed as a line of segments (Clearance = segment length); doesn\'t extend the build area. gate: a wall segment your units drive through (Clearance = its length); dropped onto a wall it replaces the segments under it. repair: heals combat units within Range while powered. geothermal: steady power, only on a vent (within Range of one). civic: houses colonists and runs growth pods (Civilian Processing Center; 0 pods = housing only). farm: grows biomass (Hydroponics). sensor: only sees (set its Sight). relay: extends the build area to its Range, like the Core. lab: runs research (Tech Lab). deepmine: mines exotic isotopes from an isotope seam within Range. reactor: steady power while it burns isotopes (Fuel use). generator: steady power (its Power), day and night, no conditions (a Tidal Generator). shield: a shield dome (Shield, Shield radius, Shield recharge) over everything near it, while powered (a Shield Projector). seedbank: heals scarred land within Range (planet health), spending surplus biomass; with nothing to heal it rewilds (a Seed Bank). medbay: stabilises colonists lying injured within Range and brings them in (Treatment time each), cares for the homes within Range and lets people there live longer (a Med Bay). memorial: the names of the dead; homes within Range feel its Comfort, and grief fades faster while one stands (a Memorial). printer: turns spare power into alloys (Mining rate a second while powered); last in line for power and never from the batteries, and it leaves no scars (a Matter Printer). launch: a shuttle to other worlds; its card lists the campaign\'s off-world routes (a Launch Gantry).',
   }),
   buildable: bool({ label: 'In build menu', default: true }),
   site: choice(['land', 'water', 'shore'], { label: 'Built on', optional: true, help: 'land (empty): dry ground. water: offshore, all of it over water at least 1 u deep. shore: straddling the waterline, part on land and part over water. A factory on the shore (a Shipyard) builds boats (units that move on water) and hover craft; one on land builds ground units and hover craft.' }),
@@ -681,7 +681,7 @@ const ATTITUDE_HELP: Record<Attitude, string> = {
  * Conditions: what starts a story event (its trigger) and what completes a
  * mission objective. One evaluator (src/sim/conditions.ts) serves both.
  */
-export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'all', 'any', 'never', 'faction', 'factionLost', 'partners', 'majority'] as const;
+export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'all', 'any', 'never', 'faction', 'factionLost', 'partners', 'majority', 'here', 'visited'] as const;
 export type Condition = (typeof CONDITIONS)[number];
 /** Conditions a group (all / any) can hold: everything but groups. */
 export const SUB_CONDITIONS = CONDITIONS.filter((c) => c !== 'all' && c !== 'any') as Exclude<Condition, 'all' | 'any'>[];
@@ -731,6 +731,8 @@ export const CONDITION_HELP: Record<Condition, string> = {
   linesGone: 'when Count family lines are gone (no embryos, no one living)',
   regard: 'when a camp of the Group regards us at Count or more (0–100)',
   regardBelow: 'when a camp of the Group that we have met regards us at Count or less',
+  here: 'while the Region is the one being played (campaign travel)',
+  visited: 'once the Region has been played at least once (campaign travel)',
   all: 'when every condition in the group is true',
   any: 'when any condition in the group is true',
   never: 'only when another event starts it',
@@ -762,7 +764,7 @@ const CAST_HELP: Record<Cast, string> = {
   injured: 'Someone lying injured.', parent: 'An adult with a child in the colony.', engineer: 'An Engineer.', botanist: 'A Botanist.', medic: 'A Medic.',
   technician: 'A Technician.', security: 'A Security officer.',
 };
-export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail', 'boost', 'policy', 'favourLine', 'rescue', 'attitude', 'strike', 'corrupt', 'glitch', 'epilogue'] as const;
+export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail', 'boost', 'policy', 'favourLine', 'rescue', 'attitude', 'strike', 'corrupt', 'glitch', 'epilogue', 'travel', 'route', 'unroute'] as const;
 export type StoryEffect = (typeof STORY_EFFECTS)[number];
 export const EFFECT_HELP: Record<StoryEffect, string> = {
   log: 'a line in the log (Text)',
@@ -803,6 +805,9 @@ export const EFFECT_HELP: Record<StoryEffect, string> = {
   corrupt: 'Count of our combat units (of the Unit kind, if set) turn against us',
   glitch: 'the Clause interferes (adds 1 to the counter clause): a log line in its voice, a tear across the screen, a turret that turns on the colony for two seconds, or growth pods that pause for Seconds',
   epilogue: 'end the game with an Ending: its pages one at a time, then the end screen with the ending and a summary of the run',
+  travel: 'save this region and go to the Region (its own save if it has one, otherwise a fresh expedition there)',
+  route: 'add the Region to the campaign\'s routes: the player can travel there (overland from the Command Core on the same world, off-world from a Launch Gantry)',
+  unroute: 'take the Region off the campaign\'s routes',
 };
 /** The endings (STORY.md §17); the epilogue effect records one, the title counts those reached. */
 export const ENDINGS = ['covenant', 'severance', 'inheritance', 'proof', 'cycle'] as const;
@@ -852,18 +857,21 @@ const conditionFields = <K extends string>(kindKey: K, label: string, kinds: rea
   faction: str({ label: 'Faction', optional: true, help: 'A faction id from the region\'s Factions (kindred, engram…).', when: on(kindKey, ['faction', 'factionLost']) }),
   attitude: choice(ATTITUDES, { label: 'Attitude', optional: true, helps: ATTITUDE_HELP, when: on(kindKey, ['faction']) }),
   stance: choice(['autonomist', 'partner', 'devoted'], { label: 'Stance', optional: true, when: on(kindKey, ['majority']) }),
+  place: ref('regions', { label: 'Region', optional: true, help: 'The region (here: being played; visited: played at least once).', when: on(kindKey, ['here', 'visited']) }),
 }) as { [P in K]: ReturnType<typeof choice<Condition, { label: string; helps: typeof CONDITION_HELP }>> } & {
   sol: NumField & { optional: true }; building: RefField & { optional: true }; count: NumField & { optional: true };
   site: StrField & { optional: true }; group: RefField & { optional: true }; flag: StrField & { optional: true };
   counter: StrField & { optional: true }; timer: StrField & { optional: true }; panel: ChoiceField<HudPanel> & { optional: true };
   research: RefField & { optional: true }; event: RefField & { optional: true }; mission: RefField & { optional: true };
   faction: StrField & { optional: true }; attitude: ChoiceField<Attitude> & { optional: true }; stance: ChoiceField<'autonomist' | 'partner' | 'devoted'> & { optional: true };
+  place: RefField & { optional: true };
 };
 /** The parameters a condition reads. */
 export interface ConditionDef {
   sol?: number; building?: string; count?: number; site?: string; group?: string; flag?: string; counter?: string; timer?: string;
   panel?: HudPanel; research?: string; event?: string; mission?: string;
   faction?: string; attitude?: Attitude; stance?: 'autonomist' | 'partner' | 'devoted';
+  place?: string;
   /** all / any: the conditions in the group. */
   of?: SubConditionDef[];
 }
@@ -906,6 +914,7 @@ const effectFields = {
   building: ref('buildings', { label: 'Building', optional: true, when: { ...on('kind', ['lock', 'unlock', 'camera', 'strike']), need: false } }),
   research: ref('research', { label: 'Research', optional: true, when: on('kind', ['research']) }),
   site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: { ...on('kind', ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'strike']), need: false } }),
+  region: ref('regions', { label: 'Region', optional: true, when: on('kind', ['travel', 'route', 'unroute']) }),
   target: choice(HINT_TARGETS, { label: 'Points at', optional: true, helps: HINT_HELP, when: on('kind', ['hint']) }),
   text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', [...TEXT_NEEDED, 'glitch', 'epilogue'], false) }),
   faction: str({ label: 'Faction', optional: true, help: 'A faction id from the region\'s Factions.', when: on('kind', ['attitude']) }),
@@ -1240,6 +1249,30 @@ export const outpostShape = {
   story: str({ label: 'Flag when destroyed', optional: true, help: 'A story flag set when this building is destroyed.' }),
 } satisfies Shape;
 export type OutpostDef = Infer<typeof outpostShape>;
+/** One kind of combat unit an expedition brings. */
+export const expeditionUnitShape = {
+  unit: ref('units', { label: 'Unit', help: 'An Accord combat unit.' }),
+  count: int({ label: 'Count', min: 1, max: 40, default: 1 }),
+} satisfies Shape;
+/**
+ * An expedition package (campaign travel, TECH.md "Campaign travel"): what a region you travel to starts with on
+ * the first visit. Later visits load the region's own save.
+ */
+export const expeditionShape = {
+  alloys: int({ label: 'Alloys', min: 0, max: 100000, optional: true, help: 'Empty = the region\'s starting alloys (or the colony rules\').' }),
+  isotopes: int({ label: 'Isotopes', min: 0, max: 100000, optional: true }),
+  drones: int({ label: 'Worker drones', min: 0, max: 20, optional: true, help: 'Empty = 1.' }),
+  units: list(expeditionUnitShape, { label: 'Units', max: 8, optional: true, help: 'Combat units that come along (they land by the Command Core).' }),
+  people: bool({ label: 'Colonists come too', optional: true, help: 'Off (the default): colonists stay home. No cryo bank, colonists or people sim here, and the HUD leaves them out.' }),
+  landing: choice(['none', 'probe'], { label: 'Arrival', optional: true, helps: {
+    none: 'Start deployed with the Command Core at the centre (the default).',
+    probe: 'Play the probe\'s landing cinematic first.',
+  } }),
+} satisfies Shape;
+export type ExpeditionDef = Infer<typeof expeditionShape>;
+/** A region's expedition package, if it is one (the list holds at most one). */
+export const expeditionOf = (r: { expedition?: ExpeditionDef[] | ExpeditionDef } | undefined): ExpeditionDef | undefined =>
+  !r?.expedition ? undefined : Array.isArray(r.expedition) ? r.expedition[0] : r.expedition;
 
 /** A ground paint (map editor: Paint ground). */
 export const paintShape = {
@@ -1264,6 +1297,7 @@ export const regionShape = {
   graceSeconds: num({ label: 'Grace period', min: 0, max: 7200, unit: 's', optional: true, help: 'No attacks before this. Empty = the threat rules\' grace period.' }),
   waveInterval: num({ label: 'Time between packs', min: 10, max: 3600, unit: 's', optional: true, help: 'Empty = the threat rules\' interval.' }),
   startAlloys: int({ label: 'Starting alloys', min: 0, max: 100000, optional: true, help: 'Empty = the colony rules\' starting alloys.' }),
+  expedition: list(expeditionShape, { label: 'Expedition', max: 1, optional: true, help: 'Campaign travel: a region you travel to from home (STORY.md §13). What the expedition brings when it first arrives; empty = not an expedition (a colony of its own, as Touchdown).' }),
   // grids are square, one node every REGION_STEP u across the region's size (0 = sized by the record: see db.ts)
   height: grid(0, 0, -600, 600, { label: 'Height sculpt', optional: true, help: 'Added to the generated terrain, in tenths of a unit.' }),
   flora: grid(0, 0, -100, 100, { label: 'Flora paint', optional: true, help: '−100 clears plants, +100 doubles them and makes the ground lush.' }),

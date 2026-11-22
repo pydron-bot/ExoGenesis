@@ -718,6 +718,71 @@ export function buildFarm(): THREE.Group {
   return g;
 }
 
+/** Launch Gantry: a lattice tower beside a shuttle standing on its pad, arms reaching across (campaign travel). */
+export function buildLaunchGantry(): THREE.Group {
+  const g = new THREE.Group();
+  const dark = metal('#3a4048'), hull = metal('#d6dbe0'), rust = metal('#b8743a');
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(6, 6.4, 0.6, 12), dark);
+  pad.position.y = 0.3;
+  const flame = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.08, 10), glow('#ffb547', 0.8));
+  flame.position.set(1.4, 0.64, 0);
+  g.add(pad, flame);
+  // the tower: four posts and cross bracing, a lattice
+  const H = 17, W = 2.2, tx = -3.4;
+  for (const [px, pz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.28, H, 0.28), rust);
+    post.position.set(tx + (px * W) / 2, H / 2 + 0.6, (pz * W) / 2);
+    g.add(post);
+  }
+  const brace = new THREE.BoxGeometry(0.14, Math.hypot(W, 2.4), 0.14);
+  for (let i = 0; i < 7; i++) {
+    const y = 0.6 + 1.2 + i * 2.4, tilt = Math.atan2(W, 2.4) * (i % 2 ? 1 : -1);
+    for (const side of [-1, 1]) {
+      const a = new THREE.Mesh(brace, rust);
+      a.position.set(tx + (side * W) / 2, y, 0);
+      a.rotation.x = tilt;
+      const b = new THREE.Mesh(brace, rust);
+      b.position.set(tx, y, (side * W) / 2);
+      b.rotation.z = tilt;
+      g.add(a, b);
+    }
+    const ring = new THREE.Mesh(new THREE.BoxGeometry(W + 0.3, 0.16, W + 0.3), dark);
+    ring.position.set(tx, y + 1.2, 0);
+    g.add(ring);
+  }
+  // service arms across to the shuttle
+  for (const y of [7, 12.5]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.35, 0.7), dark);
+    arm.position.set(tx + 2.6, y, 0);
+    g.add(arm);
+  }
+  const beacon = new THREE.Mesh(new THREE.OctahedronGeometry(0.35), glow('#ff5a4a', 3));
+  beacon.position.set(tx, H + 1, 0);
+  g.add(beacon);
+  // the shuttle, nose up
+  const ship = new THREE.Group();
+  ship.name = 'shuttle';
+  ship.position.set(1.4, 0.6, 0);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.3, 9, 12), hull);
+  body.position.y = 5.2;
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(1.15, 3, 12), hull);
+  nose.position.y = 11.2;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(1.18, 1.18, 0.5, 12), glow(CYAN, 1.4));
+  band.position.y = 8.6;
+  const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.1, 0.9, 10), dark);
+  bell.position.y = 0.45;
+  ship.add(body, nose, band, bell);
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.6, 1.6), hull);
+    fin.position.set(Math.cos(a) * 1.45, 1.9, Math.sin(a) * 1.45);
+    fin.rotation.y = -a;
+    ship.add(fin);
+  }
+  g.add(ship);
+  return g;
+}
+
 /** Built-in models for particular building kinds (variants that share a role but not a look). */
 const KIND_MODELS: Record<string, () => THREE.Group> = {
   cannon: buildCannon, pointdefense: buildPointDefense, ...ROSTER_BUILDINGS,
@@ -760,6 +825,7 @@ export function buildForRole(role: string): THREE.Group {
     case 'wall': return buildWall();
     case 'civic': return buildCivic();
     case 'farm': return buildFarm();
+    case 'launch': return buildLaunchGantry();
     default: return buildSolar();
   }
 }

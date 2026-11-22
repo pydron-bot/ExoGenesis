@@ -28,7 +28,7 @@ const state = {
   before: [] as PlaythroughResult[],
   coverage: null as Coverage | null,
   error: '',
-  kinds: new Set<Beat['kind']>(['mission', 'objective', 'done', 'failed', 'event', 'choice', 'flag', 'counter', 'countdown', 'cinematic', 'end']),
+  kinds: new Set<Beat['kind']>(['mission', 'objective', 'done', 'failed', 'event', 'choice', 'flag', 'counter', 'countdown', 'cinematic', 'travel', 'end']),
 };
 let redraw: () => void = () => {};
 
@@ -66,8 +66,8 @@ function run(host: PlaythroughHost) {
   redraw();
 }
 
-const ICON: Record<Beat['kind'], string> = { mission: '▶', objective: '✓', done: '■', failed: '✕', event: '•', choice: '?', flag: '+', unflag: '−', counter: '#', countdown: '⏱', cinematic: '🎬', end: '!' };
-const KIND_LABEL: Partial<Record<Beat['kind'], string>> = { mission: 'missions', objective: 'objectives', event: 'events', choice: 'choices', flag: 'flags', counter: 'counters', countdown: 'countdowns', cinematic: 'cinematics' };
+const ICON: Record<Beat['kind'], string> = { mission: '▶', objective: '✓', done: '■', failed: '✕', event: '•', choice: '?', flag: '+', unflag: '−', counter: '#', countdown: '⏱', cinematic: '🎬', travel: '✈', end: '!' };
+const KIND_LABEL: Partial<Record<Beat['kind'], string>> = { mission: 'missions', objective: 'objectives', event: 'events', choice: 'choices', flag: 'flags', counter: 'counters', countdown: 'countdowns', cinematic: 'cinematics', travel: 'travel' };
 
 /** A run's missions as bars on a time axis, with the events as ticks under them. */
 function timeline(r: PlaythroughResult, host: PlaythroughHost, span: number) {

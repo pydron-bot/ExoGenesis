@@ -3,12 +3,13 @@ import * as THREE from 'three';
 import './style.css';
 import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input } from './input';
-import { AUTOSAVE, delSave, getSave, putSave, type AutoSave } from './save';
+import { CAMPAIGN, getSave, migrateAutosave, playable, putSave, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from './save';
+import { applyShared, HOME_REGION, type SharedState } from './sim/campaign';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
 import { biomeOf } from './content/nature';
 import { content, contentIssues, onContentHot, type RegionDef } from './content';
-import { ENDINGS, PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
+import { ENDINGS, PREVIEW_KEY, expeditionOf, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, E, globeMesh, HALF, N, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
@@ -162,17 +163,39 @@ function readPreview(): { id: string; def: RegionDef; story?: { id: string; def:
  */
 const landHere = params.get('land') === '1';
 if (landHere) { const u = new URL(location.href); u.searchParams.delete('land'); history.replaceState(history.state, '', u); }
-let autosaved: AutoSave | undefined;
+/**
+ * ?travel=1: arriving from campaign travel (src/sim/campaign.ts): straight into the region, no title, its own
+ * save if it has one, otherwise a fresh expedition with the campaign's shared state. Taken out of the address too.
+ */
+const travelIn = params.get('travel') === '1' && !scratch && !skirmishMode;
+if (params.has('travel')) { const u = new URL(location.href); u.searchParams.delete('travel'); history.replaceState(history.state, '', u); }
+// ---------- the campaign: one save per region, one shared state (TECH.md "Campaign travel") ----------
+let campaign: CampaignSave | undefined;
 if (!skirmishMode && !scratch) {
-  if (params.get('new') === '1' || landHere) await delSave(AUTOSAVE).catch(() => {});
+  if (params.get('new') === '1' || landHere) await wipeCampaign().catch(() => {});
   else {
-    const a = await getSave<AutoSave>(AUTOSAVE).catch(() => undefined);
-    if (a?.version === 2 && a.sim && !a.sim.over && a.sim.phase === 'deployed') autosaved = a;
+    await migrateAutosave().catch((e) => console.warn('autosave migration failed', e));
+    campaign = await getSave<CampaignSave>(CAMPAIGN).catch(() => undefined);
+    if (campaign?.version !== 1 || !content.regions[campaign.current]) campaign = undefined;
   }
 }
-const savedRegion = autosaved?.sim.region ?? 'touchdown';
+/** A region's own save, if it has one worth resuming (never in a scratch game). */
+const regionSave = async (id: string) => (skirmishMode || scratch ? undefined : await getSave<AutoSave>(regionKey(id)).then((a) => (playable(a) ? a : undefined)).catch(() => undefined));
+// the campaign's current region, unless its colony is gone (a lost expedition): then home
+let savedRegion = campaign?.current ?? HOME_REGION;
+if (campaign && savedRegion !== HOME_REGION && !travelIn && !(await regionSave(savedRegion)) && (await regionSave(HOME_REGION))) savedRegion = HOME_REGION;
 const askedRegion = params.get('region');
-const regionId = rts ? 'skirmish' : preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : 'touchdown';
+const regionId = rts ? 'skirmish' : preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : HOME_REGION;
+/** This region's save, with the campaign's shared state laid over it when that is newer (you've been elsewhere since). */
+const hereSave = rts || preview ? undefined : await regionSave(regionId);
+if (hereSave && campaign?.shared && campaign.savedAt > hereSave.savedAt) applyShared(hereSave.sim, campaign.shared, regionId);
+/** The colony saved in the campaign's current region when that isn't this one (CONTINUE goes there). */
+const elseSave = !hereSave && savedRegion !== regionId ? await regionSave(savedRegion) : undefined;
+let autosaved: AutoSave | undefined = hereSave ?? elseSave;
+/** A fresh game here still carries the campaign's story, missions and research (a first visit). */
+const freshShared: SharedState | undefined = !hereSave && campaign?.shared ? campaign.shared : undefined;
+/** A region you travel to: starts deployed with its expedition package (no landing). */
+const expedition = !rts && !preview ? expeditionOf(content.regions[regionId]) : undefined;
 /** ?biome=<id> tries another biome's plants and wildlife on this region (the sim plays the region with it). */
 const biomeParam = params.get('biome');
 const biomeTest = !!biomeParam && !!content.biomes[biomeParam];
@@ -199,7 +222,7 @@ const audio = new GameAudio(content.sound, content.assets, skirmishMode || param
 const sim = new SimClient((t, l, cue, at, style) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l, at, style); else early.push([t, l, at, style]);
-}, !skirmishMode, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup);
+}, !skirmishMode, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup, freshShared);
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
 if (preview?.mission) content.missions[preview.mission.id] = preview.mission.def;
@@ -409,7 +432,7 @@ let cine: Cinematic | null = null;
 // The sim worker autosaves every few seconds and whenever the page is hidden
 // (phones discard background tabs); on the next visit we pick up from there.
 // ?new=1 starts fresh. The camera is remembered separately in localStorage.
-const CAM_KEY = 'exo.camera';
+const CAM_KEY = regionId === HOME_REGION ? 'exo.camera' : `exo.camera.${regionId}`; // each region remembers its own view
 function saveCamera() {
   if (title || cine) return; // the title's orbit and cinematics aren't where you play from
   try { localStorage.setItem(CAM_KEY, JSON.stringify({ dist: cam.targetDist, yaw: cam.yaw, pitch: cam.targetPitch, fx: cam.fx, fz: cam.fz })); } catch { /* private mode */ }
@@ -423,10 +446,81 @@ function restoreCamera() {
     cam.targetPitch = c.pitch;
   } catch { /* ignore */ }
 }
-/** The autosave, if it's in this region (one in another region is `elsewhere`: CONTINUE goes there). */
-const resumed: AutoSave | null = autosaved && savedRegion === regionId ? autosaved : null;
-const elsewhere: AutoSave | null = autosaved && !resumed ? autosaved : null;
+/** This region's save (one in the campaign's current region elsewhere is `elsewhere`: CONTINUE goes there). */
+const resumed: AutoSave | null = hereSave ?? null;
+const elsewhere: AutoSave | null = elseSave ?? null;
 const regionLabel = (id: string) => content.regions[id]?.name ?? id;
+/** The world a region is on, as a name ("Home", "Sela"). */
+const bodyOfRegion = (id: string) => { const b = content.regions[id]?.body; return b && content.bodies[b] ? b : 'home'; };
+const bodyLabel = (id: string) => (content.bodies[bodyOfRegion(id)]?.name ?? 'Home').replace(/\b[A-Z]{2,}\b/g, (w) => w[0] + w.slice(1).toLowerCase());
+
+// ---------- campaign travel (TECH.md "Campaign travel") ----------
+/** The travel caption over a fade: leaving, then arriving. */
+function travelVeil() {
+  let el = document.getElementById('travel');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'travel';
+    el.innerHTML = '<div class="tv-t"></div><div class="tv-s"></div>';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+let travelling = false;
+/** Save this region, make `to` the campaign's current region, and go there (a fade with where you're leaving and going). */
+async function travelTo(to: string) {
+  if (travelling || !content.regions[to] || to === regionId) return;
+  if (scratch || skirmishMode) {
+    log(`Travel to ${regionLabel(to)}: not in a play test (it stays in one region)`, 'warn');
+    sim.command({ type: 'travelled' });
+    return;
+  }
+  travelling = true;
+  saveCamera();
+  ui.sel = null;
+  setBuild(null);
+  const veil = travelVeil();
+  veil.querySelector('.tv-t')!.textContent = `Leaving ${regionLabel(regionId)}`;
+  veil.querySelector('.tv-s')!.textContent = bodyLabel(regionId);
+  document.body.classList.add('travelling');
+  cam.setView(bodyOfRegion(to) === bodyOfRegion(regionId) ? 'planet' : 'system');
+  requestAnimationFrame(() => veil.classList.add('on'));
+  const [ok] = await Promise.all([sim.travel(to), pause(1800)]);
+  if (!ok) {
+    log('Travel failed: this region could not be saved', 'bad');
+    veil.classList.remove('on');
+    document.body.classList.remove('travelling');
+    cam.setView('surface');
+    sim.autosave(true);
+    travelling = false;
+    return;
+  }
+  veil.classList.add('swap');
+  await pause(350);
+  veil.querySelector('.tv-t')!.textContent = `${bodyLabel(to)} · ${regionLabel(to)}`;
+  veil.querySelector('.tv-s')!.textContent = bodyOfRegion(to) === bodyOfRegion(regionId) ? 'Overland' : 'By shuttle';
+  veil.classList.remove('swap');
+  await pause(1300);
+  goTravel(to);
+}
+if (travelIn) {
+  // arriving: the caption over black, then the region fades in
+  const veil = travelVeil();
+  veil.classList.add('on', 'now');
+  veil.querySelector('.tv-t')!.textContent = `${bodyLabel(regionId)} · ${regionLabel(regionId)}`;
+  veil.querySelector('.tv-s')!.textContent = resumed ? `Back at ${solTime(resumed.sim.tick)}` : expedition ? 'Expedition landing' : '';
+  setTimeout(() => { veil.classList.remove('now'); veil.classList.remove('on'); }, 1600);
+  setTimeout(() => veil.remove(), 3200);
+}
+/** Campaign travel: load the region as an arrival, dropping what starts a game a particular way (?new=1 would wipe the campaign). */
+function goTravel(id: string) {
+  const u = new URL(location.href);
+  for (const k of ['new', 'land', 'intro', 'title', 'story', 'mission', 'cinematic', 'cine', 'view', 'scratch', 'preview']) u.searchParams.delete(k);
+  u.searchParams.set('region', id);
+  u.searchParams.set('travel', '1');
+  location.href = u.href;
+}
 /** Load another region, keeping the other URL options. */
 function goRegion(id: string, extra: Record<string, string> = {}) {
   const u = new URL(location.href);
@@ -446,7 +540,7 @@ function solTime(tick: number) {
  * The title screen comes first unless a URL asks to go straight in:
  * ?title=0 (resume or land as before), ?intro=0, ?new=1, ?view=…, skirmish.
  */
-const useTitle = !skirmishMode && !rts && !landHere && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
+const useTitle = !skirmishMode && !rts && !landHere && !travelIn && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
 if (useTitle) document.body.classList.add('title');
 let title: TitleScreen | null = null;
 
@@ -535,7 +629,7 @@ if (rts) {
   cam.targetDist = cam.dist = 110;
 } else if (!skirmishMode && !useTitle) {
   if (resumed) startResume();
-  else if (params.get('intro') === '0' || params.get('view')) sim.command({ type: 'landing', stage: 'deploy' });
+  else if (params.get('intro') === '0' || params.get('view') || travelIn || (expedition && expedition.landing !== 'probe')) sim.command({ type: 'landing', stage: 'deploy' });
   else startLanding();
 }
 $('cine-skip').onclick = () => cine?.skip();
@@ -610,6 +704,11 @@ function setBuild(kind: string | null) {
   }
 }
 function restartGame() {
+  // the campaign starts over at home: every other region's save goes (an expedition goes home and lands)
+  if (!rts && !scratch) {
+    if (regionId !== HOME_REGION) { goRegion(HOME_REGION, { land: '1' }); return; }
+    void wipeCampaign([regionKey(HOME_REGION), CAMPAIGN]);
+  }
   sim.newGame(Date.now() % 100000);
   sim.command({ type: 'landing', stage: 'deploy' });
   sim.flush(); // overwrite the old autosave right away
@@ -625,9 +724,14 @@ function restartGame() {
 }
 const hud = new ColonyHud({
   defs: content.buildings, units: content.units, research: content.research, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
+  regions: content.regions, bodies: content.bodies, travel: (id) => void travelTo(id),
   command: (c) => sim.command(c),
   setBuild,
-  restart: () => restartGame(), // (a skirmish: the same map and players again)
+  // (a skirmish: the same map and players again; an expedition lost: back home, the campaign goes on)
+  restart: () => {
+    if (!rts && !scratch && regionId !== HOME_REGION && sim.cur?.over && sim.cur.over !== 'won') { sim.flush(); setTimeout(() => goTravel(HOME_REGION), 600); return; }
+    restartGame();
+  },
   // automated tests (Playwright) don't stop for story pauses unless they asked for a story (?story=<id>, play test)
   pause: (on) => {
     if (navigator.webdriver && !fireStory) return;
@@ -670,7 +774,7 @@ if (!skirmishMode) {
 
 // the story inspector: play tests (?preview=1) and ?inspect=1; in dev it also takes story edits live
 const inspector = !skirmishMode && (preview || params.get('inspect') === '1')
-  ? new Inspector({ content, cur: () => sim.cur, command: (c) => sim.command(c), log })
+  ? new Inspector({ content, cur: () => sim.cur, command: (c) => sim.command(c), log, travel: (id) => void travelTo(id) })
   : null;
 if (inspector) {
   onContentHot((next) => {
@@ -1051,6 +1155,12 @@ let fpsAcc = 0, fpsN = 0, fpsShown = 0;
 function updateHud(dt: number, now: number) {
   const s = sim.cur;
   if (s && !skirmish) { hud.update(s, speed, now); if (s.deployed) storyHud.update(s.story); inspector?.update(now); }
+  if (s && !skirmish) {
+    // an expedition without colonists: no cryo bank or people in the HUD
+    document.body.classList.toggle('expedition', !!s.campaign?.expedition);
+    // a travel effect: save and go (once the cards and cinematics in the way are done)
+    if (s.campaign?.travel && !travelling && !cine && !title && s.deployed) void travelTo(s.campaign.travel);
+  }
   if (s && dailyTracker && !dailyDone) { if (s.over) finishDaily(s); else dailyTracker.sample(s); }
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
   el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
@@ -1222,7 +1332,7 @@ function openGameMenu() {
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
     { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },
-    { id: 'new', label: 'New game', sub: 'Start over in this region', confirm: 'Your current colony will be lost (unless you Saved it) · tap again', run: () => restartGame() },
+    { id: 'new', label: 'New game', sub: scratch ? 'Start over in this region' : 'Start the campaign over', confirm: scratch ? 'Your current colony will be lost (unless you Saved it) · tap again' : 'Every region\'s colony will be lost (unless you Saved it) · tap again', run: () => restartGame() },
   ], `v${VERSION} · M1`, () => audio.play('tap'), () => back());
   el.querySelector('.op-foot')?.classList.add('dim');
 }
@@ -1288,7 +1398,7 @@ function showTitle() {
   const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
   // the title screen's Options also holds where to land and the sound
   // choosing a region only marks it; NEW GAME loads it and lands there (no reload just for picking)
-  let landIn = regionId;
+  let landIn = expedition ? HOME_REGION : regionId;
   const newSub = () => (regions.length > 1 ? `Land in ${regionLabel(landIn)}` : 'Land the probe on a fresh world');
   const titleOptions: OptionRow[] = [
     ...soundToggles,
@@ -1297,13 +1407,23 @@ function showTitle() {
       get: () => id === landIn, set: () => { landIn = id; title?.setSub('new', newSub()); }, state: (on) => (on ? 'HERE' : ''),
     })) : []),
   ];
+  // a trip under way with nothing saved there yet: CONTINUE lands the expedition
+  const trip = !resumed && !elsewhere && !!freshShared && campaign?.current === regionId && regionId !== HOME_REGION;
+  const here = regionId === HOME_REGION ? 'Your colony' : `${regionLabel(regionId)}`;
   const choices = [
-    ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
-    ...(elsewhere ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony in ${regionLabel(savedRegion)} · ${solTime(elsewhere.sim.tick)}`, run: () => goRegion(savedRegion) }] : []),
+    ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `${here} · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
+    ...(elsewhere ? [{ id: 'continue', label: 'CONTINUE', sub: `${savedRegion === HOME_REGION ? 'Your colony in ' : ''}${regionLabel(savedRegion)} · ${solTime(elsewhere.sim.tick)}`, run: () => goRegion(savedRegion) }] : []),
+    ...(trip ? [{ id: 'continue', label: 'CONTINUE', sub: `Your expedition to ${regionLabel(regionId)}`, run: go(() => sim.command({ type: 'landing', stage: 'deploy' })) }] : []),
     {
       id: 'new', label: 'NEW GAME', sub: newSub(),
-      ...(autosaved && !scratch ? { confirm: `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` } : {}),
-      run: () => (landIn === regionId ? go(startLanding)() : goRegion(landIn, { land: '1' })),
+      ...((autosaved || campaign) && !scratch ? { confirm: autosaved ? `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` : 'Your campaign will be lost · tap again' } : {}),
+      run: () => {
+        if (landIn !== regionId) { goRegion(landIn, { land: '1' }); return; }
+        // a new campaign: every region's save goes, and the story starts again
+        if (!scratch) void wipeCampaign();
+        if (freshShared) sim.newGame(Date.now() % 100000);
+        go(startLanding)();
+      },
     },
     dailyChoice(),
     { id: 'skirmish', label: 'SKIRMISH', sub: 'You against the computer: pick a map and players', run: () => showSkirmishSetup() },

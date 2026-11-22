@@ -2258,3 +2258,72 @@ the Lantern's sentinels), the Lantern's strikes, the Clause's interference and t
 - Not yet: factions have no economy or AI beyond guarding, patrolling and attacking (no building, no waves); allied
   factions can't be commanded; nothing in content uses any of this yet (the Act 2 regions and the climax missions are
   still to be written).
+### Campaign travel
+
+The story plays across many regions and bodies (STORY.md §13). The home colony (Touchdown,
+`HOME_REGION` in `src/sim/campaign.ts`) always persists; every other region is an **expedition**.
+
+- **Saves.** Each region's colony is its own IndexedDB record, `region:<id>` (`regionKey` in `src/save.ts`),
+  written by the sim worker every 10 s and when the page hides. Beside them is one **campaign record**,
+  `campaign`: `{ version: 1, savedAt, current, shared }`, written with every autosave (current = the region
+  being played). The old single autosave `auto` is migrated once at startup (`migrateAutosave`): it becomes
+  its region's save, that region becomes current, and `auto` is deleted (`tools/region-smoke.mjs` now reads
+  `region:touchdown`). An expedition lost deletes its save and sends the campaign home (the end screen's
+  button reads "Back to Touchdown"); the home colony lost, or a win, deletes the campaign record.
+  NEW GAME (title, `?new=1`, `?land=1`) wipes every region's save and the campaign (`wipeCampaign`; manual Save
+  slots stay). The in-game New game starts the campaign over at home (from an expedition it goes home and lands).
+  `?scratch=1`, `?preview=1` and skirmish never read or write any of it.
+- **Shared vs per region** (`sharedOf` / `applyShared`). Shared, campaign-wide: story flags, counters, events
+  fired and answered, cinematics played (`cines`), countdowns that have run out (`expired`), build-menu locks,
+  HUD panels opened, events waiting for their region (`away`); every mission (active, done, failed, objective
+  marks); research done; `SimState.campaign` (`visited`, `routes`, and `first`, the Firstborn's name, so
+  `{first}` works where there are no colonists). Per region (its own save): buildings, units, drones, alloys,
+  isotopes, map, fog, clock, people, planet health, inhabitants, the Chronicle, the card inbox, event delays,
+  countdowns still running, waypoints, the hint, camera moves, encounters, the cinematic queue, colony boosts,
+  dilemma timing, cards' cast, the research under way at this region's lab, `placed`. Loading a region: its
+  save if it has one, with the campaign's shared state laid over it when the campaign record is newer than the
+  save (you've been elsewhere since); otherwise a fresh game there with the shared state (the worker's `init`
+  message carries `shared`). Time in a region doesn't move while you're away: its save just waits.
+- **Effects** (`STORY_EFFECTS`): `travel` (Region: sets `SimState.travel`; the snapshot carries it as
+  `campaign.travel` and the renderer saves and goes, once no cinematic or title is in the way), `route` (adds
+  to `campaign.routes`, logged "New route: <name>"), `unroute`. **Conditions**: `here` and `visited`, with the
+  region in the field `place` (a story event's own `region` field already means "only in region", so the
+  condition can't reuse that name).
+- **Regions in the story.** A story event with a `region` only triggers while that region is played; fired by
+  an effect or a mission elsewhere, it goes to `StoryState.away` and fires on arrival there (the same for a
+  cinematic with a region: `cine:<id>`). A mission with a region starts once its `after` is done **and** its
+  region is being played, visited or on the routes; it then stays under way everywhere (GOALS shows
+  "TITLE · REGION" and its objectives greyed), but its objectives and fail conditions are only checked in its
+  region.
+- **Expeditions.** A region's `expedition` (a list of at most one package, since the schema has no object
+  field: `alloys`, `isotopes`, `drones`, `units` [{unit, count}], `people`, `landing`) is applied on a fresh
+  game there (`Sim.expedition`). Without `people` the state has `expedition: true`: no cryo bank draw, no cryo
+  or people step (so no "cryo bank drained" or "no one left" loss), an empty bank; the HUD hides cryo, food,
+  people and mood (`body.expedition`) and the Core's cryo row. `landing` defaults to `none`: it starts deployed
+  (`probe` plays the landing cinematic). A region with no `expedition` still plays standalone as before.
+- **Launch Gantry** (`content/buildings/launch-gantry.json`, role `launch`, needs research `orbital-launch`:
+  economy, after Isotope Cells, 220 ◆ 40 ◇). Built-in model `buildLaunchGantry` in `src/world/region.ts`: a
+  lattice tower, service arms and a shuttle on its pad. Its card (LAUNCH) lists the routes on other bodies.
+  The Command Core's card (TRAVEL) lists overland routes (same body) and says how many need a gantry; on an
+  expedition the Core offers "Return to Touchdown" and every route. Each button asks twice ("Sure? Go to …").
+- **Transition** (`travelTo` in `src/main.ts`): the worker saves this region and writes the campaign record
+  with the new current region (`{ type: 'travel', to }` → `travelled`; autosave stops first so nothing races
+  it); meanwhile the camera pulls out (planet view overland, system view off-world) under a fade with
+  "Leaving <region> · <body>", then "<Body> · <Region>", then `?region=<id>&travel=1` (dropping `new`, `land`,
+  `intro` and the like). `travel=1` skips the title and is taken out of the address (`history.replaceState`);
+  the arrival shows the caption over black and fades in. Each region remembers its own camera
+  (`exo.camera.<id>`; Touchdown keeps `exo.camera`). A play test can't travel (logged, request dropped).
+- **Title.** CONTINUE goes to the campaign's current region (its save, or a pending expedition with no save
+  yet); if that region's colony is gone, home. `?region=<id>` still picks a region; CONTINUE then offers the
+  current region's colony as before.
+- **Inspector**: a Campaign section (here, visited, routes with ×, Route and Travel per region).
+- **Playthroughs** (`src/sim/playthrough.ts`) stay in one sim: `sim.everywhere` makes every region count as
+  here (each record's conditions read its own region's story sites, which the bot walks to on this map), and a
+  `travel` effect becomes a `travel` beat (the region marked visited). Expedition packages and other maps are
+  not played: a limitation.
+- Tests: `tools/travel-smoke.mjs` (headless: routes, travel, here / visited, events and missions set
+  elsewhere, shared state over a fresh expedition and back, the expedition package and no cryo loss, an older
+  save, the playthrough's travel beat; browser, with two temporary regions: a fresh campaign, routes from the
+  inspector, the Core's and the gantry's lists, travel and its captions, the package and flags on arrival, the
+  saves in IndexedDB, CONTINUE to the current region, home by the Core's card with the colony and clock as they
+  were, out again to the expedition's own save). `--headless-only` skips the browser.
