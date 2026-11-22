@@ -15,6 +15,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.72.0',
+    date: '2026-11-23',
+    title: 'Watch the computer play',
+    notes: [
+      'New in the title screen\'s Options: Watch the computer play. The autopilot plays your campaign (your own colony) while you watch: it builds, reads each story card for a moment and answers it, sits through the cinematics and travels between regions when the story calls',
+      'A director camera follows what matters: the card\'s place, a strike, a fight, a group on its way, a building going up. Move the camera yourself and it stands back for a few seconds',
+      'The AUTOPILOT badge says what it is doing, runs it at ×1, ×2 or ×3, and Stop hands control straight back. Turn it on again from the game menu',
+      'Options also choose how it answers (the first choice, the honest one, at random or the last) and an Assist that finishes an objective it has been stuck on for six minutes',
+    ],
+  },
+  {
     version: '0.71.0',
     date: '2026-11-23',
     title: 'The campaign across the system',

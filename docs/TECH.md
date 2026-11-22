@@ -2496,3 +2496,84 @@ itself is played with real rebuild orders and no forced army or domes; Cycle's C
   flag can't vary.
 - The Vell's and the Choir's trust in the Proof are flags from their Act 1 expeditions, not the regard of camps
   at home.
+
+### Autopilot (spectator mode)
+
+The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).
+
+- **Start / stop.** Title → OPTIONS → *Autopilot: the computer plays your campaign*: **Watch the computer play**
+  (CONTINUE with the autopilot, or a new campaign when there is nothing to continue; the row says which: it plays
+  *your* colony and saves as normal play does), and its settings: how it answers (first, honest, random, last),
+  **Assist when stuck**, speed ×1/×2/×3. In the game: the **AUTOPILOT** badge (top right, violet) with ×1/×2/×3,
+  ASSIST and **■ Stop**, which hands control back at once; the game menu's **Autopilot** turns it on or off. No URL
+  options: the state is in localStorage (`exo.autopilot`: on, policy, assist, assistMinutes, speed). It starts on
+  only when it was left on *and* the load carries its game on (a travel arrival, a landing elsewhere or a CONTINUE
+  in another region it started: `travel=1`, `land=1`, `title=0`); a plain visit shows the title with it off. Never
+  in a skirmish, a play test (`?preview=1`) or a scratch game (`apAllowed` in `main.ts`). Your own commands work
+  alongside it; it doesn't ask.
+- **The brain** (`src/sim/autopilot.ts`, in the sim worker; `{ type: 'pilot', cfg }` turns it on, the worker
+  steps `Autopilot.tick()` before every `sim.step()` inside `withTeam(0)`). It reuses the headless bots:
+  `BalanceBot` (`src/sim/balance.ts`: `runBalance`'s per-tick plan, people plan, growth pods and army as a class;
+  `prune()` drops the plan steps a colony taken over already has) and the playthrough's `chase` (exported, with
+  its command sink). At home the plan is the **fortress** strategy then farms and homes (the people plan alone
+  falls to the second sol's packs: `balance.mjs --strategy people --minutes 45`); on an expedition the **mixed**
+  build; when the plan runs out and alloys pile up it adds depots, turrets and an army. `chase` now: only missions
+  set in the region being played (headless, everywhere is here, so nothing changes there); an `after` objective
+  chases its event's trigger (one level: the brood mound, the stone circle); a building that needs research
+  researches first; research that costs isotopes puts a Deep-Core Mine on the nearest seam first (new build step
+  where `seam`). Cards and cinematics are *not* the worker's: the renderer reads them on screen.
+- **Travel.** Every 5 s: nothing while a card waits, a cinematic is queued, a pack fights at the colony (up to 2
+  minutes) or in the first 90 s at home / 30 s on an expedition. If no mission here has moved for 5 minutes (8 with
+  the assist, so it steps in first) or none is under way here: from home, the first mission under way in a region
+  that is routed or visited and reachable (overland on this world; off it only with a finished Launch Gantry,
+  which it rebuilds when one is researched and missions wait off-world); from an expedition, home (the Core's
+  "Return to Touchdown"). It sets `SimState.travel` as a story `travel` effect does, and `main.ts` saves and goes
+  through `travelTo` (the veil, the reload with `travel=1`).
+- **Assist** (off by default; Options or the badge): an objective here with no progress for `assistMinutes`
+  (6) is ticked off the inspector's way (`inspect` → objective), not clocks (`time`, `timer`); at home with
+  missions waiting off-world and no gantry for as long, a Launch Gantry and its research chain are set up
+  (`debug` setup); a pack (not nests or relic guards) within 70 u of a Command Core below 35% is sent away and the
+  next pack held 3 min (once a minute at most). Each logs "Autopilot assist: …" in the log in violet
+  (`LogStyle` `'assist'`, `.ev.assist`).
+- **Readable** (`src/autopilot.ts`, `AutopilotView`). A story card (or a first contact: Approach; a trust story:
+  Continue) stays for 2.5 s + 40 ms a character, at most 9 s (÷1.5 at ×2, ÷2 at ×3); conversation pages are read
+  the same way; then the chosen button lights violet (`.ap-pick`) for 0.9 s and is pressed (a `pointerdown`, as a
+  tap); the caption says "Answering: Title → choice" (`autopilot.answered` keeps them). The choice is
+  `pickChoice(policy, offered, labels)` (`src/sim/choices.ts`, shared with the playthrough; `honest` takes a label
+  with truth / tell / honest / admit / explain / share… (`HONEST_WORDS`), else the first). Cinematics play in full
+  and radio lines close by themselves as for a player (automated browsers still skip cinematics, as before). The
+  caption under the badge is the worker's: "Building a Radar", "Going to the ritual loop round the pylon",
+  "Researching Deep Survey", "Travelling to Sela", "Working on: <objective>" when it is waiting.
+- **The director.** The worker's status (about twice a second, `{ type: 'pilot', status }`) carries places worth
+  a look: a strike ring, a fight (hostiles or enemy units within 25 u of ours), the card's site or camp (its
+  trigger), the unit or drone walking to a site, the building going up, the Core. The director takes the most
+  urgent (strike > fight > card > group > build > Core), holds a shot at least 5 s (a strike or a fight may cut in
+  after 1.5 s), follows the same subject as it moves, doesn't hop between nearby points, glides the focus (eased,
+  ~0.7 s time constant) and eases the distance (55–115 u by subject) and pitch; on the Core it turns slowly. A drag,
+  wheel or camera key (WASD, arrows, Q/E, +/−) makes it stand back for 10 s. Nothing moves while a title,
+  cinematic, travel, menu or panel has the screen.
+- **Tests.** `tools/autopilot-smoke.mjs` (headless; the browser half against the dev server, `--url`, default
+  :5176; `--headless-only`): the playthrough's tutorial missions on the refactored bot finish at the same seconds;
+  `pickChoice` per policy; the brain waits for the landing, builds, finishes the first tutorials and says so, does
+  nothing when off; travel after the grace, not while a card waits, to the routed region, an expedition home;
+  assist ticks off a stuck objective (logged), not when off; a pack at a falling Core sent away. Browser: a fresh
+  colony, then title → OPTIONS → ×3 → Watch the computer play; the badge and the stored state; a card fired and
+  answered (lit first); buildings without input; the camera moving; a caption; Stop (badge gone, nothing more
+  built); the game menu turns it on; a mission jumped to on Splinter Hollow: the travel reload keeps it on, it
+  plays there and comes home by itself, still on; no page errors.
+  The refactor: `node tools/balance.mjs` and `node tools/playthrough.mjs --peaceful --minutes 40` were
+  byte-identical after `BalanceBot`; `chase` chasing `after` objectives then changed the playthrough's *first* run
+  from 34:23 on (it walks to the brood mound and the stone circle instead of the Works gate, so events fire in
+  another order); every mission finishes at the same seconds in all three runs.
+- **How far it gets** (`tools/autopilot-campaign.mjs [--minutes 240] [--assist]`: the brain on the real sim
+  region by region with saves and the shared state, cards answered at once with the first choice, cinematics at
+  once). Without the assist: the tutorials (18 min), all of Act 1 including the Deep Layer and Signal (~43 min),
+  then stuck on **The Gantry** (Isotope Cells needs isotopes, and the home economy runs dry: two or three
+  deposits, no alloys to spare), and the home Core falls to the packs at ~67 min (12 of 27 missions). With the
+  assist: The Gantry ticked off and a gantry set up, then Sela, Ash, Verdance, Talus, Vess, Dunmore (19 of 27
+  missions); the home colony falls at ~97 min (cryo, after the Core assists): its gantry keeps being lost to
+  packs while it is away, and nothing earns alloys. Expedition missions are quick (often under a minute).
+- **Not yet.** The bot never fights for a mission (the Choir wall's spitters, Dunmore's escort and the climax's
+  fight are its army's idle defence, or the assist); it doesn't expand to new deposits beyond its plan or keep
+  power for the growth pods at night (pods fail from Sol 2); it answers the epilogue's pages and end screen only
+  as a player would (it stops there); it doesn't pick among several expeditions by any order but the missions'.
