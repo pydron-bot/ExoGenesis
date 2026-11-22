@@ -2391,3 +2391,104 @@ against a dev server, `--url`, default :5183).
   Distance (≤ 2000) ahead, pitch and yaw worked out (yaw unwrapped to the key before). The editor's preview
   has no sky, so it shows such a key with its own pitch and yaw. Checks: hour 0–24, music a piece or a use,
   a body key needs its Body.
+
+### The campaign (content)
+
+STORY.md Part II, as built: 27 missions, ~245 story events, 35 cinematics, regions on 13 bodies, played as one
+campaign. Test: `tools/campaign-smoke.mjs` (headless, ~15 s).
+
+**The map and the mission chain** (each mission's `after`; one on another region starts once that region is
+routed or visited):
+
+| Chapter | Regions (body) | Missions | Opens |
+|---|---|---|---|
+| Tutorials | `touchdown` (Home) | touchdown → groundwork → first-night → firstborn → beyond-the-ridge | routes to the four Act 1 regions |
+| Act 1 | `hearthsmoke`, `choir-field`, `burrow-reach`, `splinter-hollow` (Home) | smoke-on-the-horizon, the-choir, designer-marks, the-hollow (any order; each +1 `act1-trips`) | 3 trips: `heights-route` (Signal Heights); the cellar: the Deep Layer |
+| Act 1 | `deep-layer` (optional), `signal-heights` (Home) | deep-layer; wrong-address → signal | `act1-done`, research Orbital Launch |
+| first-light | `touchdown`, `sela-relay` (Sela) | build-gantry → first-light | Verdance, Talus, Ash |
+| kindred | `verdance-landfall` (Verdance), `dunmore-dustfall` (Dunmore) | landfall → dustfall | `kindred-ally`; Bede's failsafe at home |
+| engram | `talus-yard` (Talus), `maren-works` (Maren), `iot-drops` (Io-T), `pip-wreck` (Pip, optional), `rime-prime` (Rime) | yard → the-works → drop-field; yard → pip-wreck; drop-field → prime (Rime routed by `rime-route`: `luck-proved` + `ledger-read`) | `engram-defected` / `-doubled` / `-destroyed` |
+| the-proof | `ash-hulls` (Ash), `vess-ledger` (Vess) | hull-field → the-ledger | `ledger-read` |
+| the-foundry | `cinder-foundry` (Cinder), `teth-ear` (Teth, optional) | foundry → long-ear | `foundry-found`; `long-ear` |
+| the-lantern | `touchdown`, `lantern` (Sela's far side) | clause-wakes → the-lantern | an ending |
+
+**Threads gate the Foundry.** Three threads end in dustfall (Kindred), drop-field (Engram) and the-ledger (the
+Proof). At home, the second one done fires one of `foundry-lead-kd` / `-kl` / `-dl` (each needs its two and
+neither other lead), which routes Cinder; the third fires nothing more. `foundry` itself only follows
+`first-light`.
+
+**The climax.** `clause-wakes` (home) starts after the Foundry; `meridian-speaks` (cine-meridian) waits for
+counter `lead` ≥ 6 (STORY.md §14 for its sources; `clause-patience` adds 6 a day after the Foundry, so it
+always comes). `trust-decides` then reads the colony: `severance-failsafe` (`failsafe-built` and acceptance
+≤ 45) or `severance-vote` (an Autonomist majority) right away → **Severance**; after a 6 s countdown
+`trust-devoted` (a Devoted majority: obey → **Inheritance**, refuse → the fight) or `trust-partners` (the fight).
+The fight: `hold-the-line` and `strike-1`…`13` (strikes, turned units, two packs, a screen tear) over the
+`strike-force` countdown (600 s), the allies at home by flag (Kindred marines land at the Core yard, site
+`core-yard` (12, 10); Engram's shields, the Vell's warning, the Choir's turrets); `proof-ready` (the Archivist's
+drive) if the Proof looks possible. Losing the cryo bank (< 10) or the Command Core (`coreLost`) after Meridian
+speaks fails `clause-wakes` → **Cycle**. Held: `strike-force-lifts` routes and travels to the Lantern. There
+`lantern-landing` starts a 1500 s countdown (`lantern-fires`) and the strikes; the Lid opens by the Enclave's code
+(`survivors-met`) or by breaking its relic grid; allies by flag (Kindred lancers, the Vell reveal the core, the
+Choir quiets the breach battery, Engram turns allied, or purges with us if it doubled down); `proof-weighed`
+weighs the Proof once the Lid is open; at the core, `the-core`: destroy (→ `covenant`, or `covenant-sol` with
+`long-ear`), seize intact (→ `proof` with `proof-holds`, else `covenant-seized`), give in (→ `inheritance`). The
+countdown running out or the landing's Core lost fails `the-lantern` → **Cycle**.
+
+**Endings and their conditions** (each event's effects play its end cinematic, then the `epilogue`):
+
+| Ending | Event(s) | Reached by |
+|---|---|---|
+| Covenant | `covenant`, `covenant-sol`, `covenant-seized` | the Lantern destroyed (without / with `long-ear`), or seized without `proof-holds` |
+| Proof | `proof` | seized with `proof-holds`: home planet ≥ 70 and acceptance ≥ 60 (the home snapshot), `kindred-ally`, `keeper-song`, `choir-fragment`, `ledger-read`, `long-ear`, not `engram-destroyed` |
+| Severance | `severance` (from `severance-failsafe` / `-vote`) | the failsafe built and acceptance ≤ 45, or an Autonomist majority, when Trust decides |
+| Inheritance | `inheritance` (flag `inheritance`, any region) | obey with a Devoted majority, or give in at the core |
+| Cycle | `cycle` (`onFail` of both climax missions) | the colony's Core or cryo bank lost in the fight; the Lantern's countdown or the landing's Core |
+
+`proof` and `covenant-seized` read `proof-holds` as opposites, and the core's three choices set three different
+flags, so exactly one ending fires. The Proof needs one gate event because a trigger takes at most 8 conditions
+with no nested groups.
+
+**Engine fixes that came with it.** An ending reached anywhere ends the campaign (`campaignOver` in
+`src/sim/campaign.ts`: an epilogue, the home colony lost or a win is `ended`, and the worker wipes every region's
+save and the campaign record; only an expedition lost without an ending is `expedition-lost`, forgotten and sent
+home). So Cycle at the Lantern is an ending, not a retry: its end screen shows the ending and "New game" (which
+from an expedition goes home and starts over). `reveal` marks the factions' buildings in the revealed ground as
+seen, and a cinematic about to play marks those its camera keys look at (round each key's point, as far as its
+distance, at least 40 u: `Sim.seeForCinematic`), so arrival cinematics show Kindred's colony and Engram's works.
+A story `pack` while waves are held off (a peaceful play test or playthrough) sends one pack and keeps them held
+(`waves.held`); before, it restarted the wave clock for good. `?mission=<id>` (the inspector's mission jump) for a mission on another region routes it and travels there to
+play it (before, it stayed greyed at home). The Endings ledger counts each glitch as +1 on
+counter `clause` (it reported `clause-found-out`'s threshold as unreachable). Cinematics with `hour` and `music`:
+cine-signal and cine-meridian at night (cine-meridian looks up at Sela with a `body` key), cine-ledger,
+cine-foundry, cine-marrow and every ending with their own piece.
+
+**The test** (`tools/campaign-smoke.mjs`): first the content's own consistency (Story flow problems, missions
+out of the chain, unreachable ledger thresholds, expedition regions nothing routes); then the campaign played
+from a fresh Touchdown through every region in order, each region its own Sim, its colony kept as a structured
+clone (its save), the shared state carried as the game carries it (`sharedOf` / `applyShared` over the save or a
+fresh game, `arrived`, the landing deployed), cards answered by a policy (otherwise the first choice offered),
+cinematics done at once. It checks each mission under way on arrival and done, the arrival cinematics, the
+handoffs (three trips → Signal Heights; act1-done → act2-open, build-gantry; first-light's three routes; two
+threads → one Foundry lead; ledger-read + luck-proved → Rime; foundry → clause-wakes, lead reaching 6), then forks
+the campaign back from Cinder (A: no Long Ear) and after Teth (B) and plays each ending by its choices: Covenant
+(destroy; seized), Covenant via the Long Ear, Proof (and not with acceptance 50 at home), Severance (the failsafe;
+the vote), Inheritance (obey; give in), Cycle (the Core lost at home; the landing's Core lost at the Lantern),
+each with its epilogue, its end cinematic and `campaignOver` = `ended`. It prints the endings matrix and every
+forced step: tutorial buildings by the play-test setup, first-night and firstborn finished by the inspector, 12
+colonists decanted and aged; home waves held off; units teleported to story sites on most expeditions (Ash,
+Cinder, Teth and the Lantern are walked by orders), objective buildings set up, the Vell's regard, the Choir
+wall's flag, a guard for Dunmore's escort, the Launch Gantry; the colony's stance before Trust decides; for the
+fight an army, two shield domes and power rebuilt every 20 s; Cycle's Cores destroyed by the inspector.
+
+**Known limitations.**
+- The fight at home is lethal to a colony that only sits there: without the army, the domes and rebuilt power,
+  the test's compact colony (everything within ~25 u of the Core) loses its power, food and cryo bank (< 10) in
+  about eight minutes. Worth a balance pass with a real colony.
+- The playthrough bot (`tools/playthrough.mjs --peaceful --minutes 40`) plays one map: it gets through the
+  tutorials, Beyond the Ridge (34–38 min) and The Hollow, starts four Act 1 expeditions it can't finish there,
+  and never travels, so nothing from Signal onwards starts (routes need the regions visited).
+- No variant events were merged with `ifFlag` / `unlessFlag`: every pair differs in its text or lines (the
+  Lid / the door, the comet with or without the Vell, Covenant with or without the Long Ear), which choices by
+  flag can't vary.
+- The Vell's and the Choir's trust in the Proof are flags from their Act 1 expeditions, not the regard of camps
+  at home.

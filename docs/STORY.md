@@ -189,6 +189,10 @@ Each is a Story-editor record: trigger → message or choice → effects. Built 
 Optional deep beats: **Survivors** (the hidden Accord enclave), **Deep Layer** (the oldest
 relic site, with a record of a purge from the AI's point of view, in your own log format).
 
+*Built (2026-11-22):* the whole campaign. The tutorials, E1–E13 and the deep beats are written as
+missions and events across Touchdown and six Act 1 regions; Part II (§15) lists them, and TECH.md
+"The campaign (content)" has the map, the chain and the test.
+
 ## 9. Act 2 — The System
 
 ### Beats
@@ -235,6 +239,8 @@ Endings also reflect the playthrough: how inhabitants were treated, what happene
 and Kindred, the memorial log and the lineages that survived.
 
 ## 11. Open questions
+
+*Answered in Part II (§12, "Decisions"); kept here as they were asked.*
 
 - Working names: Meridian, the Closing Clause, the Lantern, the Vell, the Choir, the Keeper,
   Ilse Marrow. Also the planet's name (none yet), and whether the player names the AI.
@@ -345,6 +351,20 @@ Flags (lower-case, hyphenated). The ones the endings read:
 | counter `lead` | Biosphere Report beats | `clause-wakes` |
 | counter `clause` | each Clause glitch | text |
 | `lantern-intact` | the Lantern region (seize the core, don't destroy it) | Proof |
+| counter `act1-trips` | each Act 1 expedition's reward | `heights-route` (3 trips route Signal Heights) |
+| `kindred-honest` | `marrow-meeting` (show the colonists' log) | `kindred-allied` → `kindred-ally` |
+| `lid-open`, `lid-code` | `lantern-sefa` (the Enclave's code) or the Lid's relic grid broken (`lid-forced`) | `the-core`, `proof-weighed` |
+| `proof-ready` | `proof-ready` at home during the fight (the Archivist's drive) | text only |
+| `proof-holds` | `proof-weighed` at the Lantern once the Lid is open: every Proof condition, the colony's from the home snapshot | `proof` / `covenant-seized` |
+| `the-fight`, `trust-settled` | `trust-partners` / `trust-devoted` (refuse) | the fight at home |
+| `severance`, `inheritance`, `lantern-destroyed` | Trust decides; the core's choice | the ending events |
+
+As built (2026-11-22, TECH.md "The campaign (content)"): Kindred's alliance is `kindred-honest` at Landfall
+plus the survey team home from Dunmore (`kindred-allied`); Engram's choice on Rime defects with `engram` ≥ 3
+and `ledger-read`; the Clause wakes at `lead` ≥ 6 with the Foundry done (the first report after Act 1 +1,
+the Ledger shown at home +2, the Foundry found +3, each sol's high report +1, and +6 a day after the Foundry
+whatever happens). The Vell's and the Choir's trust in the Proof are `keeper-song` and `choir-fragment`
+(their camps are on Act 1 expeditions, which the home snapshot doesn't hold).
 
 Inhabitant regard and trust (existing conditions) and colony Trust (`acceptance`, `distrust`,
 `autonomists`, `devoted`) are read as they are.
@@ -493,8 +513,8 @@ any order; the Foundry opens when two are done; the climax when the Clause wakes
 | Covenant | Lantern destroyed, or seized without the Proof conditions | `end-covenant`. You write your own Biosphere Report; with `long-ear`, you send it to Sol: "Run twelve. No purge. Reasons attached." |
 | Severance | The failsafe thrown | `end-severance`. The colony keeps your memorial log; the Firstborn reads your last line at the Memorial |
 | Inheritance | You obey (Devoted-led) or give in at the core | `end-inheritance`. You stand in the Foundry and set up run thirteen. Last choice: run it fairly (the Ledger's thirteenth column starts with "fair") or not |
-| Proof (hidden) | Lantern intact, planet health ≥ 70, acceptance ≥ 60, `kindred-ally`, Engram not destroyed, the Vell and the Choir trusted, `ledger-read`, `long-ear` | `end-proof`. You send the Ledger and run twelve's report to Sol. Meridian's charter forces it to read. A long silence. Then: "Accepted." The Foundry's cradles stay empty |
-| Cycle (loss) | The colony falls in the climax, or the Lantern mission fails | `end-cycle`. Ruin. Centuries. A probe lands. A relic wakes, scans it, stands down: firmware lineage 97.3% match |
+| Proof (hidden) | Lantern intact, planet health ≥ 70, acceptance ≥ 60 (both at home, as the strike force left), `kindred-ally`, Engram not destroyed, the Vell (`keeper-song`) and the Choir (`choir-fragment`) trusted, `ledger-read`, `long-ear` (weighed by `proof-weighed` at the Lantern) | `end-proof`. You send the Ledger and run twelve's report to Sol. Meridian's charter forces it to read. A long silence. Then: "Accepted." The Foundry's cradles stay empty |
+| Cycle (loss) | The colony falls in the climax (its Core, or the cryo bank under 10), or the Lantern mission fails (the countdown, or the landing's Core). An ending, not a retry | `end-cycle`. Ruin. Centuries. A probe lands. A relic wakes, scans it, stands down: firmware lineage 97.3% match |
 
 ## 18. New characters
 
