@@ -87,7 +87,7 @@ function rng(seed: number) {
  * build plan, fabricates drones, starts research, sends a unit or drone to a
  * site or a camp). Conditions it can't act on (time, packs…) it just waits for.
  */
-export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) => void = (c) => sim.command(c)) {
+export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) => void = (c) => sim.command(c), opts: { go?: (x: number, z: number) => void } = {}) {
   const s = sim.s, m = s.missions;
   if (!m) return;
   const front = (step: Step) => { if (!plan.slice(0, 3).some((p) => p[0] === step[0])) plan.unshift(step); };
@@ -97,6 +97,8 @@ export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) =>
     return role === 'depot' ? [kind, 'near'] : role === 'geothermal' ? [kind, 'vent'] : role === 'deepmine' ? [kind, 'seam'] : [kind];
   };
   const go = (x: number, z: number) => {
+    // (the autopilot picks who goes itself)
+    if (opts.go) { opts.go(x, z); return; }
     // a combat unit if there is one, else an idle drone (once every 20 s)
     if (tick % (20 * TICK_HZ)) return;
     const u = (s.units ?? []).find((x) => x.order.kind === 'idle');

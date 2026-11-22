@@ -65,7 +65,7 @@ export class BalanceBot {
   readonly plan: Step[];
   /** Seconds when each kind was first placed or produced. */
   readonly firsts: Record<string, number> = {};
-  private spawnIdx = 0;
+  protected spawnIdx = 0;
   private readonly spawns: { x: number; z: number }[];
   private readonly vents: NonNullable<RegionDef['vents']>;
   /** How it gives orders (the autopilot listens in to say what it is doing). */
@@ -81,7 +81,7 @@ export class BalanceBot {
   }
 
   /** Valid spot for `kind` nearest to (px, pz), searching outward. */
-  private spot(s: S, kind: string, px: number, pz: number) {
+  protected spot(s: S, kind: string, px: number, pz: number) {
     const DEFS = content.buildings, RULES = content.colony;
     for (let r = 0; r < 70; r += 2) {
       const n = Math.max(1, Math.round(r * 1.2));
@@ -180,7 +180,12 @@ export class BalanceBot {
         this.command({ type: 'grow', id: b.id, specialty: sp, curriculum: ({ guardian: 'unity' } as Record<string, string>)[imprint] ?? imprint } as never);
       }
     }
-    // the army: idle units go after any hostile near the base, then come home
+    this.army(tick);
+  }
+
+  /** The army: idle units go after any hostile near the base, then come home. */
+  protected army(tick: number) {
+    const s = this.sim.s as S;
     const units = s.units ?? [];
     if (tick % (3 * TICK_HZ) === 0 && units.length) {
       const near = s.hostiles.filter((h) => s.buildings.some((b) => Math.hypot(b.x - h.x, b.z - h.z) < 45));

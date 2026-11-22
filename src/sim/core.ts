@@ -982,6 +982,13 @@ export class Sim {
     const others = this.all ? this.all.buildings.filter((b) => (b.team ?? 0) !== this.team) : undefined;
     return { buildings: this.s.buildings, others, deposits: this.s.deposits, vents: VENTS, seams: this.s.seams, campSites: campSites(this.s.camps ?? []) };
   }
+  /** Why `kind` can't go at (x, z) for the team in view, or null: the build order's own check (the autopilot places with it). */
+  placeProblemAt(kind: string, x: number, z: number) { return placeProblem(this.world, DEFS, RULES, kind, x, z); }
+  /** Other teams' buildings and units while one team's view is swapped in (campaign factions, a skirmish); none outside a swap. */
+  othersInView(): { buildings: Building[]; units: Unit[] } {
+    const a = this.all;
+    return a ? { buildings: a.buildings.filter((b) => (b.team ?? 0) !== this.team), units: a.units.filter((u) => (u.team ?? 0) !== this.team) } : { buildings: [], units: [] };
+  }
   private entity(id: number): Building | Drone | Unit | Colonist | undefined {
     return this.s.buildings.find((b) => b.id === id) ?? this.s.drones.find((d) => d.id === id) ?? this.units.find((u) => u.id === id) ?? this.people.colonist(id);
   }

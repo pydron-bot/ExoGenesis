@@ -356,6 +356,8 @@ export interface CampaignInfo {
   first?: { id: number; name: string };
   /** The home colony as it last stood (refreshed while Touchdown is played): what expeditions read for its people. */
   home?: HomeStats;
+  /** The autopilot's trips to each region that ended with its missions there still under way (src/sim/autopilot.ts). */
+  pilotTrips?: Record<string, number>;
 }
 
 /** A snapshot of the home colony for the rest of the campaign (`CampaignInfo.home`, TECH.md "Story engine, round three"). */
@@ -482,6 +484,8 @@ export interface SimState {
   wrecks?: Wreck[];
   /** Exotic isotopes in store (absent in older saves). */
   isotopes?: number;
+  /** The autopilot's notes on this region (src/sim/autopilot.ts): sites where the one it sent was lost on the way. */
+  pilot?: { lost: Record<string, number> };
   /** Isotope seams (absent in older saves: set up from the region on load). */
   seams?: Seam[];
   /** Research (absent in older saves). */
