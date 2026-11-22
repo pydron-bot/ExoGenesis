@@ -29,7 +29,7 @@ import { StoryHud } from './story-hud';
 import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
-import { Post } from './world/post';
+import { HEAT_MAX, Post } from './world/post';
 import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
@@ -1464,7 +1464,7 @@ function frame(now: number) {
       found.push({ d: dist, v: new THREE.Vector3((p.x + 1) / 2, (p.y + 1) / 2, (sz.r * 1.1) / (dist * tanF * 2)) });
     }
     found.sort((a, b) => a.d - b.d);
-    for (const f of found.slice(0, 8)) heat.push(f.v);
+    for (const f of found.slice(0, HEAT_MAX)) heat.push(f.v);
   }
   // how fast the camera is zooming (log distance per second), eased
   const zr = dt > 0 && lastCamDist > 0 ? Math.abs(Math.log(cam.dist / lastCamDist)) / dt : 0;

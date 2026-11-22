@@ -10,7 +10,11 @@
 import * as THREE from 'three';
 import { regionToWorld } from './planet';
 
-const MAX = 700;
+const PHONE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+/** The pool, and how many puffs a second a fast mover lets out at most (phones: fewer, smaller: overdraw). */
+const MAX = PHONE ? 260 : 700;
+const RATE = PHONE ? 9 : 22;
+const PUFF = PHONE ? 0.75 : 1;
 const LIFE = 1.6;
 
 export interface Mover { id: string; x: number; z: number; lift: number }
@@ -22,6 +26,8 @@ export class Dust {
   private age = new Float32Array(MAX).fill(LIFE);
   private size = new Float32Array(MAX);
   private next = 0;
+  /** Whether any puff was alive last frame (no uploads while there's none). */
+  private wasLive = false;
   private last = new Map<string, { x: number; z: number; acc: number }>();
   private v = new THREE.Vector3();
   private up = new THREE.Vector3();
@@ -82,7 +88,7 @@ export class Dust {
         if (speed > 400 || speed < 1.2 || m.lift > 4) { l.acc = 0; continue; }
         if (this.height(m.x, m.z) < this.wet) continue;
         // puffs per second: more when fast, fewer when it's hovering higher
-        l.acc = Math.min(6, l.acc + dt * Math.min(22, speed * 2.2) * (1 - m.lift / 5));
+        l.acc = Math.min(6, l.acc + dt * Math.min(RATE, speed * 2.2) * (1 - m.lift / 5));
         while (l.acc >= 1) {
           l.acc -= 1;
           const back = 0.6 + Math.random() * 0.8;
@@ -104,6 +110,8 @@ export class Dust {
       this.pos[o] += this.vel[o] * dt; this.pos[o + 1] += this.vel[o + 1] * dt; this.pos[o + 2] += this.vel[o + 2] * dt;
     }
     this.points.visible = live;
+    if (!live && !this.wasLive) return;
+    this.wasLive = live;
     const g = this.points.geometry;
     g.getAttribute('position').needsUpdate = true;
     g.getAttribute('aAge').needsUpdate = true;
@@ -123,6 +131,6 @@ export class Dust {
     this.vel[o + 1] = (Math.random() - 0.5) * s + this.up.y * 0.9;
     this.vel[o + 2] = (Math.random() - 0.5) * s + this.up.z * 0.9;
     this.age[i] = 0;
-    this.size[i] = 1.1 + Math.random() * 1.2 + Math.min(1.5, speed * 0.06);
+    this.size[i] = (1.1 + Math.random() * 1.2 + Math.min(1.5, speed * 0.06)) * PUFF;
   }
 }

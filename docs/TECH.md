@@ -2143,3 +2143,17 @@ Options rows, no shader errors) and renders of each effect.
   sound prefs) sets 'playback', or 'ambient' while sound is off or at volume 0 so the player's own music isn't
   stopped; re-applied on every volume or on/off change. The Options row ("Sound with silent switch on") shows
   only where `navigator.audioSession` exists. Same approach as Curbside.
+
+### Easier swarms, lighter effects on phones (v0.69.1)
+
+- **Threats** (`content/rules/threats.json`), after playtests where the swarms stopped being fun: growth per
+  wave 1.75 → 1.2, `maxSize` 40 → 28, `waveInterval` 110 → 130 (regions that set their own keep it),
+  `nightBoost` 1.3 → 1.15, `bruteEvery` 8 → 10, frontier migrations `frontierSize` 6 → 5, `frontierGrowth` 3 → 2.
+  Balance harness, 5 seeds, 20 min on Touchdown: balanced lost 6–13 buildings (one run lost the Core at
+  19.4 min), now 0–3 and all survive; army/mixed lost up to 12, now 0–5; greedy (no defence) now falls at
+  15–18 min instead of 11–13. At 35 min the balanced script (which stops building once its plan runs
+  out) now falls at ~25 min instead of ~20.
+- **Phones** (`pointer: coarse`): sun shafts take 16 steps instead of 40 (decay per step scaled to keep the
+  same reach), heat shimmer carries at most 3 sources instead of 8 (`HEAT_MAX`, `post.ts`), the dust pool is
+  260 puffs instead of 700 with at most 9 puffs/s per mover and 25% smaller puffs (overdraw), and weather
+  draws 900 of its 2400 streaks. Everywhere: dust skips its buffer uploads while no puff is alive.

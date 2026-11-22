@@ -19,6 +19,8 @@ export type WeatherKind = 'clear' | 'rain' | 'dust';
 const SPELL = 240;
 const EASE = 45;
 const COUNT = 2400;
+/** Phones draw fewer of them (the same box, sparser). */
+const SHOWN = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 900 : COUNT;
 
 const hash = (n: number) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
@@ -77,6 +79,7 @@ export class Weather {
       depthWrite: false,
       fog: false,
     });
+    g.setDrawRange(0, SHOWN * 2);
     this.lines = new THREE.LineSegments(g, mat);
     this.lines.frustumCulled = false;
     this.lines.renderOrder = 4;

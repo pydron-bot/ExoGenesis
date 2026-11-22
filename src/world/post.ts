@@ -21,20 +21,26 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
 /**
  * Sun shafts (with Glow on): light streaming from the sun past whatever stands in front of it. The
- * bright sky and sun round the sun's place on screen are smeared toward it in 40 steps that fade as they
+ * bright sky and sun round the sun's place on screen are smeared toward it in 40 steps (16 on phones) that fade as they
  * go (GPU Gems 3, ch. 13), so flora, hills and buildings against the sun cut dark gaps in the rays. Off
  * (and skipped) when the sun is far off screen or the strength is 0.
  */
 /**
- * Heat shimmer and zoom blur in one pass (with Glow on). Shimmer: up to 8 sources (the screen position
+ * Heat shimmer and zoom blur in one pass (with Glow on). Shimmer: up to 8 sources (3 on phones) (the screen position
  * and size of a working reactor, generator, core…): inside a column rising from each, the picture
  * wobbles with fine travelling ripples. Zoom blur: while the camera zooms fast, the frame is smeared
  * toward/away from the middle (10 taps), as a lens would on a quick pull.
  */
+/** Phones (coarse pointer) do less per pixel: fewer shaft steps, fewer shimmer sources. */
+const PHONE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+const SHAFT_TAPS = PHONE ? 16 : 40;
+/** Most heat-shimmer sources a frame carries (nearest first). */
+export const HEAT_MAX = PHONE ? 3 : 8;
+
 const DistortShader = {
   uniforms: {
     tDiffuse: { value: null }, uZoom: { value: 0 }, uTime: { value: 0 }, uAspect: { value: 1 }, uHeatK: { value: 0 },
-    uHeatN: { value: 0 }, uHeat: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) },
+    uHeatN: { value: 0 }, uHeat: { value: Array.from({ length: HEAT_MAX }, () => new THREE.Vector3()) },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -43,11 +49,11 @@ const DistortShader = {
     uniform sampler2D tDiffuse;
     uniform float uZoom, uTime, uAspect, uHeatK;
     uniform int uHeatN;
-    uniform vec3 uHeat[8];
+    uniform vec3 uHeat[${HEAT_MAX}];
     varying vec2 vUv;
     void main() {
       vec2 uv = vUv;
-      for (int i = 0; i < 8; i++) {
+      for (int i = 0; i < ${HEAT_MAX}; i++) {
         if (i >= uHeatN) break;
         vec3 h = uHeat[i];
         vec2 d = (vUv - h.xy) * vec2(uAspect, 1.0);
@@ -82,19 +88,19 @@ const ShaftShader = {
     varying vec2 vUv;
     void main() {
       vec4 base = texture2D(tDiffuse, vUv);
-      vec2 delta = (vUv - uSun) * (0.85 / 40.0);
+      vec2 delta = (vUv - uSun) * (0.85 / ${SHAFT_TAPS}.0);
       vec2 uv = vUv;
       float decay = 1.0, sum = 0.0;
-      for (int i = 0; i < 40; i++) {
+      for (int i = 0; i < ${SHAFT_TAPS}; i++) {
         uv -= delta;
         vec3 c = texture2D(tDiffuse, clamp(uv, 0.0, 1.0)).rgb;
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
         sum += smoothstep(0.5, 1.3, l) * decay;
-        decay *= 0.955;
+        decay *= ${(0.955 ** (40 / SHAFT_TAPS)).toFixed(4)};
       }
       vec2 off = (vUv - uSun) * vec2(uAspect, 1.0);
       float fall = 1.0 / (1.0 + dot(off, off) * 6.0);
-      gl_FragColor = vec4(base.rgb + uTint * sum * (1.6 / 40.0) * uStrength * fall, base.a);
+      gl_FragColor = vec4(base.rgb + uTint * sum * (1.6 / ${SHAFT_TAPS}.0) * uStrength * fall, base.a);
     }`,
 };
 
@@ -208,12 +214,12 @@ export class Post {
         u.uZoom.value = zoom;
         u.uTime.value = l.time ?? 0;
         u.uHeatK.value = hk;
-        u.uHeatN.value = Math.min(8, heat.length);
+        u.uHeatN.value = Math.min(HEAT_MAX, heat.length);
         for (let i = 0; i < u.uHeatN.value; i++) (u.uHeat.value as THREE.Vector3[])[i].copy(heat[i]);
         const sz = this.renderer.getSize(new THREE.Vector2());
         u.uAspect.value = sz.x / Math.max(1, sz.y);
       }
-      this.look.zoom = zoom; this.look.heat = on ? Math.min(8, heat.length) : 0;
+      this.look.zoom = zoom; this.look.heat = on ? Math.min(HEAT_MAX, heat.length) : 0;
     }
   }
 

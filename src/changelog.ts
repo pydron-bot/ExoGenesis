@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.69.1',
+    date: '2026-11-22',
+    title: 'Smaller swarms, smoother phones',
+    notes: [
+      'Predator packs grow more slowly and top out smaller (28 instead of 40), come a little less often, swell less at night and bring fewer Brutes, so a colony that keeps building can hold on for much longer',
+      'Migrations at the frontier holdings are smaller too',
+      'Phones: sun shafts, heat shimmer, dust and weather do much less work per frame, so the game runs smoother with Glow on',
+    ],
+  },
+  {
     version: '0.69.0',
     date: '2026-11-22',
     title: 'Living skies',
