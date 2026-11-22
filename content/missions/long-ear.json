@@ -1,0 +1,56 @@
+{
+  "title": "The Long Ear",
+  "summary": "Optional. Teth, Nereid's moon: the dish that talks to Sol. Reach the hub (ear-silent: nothing has ever come back down it; Meridian is silent), then take the three tuning plates and hold them while the dish swings (countdown tuning; wardens come). Sets long-ear: a one-way channel to Sol, years of lag (read by the Covenant and Proof endings).",
+  "after": "foundry",
+  "region": "teth-ear",
+  "objectives": [
+    {
+      "text": "Reach the hub of the dish",
+      "kind": "site",
+      "site": "dish-core"
+    },
+    {
+      "text": "Hold all three tuning plates until the dish is tuned",
+      "kind": "all",
+      "of": [
+        {
+          "kind": "timer",
+          "timer": "tuning"
+        },
+        {
+          "kind": "site",
+          "site": "ear-a"
+        },
+        {
+          "kind": "site",
+          "site": "ear-b"
+        },
+        {
+          "kind": "site",
+          "site": "ear-c"
+        }
+      ]
+    },
+    {
+      "text": "Open the channel",
+      "kind": "flag",
+      "flag": "long-ear"
+    }
+  ],
+  "onStart": "teth-landing",
+  "onDone": "long-ear-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "long-ear"
+    },
+    {
+      "kind": "isotopes",
+      "amount": 80
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, teth, long ear, optional, countdown",
+  "notes": "The hold, as on Vess: tuning starts when all three plates are held at once (ear-tuning) and is done once the countdown has run out with all three held again. Wardens (faction ear-wardens) appear on ear-tuning."
+}

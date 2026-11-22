@@ -1,6 +1,6 @@
 {
   "name": "The Ledger",
-  "description": "Act 2, chapter `the-proof` (STORY.md §16): the `the-ledger` mission on Vess. A smooth ice sheet cut by fractures. North of the Core the ice is drilled: a pit 30 u deep holds the Ledger (`ledger-vault`; reading it sets `ledger-read` and plays `cine-ledger`), with a drill pad on its south lip (`shaft-head`). West, the Choir's first loop: a worn ring path where a dead Engram walked (`choir-loop-old`), with relic grid `origin-run` (five sentinels on the ring and a node at its centre) and grid `shaft` (three sentinels, a node and a cache) round the pit, standing in for the Choir's origin run that guards the shaft in loops. No life, no packs (open spawn, 25 min grace). Still needs: the origin run as moving machines on a patrol loop (an Engram/Choir unit type; the sentinels are static stand-ins), the drilling as a timed objective, and the expedition package.",
+  "description": "Act 2, chapter `the-proof` (STORY.md §16): the `the-ledger` mission on Vess. A smooth ice sheet cut by fractures, Halcyon overhead. North of the Core the ice is drilled: a pit 30 u deep holds the Ledger (`ledger-vault`; reading it, `ledger-columns`, sets `ledger-read` and plays `cine-ledger`), with a drill pad on its south lip (`shaft-head`: drilling the plug is a 150 s countdown, `drill-start`). West, the Choir's first loop: a worn ring where a dead Engram run still walks (`choir-loop-old`). The origin run is faction `origin` (hostile, the Choir's mint, Accord-pattern Skiffs and Scouts standing in for its machines): two patrols on the ring, one along the shaft's south lip, and four more drawn to the drill (`drilling`). The Cantor's code (`cantor-code`, needs `choir-fragment`) turns it neutral. Relic grid `shaft` (three sentinels, a node and a cache) round the pit is Meridian's own and doesn't listen. No life, no packs (open spawn, 25 min grace). Expedition: 5 Rovers, 3 Tanks, 2 Lancers, an Engineer. Arrival: `arrive-vess-ledger`. Still needs: an Engram-make unit model for the origin run, and the walkers on a true ring path (patrols go to and fro between two points).",
   "body": "vess",
   "size": 320,
   "detail": 3,
@@ -410,42 +410,6 @@
   ],
   "relics": [
     {
-      "grid": "origin-run",
-      "kind": "node",
-      "x": -90,
-      "z": 40
-    },
-    {
-      "grid": "origin-run",
-      "kind": "sentinel",
-      "x": -60,
-      "z": 40
-    },
-    {
-      "grid": "origin-run",
-      "kind": "sentinel",
-      "x": -80.5,
-      "z": 68.5
-    },
-    {
-      "grid": "origin-run",
-      "kind": "sentinel",
-      "x": -114.5,
-      "z": 57.5
-    },
-    {
-      "grid": "origin-run",
-      "kind": "sentinel",
-      "x": -114.5,
-      "z": 22.5
-    },
-    {
-      "grid": "origin-run",
-      "kind": "sentinel",
-      "x": -80.5,
-      "z": 11.5
-    },
-    {
       "grid": "shaft",
       "kind": "node",
       "x": 26,
@@ -490,5 +454,90 @@
       "isotopes": 900
     }
   ],
-  "herds": []
+  "herds": [],
+  "expedition": [
+    {
+      "alloys": 1000,
+      "isotopes": 80,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 5
+        },
+        {
+          "unit": "tank",
+          "count": 3
+        },
+        {
+          "unit": "lancer",
+          "count": 2
+        },
+        {
+          "unit": "engineer",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "factions": [
+    {
+      "id": "origin",
+      "name": "The old run",
+      "color": "#8fe3c8",
+      "team": 2,
+      "attitude": "hostile"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "ring-walkers",
+      "unit": "skiff",
+      "count": 3,
+      "x": -62,
+      "z": 40,
+      "mode": "patrol",
+      "r": 12,
+      "x2": -118,
+      "z2": 40,
+      "faction": "origin"
+    },
+    {
+      "id": "ring-walkers-cross",
+      "unit": "scout",
+      "count": 3,
+      "x": -90,
+      "z": 68,
+      "mode": "patrol",
+      "r": 12,
+      "x2": -90,
+      "z2": 12,
+      "faction": "origin"
+    },
+    {
+      "id": "shaft-walker",
+      "unit": "skiff",
+      "count": 2,
+      "x": -34,
+      "z": 70,
+      "mode": "patrol",
+      "r": 10,
+      "x2": 34,
+      "z2": 70,
+      "faction": "origin"
+    },
+    {
+      "id": "drill-drawn",
+      "unit": "scout",
+      "count": 4,
+      "x": -90,
+      "z": 40,
+      "mode": "patrol",
+      "r": 14,
+      "x2": -6,
+      "z2": 62,
+      "flag": "drilling",
+      "faction": "origin"
+    }
+  ]
 }

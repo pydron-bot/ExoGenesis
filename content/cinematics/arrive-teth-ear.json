@@ -1,0 +1,76 @@
+{
+  "title": "Arrival: Teth",
+  "length": 18,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 160,
+      "pitch": 1.1,
+      "yaw": 0.2
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "site": "dish-core",
+      "lift": 0,
+      "dist": 150,
+      "pitch": 0.6,
+      "yaw": 0
+    },
+    {
+      "at": 12,
+      "target": "storysite",
+      "site": "dish-core",
+      "lift": 4,
+      "dist": 55,
+      "pitch": 0.25,
+      "yaw": 0.5
+    },
+    {
+      "at": 18,
+      "target": "storysite",
+      "site": "dish-core",
+      "lift": 30,
+      "dist": 50,
+      "pitch": -0.4,
+      "yaw": 0.6
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "TETH",
+      "sub": "Nereid's moon · the Long Ear"
+    },
+    {
+      "at": 8,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 6.5,
+      "character": "archivist",
+      "text": "There it is. The end of the line.",
+      "for": 4
+    },
+    {
+      "at": 12,
+      "character": "archivist",
+      "text": "Every report we ever sent came out here to be shouted at the stars.",
+      "for": 5.5
+    }
+  ],
+  "trigger": "start",
+  "region": "teth-ear",
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, teth, arrival"
+}

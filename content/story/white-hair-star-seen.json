@@ -1,0 +1,34 @@
+{
+  "title": "A Comet",
+  "text": "A comet low in the west after sunset, a pale tail with a kink in it.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Comet Varro. A long period, very long: by the survey it comes round about once a run. If the hull field is right about how long a run lasts, it was here for the last one. And the one before.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"It's beautiful.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"It is. I'd like it a great deal more if it were late.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "foundry-found",
+  "delay": 150,
+  "region": "touchdown",
+  "unless": "keeper-song",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "white-hair-star"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, survey, comet varro, omen",
+  "notes": "The comet's return without the Vell (no keeper-song)."
+}

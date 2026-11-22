@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "The dish is aimed and the hub is ours. Behind us the relay chain runs back through Cinder and Ash to Sela and Home, and now it has an end that we hold.",
+  "trigger": "never",
+  "region": "teth-ear",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the dish keeps listening, on our band now."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, teth, expedition, travel",
+  "notes": "onDone of long-ear."
+}

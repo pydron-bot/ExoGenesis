@@ -1,0 +1,26 @@
+{
+  "title": "Teth",
+  "style": "radio",
+  "character": "archivist",
+  "text": "Teth. Nereid's moon, about as far out as anything goes. North of you there's a dish sunk in the ice that would hold our whole colony twice over. Every report we've ever sent ends up here. Get to the hub.",
+  "trigger": "never",
+  "region": "teth-ear",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "dish-core",
+      "amount": 80
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "dish-core",
+      "text": "The hub"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, teth, radio",
+  "notes": "onStart of long-ear."
+}

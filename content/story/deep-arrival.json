@@ -15,6 +15,18 @@
       "kind": "waypoint",
       "site": "crater-rim",
       "text": "The rim"
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "crater-rim",
+      "amount": 24
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "oldest-layer",
+      "amount": 24
     }
   ],
   "chapter": "the-planet",

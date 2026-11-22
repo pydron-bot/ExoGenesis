@@ -1,0 +1,55 @@
+{
+  "title": "The Long Ear",
+  "text": "The hub hangs over the dish on three thin legs. Its feed horn is aimed past Nereid, past everything, at one small yellow star. Sol. Our reports go out of it in a single tight beam, every sol, and have done since the night we landed.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"I've been listening on its downlink, the band it would hear Sol on.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Nothing. Not a packet, not a carrier, not a handshake. Twelve runs of reports out of this dish, and Sol has never once answered.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Either nobody's there, or somebody is and has never had anything to say to us. The dish has drifted off its mark, by the way. Three plates on the rim steer it. Hold all three and we can aim it ourselves.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "dish-core",
+  "region": "teth-ear",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "ear-found"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "dish-core"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "ear-a",
+      "text": "Plate A"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "ear-b",
+      "text": "Plate B"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "ear-c",
+      "text": "Plate C"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, teth, long ear, meridian, silence",
+  "notes": "Meridian is at Sol (STORY.md §12) and silent: it reads, it never writes back."
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Nereid",
+  "style": "radio",
+  "character": "archivist",
+  "text": "Survey note, because I can't help myself. Nereid is a plain blue giant: no rings, no storms worth naming, twenty-odd moons of nothing much. Teth is the only thing out here with a straight line on it.",
+  "trigger": "here",
+  "place": "teth-ear",
+  "delay": 45,
+  "region": "teth-ear",
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, survey, nereid",
+  "notes": "STORY.md §13: Nereid, survey beat only."
+}

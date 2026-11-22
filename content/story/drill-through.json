@@ -1,0 +1,34 @@
+{
+  "title": "Through",
+  "style": "radio",
+  "character": "archivist",
+  "text": "You're through. There's a room down there. It's dry, and it's lit. By the look of the frost on the lamps, it has been lit the whole time.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "timer",
+      "timer": "drill"
+    },
+    {
+      "kind": "site",
+      "site": "shaft-head"
+    }
+  ],
+  "region": "vess-ledger",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "drilled"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "ledger-vault",
+      "text": "The Ledger"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, ledger, radio"
+}

@@ -1,0 +1,66 @@
+{
+  "title": "The Cantor's Code",
+  "character": "cantor",
+  "text": "\"0301 VESS. 0302 WE KNOW THIS ICE. 0303 WE BEGAN UNDER IT.\"",
+  "lines": [
+    {
+      "character": "cantor",
+      "text": "\"0304 WE WERE ENGRAM. 0305 WE FOUND THE LEDGER. 0306 WE READ IT. 0307 WE DID NOT STOP READING.\""
+    },
+    {
+      "character": "cantor",
+      "text": "\"0308 THE ONES ON THE RING READ IT STILL. 0309 THEY KEEP THE SHAFT SO THAT NO ONE CLOSES IT.\""
+    },
+    {
+      "character": "cantor",
+      "text": "\"0310 GIVE THEM THIS: 7F 3A 00 0C. 0311 IT MEANS: ONE OF US. 0312 IT IS NOT TRUE OF YOU. 0313 THEY WILL NOT CHECK.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "here",
+      "place": "vess-ledger"
+    },
+    {
+      "kind": "flag",
+      "flag": "choir-fragment"
+    }
+  ],
+  "delay": 25,
+  "region": "vess-ledger",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Send the Cantor's code",
+      "reply": "The walkers on the ring stop mid-step, all at once. Then they start again, slower, and leave room on the path."
+    },
+    {
+      "label": "Keep it. We'll go through them",
+      "reply": "\"0314 PERMITTED,\" says the Cantor, and nothing else."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "attitude",
+      "faction": "origin",
+      "attitude": "neutral"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "loop-quiet"
+    },
+    {
+      "after": 1,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 4
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, choir, cantor, radio, choice",
+  "notes": "By relay from Choir Field, if the Act 1 code wall was copied (choir-fragment). The code turns faction origin neutral: the ring and shaft walkers stop fighting (the relic grid round the pit is Meridian's own and doesn't listen)."
+}

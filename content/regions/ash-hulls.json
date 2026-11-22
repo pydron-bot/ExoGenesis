@@ -1,6 +1,6 @@
 {
   "name": "The Hull Field",
-  "description": "Act 2, chapter `the-proof` (STORY.md §16): the `hull-field` mission on Ash. A flat, dark, airless basin ringed by low cratered hills. North of the Core three long parallel rows of hulls (wrecks, all facing the same way): `row-accord` nearest, then `row-kindred`, then `row-engram` (six hulls a row: 18 of the 33, the most a region can hold; salvage falls off along each row). At the east end of the Accord row, an empty levelled berth: `newest-hull`, with our probe's serial, guarded by relic grid `berth` (four sentinels and a node: earlier Accords, which stand down at the handshake). South-west, the oldest two hulls lie in a pit (`deep-hulls`) over an isotope seam. No life, no packs (open spawn, 30 min grace). Hook: `thirty-three`. Still needs: the three paints on the hulls (Accord, Kindred, Engram: wrecks have no paint field yet), the remaining 15 hulls if the wreck limit rises, and the expedition package.",
+  "description": "Act 2, chapter `the-proof` (STORY.md §16): the `hull-field` mission on Ash. A flat, dark, airless basin ringed by low cratered hills. North of the Core three long parallel rows of hulls (wrecks, all facing the same way): `row-accord` nearest, then `row-kindred`, then `row-engram` (six hulls a row: 18 of the 33; `thirty-three` accounts for the other 13 as buried under the ash where the rows run on west, the oldest deepest). At the east end of the Accord row, an empty levelled berth: `newest-hull` (plate ACCORD 12 / LEDGER 12), guarded by relic grid `berth` (four sentinels and a node: earlier Accords, half stand down at the handshake, `berth-handshake`). South-west, the oldest two hulls lie in a pit (`deep-hulls`, optional) over an isotope seam. No life, no packs (open spawn, 30 min grace). Expedition: 4 Rovers, 3 Tanks, 2 Lancers, an Engineer. Arrival: `arrive-ash-hulls`. Still needs: the three paints on the hulls (wrecks have no paint field yet: the text does it), the other two empty berths at the ends of the Kindred and Engram rows as props, and the 13 buried hulls if the wreck limit rises.",
   "body": "ash",
   "size": 400,
   "detail": 2.5,
@@ -672,5 +672,30 @@
       "alloys": 200
     }
   ],
-  "herds": []
+  "herds": [],
+  "expedition": [
+    {
+      "alloys": 900,
+      "isotopes": 60,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 4
+        },
+        {
+          "unit": "tank",
+          "count": 3
+        },
+        {
+          "unit": "lancer",
+          "count": 2
+        },
+        {
+          "unit": "engineer",
+          "count": 1
+        }
+      ]
+    }
+  ]
 }

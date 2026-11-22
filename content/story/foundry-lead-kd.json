@@ -1,0 +1,40 @@
+{
+  "title": "Cinder",
+  "character": "archivist",
+  "text": "\"I've put Marrow's survey charts beside the capsule plates from Io-T. Different makers, different formats, and one thing in common: every trajectory in them starts in the same place. Not Sol.\"",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Cinder. The innermost planet: molten, mostly, and nobody is supposed to be there. One of the relay's carriers goes there too. I've put it on the Gantry's card.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "mission",
+      "mission": "dustfall"
+    },
+    {
+      "kind": "mission",
+      "mission": "drop-field"
+    }
+  ],
+  "delay": 20,
+  "unless": "foundry-route",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "foundry-route"
+    },
+    {
+      "after": 0,
+      "kind": "route",
+      "region": "cinder-foundry"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, route, archivist",
+  "notes": "The Foundry opens when two of the three threads are done (STORY.md §16): one event per pair (kindred = dustfall, engram = drop-field, the-proof = the-ledger), each blocked by foundry-route once one has fired, since a group can't hold groups. This pair: Kindred and Engram."
+}

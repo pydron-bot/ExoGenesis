@@ -1,0 +1,45 @@
+{
+  "title": "The First Row",
+  "text": "Six hulls in a line, nose to tail, all facing the same way. Our design: the petals, the drone bay, the Command Core's squat tower. Our paint, what's left of it. The stencil on the nearest reads ACCORD 11. The next one along, ACCORD 10.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Eleven, then ten. They're numbered down the row, and the numbers get smaller as the ash gets deeper. Nobody crashed these. Somebody parked them.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "row-accord",
+  "region": "ash-hulls",
+  "choices": [
+    {
+      "label": "Scan the nearest hull",
+      "reply": "Same alloy, same welds, same firmware rack, empty. The drone bay hatch is open. Nothing inside has been switched on in a very long time."
+    },
+    {
+      "label": "Walk the row",
+      "reply": "The drones go along the row, hull by hull. Nobody on the channel says much."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "row-accord"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "row-kindred",
+      "text": "The second row"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "newest-hull",
+      "text": "The end of the row"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, hull field, clue"
+}

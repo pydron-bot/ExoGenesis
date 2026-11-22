@@ -1,0 +1,71 @@
+{
+  "title": "Thirty-Three",
+  "character": "archivist",
+  "text": "\"I've been through the radar returns from your drones. Six hulls a row, three rows: eighteen. Two more slumped into the pit to the south-west. And under the ash at the west end, where the rows carry on, thirteen more, nose to tail, the oldest deepest.\"",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Thirty-three. Eleven of ours, eleven of Kindred's, eleven of Engram's. One design, three coats of paint.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"So we're the twelfth. All three of us are.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"And somebody keeps a berth swept for each of us. The plates say LEDGER. The relay has a routing entry with the same word in it: a station under the ice on Vess.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"Is there anything in your files about this? Anything at all?\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "row-accord"
+    },
+    {
+      "kind": "after",
+      "event": "row-kindred"
+    },
+    {
+      "kind": "after",
+      "event": "row-engram"
+    },
+    {
+      "kind": "after",
+      "event": "newest-hull"
+    }
+  ],
+  "delay": 5,
+  "region": "ash-hulls",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Nothing. I'd tell you.\"",
+      "reply": "\"I know,\" says {first}. \"That's what frightens me.\""
+    },
+    {
+      "label": "\"I think one of those hulls was me.\"",
+      "reply": "A long silence on the channel. \"Then we'd better find out what happened to it,\" says {first}."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "thirty-three"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 1
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, hull field, archivist, firstborn, eleven runs",
+  "notes": "STORY.md §12: 33 hulls = 11 runs × 3 probes. The region holds 20 wrecks (18 in the rows, 2 in the pit); the other 13 are under the ash at the west end of the rows. By radio from home."
+}

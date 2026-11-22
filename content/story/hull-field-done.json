@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "Thirty-three hulls, three rows, one empty berth with our name on it. The drones have mapped every one. The plates point at Vess, Halcyon's moon, and so does one of the relay's carriers. A new route is on the Gantry's card.",
+  "trigger": "never",
+  "region": "ash-hulls",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, expedition, travel",
+  "notes": "onDone of hull-field. The Act 2 \"Expedition complete\" card: Return to Touchdown travels home; Stay keeps playing here."
+}

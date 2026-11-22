@@ -1,0 +1,24 @@
+{
+  "title": "Comet K-7",
+  "style": "radio",
+  "character": "engram",
+  "text": "We see you on Cinder. We have a question you may be able to answer from there. Comet K-7 has the wrong tail. Its spectrum is refined isotope stock, not ice. We have tracked it for four hundred sols, and every perihelion it passes within a day of Cinder. We think it is somebody's larder.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "here",
+      "place": "cinder-foundry"
+    },
+    {
+      "kind": "flag",
+      "flag": "engram-contact"
+    }
+  ],
+  "delay": 120,
+  "region": "cinder-foundry",
+  "unless": "engram-destroyed",
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, survey, comet k-7, engram, radio",
+  "notes": "STORY.md §13: Comet K-7 carries the Foundry's isotope stock; Engram tracks it."
+}

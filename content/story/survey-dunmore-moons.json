@@ -1,0 +1,14 @@
+{
+  "title": "Dunmore's Moons",
+  "style": "radio",
+  "character": "archivist",
+  "text": "Kindred's shuttles stop at Dunmore's two little moons on every trip. Fuel, Marrow says. I've had the telescope on them. Both moons have the same tank farm, the same make as our Gantry's tanks, and Kindred built neither. They were there when Kindred arrived. Full.",
+  "trigger": "mission",
+  "mission": "dustfall",
+  "delay": 420,
+  "region": "touchdown",
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, survey, dunmore, kindred, clue",
+  "notes": "STORY.md §13: Dunmore a and b, Kindred's fuel stops. Fires at home a while after Dustfall."
+}

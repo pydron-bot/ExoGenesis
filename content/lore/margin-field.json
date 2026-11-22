@@ -1,0 +1,9 @@
+{
+  "title": "The margin field",
+  "kind": "idea",
+  "text": "A field in the Biosphere Report's packet header that our own copies leave empty and our archive calls padding. At the Sela relay (relay-read) it is filled in: one number per sol that rises when the colony does well. It is the experiment's score as Meridian keeps it. The relay forwards three carriers: one to Ash, two the Archivist can't trace (Cinder and Teth).",
+  "secret": true,
+  "chapter": "first-light",
+  "tags": "report, sela, relay, meridian",
+  "status": "draft"
+}

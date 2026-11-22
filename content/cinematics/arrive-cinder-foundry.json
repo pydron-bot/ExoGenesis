@@ -1,0 +1,77 @@
+{
+  "title": "Arrival: Cinder",
+  "length": 18,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 160,
+      "pitch": 1.1,
+      "yaw": 0.5
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "site": "print-hall",
+      "lift": 4,
+      "dist": 85,
+      "pitch": 0.4,
+      "yaw": -0.5
+    },
+    {
+      "at": 12,
+      "target": "storysite",
+      "site": "launch-rail",
+      "lift": 4,
+      "dist": 70,
+      "pitch": 0.3,
+      "yaw": 0.2
+    },
+    {
+      "at": 18,
+      "target": "site",
+      "x": 50,
+      "z": 120,
+      "lift": 8,
+      "dist": 95,
+      "pitch": 0.4,
+      "yaw": 0.1
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "CINDER",
+      "sub": "The Foundry"
+    },
+    {
+      "at": 8,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 6.5,
+      "character": "archivist",
+      "text": "Hot. Very hot. And very tidy.",
+      "for": 4
+    },
+    {
+      "at": 12.5,
+      "character": "archivist",
+      "text": "That terrace has a roof on it. And that is a ramp, not a ridge.",
+      "for": 5
+    }
+  ],
+  "trigger": "start",
+  "region": "cinder-foundry",
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, arrival"
+}

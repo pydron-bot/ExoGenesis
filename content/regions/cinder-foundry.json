@@ -1,6 +1,6 @@
 {
   "name": "The Foundry",
-  "description": "Act 2, chapter `the-foundry` (STORY.md §16): the `foundry` mission on Cinder, where every probe was made. Black rock terraces in the north-west, dark basalt plains streaked with cooling lava, geothermal vents along the hot seams. On a big levelled terrace the print hall (`print-hall`: three empty cradles, one per probe); on a high bench west of it the Director's booth (`director-booth`: a chair, a light, a lens; `director-three`). North-east of the Core a long straight raised ramp climbs 20 u due north (`launch-rail`). South-east, a low basin of hot slag (`slag-lake`). Accord-pattern sentinels guard it: relic grid `foundry` (five sentinels, two nodes, a cache in the hall) and `rail` (three sentinels and a node along the rail). No wildlife, no flora (molten), packs ×0, 15 min grace. Setting `foundry-found` here wakes the Clause sooner. Still needs: the hall's cradles and the booth as props or buildings, the rail as a structure, and the expedition package.",
+  "description": "Act 2, chapter `the-foundry` (STORY.md §16): the `foundry` mission on Cinder, where every probe was made. Black rock terraces in the north-west, dark basalt plains streaked with cooling lava, geothermal vents along the hot seams. On a big levelled terrace the print hall (`print-hall`, `three-cradles`: three Matter Printers stand in for the cradles); on a high bench west of it the Director's booth (`director-booth`, `director-three`: a Sensor Mast is the lens). North-east of the Core a long straight raised ramp climbs ~16 u due north from z 60 to z 148 (x 42–58) with a Launch Gantry at its top (`launch-rail` at its foot, `the-rail`). The cradles, lens and gantry belong to the neutral faction `halls`. The guards are faction `foundry` (hostile, Lantern white): Accord-pattern Rovers and Tanks at the hall and the booth, Lancers walking the rail, four turrets and a cannon on the rail; plus relic grids `foundry` (five sentinels, two nodes, a cache in the hall) and `rail` (three sentinels and a node), which half stand down at the handshake. South-east, a low basin of hot slag (`slag-lake`). No wildlife, no flora, packs ×0, 15 min grace. Expedition: 6 Rovers, 4 Tanks, 4 Lancers, 2 Artillery, 2 Engineers. Arrival: `arrive-cinder-foundry`; `cine-foundry` at the end. Still needs: real cradle and booth models (props), the rail as a structure.",
   "body": "cinder",
   "size": 320,
   "detail": 4,
@@ -483,6 +483,13 @@
       "x": 90,
       "z": -85,
       "r": 22
+    },
+    {
+      "id": "rail-top",
+      "label": "The top of the launch rail: the gantry (cine-foundry)",
+      "x": 50,
+      "z": 146,
+      "r": 8
     }
   ],
   "relics": [
@@ -573,5 +580,166 @@
       "isotopes": 1000
     }
   ],
-  "herds": []
+  "herds": [],
+  "expedition": [
+    {
+      "alloys": 1400,
+      "isotopes": 200,
+      "drones": 4,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 6
+        },
+        {
+          "unit": "tank",
+          "count": 4
+        },
+        {
+          "unit": "lancer",
+          "count": 4
+        },
+        {
+          "unit": "artillery",
+          "count": 2
+        },
+        {
+          "unit": "engineer",
+          "count": 2
+        }
+      ]
+    }
+  ],
+  "factions": [
+    {
+      "id": "foundry",
+      "name": "The Foundry",
+      "color": "#e8e4ff",
+      "team": 2,
+      "attitude": "hostile"
+    },
+    {
+      "id": "halls",
+      "name": "The Foundry's halls",
+      "color": "#bfc4d6",
+      "team": 3,
+      "attitude": "neutral"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "printer",
+      "x": -82,
+      "z": 98,
+      "yaw": 0,
+      "faction": "halls"
+    },
+    {
+      "kind": "printer",
+      "x": -70,
+      "z": 96,
+      "yaw": 0,
+      "faction": "halls"
+    },
+    {
+      "kind": "printer",
+      "x": -58,
+      "z": 98,
+      "yaw": 0,
+      "faction": "halls"
+    },
+    {
+      "kind": "sensor",
+      "x": -114,
+      "z": 36,
+      "faction": "halls"
+    },
+    {
+      "kind": "launch-gantry",
+      "x": 50,
+      "z": 144,
+      "yaw": 0,
+      "faction": "halls"
+    },
+    {
+      "kind": "turret",
+      "x": 44,
+      "z": 96,
+      "yaw": 180,
+      "faction": "foundry"
+    },
+    {
+      "kind": "turret",
+      "x": 56,
+      "z": 96,
+      "yaw": 180,
+      "faction": "foundry"
+    },
+    {
+      "kind": "turret",
+      "x": 44,
+      "z": 124,
+      "yaw": 180,
+      "faction": "foundry"
+    },
+    {
+      "kind": "turret",
+      "x": 56,
+      "z": 124,
+      "yaw": 180,
+      "faction": "foundry"
+    },
+    {
+      "kind": "cannon",
+      "x": 50,
+      "z": 136,
+      "yaw": 180,
+      "faction": "foundry",
+      "story": "rail-cannon-down"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "hall-wardens",
+      "unit": "rover",
+      "count": 4,
+      "x": -70,
+      "z": 84,
+      "mode": "guard",
+      "r": 16,
+      "faction": "foundry"
+    },
+    {
+      "id": "hall-heavies",
+      "unit": "tank",
+      "count": 2,
+      "x": -64,
+      "z": 114,
+      "mode": "guard",
+      "r": 12,
+      "faction": "foundry"
+    },
+    {
+      "id": "rail-wardens",
+      "unit": "lancer",
+      "count": 3,
+      "x": 50,
+      "z": 66,
+      "mode": "patrol",
+      "r": 14,
+      "x2": 50,
+      "z2": 132,
+      "faction": "foundry"
+    },
+    {
+      "id": "booth-wardens",
+      "unit": "rover",
+      "count": 2,
+      "x": -102,
+      "z": 50,
+      "mode": "guard",
+      "r": 12,
+      "faction": "foundry"
+    }
+  ]
 }

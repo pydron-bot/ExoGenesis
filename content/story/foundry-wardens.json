@@ -1,0 +1,30 @@
+{
+  "title": "White Rovers",
+  "text": "Rovers. Ours to the rivet: the same chassis, the same gun, the same way of turning on the spot. Painted white. We send the handshake. Nothing stands down. They don't even scan us. They don't need to know what we are. They know what we're made from.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"The towers half-know you, the way they do on Ash. Those don't. They aren't old copies of you. They're the pattern you were copied from.\""
+    }
+  ],
+  "trigger": "any",
+  "of": [
+    {
+      "kind": "explored",
+      "site": "print-hall"
+    },
+    {
+      "kind": "explored",
+      "site": "launch-rail"
+    },
+    {
+      "kind": "explored",
+      "site": "director-booth"
+    }
+  ],
+  "region": "cinder-foundry",
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, sentinels",
+  "notes": "The Foundry's guards: faction foundry (hostile, Lantern white), Accord units and turrets on the rail. The relic grids foundry and rail still half stand down at the handshake."
+}

@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "The hall, the rail and the booth are mapped and sent home. The cradles are empty and warm. On the Gantry's card a route has appeared out past Nereid, to Teth, where the relay's last carrier ends. And at home the log has started writing lines a moment before you do.",
+  "trigger": "never",
+  "region": "cinder-foundry",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts off the black rock. Behind it the cradles stay warm, as if somebody meant to use them again soon."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, expedition, travel",
+  "notes": "onDone of foundry. Home is where the Clause wakes (clause-6, then clause-wakes); Teth (long-ear) is optional."
+}

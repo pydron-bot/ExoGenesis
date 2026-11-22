@@ -1,0 +1,39 @@
+{
+  "title": "The Second Row",
+  "text": "The same hulls again, in Kindred's colours: sand-yellow, black chevrons on the bay doors, flaking. Under the paint, the same petals and the same welds. The stencils read KINDRED 11, KINDRED 10, and on down the row.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Kindred's archive says their ship was the only one of its kind. It has ten older sisters here, and it doesn't know.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "row-kindred",
+  "region": "ash-hulls",
+  "choices": [
+    {
+      "label": "Scan the bay",
+      "reply": "Cryo racks, human-rated, the same racks as ours. Every one of them empty, and opened from the outside."
+    },
+    {
+      "label": "Keep going",
+      "reply": "The next hull is KINDRED 9. You stop reading the numbers aloud."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "row-kindred"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "row-engram",
+      "text": "The third row"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, hull field, kindred, clue"
+}

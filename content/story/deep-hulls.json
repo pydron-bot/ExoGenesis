@@ -1,0 +1,24 @@
+{
+  "title": "The Deep Hulls",
+  "text": "Two hulls have slid into the pit south-west of the rows and lie on their sides in ash that has set like stone. The oldest in the field. One stencil can still be read: ACCORD 1. Its drone bay is welded shut, from the inside.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"From the inside. Somebody aboard didn't want to be opened. I'd like very much to know who, and I don't suppose we ever will.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "deep-hulls",
+  "region": "ash-hulls",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "deep-hulls-seen"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, hull field, optional, survivors",
+  "notes": "Optional: not an objective. A nod to the Enclave (a run whose people got away from their own caretaker)."
+}

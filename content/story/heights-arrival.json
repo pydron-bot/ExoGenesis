@@ -15,6 +15,18 @@
       "kind": "waypoint",
       "site": "carrier-trace",
       "text": "The pinnacle"
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "carrier-trace",
+      "amount": 18
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "listening-post",
+      "amount": 18
     }
   ],
   "chapter": "the-planet",

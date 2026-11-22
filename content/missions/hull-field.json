@@ -1,0 +1,49 @@
+{
+  "title": "The Hull Field",
+  "summary": "Ash: thirty-three probe hulls in rows, three paints, one design, the oldest deepest. Walk the three rows (row-accord, row-kindred, row-engram), find the empty berth at the end of ours (newest-hull: ACCORD 12, LEDGER 12), past the berth's relic grid (earlier Accords, half stand down at the handshake). The Archivist counts them from home (thirty-three). Opens Vess.",
+  "after": "first-light",
+  "region": "ash-hulls",
+  "objectives": [
+    {
+      "text": "Walk the first row of hulls",
+      "kind": "site",
+      "site": "row-accord"
+    },
+    {
+      "text": "Walk the second row",
+      "kind": "site",
+      "site": "row-kindred"
+    },
+    {
+      "text": "Walk the third row",
+      "kind": "site",
+      "site": "row-engram"
+    },
+    {
+      "text": "Reach the empty berth at the east end of the first row",
+      "kind": "site",
+      "site": "newest-hull"
+    },
+    {
+      "text": "Count the hulls",
+      "kind": "flag",
+      "flag": "thirty-three"
+    }
+  ],
+  "onStart": "ash-landing",
+  "onDone": "hull-field-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "hulls-counted"
+    },
+    {
+      "kind": "route",
+      "region": "vess-ledger"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, hull field, proof",
+  "notes": "after: first-light (whose reward routes Ash), so it starts on arrival. The region holds 18 wrecks in the rows and 2 in the pit; thirty-three accounts for the other 13 as buried under the ash at the west end of the rows. Wrecks have no paint field: the text does the paint."
+}

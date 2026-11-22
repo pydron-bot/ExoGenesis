@@ -1,0 +1,44 @@
+{
+  "title": "The Empty Berth",
+  "text": "At the east end of the first row the ash has been scraped flat and levelled: a berth the size of a hull, with mooring rings set into the rock. Nothing in it. On the nearest ring a plate, newly stencilled, without a speck of dust on it. ACCORD 12. Under it, smaller: LEDGER 12.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"That's our serial. It's on the Command Core's hatch. I went and checked it twice before I said anything.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"There are two more berths like it, at the ends of the other rows. KINDRED 12. ENGRAM 12. All three swept clean.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "newest-hull",
+  "region": "ash-hulls",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Waiting for what?\"",
+      "reply": "Nobody answers. The drones measure the berth: it is exactly our length, to the centimetre."
+    },
+    {
+      "label": "Log it and move on",
+      "reply": "Logged: berth, empty, serial ours. You file it under things to think about later. The file is getting long."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "newest-hull"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "berth-found"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, hull field, clue, ledger",
+  "notes": "LEDGER 12 on the plate is the thread to Vess (the-ledger)."
+}

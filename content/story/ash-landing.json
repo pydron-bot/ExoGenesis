@@ -1,0 +1,32 @@
+{
+  "title": "Ash",
+  "style": "radio",
+  "character": "archivist",
+  "text": "You're down on Ash. No air, no weather, nothing alive. One of the relay's carriers ends in the basin north of you. Radar says metal: a lot of it, in straight lines.",
+  "trigger": "never",
+  "region": "ash-hulls",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "row-kindred",
+      "amount": 125
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "newest-hull",
+      "amount": 30
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "row-accord",
+      "text": "The first row"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, radio",
+  "notes": "onStart of hull-field. The Archivist talks from home, by relay."
+}

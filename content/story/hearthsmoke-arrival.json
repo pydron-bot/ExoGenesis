@@ -15,6 +15,18 @@
       "kind": "waypoint",
       "site": "vale-smoke",
       "text": "Smoke"
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "vale-smoke",
+      "amount": 26
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "keeper-stones",
+      "amount": 18
     }
   ],
   "chapter": "the-planet",

@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "The plug is out and the room under the ice stays lit. Whatever keeps the Ledger watched us read it and did nothing, which is either a mercy or a measure of how little it thinks it matters. Every column is copied home.",
+  "trigger": "never",
+  "region": "vess-ledger",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, expedition, travel",
+  "notes": "onDone of the-ledger."
+}

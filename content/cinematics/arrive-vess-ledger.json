@@ -1,0 +1,86 @@
+{
+  "title": "Arrival: Vess",
+  "length": 17,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 150,
+      "pitch": 1.1,
+      "yaw": 0.3
+    },
+    {
+      "at": 5,
+      "target": "storysite",
+      "site": "shaft-head",
+      "lift": 2,
+      "dist": 60,
+      "pitch": 0.5,
+      "yaw": 0.2
+    },
+    {
+      "at": 10,
+      "target": "storysite",
+      "site": "choir-loop-old",
+      "lift": 2,
+      "dist": 75,
+      "pitch": 0.45,
+      "yaw": -0.8
+    },
+    {
+      "at": 14,
+      "target": "storysite",
+      "site": "ledger-vault",
+      "lift": 20,
+      "dist": 50,
+      "pitch": -0.25,
+      "yaw": -0.2
+    },
+    {
+      "at": 17,
+      "target": "storysite",
+      "site": "ledger-vault",
+      "lift": 40,
+      "dist": 60,
+      "pitch": -0.45,
+      "yaw": 0
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "VESS",
+      "sub": "Halcyon's moon · the plug"
+    },
+    {
+      "at": 8,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 5.5,
+      "character": "archivist",
+      "text": "Somebody drilled here, then filled it in again.",
+      "for": 4
+    },
+    {
+      "at": 10.5,
+      "character": "archivist",
+      "text": "And mind the ring to the west. Something is walking it.",
+      "for": 4.5
+    }
+  ],
+  "trigger": "start",
+  "region": "vess-ledger",
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, arrival",
+  "notes": "The last keys look up past the shaft, where Halcyon should fill the sky."
+}

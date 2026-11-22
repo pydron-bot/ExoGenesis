@@ -1,0 +1,27 @@
+{
+  "title": "The Loop",
+  "text": "West of the shaft a ring is worn into the ice, a groove a hand deep, and machines are walking it. Old ones: Engram's make under a skin of frost, their joints long past grease. Round and round. Every so often one breaks off, walks to the shaft head, stands there a while and walks back.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Engram hulls, but older than anything at Maren. Whatever run they came from, it ended a long time ago. They didn't.\""
+    }
+  ],
+  "trigger": "explored",
+  "site": "choir-loop-old",
+  "region": "vess-ledger",
+  "choices": [
+    {
+      "label": "Give the ring a wide berth",
+      "reply": "The walkers don't look up. The one that keeps the shaft head doesn't like us there, and won't pretend to."
+    },
+    {
+      "label": "\"Then the way goes through them.\"",
+      "reply": "They are very old, and they will not stop, and they have never needed to win to keep going."
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, choir, origin run",
+  "notes": "The Choir's origin run (STORY.md §16): faction origin on vess-ledger, hostile, walking patrols round the ring and the shaft. cantor-code can stand it down."
+}

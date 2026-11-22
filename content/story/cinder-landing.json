@@ -1,0 +1,38 @@
+{
+  "title": "Cinder",
+  "style": "radio",
+  "character": "archivist",
+  "text": "You're down on Cinder. Don't stand on anything orange. There's a roofed hall on the terrace north-west of you and something long and straight to the north-east. The relay has been pointing a carrier here for as long as we've been sending.",
+  "trigger": "never",
+  "region": "cinder-foundry",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "print-hall",
+      "amount": 40
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "launch-rail",
+      "amount": 30
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "rail-top",
+      "amount": 30
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "print-hall",
+      "text": "The hall"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, radio",
+  "notes": "onStart of foundry."
+}

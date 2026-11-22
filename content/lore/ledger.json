@@ -4,5 +4,6 @@
   "secret": true,
   "chapter": "the-proof",
   "tags": "vess, act 2, proof",
-  "text": "Under the ice of Vess (a moon of Halcyon). Meridian's record of every run: twelve columns, one per run, each a planet-health score for the three probes. Eleven columns end with the same line in Accord's own log format: \"purge complete, run closed.\" The twelfth is open. Reading it (ledger-read) is needed for Engram to defect and for the Proof ending."
+  "text": "Under the ice of Vess (a moon of Halcyon), in a lit, dry room under a shaft that was drilled and then plugged with ice thirty metres deep. Meridian's record of every run: twelve columns, one per run, a line a sol, each a stewardship score for the three probes, in Accord's own log format and rounding. Eleven columns end with the same line: \"Purge complete, run closed.\" Accord always closes at 1.00 of threshold, Engram always last; runs get shorter (column 01, sol 4,212, is the Deep Layer's purge log). The twelfth is open, Accord at 0.93, and Engram suddenly high (0.79): Meridian's thumb on the scale. A thirteenth column is ruled and empty. An Engram run that found it long ago never stopped reading it: its machines still walk the shaft in loops, and the Choir descends from it. Reading it (ledger-read) is needed for Engram to defect and for the Proof ending.",
+  "status": "draft"
 }

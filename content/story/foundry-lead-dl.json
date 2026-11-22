@@ -1,0 +1,40 @@
+{
+  "title": "Cinder",
+  "character": "archivist",
+  "text": "\"The capsules on Io-T and the Ledger agree about one thing: where things come from. Every capsule's trajectory starts at the same place, and so does the first line of every column. Not Sol.\"",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Cinder. The innermost planet: molten, mostly, and nobody is supposed to be there. One of the relay's carriers goes there too. I've put it on the Gantry's card.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "mission",
+      "mission": "drop-field"
+    },
+    {
+      "kind": "mission",
+      "mission": "the-ledger"
+    }
+  ],
+  "delay": 20,
+  "unless": "foundry-route",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "foundry-route"
+    },
+    {
+      "after": 0,
+      "kind": "route",
+      "region": "cinder-foundry"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, route, archivist",
+  "notes": "The Foundry opens when two of the three threads are done (STORY.md §16): one event per pair (kindred = dustfall, engram = drop-field, the-proof = the-ledger), each blocked by foundry-route once one has fired, since a group can't hold groups. This pair: Engram and the Ledger."
+}

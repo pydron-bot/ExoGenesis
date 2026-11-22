@@ -15,6 +15,18 @@
       "kind": "waypoint",
       "site": "furrow-grid",
       "text": "Furrows"
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "furrow-grid",
+      "amount": 30
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "brood-mound",
+      "amount": 16
     }
   ],
   "chapter": "the-planet",

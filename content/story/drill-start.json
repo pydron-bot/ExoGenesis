@@ -1,0 +1,36 @@
+{
+  "title": "The Plug",
+  "text": "The shaft head is a ring of black metal set flush in the ice, ten metres across. The shaft below it has been filled: water poured in and left to freeze, a plug thirty metres deep. The pad round it is our make in every bolt. Somebody drilled here, then wanted it closed.",
+  "trigger": "site",
+  "site": "shaft-head",
+  "region": "vess-ledger",
+  "choices": [
+    {
+      "label": "Drill",
+      "reply": "The drones set up over the plug and start cutting. The ice sings. Out on the ring, every walker stops and turns."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "shaft-head"
+    },
+    {
+      "after": 1,
+      "kind": "countdown",
+      "timer": "drill",
+      "amount": 150,
+      "text": "Drilling the plug: hold the shaft head"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "drilling"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, ledger, countdown",
+  "notes": "Starts the drill countdown (150 s). flag drilling brings the drawn walkers (encounter drill-drawn)."
+}

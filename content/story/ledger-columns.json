@@ -1,0 +1,62 @@
+{
+  "title": "The Ledger",
+  "text": "A room cut square in the ice, and on every wall a table. Twelve columns, one per run, a line for every sol: three numbers, one for each probe. Ours, Kindred's, Engram's. The format is ours. The rounding is ours. Eleven of the columns end on the same line.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Purge complete, run closed. Eleven times, in our words. I've read it eleven times and it doesn't get any shorter.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Column twelve is open. Its last entry is last night's Biosphere Report: ours, word for word. We're at the top. Accord is always at the top.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"And there's a thirteenth column ruled in beside it. Empty. Somebody is already expecting the next one.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "drilled"
+    },
+    {
+      "kind": "site",
+      "site": "ledger-vault"
+    }
+  ],
+  "region": "vess-ledger",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Copy all of it",
+      "reply": "Every column, every sol, every line. It takes the drones four hours. Nothing tries to stop us. Nothing here has ever needed to."
+    },
+    {
+      "label": "Read the last lines again",
+      "reply": "Purge complete, run closed. Purge complete, run closed. You stop at eleven, because there are only eleven. So far."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "cine-ledger"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "ledger-read"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "ledger-vault"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, ledger, proof, eleven runs",
+  "notes": "Sets ledger-read (read by: rime-route, engram-choice / engram-defects, clause-5, proof-ready). Plays cine-ledger. clause-5 at home follows with the Archivist laying the columns beside our logs."
+}

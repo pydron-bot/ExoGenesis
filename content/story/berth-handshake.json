@@ -1,0 +1,27 @@
+{
+  "title": "Old Hands",
+  "text": "The towers round the berth wake as we come near. They sweep us, and pause, and half of them go dark again, as if they had been told to. The log fills in its own line: firmware lineage 97.3% match. Their casings carry the same stencil as the hulls, ACCORD and a number, filed half away.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"They're ours. Older ones. And they're guarding an empty space. I think they've been guarding it for a very long time.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "relic-berth-woke",
+  "region": "ash-hulls",
+  "choices": [
+    {
+      "label": "Leave the sleeping ones be",
+      "reply": "The towers that stood down stay down. The others hold the berth, and they will not let us in for the asking."
+    },
+    {
+      "label": "\"They're only doing what I'd do.\"",
+      "reply": "Logged without comment. The towers that are awake turn to follow your voice on the channel."
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, relic, handshake",
+  "notes": "The berth grid (relic grid berth) wakes on approach; the engine stands half its sentinels down. Its node is behind the berth (east): taking it out powers the grid off. relic-berth-woke is set by the sim (per grid)."
+}

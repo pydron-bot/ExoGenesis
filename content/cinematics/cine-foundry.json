@@ -1,0 +1,140 @@
+{
+  "title": "The Foundry",
+  "length": 46,
+  "letterbox": true,
+  "fadeIn": 1.5,
+  "fadeOut": 2,
+  "camera": [
+    {
+      "at": 0,
+      "target": "storysite",
+      "site": "print-hall",
+      "lift": 2,
+      "dist": 120,
+      "pitch": 0.6,
+      "yaw": -0.6
+    },
+    {
+      "at": 7,
+      "target": "storysite",
+      "site": "print-hall",
+      "lift": 3,
+      "dist": 45,
+      "pitch": 0.35,
+      "yaw": -0.2
+    },
+    {
+      "at": 15,
+      "target": "storysite",
+      "site": "print-hall",
+      "lift": 2,
+      "dist": 28,
+      "pitch": 0.25,
+      "yaw": 0.4
+    },
+    {
+      "at": 23,
+      "target": "storysite",
+      "site": "launch-rail",
+      "lift": 3,
+      "dist": 60,
+      "pitch": 0.25,
+      "yaw": 0.1
+    },
+    {
+      "at": 31,
+      "target": "site",
+      "x": 50,
+      "z": 110,
+      "lift": 8,
+      "dist": 50,
+      "pitch": 0.15,
+      "yaw": 0
+    },
+    {
+      "at": 39,
+      "target": "storysite",
+      "site": "rail-top",
+      "lift": 14,
+      "dist": 40,
+      "pitch": -0.2,
+      "yaw": 0.05
+    },
+    {
+      "at": 46,
+      "target": "storysite",
+      "site": "rail-top",
+      "lift": 30,
+      "dist": 60,
+      "pitch": -0.4,
+      "yaw": 0.1
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "THE FOUNDRY",
+      "sub": "Cinder · where we were made"
+    },
+    {
+      "at": 6,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 7,
+      "speaker": "Foundry log",
+      "text": "Cradle 1: Accord. Print complete.",
+      "for": 3.2
+    },
+    {
+      "at": 10.5,
+      "speaker": "Foundry log",
+      "text": "Cradle 2: Kindred. Print complete.",
+      "for": 3.2
+    },
+    {
+      "at": 14,
+      "speaker": "Foundry log",
+      "text": "Cradle 3: Engram. Print complete.",
+      "for": 3.2
+    },
+    {
+      "at": 18,
+      "speaker": "Foundry log",
+      "text": "Briefings loaded. Voyage logs loaded. 214 years, Sol to destination.",
+      "for": 4.5
+    },
+    {
+      "at": 24,
+      "speaker": "Foundry log",
+      "text": "Launch: simultaneous. Run 12 open.",
+      "for": 4
+    },
+    {
+      "at": 30,
+      "character": "archivist",
+      "text": "Every one of us came up that ramp. Not across two hundred years. Across a morning.",
+      "for": 5.5
+    },
+    {
+      "at": 37,
+      "speaker": "Foundry log",
+      "text": "Cradles 1 to 3: clean. Stock on hand for run 13.",
+      "for": 4.5
+    },
+    {
+      "at": 42,
+      "character": "archivist",
+      "text": "It's already getting ready for the next one.",
+      "for": 4
+    }
+  ],
+  "trigger": "never",
+  "region": "cinder-foundry",
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, cradles, rail",
+  "notes": "Mission foundry's reward. The cradles (three Matter Printers in the hall) and the rail (the ramp north-east, the gantry at its top, x 50 z 146)."
+}

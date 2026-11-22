@@ -1,0 +1,65 @@
+{
+  "title": "A Line to Sol",
+  "text": "The dish settles a degree and a half from where it was, and the hub's lights change colour. The beam is ours now: not Sol's line to us but ours to Sol, one way, four years and three months at the speed of light.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Anything we send, Sol hears in four years. Anything it says back, if it ever does, we hear four years after that. It's a letter, not a conversation.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"Then we'd better have something worth putting in it.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "timer",
+      "timer": "tuning"
+    },
+    {
+      "kind": "site",
+      "site": "ear-a"
+    },
+    {
+      "kind": "site",
+      "site": "ear-b"
+    },
+    {
+      "kind": "site",
+      "site": "ear-c"
+    }
+  ],
+  "region": "teth-ear",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Not yet. When we've something to say.\"",
+      "reply": "The channel stays open and empty. Ours, when we're ready."
+    },
+    {
+      "label": "Send one line",
+      "reply": "One packet, in the old format: \"Accord 12. Still here.\" It will be four years old when it arrives."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "long-ear"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "sol-hello"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, teth, long ear, proof, choice",
+  "notes": "Sets long-ear (read by covenant-sol, proof-ready, the Proof ending). sol-hello is for later text; nothing reads it yet."
+}

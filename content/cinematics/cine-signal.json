@@ -19,47 +19,47 @@
     {
       "at": 10,
       "target": "storysite",
-      "lift": 6,
+      "lift": 4,
       "site": "listening-post",
-      "dist": 70,
-      "pitch": 0.25,
+      "dist": 75,
+      "pitch": 0.4,
       "yaw": 0.9
     },
     {
       "at": 19,
       "target": "storysite",
-      "lift": 5,
+      "lift": 3,
       "site": "listening-post",
-      "dist": 38,
-      "pitch": 0.12,
+      "dist": 48,
+      "pitch": 0.32,
       "yaw": 1.6
     },
     {
       "at": 30,
       "target": "storysite",
-      "lift": 8,
+      "lift": 4,
       "site": "listening-post",
-      "dist": 45,
-      "pitch": -0.12,
-      "yaw": 2.3
+      "dist": 52,
+      "pitch": 0.26,
+      "yaw": 2.4
     },
     {
-      "at": 40,
+      "at": 38,
       "target": "storysite",
-      "lift": 30,
+      "lift": 14,
       "site": "listening-post",
-      "dist": 110,
-      "pitch": -0.3,
-      "yaw": 2.8
+      "dist": 70,
+      "pitch": 0.1,
+      "yaw": 2.9
     },
     {
       "at": 48,
       "target": "storysite",
-      "lift": 60,
+      "lift": 40,
       "site": "listening-post",
-      "dist": 240,
-      "pitch": -0.15,
-      "yaw": 3.1
+      "dist": 120,
+      "pitch": 0.02,
+      "yaw": 3.2
     }
   ],
   "captions": [

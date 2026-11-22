@@ -37,19 +37,19 @@
       "at": 14,
       "target": "storysite",
       "site": "relay-mast",
-      "lift": 30,
-      "dist": 40,
-      "pitch": -0.35,
+      "lift": 7,
+      "dist": 30,
+      "pitch": 0.0,
       "yaw": 1.05
     },
     {
       "at": 18,
       "target": "storysite",
       "site": "relay-mast",
-      "lift": 60,
-      "dist": 60,
-      "pitch": -0.5,
-      "yaw": 1.1
+      "lift": 10,
+      "dist": 36,
+      "pitch": -0.12,
+      "yaw": 1.15
     }
   ],
   "captions": [

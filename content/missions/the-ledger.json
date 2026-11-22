@@ -1,0 +1,48 @@
+{
+  "title": "The Ledger",
+  "summary": "Vess, under the ice: drill the plug at the shaft head and hold it (countdown drill) while the old run's machines, a dead Engram walking the shaft in loops, come to see. With choir-fragment the Cantor gives a code that stands them down (cantor-code). Then down to the Ledger: eleven closed columns, one open (cine-ledger, ledger-read).",
+  "after": "hull-field",
+  "region": "vess-ledger",
+  "objectives": [
+    {
+      "text": "Reach the shaft head",
+      "kind": "site",
+      "site": "shaft-head"
+    },
+    {
+      "text": "Hold the shaft head until the drill is through",
+      "kind": "all",
+      "of": [
+        {
+          "kind": "timer",
+          "timer": "drill"
+        },
+        {
+          "kind": "site",
+          "site": "shaft-head"
+        }
+      ]
+    },
+    {
+      "text": "Read the Ledger",
+      "kind": "flag",
+      "flag": "ledger-read"
+    }
+  ],
+  "onStart": "vess-landing",
+  "onDone": "the-ledger-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "ledger-read"
+    },
+    {
+      "kind": "isotopes",
+      "amount": 120
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, vess, ledger, proof, countdown",
+  "notes": "The hold: the drill countdown runs once it starts; the objective needs it run out AND a unit at the shaft head, so leaving the pad holds the job up at the end (there is no \"stay at a site for N s\" condition). The Foundry opens off this via foundry-lead-* (any two of dustfall, drop-field, the-ledger). Rime opens off ledger-read via Engram's rime-route."
+}

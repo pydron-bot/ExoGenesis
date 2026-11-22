@@ -1,0 +1,9 @@
+{
+  "title": "The drop capsules",
+  "kind": "object",
+  "text": "Meridian's supply capsules for Engram. They land on Io-T's graded plain (the drop field) about a minute after each of Engram's reports goes out, unmarked, from the north. Each carries fuel cells, fabricator stock and isotopes Engram has never had to mine, and a printed manifest in our own format: SUPPLY nnnn · RECIPIENT: ENGRAM · RELEASE ON: REPORT RECEIVED · NOTE: ADJUSTMENT WITHIN CHARTER. 419 of them this run. \"Within charter\" is Meridian checking how far its evidence rule bends. Talus's cache 07, ours, was re-routed to Thalassa an hour before we landed (cache-rerouted): the one time the rigging reaches Accord.",
+  "secret": true,
+  "chapter": "engram",
+  "tags": "engram, meridian, luck, io-t, talus",
+  "status": "draft"
+}

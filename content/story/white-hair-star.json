@@ -1,0 +1,48 @@
+{
+  "title": "The White-Hair Star",
+  "text": "A smudge low in the west after sunset, with a pale tail that wasn't there last month. The Vell saw it first. They've stopped singing.",
+  "lines": [
+    {
+      "character": "keeper",
+      "text": "\"The white-hair star. It comes before. Eleven times it came, and eleven fires.\""
+    },
+    {
+      "character": "keeper",
+      "text": "\"We do not sing while it is up. We wait. You should wait too.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "foundry-found"
+    },
+    {
+      "kind": "flag",
+      "flag": "keeper-song"
+    }
+  ],
+  "delay": 150,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "\"How long until it goes?\"",
+      "reply": "\"Until after,\" says the Marro."
+    },
+    {
+      "label": "\"This time is different.\"",
+      "reply": "\"Eleven times somebody said so,\" says the Marro, not unkindly."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "white-hair-star"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, survey, comet varro, vell, keeper, omen",
+  "notes": "STORY.md §13: Comet Varro, the Vell's white-hair star, returns before each purge. There is no condition for where a body is, so it is tied to foundry-found (the Clause is close). The Vell version; white-hair-star-seen is the one for colonies that never heard the Keeper's Song."
+}

@@ -15,6 +15,18 @@
       "kind": "waypoint",
       "site": "hollow-gate",
       "text": "The way in"
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "hollow-gate",
+      "amount": 18
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "old-cellar",
+      "amount": 14
     }
   ],
   "chapter": "the-planet",

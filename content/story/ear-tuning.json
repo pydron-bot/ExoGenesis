@@ -1,0 +1,40 @@
+{
+  "title": "Tuning",
+  "style": "radio",
+  "character": "archivist",
+  "text": "All three plates. The dish is moving. Hold them: it takes a while to swing something that size, and something has woken up that would rather we didn't.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "ear-a"
+    },
+    {
+      "kind": "site",
+      "site": "ear-b"
+    },
+    {
+      "kind": "site",
+      "site": "ear-c"
+    }
+  ],
+  "region": "teth-ear",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "countdown",
+      "timer": "tuning",
+      "amount": 150,
+      "text": "Tuning the dish: hold all three plates"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "ear-tuning"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, teth, long ear, countdown",
+  "notes": "Starts the tuning countdown (150 s) and brings the wardens (encounters on flag ear-tuning)."
+}

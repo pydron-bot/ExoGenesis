@@ -21,8 +21,8 @@
       "target": "storysite",
       "lift": 6,
       "site": "enclave-cut",
-      "dist": 90,
-      "pitch": 0.28,
+      "dist": 100,
+      "pitch": 0.45,
       "yaw": 3.2
     },
     {
@@ -30,8 +30,8 @@
       "target": "storysite",
       "lift": 4,
       "site": "enclave-cut",
-      "dist": 50,
-      "pitch": 0.16,
+      "dist": 70,
+      "pitch": 0.42,
       "yaw": 3.7
     },
     {
@@ -39,9 +39,9 @@
       "target": "storysite",
       "lift": 3,
       "site": "enclave-cut",
-      "dist": 34,
-      "pitch": 0.1,
-      "yaw": 4.2
+      "dist": 55,
+      "pitch": 0.5,
+      "yaw": 4.1
     }
   ],
   "captions": [

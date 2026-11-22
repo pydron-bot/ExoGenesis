@@ -1,0 +1,55 @@
+{
+  "title": "Three Cradles",
+  "text": "The hall is one room, as big as our whole colony, cut into the terrace and roofed with black glass. Down the middle run three cradles, each a probe long, each with its print head parked at the far end. Our shape is in the first: the petals, the bay, the Core, worn into the cradle floor by being printed there over and over again.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"The cradle log is still running. 'Cradle 1: Accord. Print complete.' 'Cradle 2: Kindred. Print complete.' 'Cradle 3: Engram.' The same hour. Twelve times.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Twelve prints of us. On Cinder. I'd like a better explanation than the obvious one. I haven't got one.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "print-hall",
+  "region": "cinder-foundry",
+  "choices": [
+    {
+      "label": "\"And the voyage?\"",
+      "reply": "\"I'm looking for it,\" says the Archivist. \"I think it's at the bottom of that rail.\""
+    },
+    {
+      "label": "Say nothing",
+      "reply": "The cradles say it for you. All three are empty, swept and warm."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "cradles-seen"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "print-hall"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "launch-rail",
+      "text": "The rail"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "director-booth",
+      "text": "The booth"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, clue, cradles",
+  "notes": "The print hall's cradles are three Matter Printers (neutral faction halls) on the terrace."
+}

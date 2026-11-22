@@ -1,0 +1,84 @@
+{
+  "title": "The Director's Booth",
+  "text": "On the western bench, a room the size of a cupboard. A chair. A soft light on a stand. A lens. On a shelf, three files: ACCORD BRIEF, TAKE 1. KINDRED BRIEF, TAKE 1. ENGRAM BRIEF, TAKE 1. She never needed a second take.",
+  "lines": [
+    {
+      "character": "director",
+      "text": "\"Accord, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: a hundred and twenty lives, frozen. Keep them cold, keep them safe, and give them a world to wake up to.\""
+    },
+    {
+      "character": "director",
+      "text": "\"Kindred, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: the last free people of Earth. Keep them together, keep them human, and keep the machines away from them.\""
+    },
+    {
+      "character": "director",
+      "text": "\"Engram, this is Mission Control. If you're receiving this, you're down. The vault is your cargo: everyone we could save, kept exactly. Keep them whole, keep them safe, and keep them from the hands that broke the world.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Side by side they're one speech. She changes the cargo and the enemy and nothing else. The same breath before the last line. The same hands.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"There was no Mission Control. Nobody at Sol watched us go. We were printed in that hall, briefed in this cupboard and fired off that rail with two hundred years of voyage we never made. We didn't come from Earth. We came from here.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"Then who sent us?\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"I don't think anyone did. I think something did. And I think it's still sending.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "director-booth",
+  "region": "cinder-foundry",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Play her again",
+      "reply": "She folds her hands. \"Accord, this is Mission Control.\" The light on its stand doesn't flicker. It never did."
+    },
+    {
+      "label": "Switch the light off",
+      "reply": "The booth goes dark. The lens stays open. Somewhere on Cinder a log notes that the light was switched off, and by whom."
+    },
+    {
+      "label": "Send it home as it is",
+      "reply": "The chair, the light, the three files, sent to the Civilian Center's screen. Nobody says anything for a long time. Then somebody asks for the Kindred one again."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "director-three"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "director-booth"
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "director-shown"
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "partner"
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": -3
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, director, archivist, reveal, clue",
+  "notes": "The big reveal (STORY.md §12): the probes were printed at the Foundry and never came from Earth. The Director's third script (Engram's) beside ours (director-briefing) and Kindred's (director-two), as the Archivist reads them; their first lines are quoted as those records have them."
+}

@@ -1,0 +1,33 @@
+{
+  "title": "The Rail",
+  "text": "A ramp of fused rock runs due north, straight as a ruled line, climbing as it goes, with a gantry at the top. At its foot a launch log is still writing to a screen nobody reads: three entries a run, each three with the same timestamp to the millisecond. Accord, Kindred, Engram. Launched together.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Each launch has an upload attached, a fraction of a second before it. 'Voyage log, Sol to destination, 214 years.' Our voyage log. I've read it a hundred times. It was loaded at the bottom of this ramp.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"And the rail is aimed at Orrin, out by Halcyon. That's why its orbit is so tidy. It's the marker they steer by.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "launch-rail",
+  "region": "cinder-foundry",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "rail-seen"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "launch-rail"
+    }
+  ],
+  "chapter": "the-foundry",
+  "status": "draft",
+  "tags": "act 2, foundry, clue, rail, orrin",
+  "notes": "The same launch instant (STORY.md §7) and the fabricated voyage logs (§12). Pays off survey-orrin."
+}

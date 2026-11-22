@@ -1,0 +1,23 @@
+{
+  "title": "The Third Row",
+  "text": "Engram's orange, bleached by an unfiltered sun to the colour of old bone. The same hulls. These carry no cryo racks at all: where ours hold the bank, theirs hold a data vault, and every vault has been opened and wiped. ENGRAM 11. ENGRAM 10.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Eleven of Engram too. It's going to want to know about this. I'm not sure I want to be the one who tells it.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "row-engram",
+  "region": "ash-hulls",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "row-engram"
+    }
+  ],
+  "chapter": "the-proof",
+  "status": "draft",
+  "tags": "act 2, ash, hull field, engram, clue"
+}

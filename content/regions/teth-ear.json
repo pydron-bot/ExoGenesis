@@ -1,6 +1,6 @@
 {
   "name": "The Long Ear",
-  "description": "Act 2, chapter `the-foundry`, optional (STORY.md §16): the `long-ear` mission on Teth. A pale icy moon; north of the Core a huge parabolic dish 124 u across sunk 22 u into the ice, with a flat hub at its focus (`dish-core`, guarded lightly by relic grid `ear`: a node and two sentinels) and three tuning plates on its rim at 120° (`ear-a` north, `ear-b` south-west, `ear-c` south-east): hold all three to tune it, which sets `long-ear` (in Covenant and Proof you can send your own report). No life, no packs (open spawn, 30 min grace). Still needs: a \"hold three sites\" objective, the dish as a structure, and the expedition package.",
+  "description": "Act 2, chapter `the-foundry`, optional (STORY.md §16): the `long-ear` mission on Teth. A pale icy moon; north of the Core a huge parabolic dish 124 u across sunk 22 u into the ice, with a flat hub at its focus (`dish-core`, `ear-silent`; guarded lightly by relic grid `ear`: a node and two sentinels; a Radar of the neutral faction `ear` stands in for the hub) and three tuning plates on its rim at 120° (`ear-a` north, `ear-b` south-west, `ear-c` south-east, each with a Relay Tower of `ear` beside it). Holding all three at once starts a 150 s countdown (`ear-tuning`) and wakes the wardens (faction `ear-wardens`, hostile, Lantern white: three Rovers walking in on each plate); holding all three when it runs out sets `long-ear` (`ear-tuned`). No life, no packs (open spawn, 30 min grace). Expedition: 6 Rovers, 3 Tanks, 3 Lancers, an Engineer. Arrival: `arrive-teth-ear`. Still needs: the dish and hub as structures.",
   "body": "teth",
   "size": 360,
   "detail": 3,
@@ -482,5 +482,113 @@
       "isotopes": 900
     }
   ],
-  "herds": []
+  "herds": [],
+  "expedition": [
+    {
+      "alloys": 1000,
+      "isotopes": 100,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 6
+        },
+        {
+          "unit": "tank",
+          "count": 3
+        },
+        {
+          "unit": "lancer",
+          "count": 3
+        },
+        {
+          "unit": "engineer",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "factions": [
+    {
+      "id": "ear",
+      "name": "The Long Ear",
+      "color": "#cfd6e6",
+      "team": 2,
+      "attitude": "neutral"
+    },
+    {
+      "id": "ear-wardens",
+      "name": "The Ear's wardens",
+      "color": "#e8e4ff",
+      "team": 3,
+      "attitude": "hostile"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "radar",
+      "x": 0,
+      "z": 112,
+      "faction": "ear"
+    },
+    {
+      "kind": "relay",
+      "x": 0,
+      "z": 174,
+      "faction": "ear"
+    },
+    {
+      "kind": "relay",
+      "x": -64,
+      "z": 61,
+      "faction": "ear"
+    },
+    {
+      "kind": "relay",
+      "x": 64,
+      "z": 61,
+      "faction": "ear"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "west-wardens",
+      "unit": "rover",
+      "count": 3,
+      "x": -130,
+      "z": 110,
+      "mode": "patrol",
+      "r": 12,
+      "x2": -56.5,
+      "z2": 67.5,
+      "flag": "ear-tuning",
+      "faction": "ear-wardens"
+    },
+    {
+      "id": "east-wardens",
+      "unit": "rover",
+      "count": 3,
+      "x": 130,
+      "z": 110,
+      "mode": "patrol",
+      "r": 12,
+      "x2": 56.5,
+      "z2": 67.5,
+      "flag": "ear-tuning",
+      "faction": "ear-wardens"
+    },
+    {
+      "id": "north-wardens",
+      "unit": "rover",
+      "count": 3,
+      "x": -70,
+      "z": 172,
+      "mode": "patrol",
+      "r": 12,
+      "x2": 0,
+      "z2": 165,
+      "flag": "ear-tuning",
+      "faction": "ear-wardens"
+    }
+  ]
 }
