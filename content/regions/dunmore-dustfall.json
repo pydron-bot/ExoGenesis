@@ -1,6 +1,6 @@
 {
   "name": "Dustfall",
-  "description": "Act 2, chapter `kindred` (STORY.md §16): the `dustfall` mission, escorting Marrow's survey team on Dunmore. A cold desert of long dunes, tallest in the dune sea to the west (`dune-sea`). The survey team waits by our Core (`survey-camp`). In the north-east a centuries-old Kindred hull lies under a long dune (`old-hull`: a wreck, 900 salvage), its broken hold open as a pit beside it: a nest grows in the hold, Burrowers guard it (`hold-burrowers`), and when `manifest-read` is set 12 Swarmers come out of it after the team (`hold-swarm`, attack: \"defend the team on the way out\"). A second nest far south-west; packs ×0.9; arid herds. Hooks: `marrow-manifest` and `marrow-grief` at `old-hull` (set `manifest-read` there), `keeper-song` choice, `failsafe-offer`. Still needs: Kindred units spawned as ours for the escort (they must survive), the dust storm, and the expedition package.",
+  "description": "Act 2, chapter `kindred` (STORY.md §16): the `dustfall` mission, escorting Marrow's survey team on Dunmore. A cold desert of long dunes, tallest in the dune sea to the west (`dune-sea`). The survey team waits by our Core (`survey-camp`). In the north-east a centuries-old Kindred hull lies under a long dune (`old-hull`: a wreck, 900 salvage), its broken hold open as a pit beside it: a nest grows in the hold, Burrowers guard it (`hold-burrowers`), and when `manifest-read` is set 12 Swarmers come out of it after the team (`hold-swarm`, attack: \"defend the team on the way out\"). A second nest far south-west; packs ×0.6, 7 min grace; arid herds. Hooks: `marrow-manifest` and `marrow-grief` at `old-hull` (set `manifest-read` there), `keeper-song` choice, `failsafe-offer`. Still needs: Kindred units spawned as ours for the escort (they must survive), the dust storm, and the expedition package.",
   "body": "dunmore",
   "size": 280,
   "detail": 3,
@@ -10,7 +10,8 @@
   "floraDensity": 0.4,
   "siteLat": 0,
   "siteLon": 0,
-  "packScale": 0.75,
+  "packScale": 0.6,
+  "graceSeconds": 420,
   "height": [
     "15 18 18 21 21 24 24 27 30 30 33 33 36*16 39*9 36 39*6 42*3 45*12 42*5 39*6 36*3 33 33 30 27 27 24 24 21 21 18*3 15 15 12*4 9*3 6*3 3 3 0*5 -3*29 0*3 3 3 6 6 9",
     "15 18 18 21 21 24 27 27 30 30 33*3 36*18 39 39 36*6 39*6 42*19 39*3 36*4 33*3 30 30 27 27 24 21 21 18 18 15*3 12*3 9*4 6 6 3*3 0*3 -3*18 -6*10 -3*5 0*3 3 3 6 9",
