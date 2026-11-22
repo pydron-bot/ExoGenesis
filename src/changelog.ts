@@ -15,6 +15,21 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.69.0',
+    date: '2026-11-22',
+    title: 'Living skies',
+    notes: [
+      'The sun has a churning surface of glowing cells, a few dark spots, a deep orange edge and a ragged corona, and a planet seen against it lights up with a glowing rim',
+      'A Milky Way arches across the sky behind the stars, with dust lanes and faint coloured nebulae; at night on the ground the stars come out in full and twinkle',
+      'Sunrise and sunset paint the sky: a warm band along the horizon on the sun\'s side, a golden light on the ground, and shafts of sunlight streaming past hills and plants (with Glow on)',
+      'Ringed planets cast their shadow across their rings, and rings seen from the dark side glow where they\'re thin',
+      'Drones and vehicles kick up dust on dry ground, the air shimmers above working reactors and generators, and a quick zoom blurs the view for a moment',
+      'Weather: now and then a shower or a dust storm passes over, greying or reddening the sky and pulling the haze in. It is only for the look and changes nothing in play',
+      'New in Options: Dust and heat haze, Zoom blur and Weather, each can be turned off',
+      'iPhone: sound plays even with the ring/silent switch on (Options → Sound with silent switch on, on by default)',
+    ],
+  },
+  {
     version: '0.68.0',
     date: '2026-11-22',
     title: 'Comets and sunlight',

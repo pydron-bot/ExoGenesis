@@ -15,6 +15,7 @@ import { DEFAULT_REGION_SIZE, REGION_HALF, setRegionHalf } from '../sim/types';
 import { HEIGHT_SCALE, REGION_STEP, regionCells } from '../content/defs';
 import { decodeGrid } from '../content/grid';
 import { fbm3, lerp, smoothstep } from './noise';
+import { sunPosUniform } from './body-surface';
 
 /** The body's radius (Home: 3,000 u). */
 export let R = 3000;
@@ -529,17 +530,21 @@ export const buildGlobe = (look: 'flat' | 'smooth' = 'flat') => globeMesh(globeA
 
 /** Thin fresnel shell for the atmosphere glow seen from orbit. */
 export function buildAtmosphere(radius: number, color: THREE.ColorRepresentation, strength = 1): THREE.Mesh {
+  // lit by the sun (sunPosUniform, set by SolarSystem.update): bright on the day side, a faint rim on
+  // the night side, and a glowing ring when the sun is behind the body (light scattered toward you)
   const mat = new THREE.ShaderMaterial({
-    uniforms: { color: { value: new THREE.Color(color) }, strength: { value: strength } },
+    uniforms: { color: { value: new THREE.Color(color) }, strength: { value: strength }, uSunPos: sunPosUniform },
     vertexShader: /* glsl */ `
       #include <common>
       #include <logdepthbuf_pars_vertex>
       varying vec3 vN;
       varying vec3 vV;
+      varying vec3 vP;
       void main() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         vN = normalize(normalMatrix * normal);
         vV = normalize(-mv.xyz);
+        vP = mv.xyz;
         gl_Position = projectionMatrix * mv;
         #include <logdepthbuf_vertex>
       }`,
@@ -547,12 +552,22 @@ export function buildAtmosphere(radius: number, color: THREE.ColorRepresentation
       #include <logdepthbuf_pars_fragment>
       uniform vec3 color;
       uniform float strength;
+      uniform vec3 uSunPos;
       varying vec3 vN;
       varying vec3 vV;
+      varying vec3 vP;
       void main() {
         #include <logdepthbuf_fragment>
-        float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6) * strength;
-        gl_FragColor = vec4(color * f, f);
+        vec3 N = normalize(vN), V = normalize(vV);
+        vec3 L = normalize((viewMatrix * vec4(uSunPos, 1.0)).xyz - vP);
+        float rim = pow(1.0 - abs(dot(N, V)), 2.6) * strength;
+        float nl = dot(N, L);
+        float day = smoothstep(-0.3, 0.35, nl);
+        float fs = pow(max(dot(-V, L), 0.0), 5.0);
+        // warmer along the terminator (sunrise and sunset seen from space)
+        vec3 col = mix(color, vec3(1.0, 0.58, 0.32), (1.0 - smoothstep(0.0, 0.35, abs(nl + 0.05))) * 0.45);
+        float f = rim * (0.12 + 0.88 * day + 4.0 * fs);
+        gl_FragColor = vec4(col * f, f);
       }`,
     transparent: true,
     depthWrite: false,

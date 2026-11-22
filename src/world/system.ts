@@ -9,6 +9,8 @@ import { smoothstep } from './noise';
 import type { BodyDef } from '../content/defs';
 import { addRockyDetail, bodyUniforms, cloudShell, giantMaterial, lookOf, ringMaterial } from './body-surface';
 import { CometLook } from './comet';
+import { milkyWay, skyGlow, starField } from './sky';
+import { coronaMaterial, starMaterial, sunDim, sunUniforms } from './sun';
 import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
 
 interface Body {
@@ -36,6 +38,7 @@ interface Body {
 }
 
 export const STAR_R = 5200;
+const sunsetLight = new THREE.Color('#ffb070');
 
 let seed = 7;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -91,6 +94,8 @@ function rockyBody(w: BodyTerrain, detail: number): THREE.Mesh {
 function giant(radius: number, palette: string[], sd: number, ring?: RingLook, icy = false): THREE.Group {
   const g = new THREE.Group();
   g.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 64), giantMaterial(palette, sd, icy)));
+  // a thin haze of the top band's colour, paled: a soft limb, and a glowing ring when backlit
+  g.add(buildAtmosphere(radius * 1.02, new THREE.Color(palette[0]).lerp(new THREE.Color('#ffffff'), 0.65), 0.4));
   if (ring) g.add(ringMesh(radius, ring));
   return g;
 }
@@ -99,7 +104,7 @@ interface RingLook { inner: number; outer: number; color: string; opacity: numbe
 function ringMesh(radius: number, ring: RingLook) {
   const r = new THREE.Mesh(
     new THREE.RingGeometry(radius * ring.inner, radius * ring.outer, 128, 1),
-    ringMaterial(ring.color, ring.opacity, radius * ring.inner, radius * ring.outer, ring.seed),
+    ringMaterial(ring.color, ring.opacity, radius * ring.inner, radius * ring.outer, ring.seed, radius),
   );
   r.rotation.x = -Math.PI / 2 + ring.tilt;
   return r;
@@ -168,6 +173,8 @@ export class SolarSystem {
   readonly group = new THREE.Group();
   private bodies: Body[] = [];
   private star: THREE.Group;
+  /** The star's soft halo: fades as the camera comes close, so its surface shows. */
+  private starGlow: THREE.Sprite;
   private light: THREE.PointLight;
   /** Ambient and sky fill (colony lights dim them at night). */
   ambient: THREE.AmbientLight;
@@ -178,6 +185,21 @@ export class SolarSystem {
   private homeLabel: HTMLDivElement;
   private homeMarker: THREE.Sprite;
   private stars: THREE.Points;
+  private milky: THREE.Mesh;
+  /**
+   * Set by the frame loop: how bright the sky is where the camera is (0 space or night .. 1 a daytime
+   * sky), which hides the Milky Way; and the renderer's pixel ratio, for the stars' size.
+   */
+  skyDay = 0;
+  pixelRatio = 1;
+  /** Set by the frame loop: 0..1 how much air is round the camera, and how near sunrise or sunset it is (warms the light and the horizon). */
+  skyAir = 0;
+  golden = 0;
+  /** Set by the frame loop: 0..1 cloud or dust cover overhead (weather): hides stars and the sun's glow, dims the sunlight. */
+  overcast = 0;
+  /** The landing site's up (for the horizon glow). */
+  skyUp = new THREE.Vector3(0, 1, 0);
+  private glow: THREE.Mesh;
   /** The body being played: at the origin, drawn by the globe (not here). */
   private here: Body;
   /**
@@ -197,15 +219,16 @@ export class SolarSystem {
 
     // star
     this.star = new THREE.Group();
-    this.star.add(new THREE.Mesh(
-      new THREE.SphereGeometry(STAR_R, 48, 32),
-      new THREE.MeshBasicMaterial({ color: '#fff1d6', toneMapped: false, fog: false }),
-    ));
+    this.star.add(new THREE.Mesh(new THREE.SphereGeometry(STAR_R, 64, 48), starMaterial()));
+    const corona = new THREE.Mesh(new THREE.SphereGeometry(STAR_R * 1.3, 64, 48), coronaMaterial());
+    corona.renderOrder = 1;
+    this.star.add(corona);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({
       map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false, toneMapped: false,
     }));
     glow.scale.setScalar(STAR_R * 10);
     this.star.add(glow);
+    this.starGlow = glow;
     this.group.add(this.star);
     this.light = new THREE.PointLight('#fff4e4', 3.2, 0, 0);
     this.group.add(this.light);
@@ -279,23 +302,12 @@ export class SolarSystem {
       this.rings.push({ line, body: null, op });
     }
 
-    // background stars, re-centred on the camera every frame
-    const NS = 6000;
-    const sp = new Float32Array(NS * 3);
-    const sc2 = new Float32Array(NS * 3);
-    const tint = new THREE.Color();
-    const p = new THREE.Vector3();
-    for (let i = 0; i < NS; i++) {
-      p.set(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1).normalize().multiplyScalar(6e6);
-      sp.set([p.x, p.y, p.z], i * 3);
-      tint.setHSL(0.55 + rnd() * 0.15, 0.4, 0.55 + rnd() * 0.4);
-      sc2.set([tint.r, tint.g, tint.b], i * 3);
-    }
-    const sg = new THREE.BufferGeometry();
-    sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-    sg.setAttribute('color', new THREE.BufferAttribute(sc2, 3));
-    this.stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, fog: false, transparent: true, depthWrite: false }));
-    this.stars.frustumCulled = false;
+    // background stars and the Milky Way, re-centred on the camera every frame (src/world/sky.ts)
+    this.stars = starField(rnd);
+    this.milky = milkyWay();
+    scene.add(this.milky);
+    this.glow = skyGlow();
+    scene.add(this.glow);
     scene.add(this.stars);
   }
 
@@ -348,6 +360,8 @@ export class SolarSystem {
     if (sunAngle === undefined) this.sunPos.copy(this.starPos);
     else this.sunPos.set(Math.cos(sunAngle) * sunDist, 0, Math.sin(sunAngle) * sunDist).lerp(this.starPos, Math.max(away, smoothstep(0.05, 0.5, sys)));
     this.star.position.copy(this.sunPos);
+    sunUniforms.uSunPos.value.copy(this.sunPos);
+    (this.starGlow.material as THREE.SpriteMaterial).opacity = smoothstep(STAR_R * 2.5, STAR_R * 9, camera.position.distanceTo(this.sunPos));
     this.light.position.copy(this.sunPos);
     this.belts[0].rotation.y = t * 0.0004;
     this.belts[1].rotation.y = t * 0.00008;
@@ -399,7 +413,28 @@ export class SolarSystem {
     this.homeMarker.scale.setScalar(Math.max(hereR * 2.6, camera.position.length() * 0.028));
     (this.homeMarker.material as THREE.SpriteMaterial).opacity = hk * 0.9;
     this.stars.position.copy(camera.position);
-    (this.stars.material as THREE.PointsMaterial).opacity = 1 - surface * 0.92;
+    this.milky.position.copy(camera.position);
+    const su = (this.stars.material as THREE.ShaderMaterial).uniforms;
+    su.uOpacity.value = (1 - surface * 0.92 * this.skyDay) * (1 - this.overcast * 0.95);
+    su.uTime.value = t;
+    // they twinkle seen through air, from near the ground
+    su.uTwinkle.value = surface;
+    su.uScale.value = 1.5 * this.pixelRatio;
+    (this.milky.material as THREE.ShaderMaterial).uniforms.uFade.value = (1 - this.skyDay) * (1 - this.overcast);
+    // the air's glow round the sun and along the horizon at sunrise and sunset
+    this.glow.visible = this.skyAir > 0.01;
+    this.glow.position.copy(camera.position);
+    const gu = (this.glow.material as THREE.ShaderMaterial).uniforms;
+    gu.uSun.value.subVectors(this.sunPos, camera.position).normalize();
+    gu.uUp.value.copy(this.skyUp);
+    gu.uGolden.value = this.golden;
+    gu.uAir.value = this.skyAir * (1 - this.overcast * 0.8);
+    gu.uDay.value = this.skyDay;
+    // warmer, a little dimmer sunlight low in the sky
+    this.light.color.set('#fff4e4').lerp(sunsetLight, this.golden * this.skyAir * 0.6);
+    this.light.intensity = 3.2 * (1 - this.overcast * 0.6);
+    sunDim.value = 1 - this.overcast * 0.75;
+    (this.starGlow.material as THREE.SpriteMaterial).opacity *= 1 - this.overcast * 0.8;
 
     // labels
     const place = (el: HTMLDivElement, p: THREE.Vector3, k: number) => {

@@ -20,6 +20,9 @@
 import * as THREE from 'three';
 import type { BodyDef } from '../content/defs';
 
+/** Where the sun is drawn (SolarSystem.update sets it): rings use it for shadows and backlight. */
+export const sunPosUniform = { value: new THREE.Vector3(1e5, 0, 0) };
+
 export const SURFACE_LOOKS = ['auto', 'cratered', 'icy', 'volcanic', 'sulfur', 'dusty', 'verdant', 'smooth'] as const;
 export type SurfaceLook = (typeof SURFACE_LOOKS)[number];
 
@@ -327,7 +330,7 @@ export function giantMaterial(palette: string[], seed: number, icy: boolean): TH
 }
 
 /** Ring material: ringlets and gaps across the ring's width, from the seed. */
-export function ringMaterial(color: string, opacity: number, inner: number, outer: number, seed: number): THREE.MeshBasicMaterial {
+export function ringMaterial(color: string, opacity: number, inner: number, outer: number, seed: number, planetR = inner / 1.4): THREE.MeshBasicMaterial {
   const W = 512, cv = document.createElement('canvas');
   cv.width = W; cv.height = 1;
   const ctx = cv.getContext('2d')!;
@@ -353,14 +356,34 @@ export function ringMaterial(color: string, opacity: number, inner: number, oute
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uIn = { value: inner };
     sh.uniforms.uOut = { value: outer };
+    sh.uniforms.uPlanetR = { value: planetR };
+    sh.uniforms.uSunPos = sunPosUniform;
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\n varying float vRingR;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vRingR = length(position.xy);');
+      .replace('#include <common>', '#include <common>\n varying float vRingR; varying vec3 vRingW; varying vec3 vRingC; varying vec3 vRingN;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vRingR = length(position.xy);
+        vRingW = (modelMatrix * vec4(position, 1.0)).xyz;
+        vRingC = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        vRingN = normalize(mat3(modelMatrix) * vec3(0.0, 0.0, 1.0));`);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\n varying float vRingR; uniform float uIn, uOut;')
+      .replace('#include <common>', '#include <common>\n varying float vRingR; varying vec3 vRingW; varying vec3 vRingC; varying vec3 vRingN; uniform float uIn, uOut, uPlanetR; uniform vec3 uSunPos;')
       .replace('#include <map_fragment>', `
         vec4 rc = texture2D(map, vec2(clamp((vRingR - uIn) / (uOut - uIn), 0.0, 1.0), 0.5));
-        diffuseColor *= rc;`);
+        diffuseColor *= rc;
+        vec3 L = normalize(uSunPos - vRingC);
+        // the planet's shadow: the night side of the ring, where the line to the sun passes through the planet
+        vec3 dd = vRingW - vRingC;
+        float along = dot(dd, L);
+        float miss = length(dd - L * along);
+        float lit = along < 0.0 ? smoothstep(uPlanetR * 0.97, uPlanetR * 1.04, miss) : 1.0;
+        // seen from the side the sun isn't on, light comes through: thin ringlets glow, dense ones go dark
+        vec3 toCam = cameraPosition - vRingW;
+        float under = step(dot(vRingN, L) * dot(vRingN, toCam), 0.0);
+        float through = mix(1.0, 0.3 + 0.9 * (1.0 - rc.a), under);
+        // looking toward the sun through the ring: forward-scattered light
+        float fs = pow(max(dot(normalize(-toCam), L), 0.0), 6.0);
+        diffuseColor.rgb *= lit * (through + fs * (1.6 - rc.a * 0.8));
+        diffuseColor.a = min(1.0, diffuseColor.a * (1.0 + fs * 0.5));`);
   };
   mat.customProgramCacheKey = () => 'exo-ring';
   return mat;

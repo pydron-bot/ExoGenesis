@@ -174,10 +174,12 @@ export class SunFlare {
     // ghosts brighten as the sun swings toward the middle of the view
     const centre = 1 - smoothstep(0, 1.2, Math.hypot(S.x, S.y));
     const roll = Math.atan2(sy, sx);
+    const big = smoothstep(0.08, 0.25, sunR / dist);
     for (const e of this.els) {
       const s = e.sprite;
       s.position.set(sx * e.at, sy * e.at, -1);
-      const k = e.at === 1 ? 1 : 0.8 + 1.0 * centre;
+      // on the sun itself: less once the sun fills a good part of the view (its own surface shows)
+      const k = e.at === 1 ? 1 - 0.85 * big : 0.8 + 1.0 * centre;
       s.scale.set(e.size, e.size * (e.aspect ?? 1), 1);
       (s.material as THREE.SpriteMaterial).opacity = e.opacity * this.vis * k;
       if (e.spin) (s.material as THREE.SpriteMaterial).rotation = roll * 0.5;

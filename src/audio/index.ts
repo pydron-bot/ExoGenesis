@@ -56,6 +56,12 @@ export class GameAudio {
   /** Player preference (⋯ menu), remembered. */
   on = true;
   volume = 0.8;
+  /**
+   * iPhone ring/silent switch: Safari mutes web audio while it's on, unless the page asks for a
+   * 'playback' audio session (iOS 16.4+, `navigator.audioSession`). On by default; with sound off or
+   * the volume at 0 the session drops back to 'ambient', so it never stops the player's own music.
+   */
+  throughSilent = true;
   /** The player's own music volume (0 = no music), on top of the rest. */
   musicVolume = 1;
   /** No world or event sounds (landing cinematic); the ambient bed keeps going. */
@@ -94,7 +100,9 @@ export class GameAudio {
       if (p && typeof p.on === 'boolean') this.on = p.on;
       if (p && typeof p.vol === 'number') this.volume = Math.min(1, Math.max(0, p.vol));
       if (p && typeof p.music === 'number') this.musicVolume = Math.min(1, Math.max(0, p.music));
+      if (p && typeof p.silent === 'boolean') this.throughSilent = p.silent;
     } catch { /* private mode / bad JSON */ }
+    this.applySession();
     if (disabled) return;
     if (this.on) this.tryAutoplay();
     const unlock = () => this.unlock();
@@ -108,6 +116,25 @@ export class GameAudio {
 
   get state() { return this.disabled ? 'disabled' : this.ctx?.state ?? 'locked'; }
   get muted() { return this.disabled || !this.on || this.volume <= 0; }
+
+  /** Whether this browser has an audio session to set (Safari 16.4+): the Options row shows only then. */
+  static get hasSession() { return typeof navigator !== 'undefined' && 'audioSession' in navigator; }
+
+  /** Play through the iPhone's silent switch (or not), remembered. */
+  setThroughSilent(on: boolean) {
+    this.throughSilent = on;
+    this.save();
+    this.applySession();
+  }
+
+  /** The audio session for the current settings (see `throughSilent`); the session type in use, for tests. */
+  applySession(): string | null {
+    const nav = navigator as unknown as { audioSession?: { type: string } };
+    if (!nav.audioSession) return null;
+    const type = this.throughSilent && !this.muted ? 'playback' : 'ambient';
+    try { if (nav.audioSession.type !== type) nav.audioSession.type = type; } catch { /* unsupported value: keep the default */ }
+    return nav.audioSession.type;
+  }
 
   /**
    * Browsers only let sound start after a tap or key, unless they allow autoplay for the site (Chrome does for
@@ -527,10 +554,11 @@ export class GameAudio {
   private live() { return !!this.ctx && this.ctx.state === 'running' && !this.muted; }
 
   private save() {
-    try { localStorage.setItem(PREF_KEY, JSON.stringify({ on: this.on, vol: this.volume, music: this.musicVolume })); } catch { /* private mode */ }
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ on: this.on, vol: this.volume, music: this.musicVolume, silent: this.throughSilent })); } catch { /* private mode */ }
   }
 
   private applyVolume() {
+    this.applySession();
     if (!this.ctx) return;
     this.master.gain.setTargetAtTime(this.muted ? 0 : this.rules.master * this.volume, this.ctx.currentTime, 0.03);
   }

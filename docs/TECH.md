@@ -2091,3 +2091,55 @@ and Artillery 10.4 s → 24.1 s, with no extra losses.
   Keep screen on, default on (`exo.awake`, `?awake=0|1`); locked with "Not in this browser" where it's missing.
 - Checked with renders of both comets near perihelion from three angles, the sun clear, half behind the
   planet's limb and fully behind it; `tools/options-smoke.mjs` now expects six graphics toggles.
+
+### Living skies (v0.69.0)
+
+All look only: the sim, saves and balance are untouched. Checked by `tools/visuals-smoke.mjs` (flare on and
+occluded, comet activity, Milky Way present, held weather and its schedule, dust behind a drone, the new
+Options rows, no shader errors) and renders of each effect.
+
+- **Sun** (`src/world/sun.ts`): `starMaterial()` replaces the flat disc: two scales of jittered-cell
+  granulation churned by slow noise, spots from an fbm threshold, limb darkening `mix(edge, hot, mu^0.45)`;
+  unlit, toneMapped off, peaks ~1.0 so it blooms without flattening to white. `coronaMaterial()`: a back-faced
+  shell at 1.3× with drifting fbm streamers, strongest at the disc's edge. The halo sprite fades within
+  ~9 star radii so the surface shows up close; the flare's on-sun parts fade once the sun is big on screen.
+  `sunDim` dims both under weather.
+- **Sun position for shaders:** `sunPosUniform` (`body-surface.ts`, aliased as `sunUniforms.uSunPos`), set in
+  `SolarSystem.update`.
+- **Atmospheres** (`buildAtmosphere`, `planet.ts`): now lit: rim × (0.12 + 0.88·day + 4·forward-scatter),
+  day = smoothstep over N·L, forward scatter = max(−V·L, 0)^5, warmed along the terminator. The home globe's
+  shell gets it too. Gas giants get a thin shell (top band paled, strength 0.4) for a soft limb and backlit ring.
+- **Rings** (`ringMaterial`): the planet's shadow (fragments whose line to the sun passes within the planet's
+  radius, on the night side, soft edge), and seen from the unlit face, transmitted light (thin ringlets bright,
+  dense ones dark) plus forward scattering toward the sun.
+- **Sky** (`src/world/sky.ts`): `starField()` (custom points: per-star size, tint, twinkle phase; 35% placed
+  along the band; twinkle = `surface`; opacity no longer drops 92% on the ground at night, only under a day
+  sky or cloud). `milkyWay()`: an inside-out sphere, band about a fixed pole, cloud fbm, dust lanes, rose/teal
+  nebula patches, discarded away from the band (most pixels do no noise). `skyGlow()`: additive dome round the
+  camera on bodies with air: the sun's halo, and at golden hour (`SolarSystem.golden`, sun within ~±0.2 of the
+  horizon) a warm horizon band brightest on the sun's side. The frame loop also warms the sky/fog colour
+  (`#c9825e`, 40%) and the sunlight (`#ffb070`, 60%) then. `SolarSystem.skyDay / skyAir / golden / overcast /
+  skyUp / pixelRatio` are set by main.ts each frame before `update`.
+- **Sun shafts** (`post.ts`, ShaftShader, with Glow on): 40-tap radial smear toward the sun's screen uv of
+  luminance above ~0.5–1.3 (linear HDR), decay 0.955, falloff with screen distance; strength from on-screen,
+  air and golden hour, cut by overcast. Off (pass disabled) when the sun is far off screen.
+- **Heat shimmer and zoom blur** (`post.ts`, DistortShader, with Glow on): up to 8 sources from powered,
+  finished buildings of roles core, reactor, generator, geothermal, factory, printer, deepmine within 260 u
+  (nearest first), each a rising column of travelling ripples; zoom blur is a 10-tap radial smear,
+  `smoothstep(1.2, 5, |d ln dist / dt|) × 0.035`, not during cinematics or the title.
+- **Dust** (`src/world/dust.ts`): a 700-puff pool. Movers (region drones, army slots) faster than 1.2 u/s and
+  under 4 u lift emit up to 22 puffs/s (fewer when hovering), not over water (raw height < 0.3); puffs grow,
+  rise and fade over 1.6 s, coloured from the body's ground, lit by the day. Frozen while paused.
+- **Weather** (`src/world/weather.ts`): spells of 240 s of game time, picked by a hash of the spell index
+  (first always clear): rain 18% on bodies with seas (Home counts), dust storms ~12% (28% on dry bodies with
+  air), none without air; eased in/out over 45 s. Rain/sand are 2400 lines animated in the vertex shader in a
+  box round the camera focus (one draw call, no uploads), shown near the ground. Effects: sky tint and
+  darkening, fog pulled in (near ×0.3, far ×0.4 at full), sunlight −60%, sky fill −30%, stars, Milky Way, sky
+  glow, flare and shafts cut. `?weather=rain|dust|clear` holds one; Options → Weather (`exo.weather`, `?weatheron=0|1`).
+- **Options:** Dust and heat haze (`exo.dust`, `?dust`), Zoom blur (`exo.zoomblur`, `?zoomblur`), Weather.
+  `tools/options-smoke.mjs` expects nine graphics toggles.
+- **iPhone silent switch** (`src/audio/index.ts`): Safari 16.4+ mutes web audio under the ring/silent switch
+  unless `navigator.audioSession.type = 'playback'`. `GameAudio.throughSilent` (default on, saved with the
+  sound prefs) sets 'playback', or 'ambient' while sound is off or at volume 0 so the player's own music isn't
+  stopped; re-applied on every volume or on/off change. The Options row ("Sound with silent switch on") shows
+  only where `navigator.audioSession` exists. Same approach as Curbside.

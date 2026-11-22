@@ -11,11 +11,13 @@ import { content, contentIssues, onContentHot, type RegionDef } from './content'
 import { PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
-import { buildAtmosphere, globeMesh, HALF, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
+import { buildAtmosphere, E, globeMesh, HALF, N, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
 import { STAR_R, SolarSystem } from './world/system';
 import { SunFlare } from './world/flare';
+import { Dust, type Mover } from './world/dust';
+import { Weather } from './world/weather';
 import { startSkirmish } from './skirmish/mode';
 import { skirmishFromUrl } from './skirmish/setup';
 import { openSkirmishSetup } from './skirmish/setup-screen';
@@ -245,7 +247,7 @@ if (lights) {
 }
 // glow (bloom, src/world/post.ts): on by default on desktop, off on phones; ⋯ menu ✺ Glow, remembered; ?bloom=0|1 overrides
 // (automated browsers default to off: SwiftShader halves the frame rate with it, and tests time things in frames)
-const GLOW_KEY = 'exo.glow', FLARE_KEY = 'exo.flare', AWAKE_KEY = 'exo.awake', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print', WATER_KEY = 'exo.water';
+const GLOW_KEY = 'exo.glow', FLARE_KEY = 'exo.flare', AWAKE_KEY = 'exo.awake', DUST_KEY = 'exo.dust', ZOOMBLUR_KEY = 'exo.zoomblur', WEATHER_KEY = 'exo.weather', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print', WATER_KEY = 'exo.water';
 /** A remembered on/off option: the URL (?name=0|1) wins, then what the player chose, then the default. */
 function setting(key: string, param: string, dflt: boolean) {
   const q = params.get(param);
@@ -786,6 +788,16 @@ function finishDaily(s: NonNullable<typeof sim.cur>) {
 const help = $('help');
 let helped = false;
 const army = skirmish ? null : new ArmyView(scene);
+// dust behind movers on dry ground (src/world/dust.ts), tinted by the body's ground; Options → Dust and heat haze
+const dust = new Dust(new THREE.Color(bodyDef?.ground?.[1]?.color ?? bodyDef?.ground?.[0]?.color ?? '#b08f6c').lerp(new THREE.Color('#d9c8b0'), 0.35), regionHeightRaw);
+dust.enabled = setting(DUST_KEY, 'dust', true);
+scene.add(dust.points);
+// passing rain and dust storms, for the look (src/world/weather.ts); Options → Weather; ?weather=rain|dust|clear holds one
+const weather = new Weather(bodyDef ? !!bodyDef.ocean : true, !!airGlow, params.get('weather'));
+weather.enabled = setting(WEATHER_KEY, 'weatheron', true);
+scene.add(weather.lines);
+/** Zoom blur on fast zooms (Glow on). */
+let zoomBlur = setting(ZOOMBLUR_KEY, 'zoomblur', true);
 if (army) army.roof = (x, z) => region.roofAt(x, z, 2);
 const colonists = skirmish ? null : new ColonistView(region.details);
 const natives = skirmish ? null : new InhabitantView(region.details, content.inhabitants, content.assets, fogView.enabled, region.flora);
@@ -1030,6 +1042,11 @@ const soundToggles: OptionRow[] = [
     kind: 'slider', id: 'volume', section: 'Sound', label: 'Volume', help: 'Everything',
     get: () => audio.volume * 100, set: (v: number) => { audio.setVolume(v / 100); if (!audio.on) audio.setOn(true); }, locked: soundLock,
   },
+  // iPhone ring/silent switch (Safari only: elsewhere the row isn't there)
+  ...(GameAudio.hasSession ? [{
+    id: 'silent', section: 'Sound', label: 'Sound with silent switch on', help: 'Play the game\'s sound even when the iPhone\'s ring/silent switch is set to silent. Off: the switch mutes it.',
+    get: () => audio.throughSilent, set: (on: boolean) => audio.setThroughSilent(on), locked: soundLock,
+  } as OptionRow] : []),
   {
     id: 'music', section: 'Sound', label: 'Music', help: 'Quiet ambient music on the title screen and now and then in play; tense when a fight starts.',
     get: () => audio.musicVolume > 0 && !audio.disabled, set: (on: boolean) => audio.setMusicVolume(on ? musicWas : 0), locked: soundLock,
@@ -1060,6 +1077,18 @@ const graphicsToggles: Toggle[] = [
   {
     id: 'flare', label: 'Lens flare', help: 'The sun flares across the camera lens when it is in view, fading as a planet or the horizon hides it.',
     get: () => flare.enabled, set: (v) => { flare.enabled = v; remember(FLARE_KEY, v); }, locked: urlLock('flare'),
+  },
+  {
+    id: 'dust', label: 'Dust and heat haze', help: 'Drones and vehicles kick up dust on dry ground; air shimmers above working reactors and generators (shimmer needs Glow).',
+    get: () => dust.enabled, set: (v) => { dust.enabled = v; remember(DUST_KEY, v); }, locked: urlLock('dust'),
+  },
+  {
+    id: 'zoomblur', label: 'Zoom blur', help: 'A quick zoom blurs the view for a moment, like a camera lens (needs Glow).',
+    get: () => zoomBlur, set: (v) => { zoomBlur = v; remember(ZOOMBLUR_KEY, v); }, locked: urlLock('zoomblur'),
+  },
+  {
+    id: 'weather', label: 'Weather', help: 'Now and then a shower or a dust storm passes over, darkening the sky. Just for the look: it changes nothing in play.',
+    get: () => weather.enabled, set: (v) => { weather.enabled = v; remember(WEATHER_KEY, v); }, locked: urlLock('weatheron'),
   },
   {
     id: 'shadows', label: 'Ground shadows', help: 'Buildings, drones and vehicles cast soft shadows that follow the sun.',
@@ -1236,6 +1265,12 @@ function showTitle() {
 
 // ground shadows (in the light map): each building kind's body radius and a rough height
 const shadowSun = new THREE.Vector3();
+const shaftSun = new THREE.Vector3(), shaftDir = new THREE.Vector3(), shaftUv = new THREE.Vector2();
+const movers: Mover[] = [];
+const heat: THREE.Vector3[] = [], heatW = new THREE.Vector3();
+/** Buildings that run hot: the air shimmers above them while they're powered. */
+const HOT_ROLES = new Set(['core', 'reactor', 'generator', 'geothermal', 'factory', 'printer', 'deepmine']);
+let lastCamDist = 0, zoomRate = 0;
 const shadowSizes = Object.fromEntries(Object.entries(content.buildings).map(([k, d]) => {
   const r = Math.max(1, (d.clearance ?? 8) / 2 * 0.85);
   return [k, { r, h: d.role === 'wall' || d.role === 'gate' ? 3 : Math.min(r * 1.2, 9) }];
@@ -1273,6 +1308,8 @@ function placeSounds(dt: number) {
 // the body's sky: Home's by default; airless bodies have a black one, day and night
 const skyDay = new THREE.Color(bodyDef?.sky ?? (airGlow ? '#8fb0ad' : '#05070b'));
 const skyNight = new THREE.Color(airGlow ? '#0b1622' : '#020306');
+const skySunset = new THREE.Color('#c9825e');
+const tintTmp = new THREE.Color();
 const space = new THREE.Color('#020306');
 const bg = new THREE.Color();
 const t0 = performance.now();
@@ -1290,6 +1327,17 @@ function frame(now: number) {
   // skirmish holds a fixed day or night (its ☀/☾ button): the sim clock at that hour
   const sol = content.colony.solSeconds;
   const sunSecs = skirmish ? ((skirmish.hour - START_HOUR) / 24) * sol : simSecs;
+  {
+    // how bright the sky is round the camera (hides the Milky Way and most stars by day)
+    const up = system.sunPos.clone().normalize().dot(U);
+    const inAir = airGlow ? 1 - smoothstep(90, 420, Math.max(cam.dist, cam.altitude() * 0.8)) : 0;
+    system.skyDay = smoothstep(-0.15, 0.25, up) * inAir;
+    system.skyAir = inAir;
+    // sunrise and sunset: the sun within a few degrees of the horizon
+    system.golden = smoothstep(-0.22, -0.02, up) * (1 - smoothstep(0.06, 0.32, up));
+    system.skyUp.copy(U);
+    system.pixelRatio = renderer.getPixelRatio();
+  }
   system.update(t + 200, camera, cam.b, 1 - cam.a, innerWidth, viewH(), sunSecs === undefined ? undefined : sunAngle(sunSecs, sol, U.x, U.z));
   cam.update(dt, system.starPos);
   (atmosphere.material as THREE.ShaderMaterial).uniforms.strength.value = airStrength * smoothstep(300, 1400, cam.altitude());
@@ -1301,13 +1349,20 @@ function frame(now: number) {
   // sky: day/night at the landing site, fading to space as we climb
   const sunUp = system.sunPos.clone().normalize().dot(U);
   bg.copy(skyNight).lerp(skyDay, smoothstep(-0.15, 0.25, sunUp));
+  // a warmer sky (and fog) round sunrise and sunset
+  if (airGlow) bg.lerp(skySunset, system.golden * 0.4);
   // cam.dist alone undercounts during the landing chase (close to the probe, high above the ground)
   const air = 1 - smoothstep(90, 420, Math.max(cam.dist, cam.altitude() * 0.8));
+  // weather: a greyer (rain) or tawny (dust) sky, darker, the haze pulled in
+  weather.update(simSecs ?? gameT, t, cam.focus, U, E, N, air, cam.dist);
+  const wl = weather.look;
+  if (airGlow && wl.tintK > 0) bg.lerp(tintTmp.copy(wl.tint).multiplyScalar(0.35 + 0.65 * smoothstep(-0.15, 0.25, sunUp)), wl.tintK).multiplyScalar(1 - wl.dark * 0.4);
+  system.overcast = weather.amount * air;
   scene.background = bg.clone().lerp(space, 1 - air);
   updateWater(skirmish ? t : gameT, bg);
   fog.color.copy(bg);
-  fog.near = air > 0.01 ? cam.dist * 2.2 : 1e9;
-  fog.far = air > 0.01 ? lerp(cam.dist * 9, cam.dist * 60, 1 - air) : 1e9 + 1;
+  fog.near = air > 0.01 ? cam.dist * 2.2 * (1 - wl.haze * 0.7) : 1e9;
+  fog.far = air > 0.01 ? lerp(cam.dist * 9, cam.dist * 60, 1 - air) * (1 - wl.haze * 0.6) : 1e9 + 1;
 
   if (skirmish) {
     region.updateOverlay(cam.dist, t);
@@ -1360,7 +1415,7 @@ function frame(now: number) {
     // darker nights so the lights read (only while they're on); steady lights fade out by day
     const night = lights.enabled ? 1 - smoothstep(-0.2, 0.15, sunUp) : 0;
     lights.night = night;
-    system.fill.intensity = lerp(0.7, 0.32, night);
+    system.fill.intensity = lerp(0.7, 0.32, night) * (1 - system.overcast * 0.3);
     system.ambient.intensity = lerp(0.12, 0.07, night);
     const c = sim.cur, p = sim.prev;
     const live = !skirmish && c && p && c.deployed;
@@ -1383,10 +1438,53 @@ function frame(now: number) {
   updateHud(dt, now);
   input?.update(dt, !title && !cine && !menuOpen && !panelOpen() && !document.getElementById('whatsnew'));
   document.body.classList.toggle('paused', userPaused && speed === 0 && !menuOpen && !cine && !title);
-  post?.update({ night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air });
+  // dust behind movers (frozen while paused), heat over working machines, blur on fast zooms
+  const day = smoothstep(-0.15, 0.25, sunUp);
+  {
+    const live = !skirmish && sim.cur?.deployed && !title;
+    movers.length = 0;
+    if (live && dust.enabled && cam.dist < 400) {
+      for (const [id, d] of region.drones) movers.push({ id: 'd' + id, x: d.x, z: d.z, lift: d.lift ?? 0 });
+      if (army) for (let s = 0; s < army.visible.length; s++) if (army.visible[s]) movers.push({ id: 'u' + s, x: army.lx[s], z: army.lz[s], lift: army.lift[s] });
+    }
+    dust.update(dt * Math.min(1, speed), movers, day, viewH() / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)));
+  }
+  heat.length = 0;
+  if (!skirmish && dust.enabled && post.enabled && sim.cur?.deployed && cam.dist < 260) {
+    const tanF = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+    const found: { d: number; v: THREE.Vector3 }[] = [];
+    for (const b of sim.cur.buildings) {
+      const role = content.buildings[b.kind]?.role;
+      if (!role || !HOT_ROLES.has(role) || b.progress < 1 || !b.powered) continue;
+      const sz = shadowSizes[b.kind] ?? { r: 3, h: 4 };
+      const w = regionToWorld(b.x, b.z, sz.h * 0.9, heatW);
+      const dist = w.distanceTo(camera.position);
+      const p = w.project(camera);
+      if (p.z > 1 || Math.abs(p.x) > 1.2 || Math.abs(p.y) > 1.2) continue;
+      found.push({ d: dist, v: new THREE.Vector3((p.x + 1) / 2, (p.y + 1) / 2, (sz.r * 1.1) / (dist * tanF * 2)) });
+    }
+    found.sort((a, b) => a.d - b.d);
+    for (const f of found.slice(0, 8)) heat.push(f.v);
+  }
+  // how fast the camera is zooming (log distance per second), eased
+  const zr = dt > 0 && lastCamDist > 0 ? Math.abs(Math.log(cam.dist / lastCamDist)) / dt : 0;
+  lastCamDist = cam.dist;
+  zoomRate += (zr - zoomRate) * (1 - Math.exp(-dt * 10));
+  {
+    // sun shafts: strongest in the air with the sun low; fade as the sun leaves the screen or goes behind the camera
+    const sp = shaftSun.copy(system.sunPos).project(camera);
+    const ahead = sp.z < 1 && system.sunPos.clone().sub(camera.position).dot(camera.getWorldDirection(shaftDir)) > 0;
+    const onScreen = ahead ? 1 - smoothstep(1.0, 1.6, Math.max(Math.abs(sp.x), Math.abs(sp.y))) : 0;
+    const shafts = onScreen * (0.25 + 0.75 * air) * (0.7 + 0.6 * system.golden) * (1 - system.overcast * 0.85);
+    post?.update({
+      night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air, sun: shaftUv.set((sp.x + 1) / 2, (sp.y + 1) / 2), shafts,
+      zoom: zoomBlur && !cine && !title ? smoothstep(1.2, 5, zoomRate) * 0.035 : 0,
+      heat, heatK: 0.5 + 0.5 * day, time: t,
+    });
+  }
   post ? post.render(dt) : renderer.render(scene, camera);
   // the flare: washed out a little under a bright daytime sky
-  flare.update(camera, system.sunPos, STAR_R, system.occluders(R), 0.45 * air * smoothstep(-0.15, 0.25, sunUp), dt);
+  flare.update(camera, system.sunPos, STAR_R, system.occluders(R), Math.min(1, 0.45 * air * smoothstep(-0.15, 0.25, sunUp) + system.overcast * 0.9), dt);
   flare.render(renderer);
   requestAnimationFrame(frame);
 }
@@ -1405,6 +1503,8 @@ const exo = {
   scene,
   system,
   flare,
+  dust,
+  weather,
   cam,
   sim,
   skirmish,
