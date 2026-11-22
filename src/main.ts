@@ -14,7 +14,8 @@ import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, globeMesh, HALF, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
 import { RegionView, groundTextures } from './world/region';
-import { SolarSystem } from './world/system';
+import { STAR_R, SolarSystem } from './world/system';
+import { SunFlare } from './world/flare';
 import { startSkirmish } from './skirmish/mode';
 import { skirmishFromUrl } from './skirmish/setup';
 import { openSkirmishSetup } from './skirmish/setup-screen';
@@ -244,7 +245,7 @@ if (lights) {
 }
 // glow (bloom, src/world/post.ts): on by default on desktop, off on phones; ⋯ menu ✺ Glow, remembered; ?bloom=0|1 overrides
 // (automated browsers default to off: SwiftShader halves the frame rate with it, and tests time things in frames)
-const GLOW_KEY = 'exo.glow', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print', WATER_KEY = 'exo.water';
+const GLOW_KEY = 'exo.glow', FLARE_KEY = 'exo.flare', AWAKE_KEY = 'exo.awake', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print', WATER_KEY = 'exo.water';
 /** A remembered on/off option: the URL (?name=0|1) wins, then what the player chose, then the default. */
 function setting(key: string, param: string, dflt: boolean) {
   const q = params.get(param);
@@ -263,6 +264,26 @@ let edgeScroll = setting(EDGE_KEY, 'edgescroll', false);
 const post = new Post(renderer, scene, camera);
 post.enabled = setting(GLOW_KEY, 'bloom', !coarse && !navigator.webdriver);
 if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
+// lens flare from the sun (src/world/flare.ts): Options → Lens flare, remembered; ?flare=0|1 overrides
+const flare = new SunFlare();
+flare.enabled = setting(FLARE_KEY, 'flare', true);
+// keep the screen on while the game is open and showing (Screen Wake Lock; the browser drops the lock
+// whenever the tab is hidden, so ask again on return). Options → Keep screen on, remembered.
+const canWake = 'wakeLock' in navigator;
+let keepAwake = setting(AWAKE_KEY, 'awake', true);
+let wakeLock: { release(): Promise<void>; released: boolean } | null = null;
+async function syncWakeLock() {
+  if (!canWake) return;
+  const want = keepAwake && document.visibilityState === 'visible';
+  try {
+    if (want && (!wakeLock || wakeLock.released)) wakeLock = await (navigator as unknown as { wakeLock: { request(t: 'screen'): Promise<NonNullable<typeof wakeLock>> } }).wakeLock.request('screen');
+    else if (!want && wakeLock && !wakeLock.released) { await wakeLock.release(); wakeLock = null; }
+  } catch { /* refused (battery saver, no user gesture yet): try again on the next tap */ }
+}
+document.addEventListener('visibilitychange', () => void syncWakeLock());
+// some browsers only grant it after a tap or key
+addEventListener('pointerdown', () => { if (keepAwake && (!wakeLock || wakeLock.released)) void syncWakeLock(); });
+void syncWakeLock();
 
 await loadStep('Charting the solar system…');
 const system = new SolarSystem(scene, $('labels'), content.bodies, bodyId);
@@ -1037,6 +1058,10 @@ const graphicsToggles: Toggle[] = [
     get: () => post.enabled, set: (v) => { post.enabled = v; remember(GLOW_KEY, v); }, locked: urlLock('bloom'),
   },
   {
+    id: 'flare', label: 'Lens flare', help: 'The sun flares across the camera lens when it is in view, fading as a planet or the horizon hides it.',
+    get: () => flare.enabled, set: (v) => { flare.enabled = v; remember(FLARE_KEY, v); }, locked: urlLock('flare'),
+  },
+  {
     id: 'shadows', label: 'Ground shadows', help: 'Buildings, drones and vehicles cast soft shadows that follow the sun.',
     get: () => !!lights?.shadows, set: (v) => { if (lights) lights.shadows = v; remember(SHADOWS_KEY, v); },
     locked: () => (!lights ? 'Off in URL' : urlLock('shadows')()),
@@ -1070,6 +1095,11 @@ const interfaceToggles: Toggle[] = [
   {
     id: 'stats', section: 'Interface', label: 'Performance stats', help: 'View, altitude, frame rate and draw calls, top right.',
     get: () => statsOn, set: (v) => { statsOn = v; document.body.classList.toggle('stats', v); remember(STATS_KEY, v); },
+  },
+  {
+    id: 'awake', section: 'Interface', label: 'Keep screen on', help: 'Stop the screen dimming and locking while the game is open, as when watching a video.',
+    get: () => canWake && keepAwake, set: (v) => { keepAwake = v; remember(AWAKE_KEY, v); void syncWakeLock(); },
+    locked: () => (canWake ? null : 'Not in this browser'),
   },
 ];
 const showOptions = (onClose?: () => void, extra: OptionRow[] = [...soundToggles, ...interfaceToggles]) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
@@ -1355,6 +1385,9 @@ function frame(now: number) {
   document.body.classList.toggle('paused', userPaused && speed === 0 && !menuOpen && !cine && !title);
   post?.update({ night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air });
   post ? post.render(dt) : renderer.render(scene, camera);
+  // the flare: washed out a little under a bright daytime sky
+  flare.update(camera, system.sunPos, STAR_R, system.occluders(R), 0.45 * air * smoothstep(-0.15, 0.25, sunUp), dt);
+  flare.render(renderer);
   requestAnimationFrame(frame);
 }
 // compile every shader now rather than stalling on the first frame
@@ -1370,6 +1403,8 @@ const exo = {
   world: () => ({ body: bodyId, radius: R, half: HALF }),
   renderer,
   scene,
+  system,
+  flare,
   cam,
   sim,
   skirmish,
@@ -1410,7 +1445,7 @@ const exo = {
     return { x: ((v.x + 1) / 2) * innerWidth, y: ((1 - v.y) / 2) * viewH() };
   },
   canPlace,
-  capture: () => { post ? post.render(0) : renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
+  capture: () => { post ? post.render(0) : renderer.render(scene, camera); flare.render(renderer); return renderer.domElement.toDataURL('image/png'); },
   post,
   height: regionHeight,
   /** Test hook: raw ground height (below 0.3 is water to the sim). */

@@ -8,6 +8,7 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { smoothstep } from './noise';
 import type { BodyDef } from '../content/defs';
 import { addRockyDetail, bodyUniforms, cloudShell, giantMaterial, lookOf, ringMaterial } from './body-surface';
+import { CometLook } from './comet';
 import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
 
 interface Body {
@@ -26,7 +27,7 @@ interface Body {
   kind: 'planet' | 'moon' | 'comet';
   label?: HTMLDivElement;
   marker?: THREE.Sprite;
-  tail?: THREE.Mesh;
+  comet?: CometLook;
   /** Position relative to the star. */
   abs: THREE.Vector3;
   /** Position in the scene (relative to the body being played, at the origin). */
@@ -34,7 +35,7 @@ interface Body {
   k?: number;
 }
 
-const STAR_R = 5200;
+export const STAR_R = 5200;
 
 let seed = 7;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -238,12 +239,8 @@ export class SolarSystem {
       b.marker = markerSprite(kind === 'planet' ? '#5ff3ff' : kind === 'comet' ? '#c8f0ff' : '#9fb7c4');
       this.group.add(b.marker);
       if (d.kind === 'comet') {
-        const tail = new THREE.Mesh(
-          new THREE.ConeGeometry(1, 1, 16, 1, true).translate(0, -0.5, 0).rotateX(-Math.PI / 2),
-          new THREE.MeshBasicMaterial({ color: '#bfefff', transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }),
-        );
-        b.tail = tail;
-        this.group.add(tail);
+        b.comet = new CometLook(d.radius);
+        this.group.add(b.comet.group);
       }
       return b;
     };
@@ -331,6 +328,13 @@ export class SolarSystem {
     return this.bodies.filter((b) => b !== this.here && b.kind !== 'comet' && b.radius >= 600);
   }
 
+  /** Big round things that can hide the sun (the lens flare's test): the globe being played and every planet and moon. */
+  occluders(globeR: number): { pos: THREE.Vector3; radius: number }[] {
+    const out = [{ pos: this.here.pos, radius: globeR }];
+    for (const b of this.bodies) if (b !== this.here && b.kind !== 'comet') out.push({ pos: b.pos, radius: b.radius });
+    return out;
+  }
+
   update(t: number, camera: THREE.PerspectiveCamera, sys: number, surface: number, width: number, height: number, sunAngle?: number) {
     const away = this.tour;
     surface *= 1 - away;
@@ -376,14 +380,11 @@ export class SolarSystem {
       m.scale.setScalar(Math.max(b.radius * 2.6, camD * (b.kind === 'planet' ? 0.028 : 0.018)));
       (m.material as THREE.SpriteMaterial).opacity = k * 0.8;
       b.k = k;
-      if (b.tail) {
-        const dSun = b.pos.distanceTo(this.starPos);
-        const len = 60000 * smoothstep(200000, 30000, dSun) + 2000;
-        b.tail.position.copy(b.pos);
-        b.tail.lookAt(v.copy(b.pos).multiplyScalar(2).sub(this.starPos)); // point away from the star
-        b.tail.scale.set(len * 0.08, len * 0.08, len);
-        b.tail.visible = sys > 0.05;
-        (b.tail.material as THREE.MeshBasicMaterial).opacity = 0.25 * smoothstep(0.05, 0.4, sys);
+      if (b.comet) {
+        // which way it's moving (a few seconds on along its orbit), for the dust tail's sweep
+        const vel = this.orbitPos(b, t + 5, b.parent ? b.parent.abs : zero, v).sub(b.abs).normalize();
+        // seen from the system view (and faintly from orbit, if it's close)
+        b.comet.update(b.pos, this.starPos, vel, camera, Math.max(smoothstep(0.02, 0.4, sys), 0.35 * (1 - surface)) * (1 - away), t);
       }
     }
 

@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.68.0',
+    date: '2026-11-22',
+    title: 'Comets and sunlight',
+    notes: [
+      'Comets look like comets: a glowing head, a straight blue tail streaming away from the sun with drifting filaments, and a broader golden dust tail that curves back along the orbit. Both grow long and bright as a comet swings close to the sun and fade to a wisp far out',
+      'The sun flares across the camera lens: a starburst, a long streak and a row of faint coloured ghosts. It fades smoothly as a planet or the horizon slides over the sun (Options → Lens flare turns it off)',
+      'Keep screen on: the screen no longer dims or locks while the game is open on a phone or tablet (Options → Keep screen on, where the browser supports it)',
+    ],
+  },
+  {
     version: '0.67.0',
     date: '2026-11-21',
     title: 'Written-out music',

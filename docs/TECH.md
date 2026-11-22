@@ -2066,3 +2066,28 @@ the AI's siege lines stalled; the four-way normal free-for-all in `tools/ai-sim.
 without it, ends at 49.9 min with it, 38.7 min with free guns). Measured (3 v 3 Brutes, headless): standing, no change (Lancers
 5.5 s → 5.6 s to clear; Artillery 16.9 s both); ordered to drive past the pack, Lancers 8.4 s → 13.6 s
 and Artillery 10.4 s → 24.1 s, with no extra losses.
+
+### Comets, lens flare and keeping the screen on (v0.68.0)
+
+- **Comets** (`src/world/comet.ts`, `CometLook`, built by `SolarSystem` for `kind: comet` bodies; replaces the
+  old additive cone). A coma sprite at the nucleus (never under ~1.2% of the camera distance, so it stays
+  findable), an **ion tail** straight away from the star (blue, narrow, filaments from two octaves of value
+  noise scrolling outward) and a **dust tail** (warm, ~3× wider, 0.8× as long) whose spine is a parabola
+  bent back against the direction of motion (`orbitPos` 5 s on, minus now). Each tail is a 40-segment ribbon
+  rebuilt on the CPU every frame, its sides turned about the spine to face the camera; fades and edges are
+  per pixel, additive, no depth writes. Activity `smoothstep(230000, 35000, distance to star)` sets length
+  (2.5k–77.5k u) and brightness. Shown in the system view, and faintly from orbit (not from the surface).
+- **Lens flare** (`src/world/flare.ts`, `SunFlare`): 11 additive sprites in their own scene with an
+  orthographic camera, drawn over the finished frame after `post.render` (so it works with Glow on or off):
+  glow, a starburst turning with the sun's screen angle and a thin blue anamorphic streak on the sun; discs,
+  hexagons and rings along the sun → centre line, brighter as the sun nears the middle of the view.
+  Occlusion is analytic: every planet and moon (and the globe being played, radius R) is a sphere, and the
+  sun's disc scaled to the sphere's distance gives a soft edge, so a sunset or a planet's limb sinks it
+  smoothly. Fades off the screen's edge, a little weaker for a small far sun (system view), 45% weaker
+  under a bright day sky; eases at 12/s. Options → Lens flare (`exo.flare`, `?flare=0|1`).
+  `__exo.flare.strength` (0..1) and `__exo.system` are test hooks.
+- **Keep screen on** (`main.ts`): the Screen Wake Lock API (`navigator.wakeLock.request('screen')`) while the
+  page is visible; re-requested on `visibilitychange` and on a tap (some browsers want a gesture). Options →
+  Keep screen on, default on (`exo.awake`, `?awake=0|1`); locked with "Not in this browser" where it's missing.
+- Checked with renders of both comets near perihelion from three angles, the sun clear, half behind the
+  planet's limb and fully behind it; `tools/options-smoke.mjs` now expects six graphics toggles.
