@@ -15,7 +15,7 @@
  * It reports, per seed: held or lost (and why), the cryo bank's and the power's minima, the buildings lost by kind,
  * units turned and lost, colonists lost, strikes landed and soaked.
  *   node tools/climax-balance.mjs [--seeds 1,2,3,4,5] [--minutes 60] [--allies all|none|kindred,engram,vell,choir]
- *     [--shield 0|1] [--waves] [--no-defender] [--lantern] [--verbose]
+ *     [--shield 0|1] [--waves] [--no-defender] [--lantern] [--lantern-build base|none] [--lantern-wait 60] [--verbose]
  * --waves keeps the wild packs coming during the fight (as the game does; the bot's colony grew without them).
  * --lantern also plays the Lantern (the-lantern) with its expedition package and an army bot (see `lantern()`).
  */
@@ -162,15 +162,18 @@ function fight(sim, { defender = true } = {}) {
 /**
  * The Lantern with the expedition package: the strike force lands at the drop zone; a player-like bot plays it.
  *   - build ('base', the default; 'none' builds nothing): three Solar Arrays, a Battery Bank, a Shield Projector over
- *     the Core and two Defense Turrets by the landing, so the Lantern's strikes have more than the Core to hit;
- *   - the army (every unit but the engineers, who follow it): without the Enclave's code, to the nearest Lid lock with a
- *     node standing, then the next; once the Lid is open, to the breach and then the core; idle units are sent on every
- *     5 s, so they stop to fight what's in reach and go on;
+ *     the Core and two Defense Turrets by the landing, so the Lantern's strikes have more than the Core to hit; then a
+ *     Vehicle Bay, and units from it while the alloys last (keeping 100);
+ *   - the army holds the landing for `wait` s (--lantern-wait, default 60: the allies come in, the Lantern's raised
+ *     units come to it; longer while they're within 50 u of the Core, up to two minutes more), then goes in together:
+ *     without the Enclave's code, to the Lid lock with a node standing and the fewest guns covering it, then the next;
+ *     once the Lid is open, to the breach and then the core; idle units are sent on every 5 s, so they stop to fight
+ *     what's in reach and go on; worn down to 5 units it falls back to gather the bay's reinforcements (twice at most);
  *   - the core's card: destroy it.
  * Reports when the Lid opened and the core was reached, the countdown left, the units left, the landing Core's lowest
  * hp and how it ended.
  */
-function lantern(home, { code, build = 'base' }) {
+function lantern(home, { code, build = 'base', wait = 60 }) {
   const sh = M.sharedOf(home.s);
   if (!sh.campaign.routes.includes('lantern')) sh.campaign.routes.push('lantern');
   sh.story.flags = sh.story.flags.filter((f) => f !== 'survivors-met');
@@ -184,9 +187,11 @@ function lantern(home, { code, build = 'base' }) {
   const site = (id) => R.sites.find((x) => x.id === id);
   const core = () => s.buildings.find((b) => b.kind === 'core' && !b.team);
   const units0 = s.units.filter((u) => !u.team).length;
-  const r = { lid: null, reached: null, coreMin: core()?.hp ?? 0, ending: null, built: 0 };
-  const plan = build === 'base' ? ['solar', 'solar', 'solar', 'battery', 'shield', 'turret', 'turret'] : [];
-  let stage = 'breach';
+  const r = { lid: null, reached: null, coreMin: core()?.hp ?? 0, ending: null, built: 0, waves: 0 };
+  const plan = build === 'base' ? ['solar', 'solar', 'solar', 'battery', 'shield', 'turret', 'turret', 'bay'] : [];
+  const reinforce = ['tank', 'lancer', 'tank', 'rover', 'tank', 'lancer'];
+  let made = 0;
+  let stage = 'breach', attacking = false;
   for (let i = 0; i < 1600 * HZ && !s.over; i++) {
     sim.step();
     if (i % HZ) continue;
@@ -199,23 +204,46 @@ function lantern(home, { code, build = 'base' }) {
       const a = r.built * 1.1, d = plan[0] === 'shield' ? 6 : 16;
       if (placeNear(sim, plan[0], c.x + Math.cos(a) * d, c.z + Math.sin(a) * d)) { plan.shift(); r.built++; }
     }
-    if (i % (5 * HZ)) continue;
-    // where the army goes next
-    let to;
-    if (!st.flags.includes('lid-open')) {
-      const locks = ['lid-lock-w', 'lid-lock-n', 'lid-lock-e'].map(site).filter((p) => s.hostiles.some((h) => h.relic === 'lid' && h.unit === 'gridnode' && Math.hypot(h.x - p.x, h.z - p.z) < 6));
-      const army = s.units.filter((u) => !u.team);
-      const cx = army.reduce((m, u) => m + u.x, 0) / Math.max(1, army.length), cz = army.reduce((m, u) => m + u.z, 0) / Math.max(1, army.length);
-      to = locks.sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0] ?? site('breach');
-    } else {
-      if (stage === 'breach' && s.units.filter((u) => !u.team).some((u) => Math.hypot(u.x - site('breach').x, u.z - site('breach').z) < 20)) stage = 'core';
-      to = site(code && stage === 'breach' ? 'breach' : 'lantern-core');
+    if (verbose && i % (10 * HZ) === 0 && i < 200 * HZ) {
+      const a = s.units.filter((u) => !u.team);
+      const foes = [...s.hostiles.filter((h) => !h.dormant), ...s.units.filter((u) => u.team && sim.enemies(0, u.team))].filter((h) => a.some((u) => Math.hypot(u.x - h.x, u.z - h.z) < 40));
+      const guns = s.buildings.filter((b) => b.team && sim.enemies(0, b.team) && a.some((u) => Math.hypot(u.x - b.x, u.z - b.z) < 60));
+      console.log(`      ${i / HZ}s ${a.length} units · foes near: ${foes.map((h) => `${h.unit}@${h.x.toFixed(0)},${h.z.toFixed(0)}`).join(' ')} · guns in 60: ${guns.map((b) => `${b.kind}@${b.x},${b.z}`).join(' ')}`);
     }
-    const idle = s.units.filter((u) => !u.team && u.order.kind === 'idle' && u.target < 0 && Math.hypot(u.x - to.x, u.z - to.z) > 8);
+    if (verbose && i % (30 * HZ) === 0) {
+      const a = s.units.filter((u) => !u.team), en = s.units.filter((u) => u.team && sim.enemies?.(0, u.team));
+      const cx = a.reduce((m, u) => m + u.x, 0) / Math.max(1, a.length), cz = a.reduce((m, u) => m + u.z, 0) / Math.max(1, a.length);
+      console.log(`    ${i / HZ}s units ${a.length} @${cx.toFixed(0)},${cz.toFixed(0)} (${[...new Set(a.map((u) => u.order.kind))]}) · their units ${s.units.filter((u) => u.team).map((u) => `${u.unit[0]}${u.team}`).join('')} · relic ${s.hostiles.filter((h) => h.relic && !h.dormant).length} awake · core ${Math.round(c?.hp ?? 0)} · alloys ${Math.round(s.alloys)}`);
+    }
+    // reinforcements from the bay with what's left (the Lid's cache pays for more)
+    const bay = s.buildings.find((b) => b.kind === 'bay' && !b.team && b.progress >= 1);
+    if (bay && i % (5 * HZ) === 0 && !(bay.queue?.length) && s.alloys >= C.units[reinforce[made % reinforce.length]].cost + 100) {
+      sim.command({ type: 'produce', id: bay.id, unit: reinforce[made % reinforce.length] }); made++;
+    }
+    if (i % (5 * HZ)) continue;
+    // the army: it holds the landing while the allies come in and the Lantern's first units come to it, then goes in
+    // together; worn down to 5, it falls back to gather the bay's reinforcements (twice at most), then goes again
+    const army = s.units.filter((u) => !u.team), rally = { x: c.x + 6, z: c.z + 16 };
+    const near = s.units.some((u) => u.team && sim.enemies(0, u.team) && Math.hypot(u.x - c.x, u.z - c.z) < 50);
+    if (!attacking && i >= wait * HZ && (!near || i > (wait + 120) * HZ) && (army.length >= 12 || s.alloys < 200 || i > (wait + 300) * HZ)) { attacking = true; r.waves++; }
+    else if (attacking && army.length < 5 && bay && s.alloys >= 220 && r.waves < 3) { attacking = false; sim.command({ type: 'order', ids: army.map((u) => u.id), x: rally.x, z: rally.z }); }
+    let to = rally;
+    if (attacking && !st.flags.includes('lid-open')) {
+      const locks = ['lid-lock-w', 'lid-lock-n', 'lid-lock-e'].map(site).filter((p) => s.hostiles.some((h) => h.relic === 'lid' && h.unit === 'gridnode' && Math.hypot(h.x - p.x, h.z - p.z) < 6));
+      const cx = army.reduce((m, u) => m + u.x, 0) / Math.max(1, army.length), cz = army.reduce((m, u) => m + u.z, 0) / Math.max(1, army.length);
+      // the lock with the fewest guns covering it (a player looks first), then the nearest
+      const guns = (p) => s.buildings.filter((b) => b.team && sim.enemies(0, b.team) && Math.hypot(b.x - p.x, b.z - p.z) < 45).length;
+      to = locks.sort((a, b) => guns(a) - guns(b) || Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz))[0] ?? site('breach');
+    } else if (attacking) {
+      if (stage === 'breach' && army.some((u) => Math.hypot(u.x - site('breach').x, u.z - site('breach').z) < 20)) stage = 'core';
+      to = site(stage === 'breach' ? 'breach' : 'lantern-core');
+    }
+    const idle = army.filter((u) => u.order.kind === 'idle' && u.target < 0 && Math.hypot(u.x - to.x, u.z - to.z) > 8);
     if (idle.length) sim.command({ type: 'order', ids: idle.map((u) => u.id), x: to.x, z: to.z });
   }
   r.ending = st.epilogue?.ending ?? s.over ?? 'none';
   const cd = st.countdowns?.find((x) => x.id === 'lantern-fires');
+  r.made = made;
   return { ...r, coreMin: Math.round(r.coreMin), units: `${units0}→${s.units.filter((u) => !u.team).length}`, left: cd ? Math.round((cd.at - s.tick) / HZ) : null, strikes: st.struck?.n ?? 0 };
 }
 
@@ -230,8 +258,8 @@ for (const seed of seeds) {
   console.log(`seed ${seed}: colony ${col}`);
   console.log(`  ${f.held ? 'HELD' : `LOST (${f.over})`} · cryo min ${f.cryoMin} (end ${f.cryoEnd}) · power gen min ${f.genMin} MW, stored min ${f.storedMin}, short ${f.shortSecs} s · strikes ${f.strikes} · buildings lost ${f.lostTotal} ${JSON.stringify(f.lost)} · rebuilt ${f.rebuilt} · units ${f.units0}→${f.unitsEnd} (turned left ${f.turned}, lost ${f.unitsLost}) · colonists ${f.colonists} · core ${f.coreHp} · ${((Date.now() - t) / 1000).toFixed(1)} s`);
   if (flag('--lantern') && f.held) for (const code of [true, false]) {
-    const L = lantern(sim, { code, build: arg('--lantern-build', 'base') });
-    console.log(`  Lantern (${code ? "the Enclave's code" : 'break the locks'}): ${L.ending} · Lid open ${L.lid ?? '-'} s · core reached ${L.reached ?? '-'} s · countdown left ${L.left ?? '-'} s · units ${L.units} · landing Core min ${L.coreMin} hp · strikes ${L.strikes} · built ${L.built}`);
+    const L = lantern(sim, { code, build: arg('--lantern-build', 'base'), wait: Number(arg('--lantern-wait', 60)) });
+    console.log(`  Lantern (${code ? "the Enclave's code" : 'break the locks'}): ${L.ending} · Lid open ${L.lid ?? '-'} s · core reached ${L.reached ?? '-'} s · countdown left ${L.left ?? '-'} s · units ${L.units} · landing Core min ${L.coreMin} hp · strikes ${L.strikes} · built ${L.built}, units made ${L.made}, attacks ${L.waves}`);
   }
 }
 const held = rows.filter((r) => r.held).length;
