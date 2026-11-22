@@ -62,6 +62,11 @@ export function effectShort(e: Partial<EffectDef>): string {
     case 'travel': return `travel to ${e.region ?? '?'}`;
     case 'route': return `route to ${e.region ?? '?'}`;
     case 'unroute': return `no route to ${e.region ?? '?'}`;
+    case 'mission': return `start mission ${e.mission ?? '?'}`;
+    case 'outpost': {
+      const which = e.story ? `outpost ${e.story}` : e.site ? `${e.faction ?? 'faction'} outposts at ${e.site}${e.radius ? ` (${e.radius} u)` : ''}` : `${e.faction ?? '?'}'s outposts`;
+      return `${e.outcome ?? '?'} ${which}`;
+    }
     case undefined: return '?';
     default: return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace(/ \(.*\)/, '').replace('the Group', e.group ?? '?').replace('the Flag', `flag ${e.flag ?? '?'}`).replace('the Event', e.event ?? '?');
   }
@@ -118,6 +123,11 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
     does(ev.effects, at);
     wants(ev, ev.trigger, at);
     if (ev.unless) use(ev.unless).blocks.push(at);
+    // a choice offered only with (or without) a flag
+    for (const c of ev.choices ?? []) {
+      if (c.ifFlag) use(c.ifFlag).waits.push(at);
+      if (c.unlessFlag) use(c.unlessFlag).blocks.push(at);
+    }
   }
   for (const [id, m] of Object.entries(missions)) {
     const at: FlowLink = { coll: 'missions', id };
@@ -126,7 +136,7 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
     for (const f of m.fails ?? []) wants(f, f.kind, at);
   }
   // flags the game itself sets (research-<id>, wreck-found, relic-woke…) are never "missing"
-  const builtin = (f: string) => /^(research|contact|trust|relic)-/.test(f) || /-attacked$/.test(f) || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed', 'inhabitants-met'].includes(f) || known.has(f);
+  const builtin = (f: string) => /^(research|contact|trust|relic)-/.test(f) || /-attacked$/.test(f) || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed', 'inhabitants-met', 'walkout'].includes(f) || known.has(f);
   for (const [f, u] of flags) {
     if (!u.setBy.length && !builtin(f)) for (const w of u.waits) problems.push({ at: w, msg: `waits for flag "${f}", which nothing sets` });
   }
@@ -219,6 +229,9 @@ export function condText(kind: Condition, c: ConditionDef): string {
     case 'factionLost': return `${c.faction ?? '?'} outposts gone`;
     case 'partners': return pl(n, 'Partner');
     case 'majority': return `${c.stance ?? '?'}s the largest group`;
+    case 'coreLost': return 'the Command Core falls';
+    case 'homePlanet': return `home planet health ≥ ${c.count ?? 0}`;
+    case 'night': return 'at night';
   }
 }
 
@@ -283,7 +296,8 @@ export function renderFlow(main: HTMLElement, aside: HTMLElement, host: FlowHost
       if (at0.length) lines.push(h('div', '', 'fires: ', ...at0.flatMap((x, i) => [i ? ', ' : '', effLine(x)])));
       (e.choices ?? []).forEach((c, n) => {
         const fx = (e.effects ?? []).filter((x) => x.after === n + 1);
-        lines.push(h('div', '', h('b', '', `“${c.label}”`), fx.length ? ' → ' : '', ...fx.flatMap((x, i) => [i ? ', ' : '', effLine(x)])));
+        const only = [c.ifFlag ? `if ${c.ifFlag}` : '', c.unlessFlag ? `unless ${c.unlessFlag}` : ''].filter(Boolean).join(', ');
+        lines.push(h('div', '', h('b', '', `“${c.label}”`), only ? h('small', 'dim', ` (${only})`) : null, fx.length ? ' → ' : '', ...fx.flatMap((x, i) => [i ? ', ' : '', effLine(x)])));
       });
       for (const [sid, s] of Object.entries(story)) if (s.trigger === 'after' && s.event === id) lines.push(h('div', '', '→ then ', ev(sid)));
       if (lines.length) card.append(h('div', 'fl-out', ...lines));

@@ -2327,3 +2327,67 @@ The story plays across many regions and bodies (STORY.md §13). The home colony 
   inspector, the Core's and the gantry's lists, travel and its captions, the package and flags on arrival, the
   saves in IndexedDB, CONTINUE to the current region, home by the Core's card with the colony and clock as they
   were, out again to the expedition's own save). `--headless-only` skips the browser.
+
+### Story engine, round three
+
+Gaps the campaign's writers found (STORY.md Part II). Test: `tools/story-gaps-smoke.mjs` (headless with the
+sim, `--headless-only`; the browser half writes a temporary cinematic to content/cinematics and plays it
+against a dev server, `--url`, default :5183).
+
+- **The Core lost as a story beat.** Condition `coreLost` (our Command Core has fallen; usable in mission
+  `fails`, alone or in an `all` / `any` group, and as a trigger). When the Core is destroyed
+  (`destroyBuilding` → `Missions.coreLost()`), every mission under way **in this region** whose fail
+  conditions name `coreLost` and hold now fails at once, normally (log, `onFail` event, `failEnds`), and the
+  generic "Command Core has fallen" defeat is skipped: the `onFail` event plays the ending (`epilogue`,
+  e.g. Cycle). A group that names coreLost but isn't met (`all: [coreLost, flag x]` without x), no such
+  mission, or one set in another region: the defeat as before. If the story doesn't end the game, play goes
+  on without a Core (checked for a minute: no crash).
+- **A lost expedition, retried.** When an expedition is lost (its save deleted, the campaign sent home: the
+  worker's autosave), the shared state written goes through `forgetRegion` (`src/sim/campaign.ts`):
+  events and cinematics whose `region` is that region leave `fired`, `answered`, `cines` and `away`;
+  missions set there that were under way or failed are under way again with no objectives met; missions
+  done there stay done; flags, counters and everything else stay as they are (a flag set there stays set:
+  write retry-safe flags). (An epilogue ending the game on an expedition, e.g. Cycle at the Lantern, is a
+  loss there too, so its region is forgotten the same way.)
+- **The home snapshot.** `CampaignInfo.home` (`HomeStats` in `types.ts`, shared with the campaign state),
+  refreshed once a second while Touchdown is played (`Sim.recordHome`): `planet` (health), `acceptance`
+  (adults' average, null with none), `autonomists` / `partners` / `devoted` (adults), `colonists` (alive),
+  `deaths` (not those who left), `sols`, and `groups` (per inhabitant group at home: `regard` the best of its
+  camps still there, `low` the lowest among those met, `met`, `trusted`). On an expedition (`s.expedition`:
+  no colonists) the people conditions `colonists`, `deaths`, `acceptance`, `distrust`, `autonomists`,
+  `devoted`, `partners`, `majority` read it (false with no snapshot yet); `contact`, `trust`, `regard`,
+  `regardBelow` for a group with no camp on this region read it anywhere. New condition `homePlanet`
+  (home planet health ≥ Count: live at home, the snapshot elsewhere). The `epilogue`'s summary away from
+  home is the home colony's (colonists, planet, deaths, sols; allies add the groups that trust us at home).
+- **Choices by flag.** A story choice's `ifFlag` (offered only while it is set) and `unlessFlag` (not while
+  it is set); `shownChoices(ev, flags)` (`content/defs.ts`) gives the indices offered, into the full list,
+  so effects keep `after` = the choice's place in the full list. The card (`contact-card.ts`) shows only
+  those (none offered: Continue); the sim refuses a hidden one (the card stays) and answers a card with none
+  on offer like a Continue; the playthrough bot picks among those offered. Editor: the card preview marks
+  them ("(if keeper-song)"), the summary says so, Story flow counts `ifFlag` as waiting on the flag and
+  `unlessFlag` as blocked by it. Check: the same flag for both.
+- **Effects.** `mission` (Mission): starts it now unless under way or done (its `after` ignored; a failed one
+  starts again); set in another region it is under way there (greyed here), as any. `outpost` (Outcome:
+  `destroy` | `disable` | `capture`; which: all of the `faction`'s buildings, those within `radius` (default the
+  site's own) of the `site`, and / or the one whose story flag is `story`; at least one of the three):
+  destroy is as if we had destroyed them (their flags set, not our loss); disable leaves them standing with
+  `Building.off` (turrets skip them, unpowered: no shooting, no working; "… goes dark"); capture makes them
+  ours (team 0, our grid; "… ours now"). Works from inside the colony's own view (`withTeam`). Checks: name
+  something, a faction some region has, an outpost with that story flag.
+- **Small ones.** The Autonomist walkout (`people.ts`) sets flag `walkout` (Story flow counts it as the
+  game's). Condition `night`: the sun down at the region's site (`daylight < 0.3`, as the packs' night).
+  Playthroughs: `sim.everywhere` counts every region as here for maps and checks, but a mission set in
+  another region now starts only once that region is routed or visited, as in the game (so `wrong-address`
+  waits for `heights-route`); the old rule is the option `anywhere` (`--anywhere` on `tools/playthrough.mjs`;
+  `Sim.everywhereStarts`), whose output matches the run before byte for byte. `tools/chronicle-smoke.mjs` and
+  `tools/opening-smoke.mjs` drive the bot with `anywhere: true` (they measure the colony over a long run, not the
+  campaign's routes; the chronicle's 55-minute run otherwise ends with one colonist left).
+- **Cinematics.** `hour` (0–24): the sky (sun, light, stars) shows that hour of the current sol while it
+  plays (main.ts' frame picks the sun's clock from it); the game's own comes back after (`__exo.skyHour()`).
+  `music`: a piece from content/music by id, or `day` / `night` / `tension` / `title` (one of those):
+  `GameAudio.holdMusic` plays it and the director stands aside until `releaseMusic` at the end (also for
+  the landing). Camera key target `body` (field `body`, a body id; X, Z and Lift are where the camera
+  stands): it looks from there toward the body's place in the sky (`SolarSystem.bodyPos`), the focus
+  Distance (≤ 2000) ahead, pitch and yaw worked out (yaw unwrapped to the key before). The editor's preview
+  has no sky, so it shows such a key with its own pitch and yaw. Checks: hour 0–24, music a piece or a use,
+  a body key needs its Body.

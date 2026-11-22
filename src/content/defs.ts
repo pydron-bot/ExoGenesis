@@ -681,7 +681,7 @@ const ATTITUDE_HELP: Record<Attitude, string> = {
  * Conditions: what starts a story event (its trigger) and what completes a
  * mission objective. One evaluator (src/sim/conditions.ts) serves both.
  */
-export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'all', 'any', 'never', 'faction', 'factionLost', 'partners', 'majority', 'here', 'visited'] as const;
+export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'all', 'any', 'never', 'faction', 'factionLost', 'partners', 'majority', 'here', 'visited', 'coreLost', 'homePlanet', 'night'] as const;
 export type Condition = (typeof CONDITIONS)[number];
 /** Conditions a group (all / any) can hold: everything but groups. */
 export const SUB_CONDITIONS = CONDITIONS.filter((c) => c !== 'all' && c !== 'any') as Exclude<Condition, 'all' | 'any'>[];
@@ -740,6 +740,9 @@ export const CONDITION_HELP: Record<Condition, string> = {
   factionLost: 'when the Faction has no outposts left standing',
   partners: 'when Count adults are Partners',
   majority: 'when the Stance is the largest group among the adults (ties count)',
+  coreLost: 'when our Command Core has fallen. A mission under way here that fails on it fails instead of the game being lost (its event when failed can play an ending)',
+  homePlanet: 'when the home planet\'s health (Touchdown\'s) is Count or more: read live at home, from the campaign\'s home snapshot elsewhere',
+  night: 'while it is night at the region\'s site (the sun down: predator packs grow bigger)',
 };
 /** Parts of the HUD the `opened` condition can wait for (the renderer reports them). */
 export const HUD_PANELS = ['build', 'people', 'mood', 'army', 'goals', 'minimap', 'select', 'research', 'speed'] as const;
@@ -764,7 +767,7 @@ const CAST_HELP: Record<Cast, string> = {
   injured: 'Someone lying injured.', parent: 'An adult with a child in the colony.', engineer: 'An Engineer.', botanist: 'A Botanist.', medic: 'A Medic.',
   technician: 'A Technician.', security: 'A Security officer.',
 };
-export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail', 'boost', 'policy', 'favourLine', 'rescue', 'attitude', 'strike', 'corrupt', 'glitch', 'epilogue', 'travel', 'route', 'unroute'] as const;
+export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail', 'boost', 'policy', 'favourLine', 'rescue', 'attitude', 'strike', 'corrupt', 'glitch', 'epilogue', 'travel', 'route', 'unroute', 'mission', 'outpost'] as const;
 export type StoryEffect = (typeof STORY_EFFECTS)[number];
 export const EFFECT_HELP: Record<StoryEffect, string> = {
   log: 'a line in the log (Text)',
@@ -808,6 +811,15 @@ export const EFFECT_HELP: Record<StoryEffect, string> = {
   travel: 'save this region and go to the Region (its own save if it has one, otherwise a fresh expedition there)',
   route: 'add the Region to the campaign\'s routes: the player can travel there (overland from the Command Core on the same world, off-world from a Launch Gantry)',
   unroute: 'take the Region off the campaign\'s routes',
+  mission: 'start the Mission now (whatever it starts after), unless it is under way or done. Set in another region, it is under way there (greyed here)',
+  outpost: 'a faction\'s outposts (all of the Faction\'s, those within Radius of the Site, or the one whose story flag is Outpost) are destroyed, disabled (they stop shooting and working) or captured (they become ours)',
+};
+/** What the outpost effect does to them. */
+export const OUTPOST_OUTCOMES = ['destroy', 'disable', 'capture'] as const;
+const OUTPOST_HELP: Record<(typeof OUTPOST_OUTCOMES)[number], string> = {
+  destroy: 'blown up (their story flags are set, as if we had destroyed them)',
+  disable: 'still standing, but dead: no shooting, no working',
+  capture: 'they become ours: our colour, our power grid, our guns',
 };
 /** The endings (STORY.md §17); the epilogue effect records one, the title counts those reached. */
 export const ENDINGS = ['covenant', 'severance', 'inheritance', 'proof', 'cycle'] as const;
@@ -844,7 +856,7 @@ const conditionFields = <K extends string>(kindKey: K, label: string, kinds: rea
   [kindKey]: choice(kinds, { label, helps: CONDITION_HELP }),
   sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on(kindKey, ['time']) }),
   building: ref('buildings', { label: 'Building', optional: true, help: '"opened: select": empty = any building.', when: { ...on(kindKey, ['built', 'placed', 'opened']), need: false } }),
-  count: int({ label: 'Count', min: -10000, max: 10000, optional: true, help: 'Empty = 1 (0 for counters).', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'births', 'deaths', 'firstAge', 'acceptance', 'distrust', 'counter', 'counterBelow', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'partners'], false) }),
+  count: int({ label: 'Count', min: -10000, max: 10000, optional: true, help: 'Empty = 1 (0 for counters).', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'births', 'deaths', 'firstAge', 'acceptance', 'distrust', 'counter', 'counterBelow', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'partners', 'homePlanet'], false) }),
   site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site', 'explored']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on(kindKey, ['contact', 'trust', 'regard', 'regardBelow']) }),
   flag: str({ label: 'Flag', optional: true, when: on(kindKey, ['flag']) }),
@@ -913,16 +925,19 @@ const effectFields = {
   guard: bool({ label: 'Guard the site', optional: true, help: 'Hostiles stay round the site and only fight what comes near, instead of attacking the colony.', when: on('kind', ['spawn'], false) }),
   building: ref('buildings', { label: 'Building', optional: true, when: { ...on('kind', ['lock', 'unlock', 'camera', 'strike']), need: false } }),
   research: ref('research', { label: 'Research', optional: true, when: on('kind', ['research']) }),
-  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: { ...on('kind', ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'strike']), need: false } }),
+  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: { ...on('kind', ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'strike', 'outpost']), need: false } }),
   region: ref('regions', { label: 'Region', optional: true, when: on('kind', ['travel', 'route', 'unroute']) }),
   target: choice(HINT_TARGETS, { label: 'Points at', optional: true, helps: HINT_HELP, when: on('kind', ['hint']) }),
   text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', [...TEXT_NEEDED, 'glitch', 'epilogue'], false) }),
-  faction: str({ label: 'Faction', optional: true, help: 'A faction id from the region\'s Factions.', when: on('kind', ['attitude']) }),
+  faction: str({ label: 'Faction', optional: true, help: 'A faction id from the region\'s Factions.', when: { ...on('kind', ['attitude', 'outpost']), need: false } }),
   attitude: choice(ATTITUDES, { label: 'Attitude', optional: true, helps: ATTITUDE_HELP, when: on('kind', ['attitude']) }),
-  radius: num({ label: 'Radius', min: 2, max: 60, step: 0.5, unit: 'u', optional: true, help: 'Empty = 10 u. Full damage in the inner half, less toward the edge.', when: on('kind', ['strike'], false) }),
+  radius: num({ label: 'Radius', min: 2, max: 60, step: 0.5, unit: 'u', optional: true, help: 'A strike: empty = 10 u; full damage in the inner half, less toward the edge. An outpost effect: round the Site, empty = the site\'s own radius.', when: on('kind', ['strike', 'outpost'], false) }),
   delay: num({ label: 'Delay', min: 0, max: 120, step: 0.5, unit: 's', optional: true, help: 'Seconds of warning ring before it hits. Empty = 6.', when: on('kind', ['strike'], false) }),
   glitch: choice(GLITCHES, { label: 'Glitch', optional: true, helps: GLITCH_HELP, when: on('kind', ['glitch']) }),
   ending: choice(ENDINGS, { label: 'Ending', optional: true, helps: ENDING_HELP, when: on('kind', ['epilogue']) }),
+  mission: ref('missions', { label: 'Mission', optional: true, when: on('kind', ['mission']) }),
+  story: str({ label: 'Outpost', optional: true, help: 'The story flag of one outpost on the region map (its Story flag).', when: on('kind', ['outpost'], false) }),
+  outcome: choice(OUTPOST_OUTCOMES, { label: 'Outcome', optional: true, helps: OUTPOST_HELP, when: on('kind', ['outpost']) }),
   pages: list(pageShape, { label: 'Pages', max: 12, optional: true, help: 'Shown one at a time, full screen, before the end screen. The Text is the end screen\'s line.', when: on('kind', ['epilogue'], false) }),
 };
 export const effectShape = effectFields satisfies Shape;
@@ -985,7 +1000,15 @@ export const storyLineShape = {
 export const storyChoiceShape = {
   label: str({ label: 'Button' }),
   reply: str({ label: 'Reply', multiline: true, optional: true, help: 'Logged when this choice is picked.' }),
+  ifFlag: str({ label: 'Only if flag', optional: true, help: 'Shown only while this flag is set. (Effects still go by the choice\'s place in the full list.)' }),
+  unlessFlag: str({ label: 'Unless flag', optional: true, help: 'Not shown while this flag is set.' }),
 } satisfies Shape;
+/** May this choice be offered with these flags set (its Only if / Unless flag)? */
+export const choiceShown = (c: { ifFlag?: string; unlessFlag?: string }, flags: readonly string[]) =>
+  (!c.ifFlag || flags.includes(c.ifFlag)) && (!c.unlessFlag || !flags.includes(c.unlessFlag));
+/** The indices (into the full list) of an event's choices offered now. */
+export const shownChoices = (ev: { choices?: { ifFlag?: string; unlessFlag?: string }[] }, flags: readonly string[]) =>
+  (ev.choices ?? []).map((c, i) => (choiceShown(c, flags) ? i : -1)).filter((i) => i >= 0);
 
 /**
  * A story event (STORY.md §8): a trigger, then a card (title, text, choices),
@@ -1328,7 +1351,7 @@ export type RegionDef = Infer<typeof regionShape>;
  * probe's descent is its set piece, and its beats time the probe's moves.
  */
 const beat = (label: string, help: string) => num({ label, min: 0, max: 600, step: 0.1, unit: 's', optional: true, help, when: on('scene', ['landing']) });
-export const CINE_TARGETS = ['site', 'building', 'storysite', 'camp', 'probe'] as const;
+export const CINE_TARGETS = ['site', 'building', 'storysite', 'camp', 'probe', 'body'] as const;
 export const cameraKeyShape = {
   at: num({ label: 'At', min: 0, max: 600, step: 0.05, unit: 's' }),
   target: choice(CINE_TARGETS, { label: 'Looks at', helps: {
@@ -1337,9 +1360,11 @@ export const cameraKeyShape = {
     storysite: 'A story site on the region map.',
     camp: 'The camp of an inhabitant group.',
     probe: 'The probe as it comes down (the landing only).',
+    body: 'Up at a body in the sky (Sela, a planet…): the camera stands at X, Z (Lift above the ground) and looks toward it. Pitch and Yaw are worked out; Distance is how far ahead the view is aimed (keep it small).',
   } }),
-  x: num({ label: 'X', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
-  z: num({ label: 'Z', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site'], false) }),
+  x: num({ label: 'X', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site', 'body'], false) }),
+  z: num({ label: 'Z', min: -120, max: 120, step: 0.5, unit: 'u', optional: true, when: on('target', ['site', 'body'], false) }),
+  body: ref('bodies', { label: 'Body', optional: true, help: 'The body to look up at.', when: on('target', ['body']) }),
   building: ref('buildings', { label: 'Building', optional: true, when: on('target', ['building']) }),
   site: str({ label: 'Story site', optional: true, help: 'A story site id on the region map.', when: on('target', ['storysite']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on('target', ['camp']) }),
@@ -1389,6 +1414,8 @@ export const cinematicShape = {
   post: beat('Drone at post', 'The drone reaches its post; the colony deploys.'),
   letterbox: bool({ label: 'Letterbox', optional: true, default: true, help: 'Black bars top and bottom while it plays.' }),
   fadeIn: num({ label: 'Fade in', min: 0, max: 10, step: 0.1, unit: 's', optional: true, help: 'From black at the start.' }),
+  hour: num({ label: 'Hour', min: 0, max: 24, step: 0.25, optional: true, help: 'The time of day while it plays (0–24; 21 = night). Empty = the game\'s own; the game\'s comes back after.' }),
+  music: str({ label: 'Music', optional: true, help: 'Music while it plays: a piece from Rules → Music (its id, e.g. night-lantern), or day, night, tension or title for one of those. The game\'s music director takes over again after.' }),
   fadeOut: num({ label: 'Fade out', min: 0, max: 10, step: 0.1, unit: 's', optional: true, help: 'To black before the end (then back to the game).' }),
   camera: list(cameraKeyShape, { label: 'Camera keys', max: 60, help: 'The camera passes smoothly through each key in time order. A world cinematic hands the camera back where it was; the landing\'s last key should match the normal view (looking at 0, −8 from 75 u, pitch 0.85, yaw 0.4).' }),
   captions: list(captionShape, { label: 'Captions', max: 40, optional: true, help: 'Big titles, each from its time until the next.' }),

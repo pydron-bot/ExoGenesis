@@ -7,6 +7,8 @@ import { content } from '../content';
 import type { Condition, ConditionDef } from '../content/defs';
 import type { Sim } from './core';
 import { blocOf } from './people-types';
+import { daylight } from './daylight';
+import type { HomeStats } from './types';
 
 const SOL = content.colony.solSeconds;
 
@@ -17,8 +19,38 @@ export interface ConditionWorld {
   sites: { id: string; x: number; z: number; r: number }[];
 }
 
+/**
+ * On an expedition (no colonists here) the people conditions read the home colony's snapshot; null at home (or
+ * with no snapshot yet, which reads as "not met" for people conditions away).
+ */
+const away = (sim: Sim): HomeStats | null | undefined => (sim.s.expedition ? sim.s.campaign?.home ?? null : undefined);
+/** An inhabitant group with no camp on this region: how it stood at home (the snapshot), if it is there. */
+const homeGroup = (sim: Sim, group?: string) =>
+  group && !(sim.s.camps ?? []).some((x) => x.group === group) ? sim.s.campaign?.home?.groups[group] : undefined;
+/** Is the Stance the largest group among these adult counts (ties count)? */
+const largest = (by: Record<string, number>, stance: string) => (by[stance] ?? 0) > 0 && Object.values(by).every((v) => v <= by[stance]);
+
 export function conditionMet(sim: Sim, kind: Condition, c: ConditionDef, w: ConditionWorld): boolean {
   const s = sim.s, n = c.count ?? 1, st = s.story;
+  const home = away(sim);
+  if (home !== undefined) {
+    // an expedition: the colony's people are at home
+    switch (kind) {
+      case 'colonists': return !!home && home.colonists >= n;
+      case 'deaths': return !!home && home.deaths >= n;
+      case 'acceptance': return !!home && home.acceptance !== null && home.acceptance >= n;
+      case 'distrust': return !!home && home.acceptance !== null && home.acceptance <= n;
+      case 'autonomists': return !!home && home.autonomists >= n;
+      case 'devoted': return !!home && home.devoted >= n;
+      case 'partners': return !!home && home.partners >= n;
+      case 'majority': return !!home && !!c.stance && largest({ autonomist: home.autonomists, partner: home.partners, devoted: home.devoted }, c.stance);
+      default: break;
+    }
+  }
+  if (kind === 'contact' || kind === 'trust' || kind === 'regard' || kind === 'regardBelow') {
+    const g = homeGroup(sim, c.group);
+    if (g) return kind === 'contact' ? g.met : kind === 'trust' ? g.trusted : kind === 'regard' ? g.regard >= (c.count ?? 0) : g.met && g.low <= (c.count ?? 0);
+  }
   switch (kind) {
     case 'start': return sim.deployed;
     case 'time': return c.sol !== undefined && sim.secs / SOL + 1 >= c.sol;
@@ -94,8 +126,14 @@ export function conditionMet(sim: Sim, kind: Condition, c: ConditionDef, w: Cond
       if (!s.people || !c.stance) return false;
       const by: Record<string, number> = { autonomist: 0, partner: 0, devoted: 0 };
       for (const x of s.people.colonists) if (sim.people.adult(x)) by[blocOf(x.stance)] = (by[blocOf(x.stance)] ?? 0) + 1;
-      const mine = by[c.stance];
-      return mine > 0 && Object.values(by).every((v) => v <= mine);
+      return largest(by, c.stance);
     }
+    case 'coreLost': return sim.deployed && !s.players && !s.buildings.some((b) => b.kind === 'core' && !b.team);
+    case 'homePlanet': {
+      if (!s.expedition && sim.atHome) return sim.planet.health() >= (c.count ?? 0);
+      const h = s.campaign?.home;
+      return !!h && h.planet >= (c.count ?? 0);
+    }
+    case 'night': return daylight(sim.secs, SOL) < 0.3;
   }
 }

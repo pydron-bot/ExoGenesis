@@ -544,6 +544,9 @@ function storySummary(ev: Partial<StoryDef>): string[] {
     const when = e.after ? `After “${ev.choices?.[e.after - 1]?.label ?? `choice ${e.after}`}”` : 'When it fires';
     out.push(`${when}: ${effectText(e)}`);
   }
+  (ev.choices ?? []).forEach((c, i) => {
+    if (c.ifFlag || c.unlessFlag) out.push(`Choice ${i + 1} “${c.label ?? ''}” is offered only ${[c.ifFlag ? `while flag "${c.ifFlag}" is set` : '', c.unlessFlag ? `while flag "${c.unlessFlag}" isn't` : ''].filter(Boolean).join(' and ')}.`);
+  });
   // who waits on this one, and who starts it
   const id = cur?.id;
   const after = whoRefs<StoryDef>('story', (d) => d.trigger === 'after' && d.event === id);
@@ -641,7 +644,11 @@ function renderStoryPreview() {
     const who = speakerEl(pg.character, pg.speaker ?? (radio ? 'Transmission' : undefined));
     const last = n === pages.length - 1;
     const btns = radio ? [] : !last ? [h('button', { textContent: 'Next ›' }), h('span', { cls: 'pg', textContent: `${n + 1} / ${pages.length}` })]
-      : ev.choices?.length ? ev.choices.map((c) => h('button', { textContent: sampleFirst(c.label || '…') })) : [h('button', { textContent: 'Continue' })];
+      : ev.choices?.length ? ev.choices.map((c) => {
+        // a choice offered only with (or without) a flag: marked, as the game may leave it out
+        const only = [c.ifFlag ? `if ${c.ifFlag}` : '', c.unlessFlag ? `unless ${c.unlessFlag}` : ''].filter(Boolean).join(', ');
+        return h('button', { textContent: sampleFirst(c.label || '…') + (only ? ` (${only})` : ''), title: only ? `Shown only ${only.replace('if ', 'if flag ').replace('unless ', 'unless flag ')}` : '' });
+      }) : [h('button', { textContent: 'Continue' })];
     const page = h('div', { cls: 'story-page' }, who.el, h('div', { cls: 't', textContent: sampleFirst(ev.title || 'Untitled') }), h('p', { textContent: sampleFirst(pg.text) }), btns.length ? h('div', { cls: 'grp' }, ...btns) : null);
     if (who.color) page.style.borderColor = who.color;
     return page;

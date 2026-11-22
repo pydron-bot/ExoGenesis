@@ -20,7 +20,7 @@ const SOL = C.colony.solSeconds;
 
 // ---------- headless: a colony that lives long enough to have children ----------
 let sim;
-P.runPlaythrough({ strategy: 'opening', minutes: Number(arg('--minutes', 55)), seed: 1337, pace: 2, peaceful: true, onTick: (x) => { sim = x; } });
+P.runPlaythrough({ strategy: 'opening', minutes: Number(arg('--minutes', 55)), seed: 1337, pace: 2, peaceful: true, anywhere: true, onTick: (x) => { sim = x; } });
 const s = sim.s, ch = s.chronicle;
 check(!!ch, 'the campaign keeps a chronicle');
 const living = s.people.colonists;

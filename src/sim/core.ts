@@ -24,12 +24,12 @@ import { Story } from './story';
 import { Missions } from './missions';
 import { Frontier } from './frontier';
 import { modTotals, researchBlocked, type ResearchWorld } from './mods';
-import type { Colonist } from './people-types';
+import { blocOf, type Colonist } from './people-types';
 import { compass, depositFor, factoryMakes, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
-  type Econ, type PlayerState, type SimStats, type SkirmishSetup, type FactionState,
+  type Econ, type PlayerState, type SimStats, type SkirmishSetup, type FactionState, type CampaignInfo,
 } from './types';
 
 /** The Clause's colour: units it has turned are drawn in it (team 1). */
@@ -282,6 +282,10 @@ export class Sim {
    * here (story events, missions and `here` conditions), each reading its own region's story sites. Not saved.
    */
   everywhere = false;
+  /** With `everywhere`: missions set in other regions start as soon as their `after` is done (the old playthrough rule), not only once routed or visited. */
+  everywhereStarts = false;
+  /** Is the home region (Touchdown) the one being played? */
+  get atHome() { return REGION_ID === HOME_REGION; }
   /** The frontier: threats to outlying holdings, standing orders. */
   readonly frontier: Frontier = new Frontier(this);
   /** Missions: objectives, rewards, what comes next. */
@@ -392,6 +396,64 @@ export class Sim {
       }
     }
   }
+  /**
+   * The home colony's numbers for the rest of the campaign (`CampaignInfo.home`), once a second while Touchdown is
+   * played: expeditions read its people, its planet and its inhabitants from here (conditions, the epilogue).
+   */
+  private recordHome() {
+    const s = this.s, c = s.campaign;
+    if (!c || s.players || s.expedition || !this.atHome || !s.people || !s.planet) return;
+    const adults = s.people.colonists.filter((x) => this.people.adult(x));
+    const by = (b: string) => adults.filter((x) => blocOf(x.stance) === b).length;
+    const groups: NonNullable<CampaignInfo['home']>['groups'] = {};
+    for (const camp of s.camps ?? []) {
+      const g = (groups[camp.group] ??= { regard: 0, low: 100, met: false, trusted: false });
+      if (!camp.gone) g.regard = Math.max(g.regard, camp.regard);
+      if (camp.met && !camp.gone) g.low = Math.min(g.low, camp.regard);
+      g.met ||= camp.met;
+      g.trusted ||= camp.trusted && !camp.gone;
+    }
+    c.home = {
+      planet: Math.round(this.planet.health() * 10) / 10,
+      acceptance: this.people.acceptance(),
+      autonomists: by('autonomist'), partners: by('partner'), devoted: by('devoted'),
+      colonists: s.people.colonists.length,
+      deaths: s.people.memorial.filter((m) => !m.cause.startsWith('left')).length,
+      sols: Math.floor(this.secs / RULES.solSeconds) + 1,
+      groups,
+    };
+  }
+
+  /**
+   * The outpost effect: a faction's buildings (all of the faction's, those within `r` of a point, or the one with a
+   * story flag) destroyed, disabled (no shooting, no working) or captured (ours from now on). Returns how many.
+   */
+  outposts(o: { faction?: string; at?: { x: number; z: number; r: number }; story?: string; outcome: 'destroy' | 'disable' | 'capture' }) {
+    const s = this.s, whole = this.all?.buildings ?? s.buildings;
+    const team = o.faction ? s.factions?.find((f) => f.id === o.faction)?.team : undefined;
+    if (o.faction && team === undefined) return 0;
+    const hit = whole.filter((b) => b.team && (team === undefined || b.team === team) && (!o.story || b.flag === o.story)
+      && (!o.at || Math.hypot(b.x - o.at.x, b.z - o.at.z) <= o.at.r));
+    if (!o.faction && !o.story && !o.at) return 0; // (nothing named: nothing happens)
+    for (const b of hit) {
+      if (o.outcome === 'destroy') this.destroyBuilding(b);
+      else if (o.outcome === 'disable') { b.on = false; b.powered = false; b.off = true; b.engaged = false; if (b.queue) b.queue = []; }
+      else {
+        delete b.team; delete b.off;
+        b.on = true;
+        for (const u of this.units) if (u.target === b.id) u.target = -1;
+        // inside the colony's own view the list is ours alone: it joins it
+        if (this.all && !s.buildings.includes(b)) s.buildings.push(b);
+      }
+    }
+    if (hit.length) {
+      const f = s.factions?.find((x) => x.team === hit[0].team) ?? s.factions?.find((x) => x.id === o.faction);
+      if (o.outcome === 'disable') this.emit(`${f ? `${f.name}'s` : 'Their'} ${hit.length > 1 ? `${hit.length} outposts go` : `${def(hit[0]).name} goes`} dark`, 'info', 'message', { x: hit[0].x, z: hit[0].z });
+      else if (o.outcome === 'capture') this.emit(`${hit.length > 1 ? `${hit.length} outposts are` : `The ${def(hit[0]).name} is`} ours now`, 'info', 'message', { x: hit[0].x, z: hit[0].z });
+    }
+    return hit.length;
+  }
+
   /** A campaign faction's buildings (inside the colony's own view too). */
   factionBuildings(team: number) { return (this.all?.buildings ?? this.s.buildings).filter((b) => b.team === team); }
   /** Players still in the game (all of them in order; just [0] in the campaign). */
@@ -985,7 +1047,7 @@ export class Sim {
         this.stepEncounters();
         this.stepFactions();
         this.missions.step();
-        if (s.tick % TICK_HZ === 0 && this.deployed) recordChronicle(s, this.secs);
+        if (s.tick % TICK_HZ === 0 && this.deployed) { recordChronicle(s, this.secs); this.recordHome(); }
       });
     }
     if (s.tick % 5 === 0) this.withTeam(0, () => this.stepFog());
@@ -1475,6 +1537,7 @@ export class Sim {
     for (const b of s.buildings) {
       const d = def(b);
       if (!d.fireRange || !d.damage || !d.cooldown || b.progress < 1) continue;
+      if (b.off) { b.engaged = false; continue; } // a faction's outpost the story disabled
       b.cd = Math.max(0, (b.cd ?? 0) - DT);
       // turned by the Clause (a glitch): it faces the colony and holds fire, then turns back
       if (b.slew) {
@@ -2454,9 +2517,11 @@ export class Sim {
 
   private destroyBuilding(b: Building) {
     const s = this.s;
-    const i = s.buildings.indexOf(b);
+    // (inside the colony's own view a faction's building is only in the whole list)
+    const list = b.team && this.all && !s.buildings.includes(b) ? this.all.buildings : s.buildings;
+    const i = list.indexOf(b);
     if (i < 0) return;
-    s.buildings.splice(i, 1);
+    list.splice(i, 1);
     b.hp = Math.min(b.hp, 0);
     const t = b.team ?? 0;
     if (t && !s.players) {
@@ -2481,7 +2546,8 @@ export class Sim {
     if (def(b).role !== 'wall' && s.people) this.people.say('lost', undefined, { building: def(b).name });
     this.planet.buildingLost(b.x, b.z, barrier(b));
     this.people.buildingLost(b);
-    if (b.kind === 'core') this.lose('core');
+    // the Core falls: a mission under way here that fails on it (coreLost) fails instead, and the story answers
+    if (b.kind === 'core' && !this.missions.coreLost()) this.lose('core');
   }
 
   /** The editor's play test setup (see PlaySetup): a colony as it might be later in the game. */

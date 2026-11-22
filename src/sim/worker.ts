@@ -3,7 +3,7 @@
  * fixed tick; the main thread only renders snapshots and sends commands.
  */
 import { CAMPAIGN, delSave, putSave, regionKey, type AutoSave, type CampaignSave } from '../save';
-import { applyShared, HOME_REGION, sharedOf } from './campaign';
+import { applyShared, forgetRegion, HOME_REGION, sharedOf } from './campaign';
 import { content } from '../content';
 import { Sim, useRegion } from './core';
 import { TICK_MS, type FromWorker, type ToWorker } from './types';
@@ -33,7 +33,8 @@ async function autoSave() {
     if (s.over) {
       await delSave(regionKey(region));
       if (region === HOME_REGION || s.over === 'won') await delSave(CAMPAIGN);
-      else await putSave(CAMPAIGN, { version: 1, savedAt: Date.now(), current: HOME_REGION, shared: sharedOf(s) } satisfies CampaignSave);
+      // an expedition lost: home, and the region's story forgotten so a retry plays it again
+      else await putSave(CAMPAIGN, { version: 1, savedAt: Date.now(), current: HOME_REGION, shared: forgetRegion(sharedOf(s), region, content) } satisfies CampaignSave);
     } else if (s.tick !== lastSavedTick) {
       const savedAt = Date.now();
       const file: AutoSave = { version: 2, savedAt, sim: s };

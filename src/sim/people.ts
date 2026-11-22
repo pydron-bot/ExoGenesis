@@ -970,6 +970,9 @@ export class People {
         const go = adults.filter((c) => blocOf(c.stance) === 'autonomist').sort((a, b) => a.wb - b.wb).slice(0, Math.max(1, Math.floor(n('autonomist') / 3)));
         for (const c of go) this.kill(c, 'left to found a settlement of their own', true);
         this.emit(`${go.length} Autonomist${go.length > 1 ? 's have' : ' has'} walked out to found a settlement of their own`, 'bad', 'alarm');
+        // the story can answer it (STORY.md: E11, the Walkout's settlement)
+        const st = this.sim.story.s;
+        if (!st.flags.includes('walkout')) st.flags.push('walkout');
       }
     } else s.unrest = Math.max(0, s.unrest - dt * 2);
     // breakthroughs when humans and AI are in step

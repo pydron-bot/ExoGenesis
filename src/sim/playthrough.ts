@@ -10,12 +10,14 @@
  * the one being played (story events and missions set elsewhere fire and are checked here, against their own
  * region's story sites, which the bot walks to on this map). A `travel` effect is recorded as a beat (and the
  * region as visited) instead of loading the region; what an expedition would bring and its map are not played.
+ * A mission set in another region still waits, as in the game, until that region is routed or visited
+ * (`anywhere: true` starts it as soon as its `after` is done, the rule before).
  *
  * Shared by `node tools/playthrough.mjs` and the editor's Story → Playthrough
  * page (in a worker on the editor's content, src/editor/playthrough-worker.ts).
  */
 import { content } from '../content';
-import { conditionsIn, type Condition, type ConditionDef } from '../content/defs';
+import { conditionsIn, shownChoices, type Condition, type ConditionDef } from '../content/defs';
 import { runBalance } from './balance';
 import type { Sim } from './core';
 import type { Step } from './strategies';
@@ -41,6 +43,11 @@ export interface PlaythroughOptions {
   answers?: Record<string, number>;
   /** Seconds between the bot's build steps (see BalanceOptions.pace). */
   pace?: number;
+  /**
+   * Missions set in other regions start as soon as their `after` is done, routed or not (the rule before
+   * round three of the story engine). Default: like the game, only once the region is routed or visited.
+   */
+  anywhere?: boolean;
   /** Called every tick after the story bookkeeping (measurements). */
   onTick?: (sim: Sim, tick: number, plan: Step[]) => void;
 }
@@ -178,6 +185,7 @@ export function runPlaythrough(o: PlaythroughOptions = {}): PlaythroughResult {
   const hook = (sim: Sim, tick: number, plan: Step[]) => {
     last = sim;
     sim.everywhere = true;
+    sim.everywhereStarts = !!o.anywhere;
     o.onTick?.(sim, tick, plan);
     if (tick % TICK_HZ) return;
     // travel: recorded, not played (see the top of this file)
@@ -218,11 +226,13 @@ export function runPlaythrough(o: PlaythroughOptions = {}): PlaythroughResult {
     // answer the cards waiting, oldest first
     for (const id of [...st.inbox]) {
       const ev = content.story[id];
-      const n = ev?.choices?.length ?? 0;
+      // only the choices on offer now (some wait for a flag, or go with one); k is the index in the full list
+      const offered = ev ? shownChoices(ev, st.flags) : [];
+      const n = offered.length;
       let k = 0;
       if (n) {
         const fixed = o.answers?.[id];
-        k = fixed !== undefined && fixed < n ? fixed : policy === 'last' ? n - 1 : policy === 'random' ? Math.floor(pick() * n) : 0;
+        k = fixed !== undefined && offered.includes(fixed) ? fixed : offered[policy === 'last' ? n - 1 : policy === 'random' ? Math.floor(pick() * n) : 0];
         choices[id] = k;
         add(t, 'choice', id, `${ev.title}: “${ev.choices![k].label}”`);
       }

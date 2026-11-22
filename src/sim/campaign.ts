@@ -68,3 +68,27 @@ export function applyShared(s: SimState, sh: SharedState, region: string) {
   s.campaign = clone(sh.campaign);
   if (!s.campaign.visited.includes(region)) s.campaign.visited.push(region);
 }
+
+/**
+ * An expedition lost: its save is gone, and so is what happened there, so a retry plays it again. In place on a
+ * shared state (the one written as the campaign goes home): events and cinematics set in `region` are forgotten
+ * (fired, answered, played, waiting), and missions set there that were under way or failed are under way again with
+ * no objectives met. Missions done there stay done; flags and counters stay as they are.
+ */
+export function forgetRegion(sh: SharedState, region: string, defs: { story: Record<string, { region?: string }>; cinematics: Record<string, { region?: string }>; missions: Record<string, { region?: string }> }) {
+  const st = sh.story;
+  const evHere = (id: string) => defs.story[id]?.region === region;
+  if (st.fired) st.fired = st.fired.filter((id) => !evHere(id));
+  if (st.answered) st.answered = st.answered.filter((id) => !evHere(id));
+  if (st.cines) st.cines = st.cines.filter((id) => defs.cinematics[id]?.region !== region);
+  if (st.away) st.away = st.away.filter((id) => (id.startsWith('cine:') ? defs.cinematics[id.slice(5)]?.region !== region : !evHere(id)));
+  const m = sh.missions;
+  for (const [id, def] of Object.entries(defs.missions)) {
+    if (def.region !== region || m.done.includes(id)) continue;
+    if (!m.active.includes(id) && !m.failed?.includes(id)) continue;
+    if (m.failed) m.failed = m.failed.filter((x) => x !== id);
+    if (!m.active.includes(id)) m.active.push(id);
+    m.marks[id] = [];
+  }
+  return sh;
+}

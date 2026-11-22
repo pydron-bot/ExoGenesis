@@ -18,7 +18,7 @@ const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if 
 
 // ---------- headless: the tutorial at a human pace ----------
 const m = {};
-const r = P.runPlaythrough({ strategy: 'opening', minutes: 20, seed: 1337, pace: 8, onTick: (sim, tick) => {
+const r = P.runPlaythrough({ strategy: 'opening', minutes: 20, seed: 1337, pace: 8, anywhere: true, onTick: (sim, tick) => {
   if (tick % 10) return;
   const s = sim.s, t = sim.secs;
   if (s.stats.kills > 0) m.kill ??= t;

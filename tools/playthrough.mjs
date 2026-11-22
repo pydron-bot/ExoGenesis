@@ -4,7 +4,7 @@
  * events, choices, flags, counters), then what all the runs covered between
  * them (events never fired, choices never taken, missions never finished).
  * The editor's Story → Playthrough page runs the same code (src/sim/playthrough.ts).
- *   node tools/playthrough.mjs [--minutes 30] [--seed 1337] [--strategy people] [--policies first,last,random] [--region touchdown] [--peaceful] [--quiet]
+ *   node tools/playthrough.mjs [--minutes 30] [--seed 1337] [--strategy people] [--policies first,last,random] [--region touchdown] [--peaceful] [--anywhere] [--quiet]
  */
 import path from 'node:path';
 import { runnerImport } from 'vite';
@@ -19,7 +19,7 @@ const ICON = { mission: '▶', objective: '✓', done: '■', failed: '✕', eve
 
 const runs = [];
 for (const policy of arg('--policies', 'first,last,random').split(',')) {
-  const r = P.runPlaythrough({ strategy: arg('--strategy', 'people'), minutes, seed, region: arg('--region', 'touchdown'), peaceful: process.argv.includes('--peaceful'), policy });
+  const r = P.runPlaythrough({ strategy: arg('--strategy', 'people'), minutes, seed, region: arg('--region', 'touchdown'), peaceful: process.argv.includes('--peaceful'), anywhere: process.argv.includes('--anywhere'), policy });
   runs.push(r);
   console.log(`\n=== ${r.name} (seed ${seed}) — ${r.over ? `ended (${r.over}) at ${r.at.toFixed(1)} min${r.overText ? `: ${r.overText}` : ''}` : `played ${minutes} min`}`);
   if (!quiet) for (const b of r.beats) console.log(`  ${mmss(b.t)} ${ICON[b.kind] ?? ' '} ${b.kind.padEnd(9)} ${b.text}`);

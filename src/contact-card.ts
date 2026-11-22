@@ -15,7 +15,7 @@
  */
 import type { ZoomCamera } from './camera';
 import { content } from './content';
-import { mediaUrl, type InhabitantDef, type StoryDef } from './content/defs';
+import { mediaUrl, shownChoices, type InhabitantDef, type StoryDef } from './content/defs';
 import type { Command, ContactChoice, Snapshot } from './sim/types';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -86,10 +86,12 @@ export class ContactCard {
       character: l.character ?? (l.speaker ? undefined : ev.character), speaker: l.speaker ?? (l.character ? undefined : ev.speaker), text: l.text,
     }))];
     if (this.page.id !== id) this.page = { id, n: 0 };
+    // choices offered with (or without) a flag; each button keeps its place in the full list (effects go by it)
+    const offered = shownChoices(ev, this.last?.story?.flags ?? []);
     const n = Math.min(this.page.n, pages.length - 1), pg = pages[n], who = this.speaker(pg.character, pg.speaker);
     const buttons = n < pages.length - 1
       ? `<button data-next>Next ›</button><span class="pg">${n + 1} / ${pages.length}</span>`
-      : ev.choices?.length ? ev.choices.map((c, k) => `<button data-s="${esc(id)}:${k}">${esc(this.fill(c.label, id))}</button>`).join('') : `<button data-s="${esc(id)}:0">Continue</button>`;
+      : offered.length ? offered.map((k) => `<button data-s="${esc(id)}:${k}">${esc(this.fill(ev.choices![k].label, id))}</button>`).join('') : `<button data-s="${esc(id)}:0">Continue</button>`;
     return { html: `${who.html}${ev.dilemma ? '<small class="kind">Colony dilemma</small>' : ''}<div class="t">${esc(this.fill(ev.title, id))}</div><p>${esc(this.fill(pg.text, id))}</p><div class="grp">${buttons}</div>`, color: who.color };
   }
 
