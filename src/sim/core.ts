@@ -2972,6 +2972,9 @@ export class Sim {
       case 'ui':
         this.story.opened(c.what);
         return;
+      case 'guide':
+        this.story.watchGuide(c.watch);
+        return;
       case 'travelled':
         delete s.travel;
         return;

@@ -25,6 +25,15 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const HINT_DONE: Record<string, string> = { build: 'build', people: 'people', mood: 'mood', army: 'army', goals: 'goals', minimap: 'minimap', pause: 'speed', fast: 'speed' };
 
 export class Story {
+  /**
+   * Field Guide pages whose tip trigger to watch (content/guide `trigger`, src/guide.ts): the renderer's list, sent
+   * with a `guide` command (only while tips are on and the player is playing). Not saved and read by nothing else,
+   * so headless runs (which never send it) step exactly as before.
+   */
+  private guideWatch: string[] = [];
+  /** Watched pages whose trigger has held, in order (the snapshot's `tips`). */
+  private guideHits: string[] = [];
+
   constructor(private sim: Sim, readonly region: () => { id: string; sites: { id: string; x: number; z: number; r: number }[] }) {}
 
   get s(): StoryState { return (this.sim.s.story ??= { fired: [], answered: [], flags: [], inbox: [], timers: [] }); }
@@ -111,7 +120,19 @@ export class Story {
       (st.cines ??= []).push(id);
       this.playCine(id);
     }
+    // Field Guide tips: read-only checks of the same conditions (nothing here changes the game)
+    if (this.guideWatch.length && sim.deployed) {
+      for (const id of [...this.guideWatch]) {
+        const g = content.guide?.[id];
+        if (g?.trigger && !conditionMet(sim, g.trigger, g, this.world())) continue;
+        this.guideWatch = this.guideWatch.filter((x) => x !== id);
+        if (g?.trigger) this.guideHits.push(id);
+      }
+    }
   }
+
+  /** The renderer's Field Guide pages to watch for tips (an empty list stops watching). */
+  watchGuide(ids: string[]) { this.guideWatch = ids.filter((id) => !this.guideHits.includes(id)); }
 
   /**
    * Can a colony dilemma fire now? Not before the colony rules' first-dilemma time, not within the dilemma gap of the
@@ -386,6 +407,7 @@ export class Story {
       struck: st.struck ? { ...st.struck } : undefined,
       glitch: st.glitch ? { ...st.glitch } : undefined,
       epilogue: st.epilogue,
+      tips: this.guideHits.length ? [...this.guideHits] : undefined,
     };
   }
 }

@@ -46,6 +46,7 @@ import { VERSION } from './changelog';
 import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';
+import { configureGuide, GuideTips, offerTour, openGuide, setTipsWanted, tipsWanted, toured, tourActive } from './guide';
 import { registerServiceWorker } from './pwa';
 import { updateWater } from './world/water';
 import { ClimaxView, endingsReached, scrambleIn } from './climax-view';
@@ -837,7 +838,7 @@ const autopilot = apAllowed ? new AutopilotView({
   pilot: (cfg) => sim.pilot(cfg),
   setSpeed: (n) => setSpeed(n),
   speed: () => speed,
-  busy: () => !!title || !!cine || travelling || menuOpen || panelOpen() || !sim.cur?.deployed || !!sim.cur?.over || !!document.getElementById('whatsnew') || !!document.getElementById('chronicle'),
+  busy: () => !!title || !!cine || travelling || menuOpen || panelOpen() || tourActive() || !sim.cur?.deployed || !!sim.cur?.over || !!document.getElementById('whatsnew') || !!document.getElementById('chronicle'),
   // the game over: an ending (or the home colony lost: the campaign ends), or an expedition lost (the campaign goes home)
   outcome: () => {
     const c = sim.cur;
@@ -851,6 +852,53 @@ if (autopilot) {
   sim.onPilot = (st) => autopilot.report(st);
   // on when it was left on and this load carries on its game (travel, a landing or a CONTINUE it started); otherwise off
   autopilot.set(apOnAtStart);
+}
+// ---------- the Field Guide (src/guide.ts): the panel, the first-game tour and tips ----------
+/** Speed to go back to when the guide stops holding the game (the tour, the guide opened from a tip). */
+let guideResume: number | null = null;
+configureGuide({
+  tap: () => audio.play('tap'),
+  point: (target, text, actions) => storyHud.point(target, text, actions),
+  hold: (on) => {
+    if (on && guideResume === null) { guideResume = speed; setSpeed(0); }
+    else if (!on && guideResume !== null) { const s = guideResume; guideResume = null; if (speed === 0) setSpeed(s); }
+  },
+  canTour: () => !skirmish && !rts && !title && !cine && !!sim.cur?.deployed && !sim.cur.over,
+});
+/**
+ * Automated browsers (smoke tests) don't get the offer or tips unless a test asks for them in localStorage
+ * (`exo.guide.auto` = on, tools/guide-smoke.mjs): the other smokes time and click things the notes would cover.
+ */
+const guideAuto = (() => { if (!navigator.webdriver) return true; try { return localStorage.getItem('exo.guide.auto') === 'on'; } catch { return false; } })();
+/** The first-game look around: offered on a player's very first game (no saves, never toured), at home. */
+let tourOffer = guideAuto && !skirmishMode && !rts && !scratch && !autosaved && !campaign && !toured() && regionId === HOME_REGION;
+let offerAt = 0;
+/** Tips: on unless turned off in Options (off by default in the editor's play tests). */
+let guideTips = tipsWanted(!preview);
+const tips = skirmishMode || rts ? null : new GuideTips((page) => openGuide({ page, inGame: true, hold: true }), () => audio.play('tap'));
+let watchKey = '';
+/** Every frame: the offer once the colony's HUD is up, and tips (the sim watches their triggers). */
+let guideLast = 0;
+function updateGuide(now: number) {
+  // real seconds (the frame's dt is capped for the game; the tips' spacing is wall-clock time)
+  const dt = guideLast ? Math.min(1, (now - guideLast) / 1000) : 0;
+  guideLast = now;
+  const c = sim.cur;
+  const playing = !skirmish && !title && !cine && !travelling && !!c?.deployed && !c.over;
+  const card = !!document.querySelector('#contact.on') || !!c?.story?.inbox.some((id) => content.story[id]?.style !== 'radio');
+  const free = playing && !card && !menuOpen && !panelOpen() && !tourActive() && !storyHud.pointing && !document.getElementById('whatsnew') && !document.getElementById('chronicle');
+  if (tourOffer && free && !autopilot?.on && c!.secs >= 4) {
+    if (!offerAt) offerAt = now + 1200;
+    else if (now >= offerAt) { tourOffer = false; offerTour(); }
+  }
+  const offering = !!document.getElementById('gd-offer');
+  document.getElementById('gd-offer')?.classList.toggle('hold', !free);
+  if (!tips) return;
+  const on = guideTips && guideAuto && !autopilot?.on && !!c?.deployed;
+  const watch = on ? tips.watch() : [];
+  const key = watch.join(',');
+  if (key !== watchKey && c) { watchKey = key; sim.command({ type: 'guide', watch }); }
+  tips.update(c?.story?.tips, free && !offering && !tourOffer, on, dt);
 }
 $('b-pause').onclick = () => setSpeed(0, true);
 $('b-play').onclick = () => setSpeed(1);
@@ -1155,9 +1203,11 @@ function showControls(onClose?: () => void) {
     row('<kbd>H</kbd>', 'look at the latest alert (or tap a log line with ◎)'),
     row('<kbd>?</kbd>', 'this list'),
   ].join('');
-  openInfo('Controls', coarse
-    ? `${sec('Touch')}${touch}${sec('Keyboard')}${keys}${orders}${game}`
-    : `${sec('Camera')}${keys}${sec('Orders')}${orders}${sec('Game')}${game}${sec('Touch')}${touch}`, onClose);
+  const guide = '<button class="op-guide">▸ Field Guide: how the game works, page by page</button>';
+  const { el: ctl } = openInfo('Controls', coarse
+    ? `${guide}${sec('Touch')}${touch}${sec('Keyboard')}${keys}${orders}${game}`
+    : `${guide}${sec('Camera')}${keys}${sec('Orders')}${orders}${sec('Game')}${game}${sec('Touch')}${touch}`, onClose);
+  ctl.querySelector<HTMLButtonElement>('.op-guide')!.onclick = () => { audio.play('tap'); openGuide(); };
 }
 /** Selected combat units as the army renderer wants them: slot → generation. */
 const armySel = new Map<number, number>();
@@ -1314,6 +1364,10 @@ const graphicsToggles: Toggle[] = [
 ];
 const interfaceToggles: Toggle[] = [
   {
+    id: 'guidetips', section: 'Interface', label: 'Field Guide tips', help: 'The first time something new comes up in play, a small note offers the Field Guide page on it (each one once).',
+    get: () => guideTips, set: (v) => { guideTips = v; setTipsWanted(v); },
+  },
+  {
     id: 'bgpause', section: 'Interface', label: 'Pause in the background', help: 'Pause when you switch to another tab or app, and say so when you come back.',
     get: () => bgPause, set: (v) => { bgPause = v; remember(BGPAUSE_KEY, v); },
   },
@@ -1354,6 +1408,7 @@ function openGameMenu() {
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'guide', label: 'Field Guide', sub: 'How the game works, page by page', run: keep(() => openGuide({ onClose: () => { menuOpen = false; reopen(); } })) },
     { id: 'rematch', label: 'Rematch', sub: 'The same map and players, from the start', confirm: 'This game will be lost · tap again', run: () => restartGame() },
     { id: 'skirmish', label: 'New skirmish', sub: 'Pick another map and players', run: setup },
     { id: 'surrender', label: 'Surrender', sub: 'Give up this game', confirm: 'Your Command Core will fall · tap again', run: () => sim.command({ type: 'surrender' }) },
@@ -1365,6 +1420,11 @@ function openGameMenu() {
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    {
+      id: 'guide', label: 'Field Guide', sub: 'How the game works, page by page · Show me around',
+      // back to the menu, unless it closed to point at the HUD or start the tour: then the game carries on
+      run: keep(() => openGuide({ inGame: true, onClose: (why) => { menuOpen = false; if (why === 'closed') reopen(); else if (speed === 0) setSpeed(was || 1); } })),
+    },
     ...(autopilot ? [{
       id: 'autopilot', label: autopilot.on ? 'Autopilot: on' : 'Autopilot',
       sub: autopilot.on ? 'Stop it and take over (the computer has been playing)' : 'Watch it play: the computer plays your campaign (your colony) until you stop it',
@@ -1390,7 +1450,7 @@ $('over-chronicle').onclick = () => { audio.play('tap'); void showChronicle(); }
 
 // Esc opens the menu when there's nothing else for it to do (no selection, not placing, no panel open)
 addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape' || e.repeat || cine || title || panelOpen() || document.getElementById('whatsnew') || document.getElementById('chronicle')) return;
+  if (e.key !== 'Escape' || e.repeat || cine || title || panelOpen() || tourActive() || document.getElementById('whatsnew') || document.getElementById('chronicle')) return;
   if (ui.sel || ui.build || document.querySelector('#build-menu.open')) return;
   e.preventDefault();
   openGameMenu();
@@ -1488,6 +1548,7 @@ function showTitle() {
     },
     dailyChoice(),
     { id: 'skirmish', label: 'SKIRMISH', sub: 'You against the computer: pick a map and players', run: () => showSkirmishSetup() },
+    { id: 'guide', label: 'FIELD GUIDE', sub: 'How to play: every part of the game, page by page', run: () => openGuide() },
     { id: 'options', label: 'OPTIONS', sub: regions.length > 1 ? 'Region, sound and graphics' : 'Sound and graphics', run: () => showOptions(undefined, titleOptions) },
     { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
   ];
@@ -1682,6 +1743,7 @@ function frame(now: number) {
     });
   }
   updateHud(dt, now);
+  updateGuide(now);
   autopilot?.update(now, dt);
   input?.update(dt, !title && !cine && !menuOpen && !panelOpen() && !document.getElementById('whatsnew'));
   document.body.classList.toggle('paused', userPaused && speed === 0 && !menuOpen && !cine && !title);
@@ -1765,6 +1827,9 @@ const exo = {
   get title() { return title; },
   /** The autopilot's view (badge, card reader, director), or null. */
   autopilot,
+  /** The game's speed (0 = paused), and the Field Guide's tips (src/guide.ts). */
+  get speed() { return speed; },
+  guideTips: tips,
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
   hud,
   ui,

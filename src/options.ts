@@ -50,7 +50,8 @@ function panel(title: string, body: string, onClose?: () => void) {
     </div>`;
   let closed = false;
   const close = () => { if (closed) return; closed = true; el.remove(); removeEventListener('keydown', key, true); onClose?.(); };
-  const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); close(); } };
+  // (not while the Field Guide is open over it: Esc closes that first)
+  const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.getElementById('guide')) { e.stopPropagation(); e.preventDefault(); close(); } };
   el.addEventListener('pointerdown', (e) => { if (e.target === el) close(); });
   el.querySelector<HTMLButtonElement>('.op-x')!.onclick = close;
   addEventListener('keydown', key, true);
@@ -58,7 +59,8 @@ function panel(title: string, body: string, onClose?: () => void) {
   return { el, close };
 }
 
-export const panelOpen = () => !!document.getElementById('options');
+/** A panel is open (options, the menu, Controls, or the Field Guide, src/guide.ts). */
+export const panelOpen = () => !!document.getElementById('options') || !!document.getElementById('guide');
 
 /** A panel of read-only text (Controls): `html` is trusted markup built by the caller. */
 export function openInfo(title: string, html: string, onClose?: () => void) {

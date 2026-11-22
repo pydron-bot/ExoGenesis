@@ -13,7 +13,16 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const TARGETS: Record<string, string> = {
   build: '#b-build', goals: '#goals', minimap: '#minimap', alloys: '#r-alloys', energy: '#r-energy', battery: '#r-battery', cryo: '#r-cryo',
   clock: '#r-clock', threat: '#r-threat', army: '#r-army', people: '#r-people', mood: '#r-mood', food: '#r-food', pause: '#b-pause', fast: '#b-fast',
+  menu: '#b-menu', log: '#log', drones: '#r-drones', planet: '#r-planet', isotopes: '#r-iso',
 };
+/** The HUD element a hint target points at, if it is on screen. */
+export function hintElement(target: string): HTMLElement | null {
+  const el = document.querySelector<HTMLElement>(TARGETS[target] ?? '');
+  if (!el || getComputedStyle(el).display === 'none' || !el.getClientRects().length) return null;
+  return el;
+}
+/** A button on a hint the renderer shows itself (the Field Guide's tour: Back, Next, Skip). */
+export interface HintAction { label: string; run(): void; primary?: boolean }
 
 export interface StoryHudDeps {
   cam: ZoomCamera;
@@ -29,6 +38,9 @@ export class StoryHud {
   private hintN = -1;
   private lookN = -1;
   private told = new Set<string>();
+  /** A hint of the renderer's own (the Field Guide's tour and Show me): shown instead of the story's while set. */
+  private local: { target: string; building?: undefined; text: string; actions: HintAction[]; n: number } | null = null;
+  private localN = -1; // (below -1: the "no hint" value)
 
   constructor(private d: StoryHudDeps) {
     this.bubble.id = 'hint';
@@ -72,8 +84,18 @@ export class StoryHud {
     this.renderMarks(st);
   }
 
+  /**
+   * Point at part of the HUD from the renderer (null clears it): the story's own hint waits underneath and comes
+   * back when this is cleared. `actions` are buttons on the bubble.
+   */
+  point(target: string | null, text = '', actions: HintAction[] = []) {
+    this.local = target ? { target, text, actions, n: --this.localN } : null;
+  }
+  get pointing() { return !!this.local; }
+
   private renderHint(st: StorySnap) {
-    const h = st.hint;
+    const h = this.local ?? st.hint;
+    this.bubble.classList.toggle('act', !!this.local?.actions.length);
     if (!h) {
       if (this.hinted) { this.hinted.classList.remove('hinted'); this.hinted = null; }
       this.bubble.classList.remove('on');
@@ -84,6 +106,7 @@ export class StoryHud {
     let el: HTMLElement | null = null;
     if (h.target === 'buildItem' && h.building) el = document.querySelector<HTMLElement>(`#build-menu.open [data-kind="${CSS.escape(h.building)}"]`) ?? document.querySelector<HTMLElement>('#b-build');
     else el = document.querySelector<HTMLElement>(TARGETS[h.target] ?? '#b-build');
+    if (h === this.local) el = hintElement(h.target);
     if (el && getComputedStyle(el).display === 'none') el = null;
     if (el !== this.hinted) {
       this.hinted?.classList.remove('hinted');
@@ -93,6 +116,19 @@ export class StoryHud {
     if (h.n !== this.hintN) {
       this.hintN = h.n;
       this.bubble.innerHTML = esc(h.text || 'Here');
+      const acts = h === this.local ? this.local.actions : [];
+      if (acts.length) {
+        const row = document.createElement('div');
+        row.className = 'acts';
+        for (const a of acts) {
+          const b = document.createElement('button');
+          b.textContent = a.label;
+          if (a.primary) b.className = 'primary';
+          b.onclick = (e) => { e.stopPropagation(); a.run(); };
+          row.append(b);
+        }
+        this.bubble.append(row);
+      }
       this.bubble.classList.add('on');
     }
     if (!el) { this.bubble.style.left = '50%'; this.bubble.style.top = '30%'; this.bubble.dataset.side = 'none'; return; }

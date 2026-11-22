@@ -419,6 +419,8 @@ export interface StorySnap {
   struck?: { x: number; z: number; r: number; n: number };
   glitch?: { kind: string; n: number; tears?: number };
   epilogue?: Epilogue;
+  /** Field Guide pages whose tip trigger has held (src/guide.ts shows each as a tip once per player). */
+  tips?: string[];
 }
 
 export interface Deposit { x: number; z: number; alloys: number; max: number }
@@ -631,6 +633,8 @@ export type Command =
   | { type: 'story'; id: string; choice: number }
   /** The player opened a part of the HUD (tutorial `opened` conditions): 'build', 'people', 'select:solar'… */
   | { type: 'ui'; what: string }
+  /** The Field Guide pages whose tip triggers to watch (src/guide.ts; empty = none). Changes nothing in the game. */
+  | { type: 'guide'; watch: string[] }
   /** The story inspector (play tests): set or clear a flag, change a counter, finish an objective or mission, jump the clock, end a countdown. */
   | { type: 'inspect'; flag?: string; unflag?: string; counter?: { id: string; value: number }; objective?: { mission: string; index: number }; finish?: string; fail?: string; skip?: number; expire?: string; unlock?: string; route?: string; unroute?: string }
   /** Campaign travel: forget a travel request (a play test can't travel). */
