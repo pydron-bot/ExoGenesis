@@ -9,6 +9,10 @@
 - **Every push that changes the game is a release:** bump `package.json` and add an entry at the top of
   `src/changelog.ts` (minor for features, patch for fixes; notes written for players). `npm run build`
   fails if they disagree (`tools/version-check.mjs`). Players see it under "What's new".
+- **Every release also updates the Field Guide** (`content/guide/*.json`, the in-game guide for players): add or
+  revise the pages the change touches, set their `updated` to the new version, and list them in the release's
+  `guide` field in `src/changelog.ts` (`guide: []` only for a patch that changes nothing a player needs to learn).
+  `npm run build` fails otherwise (`tools/guide-check.mjs`).
 - Test URLs: `?title=0` skips the title (resume or land), `?intro=0&new=1` starts deployed and fresh,
   `?sw=0` skips the service worker (production builds register one: offline + installable, see README).
   `?story=<id>` fires a story event once deployed, `?mission=<id>` jumps to a mission, `?cinematic=<id>` plays a cinematic. Smoke tests in `tools/*-smoke.mjs` run against the
