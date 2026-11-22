@@ -132,6 +132,7 @@ export class Story {
     // a cinematic set somewhere else plays when that region is played
     if (!this.here(cd.region)) { if (!(st.away ??= []).includes(`cine:${id}`)) st.away.push(`cine:${id}`); return; }
     (st.cineQueue ??= []).push(id);
+    if (cd.camera) this.sim.seeForCinematic(cd.camera);
   }
 
   /** The renderer finished (or skipped) a cinematic. */
@@ -232,7 +233,13 @@ export class Story {
         break;
       case 'stopCountdown': if (e.timer) st.countdowns = (st.countdowns ?? []).filter((c) => c.id !== e.timer); break;
       case 'event': if (e.event) this.fire(e.event); break;
-      case 'pack': s.waves.next = s.tick; break;
+      case 'pack': {
+        // one pack now; waves held off (a peaceful play test or playthrough) stay held after it
+        const w = s.waves;
+        if (w.next - s.tick > 1e8) w.held ??= w.next;
+        w.next = s.tick;
+        break;
+      }
       case 'spawn': if (e.unit && site) sim.spawnAt(e.unit, e.count ?? 1, site.x, site.z, e.guard ? site.r : 0); break;
       case 'research':
         if (e.research && content.research[e.research]) {

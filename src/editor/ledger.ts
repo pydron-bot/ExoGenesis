@@ -26,6 +26,7 @@ export interface Ledger { measures: string[]; rows: LedgerRow[]; range: Record<s
 
 const MEASURE: Partial<Record<EffectDef['kind'], (e: EffectDef) => string | null>> = {
   stance: () => 'stance', wellbeing: () => 'wellbeing', regard: (e) => (e.group ? `regard:${e.group}` : null), counter: (e) => (e.counter ? `counter:${e.counter}` : null),
+  glitch: () => 'counter:clause', // each Clause glitch adds 1 to counter clause
 };
 
 export function buildLedger(missions: Record<string, MissionDef>, story: Record<string, StoryDef>): Ledger {
@@ -33,7 +34,7 @@ export function buildLedger(missions: Record<string, MissionDef>, story: Record<
   const measures = new Set<string>();
   const add = (row: LedgerRow, e: EffectDef) => {
     const m = MEASURE[e.kind]?.(e);
-    if (m) { measures.add(m); row.deltas[m] = (row.deltas[m] ?? 0) + (e.amount ?? 0); }
+    if (m) { measures.add(m); row.deltas[m] = (row.deltas[m] ?? 0) + (e.kind === 'glitch' ? 1 : e.amount ?? 0); }
     if (e.kind === 'setCounter' && e.counter) { measures.add(`counter:${e.counter}`); row.sets[`counter:${e.counter}`] = e.amount ?? 0; }
     if (e.kind === 'flag' && e.flag) row.flags.push(e.flag);
   };

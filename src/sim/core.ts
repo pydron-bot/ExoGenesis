@@ -2498,7 +2498,28 @@ export class Sim {
       const cx = -REGION_HALF + (i + 0.5) * c - x, cz = -REGION_HALF + (j + 0.5) * c - z;
       if (cx * cx + cz * cz <= r * r) this.exp[j * FOG_N + i] = 1;
     }
+    // a faction's buildings in the revealed ground are known from now on (as if seen), so cinematics show them
+    if (this.teamsOn) for (const b of this.all?.buildings ?? this.s.buildings) if (b.team && !b.seen && Math.hypot(b.x - x, b.z - z) <= r) b.seen = true;
     this.stepFog(true);
+  }
+
+  /**
+   * A cinematic is about to play: the factions' buildings its camera looks at (round each key's point, as far as the
+   * key's distance) count as seen, so the cinematic shows Kindred's colony or Engram's works before our units do.
+   */
+  seeForCinematic(keys: readonly { target: string; x?: number; z?: number; site?: string; building?: string; group?: string; dist?: number }[]) {
+    if (!this.teamsOn) return;
+    const s = this.s, all = this.all?.buildings ?? s.buildings;
+    for (const k of keys) {
+      let p: { x: number; z: number } | undefined;
+      if (k.target === 'site') p = { x: k.x ?? 0, z: k.z ?? 0 };
+      else if (k.target === 'storysite') p = REGION.sites?.find((x) => x.id === k.site);
+      else if (k.target === 'building') p = all.find((b) => !b.team && b.kind === k.building) ?? all.find((b) => !b.team && def(b).role === 'core');
+      else if (k.target === 'camp') p = s.camps?.find((c) => c.group === k.group);
+      if (!p) continue;
+      const r = Math.max(40, k.dist ?? 80);
+      for (const b of all) if (b.team && !b.seen && Math.hypot(b.x - p.x, b.z - p.z) <= r) b.seen = true;
+    }
   }
 
   /** Has region point (x, z) ever been seen? */
@@ -2713,6 +2734,7 @@ export class Sim {
     }
     w.n++;
     w.next = s.tick + Math.round((waveInterval() + (this.rnd() * 2 - 1) * THREATS.waveJitter) * TICK_HZ);
+    if (w.held !== undefined) { w.next = w.held; delete w.held; } // a story pack while waves were held off: held again
   }
 
   private freeSlot() {

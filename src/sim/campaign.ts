@@ -92,3 +92,15 @@ export function forgetRegion(sh: SharedState, region: string, defs: { story: Rec
   }
   return sh;
 }
+
+/**
+ * What a game over means for the campaign (the worker's autosave acts on it): `ended` when an ending was reached
+ * (the epilogue effect, wherever it played: Cycle at the Lantern is an ending, not a retry), the home colony fell or
+ * the story won; `expedition-lost` when an expedition fell without an ending (its region is forgotten, the campaign
+ * goes home); null while the game goes on.
+ */
+export function campaignOver(s: Pick<SimState, 'over' | 'story'>, region: string): 'ended' | 'expedition-lost' | null {
+  if (!s.over) return null;
+  if (s.story?.epilogue || region === HOME_REGION || s.over === 'won') return 'ended';
+  return 'expedition-lost';
+}

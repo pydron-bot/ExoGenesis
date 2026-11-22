@@ -2,8 +2,8 @@
  * The simulation worker: owns the game state and runs src/sim/core.ts at a
  * fixed tick; the main thread only renders snapshots and sends commands.
  */
-import { CAMPAIGN, delSave, putSave, regionKey, type AutoSave, type CampaignSave } from '../save';
-import { applyShared, forgetRegion, HOME_REGION, sharedOf } from './campaign';
+import { CAMPAIGN, delSave, putSave, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from '../save';
+import { applyShared, campaignOver, forgetRegion, HOME_REGION, sharedOf } from './campaign';
 import { content } from '../content';
 import { Sim, useRegion } from './core';
 import { TICK_MS, type FromWorker, type ToWorker } from './types';
@@ -22,7 +22,8 @@ let lastSavedTick = -1;
 
 /**
  * Write the game to this region's save and the campaign record (or clear the region's save once its colony is
- * lost: an expedition lost sends the campaign home; the home colony lost ends it).
+ * lost: an expedition lost sends the campaign home; the home colony lost ends it; an ending, reached anywhere, wipes
+ * every region's save and the campaign).
  */
 async function autoSave() {
   if (!autosave || saving) return;
@@ -30,9 +31,11 @@ async function autoSave() {
   if (s.phase !== 'deployed') return;
   saving = true;
   try {
-    if (s.over) {
+    const over = campaignOver(s, region);
+    if (over) {
       await delSave(regionKey(region));
-      if (region === HOME_REGION || s.over === 'won') await delSave(CAMPAIGN);
+      // the campaign over (an ending reached anywhere, Cycle at the Lantern too; the home colony lost): every save goes
+      if (over === 'ended') await wipeCampaign();
       // an expedition lost: home, and the region's story forgotten so a retry plays it again
       else await putSave(CAMPAIGN, { version: 1, savedAt: Date.now(), current: HOME_REGION, shared: forgetRegion(sharedOf(s), region, content) } satisfies CampaignSave);
     } else if (s.tick !== lastSavedTick) {

@@ -734,7 +734,8 @@ const hud = new ColonyHud({
   setBuild,
   // (a skirmish: the same map and players again; an expedition lost: back home, the campaign goes on)
   restart: () => {
-    if (!rts && !scratch && regionId !== HOME_REGION && sim.cur?.over && sim.cur.over !== 'won') { sim.flush(); setTimeout(() => goTravel(HOME_REGION), 600); return; }
+    // (an ending reached on an expedition, Cycle at the Lantern too, ends the campaign: a new game at home)
+    if (!rts && !scratch && regionId !== HOME_REGION && sim.cur?.over && sim.cur.over !== 'won' && !sim.cur.story?.epilogue) { sim.flush(); setTimeout(() => goTravel(HOME_REGION), 600); return; }
     restartGame();
   },
   // automated tests (Playwright) don't stop for story pauses unless they asked for a story (?story=<id>, play test)

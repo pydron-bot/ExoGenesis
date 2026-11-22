@@ -492,7 +492,8 @@ export interface SimState {
   explored?: string;
   packs: Pack[];
   /** Next pack index and the tick it arrives; attackers spawned so far. */
-  waves: { n: number; next: number; spawned: number; warned?: number };
+  /** `held`: the schedule a story pack interrupted while waves were held off (peaceful), put back after it. */
+  waves: { n: number; next: number; spawned: number; warned?: number; held?: number };
   /** Drone fabrication at the Core. */
   fab: { queued: number; progress: number; free?: boolean };
   /** Landing sequence: 'descent' until touchdown, 'landed' until the drone is out, then 'deployed'. */

@@ -703,6 +703,7 @@ export class ColonyHud {
       $('over-title').textContent = endingName(ep.ending).toUpperCase();
       $('over-sub').textContent = s.overText || (s.over === 'won' ? 'The run is over.' : 'The colony is lost.');
       $('over-stats').textContent = epilogueSummary(ep);
+      $('over-restart').textContent = 'New game'; // the campaign is over, wherever it ended
       return;
     }
     // an expedition lost: the campaign goes on at home
