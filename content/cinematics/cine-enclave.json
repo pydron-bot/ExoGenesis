@@ -14,7 +14,7 @@
       "site": "oldest-layer",
       "dist": 110,
       "pitch": 0.4,
-      "yaw": 3.6
+      "yaw": 0.4
     },
     {
       "at": 7,
@@ -23,7 +23,7 @@
       "site": "enclave-cut",
       "dist": 100,
       "pitch": 0.45,
-      "yaw": 3.2
+      "yaw": 0.6
     },
     {
       "at": 14,
@@ -31,17 +31,17 @@
       "lift": 4,
       "site": "enclave-cut",
       "dist": 70,
-      "pitch": 0.42,
-      "yaw": 3.7
+      "pitch": 0.38,
+      "yaw": 0.8
     },
     {
       "at": 23,
       "target": "storysite",
       "lift": 3,
       "site": "enclave-cut",
-      "dist": 55,
-      "pitch": 0.5,
-      "yaw": 4.1
+      "dist": 50,
+      "pitch": 0.32,
+      "yaw": 1
     }
   ],
   "captions": [

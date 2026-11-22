@@ -6,5 +6,7 @@
   "cost": 220,
   "isotopes": 40,
   "seconds": 90,
-  "order": 20
+  "order": 20,
+  "flag": "act1-done",
+  "flagText": "Hear the Signal (the end of Act 1)"
 }

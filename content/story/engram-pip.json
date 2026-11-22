@@ -11,6 +11,12 @@
       "kind": "waypoint",
       "site": "scout-wreck",
       "text": "The Kindred lander"
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "engram-pen",
+      "amount": 30
     }
   ],
   "chapter": "engram",

@@ -11,7 +11,7 @@
       "site": "works-gate",
       "lift": 2,
       "dist": 90,
-      "pitch": 0.42,
+      "pitch": 0.8,
       "yaw": 3.3
     },
     {
@@ -20,7 +20,7 @@
       "site": "chassis-hall",
       "lift": 4,
       "dist": 70,
-      "pitch": 0.35,
+      "pitch": 0.55,
       "yaw": 3.15
     },
     {

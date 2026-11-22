@@ -20,8 +20,8 @@
       "target": "storysite",
       "site": "works-gate",
       "lift": 2,
-      "dist": 60,
-      "pitch": 0.35,
+      "dist": 70,
+      "pitch": 0.8,
       "yaw": 0.2
     },
     {
@@ -30,7 +30,7 @@
       "site": "chassis-hall",
       "lift": 6,
       "dist": 110,
-      "pitch": 0.4,
+      "pitch": 0.7,
       "yaw": 0.15
     },
     {

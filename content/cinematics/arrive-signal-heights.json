@@ -21,7 +21,7 @@
       "site": "carrier-trace",
       "dist": 85,
       "pitch": 0.18,
-      "yaw": 0.6
+      "yaw": -0.8
     },
     {
       "at": 11,
@@ -30,7 +30,7 @@
       "site": "listening-post",
       "dist": 90,
       "pitch": 0.3,
-      "yaw": -0.3
+      "yaw": 2.3
     },
     {
       "at": 16,
@@ -39,7 +39,7 @@
       "site": "listening-post",
       "dist": 140,
       "pitch": 0.1,
-      "yaw": 0.4
+      "yaw": 2.6
     }
   ],
   "captions": [
