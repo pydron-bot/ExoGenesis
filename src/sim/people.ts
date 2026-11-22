@@ -539,6 +539,7 @@ export class People {
         continue;
       }
       p.dark = Math.max(0, p.dark - DT * 2);
+      if ((this.sim.s.story?.podPause ?? 0) > this.sim.s.tick) continue; // the Clause has paused it (a glitch): no harm, no growth
       p.progress += (DT * Math.max(0.1, 1 + this.sim.mod('podSpeed'))) / ((p.first ? P.firstPodSols ?? P.podSols : P.podSols) * SOL);
       if (p.progress >= 1) {
         s.pods.splice(s.pods.indexOf(p), 1);

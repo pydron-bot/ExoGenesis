@@ -36,6 +36,8 @@ export interface TitleOptions {
   tap: () => void;
   /** Live line under the menu (e.g. sound state); re-read on every tap. */
   status?: () => string;
+  /** A line under the menu with the endings reached ("ENDINGS: 2 OF 5"); empty hides it. */
+  endings?: string;
   /** The solar system, for the tour of other bodies (no tour without it). */
   system?: SolarSystem;
 }
@@ -78,12 +80,14 @@ export class TitleScreen {
         <div class="t-tag"><span class="t-typed"></span><i class="t-caret"></i></div>
         <nav class="t-menu"></nav>
         <div class="t-status"></div>
+        <div class="endings"></div>
       </div>
       <div class="t-foot">${opts.foot}</div>
       <div class="t-tele"></div>`;
     this.tagEl = root.querySelector('.t-typed')!;
     this.tele = root.querySelector('.t-tele')!;
     this.statusEl = root.querySelector('.t-status')!;
+    root.querySelector('.endings')!.textContent = opts.endings ?? '';
     const menu = root.querySelector('.t-menu')!;
     opts.choices.forEach((c, i) => {
       const el = document.createElement(c.href ? 'a' : 'button') as HTMLButtonElement & HTMLAnchorElement;

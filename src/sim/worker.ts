@@ -53,7 +53,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
     if (msg.story) content.story[msg.story.id] = msg.story.def;
     if (msg.mission) content.missions[msg.mission.id] = msg.mission.def;
     if (msg.cinematic) content.cinematics[msg.cinematic.id] = msg.cinematic.def;
-    sim = new Sim((text, level, cue, at) => post({ type: 'event', text, level, cue, at }));
+    sim = new Sim((text, level, cue, at, style) => post({ type: 'event', text, level, cue, at, style }));
     skirmish = msg.skirmish ?? null;
     if (skirmish) sim.newSkirmish(skirmish);
     snapshot();

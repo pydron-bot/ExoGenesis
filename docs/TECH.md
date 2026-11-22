@@ -2181,3 +2181,80 @@ Options rows, no shader errors) and renders of each effect.
   normals, one ground mesh, fog carried over, a building pad still level, the ground still picks, back to
   flat, remembered on the next visit). `tools/region-smoke.mjs` now checks that picking a region doesn't
   reload and that NEW GAME lands in Touchdown with a save in another region.
+
+### Factions and the climax
+
+STORY.md §13–17. What Act 2 and the climax need in play: other powers on a region (Kindred's colony, Engram's works,
+the Lantern's sentinels), the Lantern's strikes, the Clause's interference and the endings.
+
+- **Factions** (region `factions`: `id`, `name`, `color`, `team` 2–7, `attitude` neutral | hostile | allied, optional
+  `flag` that turns it hostile and `allyFlag` that turns it allied, each once): `SimState.factions` (`FactionState`),
+  set up by `initFactions` in a new game (or on loading a save from before the region had them). **Outposts** (region
+  `outposts`: building `kind`, `x`, `z`, `yaw`, `faction`, optional `story` flag set when it is destroyed) are
+  prebuilt, finished, powered buildings of that team (they need no power and run no economy). **Encounters** gain
+  `faction`: their units (Accord-pattern: Rovers, Tanks…) are `Unit`s of the faction's team instead of wild hostiles;
+  guards hold their spot, a patrol walks to the far end and back (`Unit.patrol`), attackers make for our Core; their
+  `doneFlag` is set when the last dies (`Unit.enc`).
+- **In the sim** the campaign uses the skirmish's team machinery when `teamsOn` (factions present): the colony's own
+  steps (power, drones, factories, research, mining, repair pads, relics, waves, frontier, cryo, people, planet,
+  inhabitants, story, encounters, missions, fog, and every command) run inside `withTeam(0)`, so they see only our
+  things; turrets, units, shields, hostiles and nests are one fight for everyone. `withTeam` swaps power and fog only
+  in a skirmish. `attitude(t)` is how team `t` stands with us; `allied(a, b)`: us and allied factions together, the
+  hostile ones together; `enemies(a, b)`: neither neutral and not allied. `foes(t)`: the wildlife (only for us and
+  our allies) plus every enemy team's units, drones and buildings. Predators go only for ours and our allies' (`prey`).
+  Campaign factions keep no fog (`visibleTo` is true for them). A faction's building destroyed is not our loss: the
+  log names whose it was and its `story` flag is set. Without factions every path is the one before (`balance.mjs`,
+  all strategies, output byte-identical).
+- **Neutral** factions don't fight and nothing of ours picks them. The player's attack order (`{ type: 'attack', ids,
+  target }`; in the game, a tap with units selected on a faction's unit or building, `factionAt` in `main.ts`) turns a
+  neutral faction hostile and sets `<id>-attacked`; an allied one refuses ("… are on our side"). `setAttitude` logs
+  every turn ("Kindred: hostile", "…: allied. They fight beside us.").
+- **Drawn** in the faction's colour: the army view's team colours (`factionColors`), building and drone rings and
+  glow (`teamColor` in `world/region.ts`), the minimap. Theirs show in sight, their buildings once seen (as in a
+  skirmish). The snapshot carries `factions`.
+- **Effects**: `attitude` (Faction, Attitude). `strike` (Site, or a random one of our Buildings of a kind, or any of
+  ours; Amount default 400, Radius default 10, Delay default 6 s): `StoryState.strikes` until it lands, a log line
+  with the alarm; then `Sim.orbitalStrike`: the fullest shield dome over the point soaks what it can (and may
+  collapse), the rest hits our buildings, units, drones and any predators within the radius (all of it in the inner
+  half, down to 30% at the edge), with explosions (`struck.n` counts landings). `corrupt` (Count, Unit): our combat
+  units join the Clause's team 1 (a faction `clause`, hostile, `#c13cff`) and make for the Core; the log says
+  "<unit> no longer answers." in the Clause's style. `glitch` (Glitch: `log` with the Text, `screen`, `turret`, `pod`
+  with Seconds, default 8) adds 1 to counter `clause`; a turret faces the nearest Civilian Center (or the Core) for two
+  seconds, holding fire (`Building.slew`); pods stop growing, without harm (`StoryState.podPause`). `epilogue`
+  (Ending: covenant, severance, inheritance, proof, cycle; Pages: title, text with `{first}`; Text: the end screen's
+  line): `StoryState.epilogue` with a summary (sol, colonists alive, the remembered, planet health, allies: allied
+  factions and camps that trust us), then `Sim.end` (`won`, or `story` for Cycle). An effect's Text is now required by
+  a content check (`TEXT_NEEDED`: log, countdown, waypoint, hint, win, fail, boost) rather than the schema, so a glitch
+  or an epilogue can do without.
+- **Conditions**: `faction` (the Faction has the Attitude), `factionLost` (none of its buildings stand), `partners`
+  (Count Partner adults), `majority` (the Stance is the largest group of adults; ties count). An outpost lost is its
+  `story` flag (a `flag` condition).
+- **On screen** (`src/climax-view.ts`): a warning ring on the ground per strike (a terrain-following strip, pulsing
+  faster as it comes), then a white beam from the sky that narrows over a second, a flash, and a scorch that fades
+  after 40–60 s; no lights (adding one recompiles every material). A screen glitch tears the view for a second (CSS on
+  the canvas and an overlay of bars; `glitch.tears` counts them). Clause log lines (events carry `style: 'clause'` from
+  `emit` through the worker) are monospaced and cold, scrambled for a moment before they settle. The epilogue's pages
+  show full screen over the darkened world, one at a time (Next, then "The end"), before the end screen, which shows
+  the ending's name and the run in numbers. Endings reached are kept per browser (`exo.endings`); the title shows
+  "ENDINGS: n OF 5" once there is one.
+- **Editor**: the map editor's **Add outpost (O)** (a block with a mast, listed under Outposts); the region's
+  `factions` list is edited on the record. Effect summaries and condition text read every new kind (`flow.ts`); Story
+  flow counts glitches as changing `clause` and doesn't report `<faction>-attacked` or outposts' flags as missing.
+  **Content checks**: unique faction ids and teams (not `clause`), different hostile and allied flags; outposts name a
+  faction of the region and aren't a Command Core; a faction's encounter uses Accord units and names a faction of the
+  region (a wild encounter still can't use Accord units); attitude effects and faction conditions name a faction some
+  region (or the event's region) has; a strike's site exists, not both a site and a building, not a wall; only Accord
+  units are corrupted; a log glitch needs its Text; an epilogue needs its Ending, and pages need text; `faction` needs
+  an Attitude, `majority` a Stance.
+- **Test**: `tools/climax-smoke.mjs` (headless with the sim, `--headless-only`; the browser half against a dev server,
+  `--url`): a neutral faction and our units side by side for 10 s untouched; the attack order turns it hostile with
+  its flag, both sides fight, an outpost destroyed sets its flag and isn't our loss, `factionLost`; a hostile faction's
+  turret and our units fight unbidden; an allied band kills swarmers; flags turn factions; save / load; a strike hits
+  only after its delay, an open turret loses 600, one under a charged dome nothing; strike by building kind; corrupt
+  turns 2 of 3 rovers, logs in the Clause's style, they fight us; each glitch counts, a turret turns and turns back,
+  pods pause; partners and majority (ties); the epilogue ends the game with its ending, pages and summary, Cycle as a
+  loss; a region without factions has none. In the browser: the strike's ring and beam, the Clause's monospaced line,
+  the screen tear, the epilogue's pages and end screen, the title's count, no page errors.
+- Not yet: factions have no economy or AI beyond guarding, patrolling and attacking (no building, no waves); allied
+  factions can't be commanded; nothing in content uses any of this yet (the Act 2 regions and the climax missions are
+  still to be written).

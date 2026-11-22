@@ -1301,7 +1301,7 @@ function showLibrary(force = false) {
 // ---------- whole-content pages: story flow, balance table, review ----------
 function drawFlow() {
   const data = <T,>(c: CollectionName) => Object.fromEntries(recordsOf(c).filter((r) => r.rec.data && typeof r.rec.data === 'object').map((r) => [r.id, r.rec.data as T]));
-  const known = new Set(recordsOf('regions').flatMap((r) => ((r.rec.data as RegionDef | null)?.encounters ?? []).map((e) => e.doneFlag).filter((f): f is string => !!f)));
+  const known = new Set(recordsOf('regions').flatMap((r) => [...((r.rec.data as RegionDef | null)?.encounters ?? []).map((e) => e.doneFlag), ...((r.rec.data as RegionDef | null)?.outposts ?? []).map((o) => o.story)].filter((f): f is string => !!f)));
   renderFlow($('main'), $('aside'), { missions: data<MissionDef>('missions'), story: data<StoryDef>('story'), known, open: (l) => open(l.coll, l.id) });
 }
 function drawBalance() {

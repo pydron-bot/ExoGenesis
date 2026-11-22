@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, MUSIC_LAYERS, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, type ThreatRules, type UnitDef, type VoiceDef, type WildlifeDef, locate, regionCells } from './defs';
+import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, MUSIC_LAYERS, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, TEXT_NEEDED, type ThreatRules, type UnitDef, type VoiceDef, type WildlifeDef, locate, regionCells } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 import { parseNotes } from '../audio/notes';
 import { parseSteps } from '../audio/drums';
@@ -240,18 +240,39 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if (kind === 'opened' && !c.panel) out.push({ path, field: `${pre}panel`, msg: 'required when the condition is opened' });
     if ((kind === 'all' || kind === 'any') && !(c.of as unknown[] | undefined)?.length) out.push({ path, field: `${pre}of`, msg: `an ${kind} group needs at least one condition` });
     ((c.of as Record<string, unknown>[] | undefined) ?? []).forEach((x, n) => condIssues(path, `${pre}of[${n}]`, x?.kind as string, x, region));
+    if (kind === 'faction' || kind === 'factionLost') {
+      if (!c.faction) out.push({ path, field: `${pre}faction`, msg: `required when the condition is ${kind}` });
+      else { const miss = factionMissing(c.faction as string, region); if (miss) out.push({ path, field: `${pre}faction`, msg: miss }); }
+    }
+    if (kind === 'faction' && !c.attitude) out.push({ path, field: `${pre}attitude`, msg: 'required when the condition is faction' });
+    if (kind === 'majority' && !c.stance) out.push({ path, field: `${pre}stance`, msg: 'required when the condition is majority' });
+  };
+  /** A faction id that no region (or not the given one) has. */
+  const factionMissing = (id: string, region?: string) => {
+    const maps = region ? [db.regions[region]] : Object.values(db.regions);
+    return maps.some((r) => r?.factions?.some((f) => f?.id === id)) ? null : `no region${region ? ` "${region}"` : ''} has a faction "${id}"`;
   };
   /** An effect's parameters (beyond what the schema checks). */
   const effectIssues = (path: string, field: string, e: Record<string, unknown> | undefined, region?: string) => {
     if (!e) return;
     const k = e.kind as string;
-    if (typeof e.site === 'string' && e.site && ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera'].includes(k)) { const miss = siteMissing(e.site, region); if (miss) out.push({ path, field: `${field}.site`, msg: miss }); }
+    if (typeof e.site === 'string' && e.site && ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'strike'].includes(k)) { const miss = siteMissing(e.site, region); if (miss) out.push({ path, field: `${field}.site`, msg: miss }); }
     if ((k === 'spawn' || k === 'reveal' || k === 'waypoint') && !e.site) out.push({ path, field: `${field}.site`, msg: `a ${k} needs a story site` });
     if (k === 'spawn' && !e.unit) out.push({ path, field: `${field}.unit`, msg: 'a spawn needs a unit' });
     if ((k === 'lock' || k === 'unlock') && !e.building && !e.unit) out.push({ path, field: `${field}.building`, msg: `${k}: pick a building or a unit` });
     if (k === 'camera' && !e.site && !e.building) out.push({ path, field: `${field}.site`, msg: 'camera: pick a story site or a building' });
     if (k === 'hint' && e.target === 'buildItem' && !e.building) out.push({ path, field: `${field}.building`, msg: 'a build-menu hint needs the building' });
     if (k === 'spawn' && typeof e.unit === 'string' && db.units[e.unit]?.nest) out.push({ path, field: `${field}.unit`, msg: 'nests grow on predator spawns; spawn the creatures instead' });
+    if ((TEXT_NEEDED.includes(k) || (k === 'glitch' && (e.glitch ?? 'log') === 'log')) && !e.text) out.push({ path, field: `${field}.text`, msg: k === 'glitch' ? 'a log glitch needs the Text (the line the Clause writes)' : `required when the effect is ${k}` });
+    if (k === 'attitude') {
+      if (!e.faction) out.push({ path, field: `${field}.faction`, msg: 'an attitude change needs the faction' });
+      else { const miss = factionMissing(e.faction as string, region); if (miss) out.push({ path, field: `${field}.faction`, msg: miss }); }
+    }
+    if (k === 'corrupt' && typeof e.unit === 'string' && db.units[e.unit] && db.units[e.unit].faction !== 'accord') out.push({ path, field: `${field}.unit`, msg: 'only our own (Accord) units can be corrupted' });
+    if (k === 'strike' && e.site && e.building) out.push({ path, field: `${field}.building`, msg: 'a strike hits the Site or a Building of a kind, not both' });
+    if (k === 'strike' && typeof e.building === 'string' && db.buildings[e.building]?.role === 'wall') out.push({ path, field: `${field}.building`, msg: 'aim it at something worth hitting (not a wall)' });
+    if (k === 'epilogue' && !e.ending) out.push({ path, field: `${field}.ending`, msg: 'an epilogue needs its Ending' });
+    ((e.pages as { text?: string }[] | undefined) ?? []).forEach((p, n) => { if (!p?.text?.trim()) out.push({ path, field: `${field}.pages[${n}].text`, msg: 'a page needs some text' }); });
   };
   for (const [id, m] of Object.entries(db.missions ?? {})) {
     if (!m || typeof m !== 'object') continue;
@@ -357,7 +378,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
       const v = r[g];
       if (Array.isArray(v) && v.length !== n) out.push({ path: P, field: g, msg: `has ${v.length} rows; a ${size} u region needs ${n} (resize it in the map editor)` });
     }
-    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites', 'wrecks', 'seams', 'relics', 'encounters'] as const) {
+    for (const k of ['herds', 'deposits', 'spawns', 'vents', 'camps', 'sites', 'wrecks', 'seams', 'relics', 'encounters', 'outposts'] as const) {
       (r[k] as { x?: number; z?: number }[] | undefined)?.forEach((m, i) => {
         if (m && (Math.abs(m.x ?? 0) > half || Math.abs(m.z ?? 0) > half)) out.push({ path: P, field: `${k}[${i}]`, msg: `outside the region (it's ${size} u across)` });
       });
@@ -367,10 +388,27 @@ function crossIssues(db: ContentDb): FileIssue[] {
     (r.encounters ?? []).forEach((e, i) => {
       if (!e) return;
       const u = db.units[e.unit];
-      if (u?.faction === 'accord') out.push({ path: P, field: `encounters[${i}].unit`, msg: 'an encounter is hostile: pick a fauna or relic unit' });
+      if (u?.faction === 'accord' && !e.faction) out.push({ path: P, field: `encounters[${i}].unit`, msg: 'an encounter is hostile: pick a fauna or relic unit (or give it a Faction)' });
+      if (e.faction && u && u.faction !== 'accord') out.push({ path: P, field: `encounters[${i}].unit`, msg: 'a faction\'s encounter is Accord-pattern units (Rovers, Tanks…): wild ones have no faction' });
+      if (e.faction && !(r.factions ?? []).some((f) => f?.id === e.faction)) out.push({ path: P, field: `encounters[${i}].faction`, msg: `this region has no faction "${e.faction}"` });
       if (u?.nest) out.push({ path: P, field: `encounters[${i}].unit`, msg: 'nests grow on predator spawns, not as encounters' });
       if (encIds.has(e.id)) out.push({ path: P, field: `encounters[${i}].id`, msg: `another encounter is "${e.id}"` });
       encIds.add(e.id);
+    });
+    // factions: unique ids and teams; outposts name one and aren't a Command Core
+    const facIds = new Set<string>(), teams = new Set<number>();
+    (r.factions ?? []).forEach((f, i) => {
+      if (!f) return;
+      if (facIds.has(f.id)) out.push({ path: P, field: `factions[${i}].id`, msg: `another faction is "${f.id}"` });
+      if (f.id === 'clause') out.push({ path: P, field: `factions[${i}].id`, msg: '"clause" is the Clause\'s own team (corrupted units)' });
+      if (teams.has(f.team)) out.push({ path: P, field: `factions[${i}].team`, msg: `another faction is team ${f.team}` });
+      if (f.flag && f.flag === f.allyFlag) out.push({ path: P, field: `factions[${i}].allyFlag`, msg: 'the same flag as Hostile when flag' });
+      facIds.add(f.id); teams.add(f.team);
+    });
+    (r.outposts ?? []).forEach((o, i) => {
+      if (!o) return;
+      if (!facIds.has(o.faction)) out.push({ path: P, field: `outposts[${i}].faction`, msg: `this region has no faction "${o.faction}"` });
+      if (db.buildings[o.kind]?.role === 'core') out.push({ path: P, field: `outposts[${i}].kind`, msg: 'the Command Core is ours alone' });
     });
   }
   for (const [id, a] of Object.entries(db.assets)) {

@@ -3,6 +3,7 @@
  * card, radar minimap and the game-over panel. DOM only; reads snapshots and
  * sends commands. Updated a few times a second, not every frame.
  */
+import { endingName, epilogueSummary } from './climax-view';
 import type { ZoomCamera } from './camera';
 import type { BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, ResearchDef, StoryDef, UnitDef } from './content/defs';
 import { ContactCard } from './contact-card';
@@ -203,7 +204,7 @@ export class ColonyHud {
     else if (rv.next !== null) { e.threat.className = `r ${rv.next < 30 ? 'warn' : ''}`; e.threat.innerHTML = `⚠<span class="w"> next pack</span> <b>${mmss(rv.next)}</b>`; e.threat.title = 'Next predator pack (radar)'; }
     else if (rv.offline) { e.threat.className = 'r warn'; e.threat.innerHTML = '⚠ <b>off</b><span class="w"> (radar)</span>'; e.threat.title = 'The radar has no power'; }
     else { e.threat.className = 'r dim'; e.threat.innerHTML = '⚠ <b>—</b>'; e.threat.title = 'Build a Radar to see packs coming'; }
-    const n = s.players ? s.units.filter((u) => !u.team).length : s.units.length;
+    const n = s.units.filter((u) => !u.team).length; // (not a skirmish rival's, a campaign faction's or a unit the Clause has turned)
     e.army.innerHTML = `⚔ <b>${n}</b>`;
     e.army.className = `r tap ${n ? '' : 'dim'} ${this.d.ui.sel?.kind === 'units' ? 'on' : ''}`;
     e.army.title = n ? 'Combat units: tap to select them all' : 'No combat units yet (Vehicle Bay)';
@@ -574,7 +575,8 @@ export class ColonyHud {
     for (const w of s.wrecks ?? []) if (w.found && w.alloys > 0) g.fillRect(px(w.x) - 2.5, pz(w.z) - 1.5, 5, 3);
     g.fillStyle = fill;
     // skirmish: everything in its owner's colour, Cores outlined white
-    const P = s.players, col = (t?: number) => P?.[t ?? 0]?.color;
+    // (campaign factions, and units the Clause has turned: theirs in their colour too)
+    const P = s.players, col = (t?: number) => P?.[t ?? 0]?.color ?? (t ? s.factions?.find((f) => f.team === t)?.color : undefined);
     for (const b of s.buildings) {
       const d = this.d.defs[b.kind];
       const r = Math.max(2, (d?.clearance ?? 8) / REGION_HALF * W * 0.3);
@@ -643,6 +645,14 @@ export class ColonyHud {
       $('over-stats').innerHTML = `<div>${mmss(s.secs)} played</div><table class="sk-stats"><tr><th></th><th>Built</th><th>Kills</th><th>Lost</th><th>Bldgs lost</th><th>Mined</th></tr>${s.players.map(row).join('')}</table>`;
       $('over-restart').textContent = 'Rematch';
       $('over-load').textContent = 'New skirmish';
+      return;
+    }
+    const ep = s.story?.epilogue;
+    if (ep) {
+      // an ending (the epilogue effect): its name and the run in numbers
+      $('over-title').textContent = endingName(ep.ending).toUpperCase();
+      $('over-sub').textContent = s.overText || (s.over === 'won' ? 'The run is over.' : 'The colony is lost.');
+      $('over-stats').textContent = epilogueSummary(ep);
       return;
     }
     $('over-title').textContent = s.over === 'won' ? 'COLONY ENDURES' : 'COLONY LOST';

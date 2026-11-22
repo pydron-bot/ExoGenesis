@@ -26,6 +26,11 @@ import {
   type GroundPad,
 } from './planet';
 
+/** The colour things of team `t` are drawn in: a skirmish player's, or a campaign faction's (none for ours). */
+export function teamColor(cur: Snapshot, t?: number): string | undefined {
+  return cur.players?.[t ?? 0]?.color ?? (t ? cur.factions?.find((f) => f.team === t)?.color : undefined);
+}
+
 const STEP = 2;
 const CYAN = new THREE.Color('#5ff3ff');
 const AMBER = new THREE.Color('#ffb547');
@@ -1237,7 +1242,7 @@ export class RegionView {
       if (!held) orient(e.obj, x, z, a.heading + dh * alpha, e.lift + bob);
       e.x = x; e.z = z;
       e.world.copy(e.obj.position);
-      const pc = cur.players?.[b.team ?? 0]?.color;
+      const pc = teamColor(cur, b.team);
       if (pc) this.teamRing(`d${b.id}`, x, z, 2.2, pc);
       if (b.id === this.firstDrone) this.droneWorld.copy(e.obj.position);
     }
@@ -1560,7 +1565,7 @@ export class RegionView {
       if (b.kind === 'core' && !cur.players) { coreSeen = true; this.hpBar(b, d, ui, camera, null); continue; }
       seen.add(b.id);
       const done = b.progress >= 1;
-      const pc = cur.players?.[b.team ?? 0]?.color;
+      const pc = teamColor(cur, b.team);
       if (pc) this.teamRing(`b${b.id}`, b.x, b.z, (d?.clearance ?? 8) / 2 + 1, pc);
       let e = this.buildings.get(b.id);
       if (!e || e.done !== done) {
