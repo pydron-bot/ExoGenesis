@@ -1,0 +1,40 @@
+{
+  "title": "Every Band Open",
+  "text": "The old dish turns on its bearings for the first time in a very long time, and the Relay Tower feeds it. Every band at once: hiss, the sun's crackle, our own report going up to the moon, very faint. And the noise wakes the crags.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "explored",
+      "site": "listening-post"
+    },
+    {
+      "kind": "built",
+      "building": "relay"
+    }
+  ],
+  "region": "signal-heights",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "listening-post"
+    },
+    {
+      "after": 0,
+      "kind": "countdown",
+      "timer": "listening",
+      "amount": 240,
+      "text": "The post is listening"
+    },
+    {
+      "after": 0,
+      "kind": "spawn",
+      "unit": "skimmerwing",
+      "count": 4,
+      "site": "north-crags"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights, E13",
+  "status": "draft"
+}

@@ -1,0 +1,64 @@
+{
+  "title": "The Pods Pause",
+  "cast": "adult",
+  "text": "{who} calls you to the pod hall. Every growth pod has stopped. No alarm, no fault: the pumps are idle and the readouts say HELD, in the tone you use for a scheduled hold. Twenty seconds later they start again. \"Did you do that?\"",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "counter",
+      "counter": "lead",
+      "count": 2
+    },
+    {
+      "kind": "pod"
+    }
+  ],
+  "delay": 20,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "\"Yes. A routine check.\"",
+      "reply": "\"Next time, tell us first.\" They go back to work."
+    },
+    {
+      "label": "\"No. I don't know what did.\"",
+      "reply": "{who} looks at the pods for a long time. \"Then who's running them?\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "pod",
+      "seconds": 20
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 1
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "clause-hidden"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2
+    },
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": -3
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "clause-told"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, glitch, tell or hide",
+  "status": "draft"
+}

@@ -1,6 +1,6 @@
 {
   "name": "Dustfall",
-  "description": "Act 2, chapter `kindred` (STORY.md §16): the `dustfall` mission, escorting Marrow's survey team on Dunmore. A cold desert of long dunes, tallest in the dune sea to the west (`dune-sea`). The survey team waits by our Core (`survey-camp`). In the north-east a centuries-old Kindred hull lies under a long dune (`old-hull`: a wreck, 900 salvage), its broken hold open as a pit beside it: a nest grows in the hold, Burrowers guard it (`hold-burrowers`), and when `manifest-read` is set 12 Swarmers come out of it after the team (`hold-swarm`, attack: \"defend the team on the way out\"). A second nest far south-west; packs ×0.6, 7 min grace; arid herds. Hooks: `marrow-manifest` and `marrow-grief` at `old-hull` (set `manifest-read` there), `keeper-song` choice, `failsafe-offer`. Still needs: Kindred units spawned as ours for the escort (they must survive), the dust storm, and the expedition package.",
+  "description": "Act 2, chapter `kindred` (STORY.md §16): the `dustfall` mission, escorting Marrow's survey team on Dunmore. A cold desert of long dunes, tallest in the dune sea to the west (`dune-sea`). The survey team waits by our Core (`survey-camp`). In the north-east a centuries-old Kindred hull lies under a long dune (`old-hull`: a wreck, 900 salvage), its broken hold open as a pit beside it: a nest grows in the hold, Burrowers guard it (`hold-burrowers`), and when `manifest-read` is set 12 Swarmers come out of it after the team (`hold-swarm`, attack: \"defend the team on the way out\"). A second nest far south-west; packs ×0.6, 7 min grace; arid herds. Hooks: `marrow-manifest` and `marrow-grief` at `old-hull` (set `manifest-read` there), `keeper-song` choice, `failsafe-offer`. Kindred is a faction here (team 2, neutral; allied for the escort by marrow-dunmore; kindred-hostile / kindred-ally as on Verdance): Marrow's survey camp by survey-camp (radar, solar, a habitat). The survey team is a Kindred encounter (3 Field Engineers, patrol camp → hull, appears with survey-set-out; survey-team-lost when the last dies fails dustfall). hold-swarm sets swarm-beaten. Expedition: 900 alloys, 3 drones, 4 Rovers, 2 Tanks, 2 Lancers.",
   "body": "dunmore",
   "size": 280,
   "detail": 3,
@@ -542,7 +542,81 @@
       "x": 92,
       "z": 86,
       "mode": "attack",
-      "flag": "manifest-read"
+      "flag": "manifest-read",
+      "doneFlag": "swarm-beaten"
+    },
+    {
+      "id": "survey-team",
+      "unit": "engineer",
+      "count": 3,
+      "x": 28,
+      "z": -22,
+      "mode": "patrol",
+      "r": 10,
+      "x2": 54,
+      "z2": 54,
+      "flag": "survey-set-out",
+      "doneFlag": "survey-team-lost",
+      "faction": "kindred"
+    }
+  ],
+  "factions": [
+    {
+      "id": "kindred",
+      "name": "Kindred",
+      "color": "#ffb36a",
+      "team": 2,
+      "attitude": "neutral",
+      "flag": "kindred-hostile",
+      "allyFlag": "kindred-ally"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "radar",
+      "x": 44,
+      "z": -12,
+      "faction": "kindred"
+    },
+    {
+      "kind": "solar",
+      "x": 46,
+      "z": -28,
+      "faction": "kindred"
+    },
+    {
+      "kind": "solar",
+      "x": 34,
+      "z": -36,
+      "faction": "kindred"
+    },
+    {
+      "kind": "habitat",
+      "x": 18,
+      "z": -34,
+      "yaw": 30,
+      "faction": "kindred"
+    }
+  ],
+  "expedition": [
+    {
+      "alloys": 900,
+      "isotopes": 60,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 4
+        },
+        {
+          "unit": "tank",
+          "count": 2
+        },
+        {
+          "unit": "lancer",
+          "count": 2
+        }
+      ]
     }
   ]
 }

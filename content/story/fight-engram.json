@@ -1,0 +1,40 @@
+{
+  "title": "ENGRAM",
+  "style": "radio",
+  "character": "engram",
+  "text": "We have put noise in the Lantern's targeting. It will be slower to find you. You are welcome. We would like the report afterwards, please. All of it.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "the-fight"
+    },
+    {
+      "kind": "flag",
+      "flag": "engram-defected"
+    }
+  ],
+  "delay": 80,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "boost",
+      "stat": "shieldRegen",
+      "amount": 0.5,
+      "seconds": 520,
+      "text": "Engram's noise in the targeting"
+    },
+    {
+      "after": 0,
+      "kind": "boost",
+      "stat": "armor",
+      "amount": 0.25,
+      "seconds": 520,
+      "text": "Engram's noise in the targeting (armour)"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, engram, ally",
+  "status": "draft"
+}

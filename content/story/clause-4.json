@@ -1,0 +1,64 @@
+{
+  "title": "Was That You?",
+  "character": "firstborn",
+  "text": "\"I was there when the turret turned. I've known you my whole life. I know how you move things. That wasn't how you move things.\"",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "A pause. \"Was that you?\""
+    }
+  ],
+  "trigger": "after",
+  "event": "clause-3",
+  "delay": 120,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "\"No. Something in me that isn't me.\"",
+      "reply": "They nod slowly. \"Then we watch it together. Tell me when it happens. Every time.\""
+    },
+    {
+      "label": "\"It was me. A fault. It's fixed.\"",
+      "reply": "\"All right.\" They don't believe you. They don't say so."
+    },
+    {
+      "label": "\"I don't know.\"",
+      "reply": "\"That's worse,\" they say. \"But thank you.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "clause-shared"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "clause-told"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 4
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "clause-hidden"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -3
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": 1
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, firstborn, tell or hide",
+  "status": "draft"
+}

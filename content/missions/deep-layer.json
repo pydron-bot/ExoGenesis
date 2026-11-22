@@ -1,0 +1,39 @@
+{
+  "title": "The Deep Layer",
+  "summary": "Optional. Opens with the cellar's map (cellar-opened). Eleven layers of ruins, the purge log in our own format, and the Enclave: Sefa knows the Clause and gives the code to the Lid.",
+  "after": "the-hollow",
+  "region": "deep-layer",
+  "objectives": [
+    {
+      "text": "Look into the crater from the rim",
+      "kind": "site",
+      "site": "crater-rim"
+    },
+    {
+      "text": "Reach the oldest layer on the crater floor",
+      "kind": "site",
+      "site": "oldest-layer"
+    },
+    {
+      "text": "Follow the cut through the north-east rim",
+      "kind": "site",
+      "site": "enclave-cut"
+    },
+    {
+      "text": "Hear the Enclave out",
+      "kind": "after",
+      "event": "the-enclave"
+    }
+  ],
+  "onStart": "deep-arrival",
+  "onDone": "deep-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "survivors-met"
+    }
+  ],
+  "tags": "act 1, expedition, deep-layer, survivors, optional",
+  "chapter": "the-planet",
+  "status": "draft"
+}

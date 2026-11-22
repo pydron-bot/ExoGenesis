@@ -4,10 +4,48 @@
   "after": "firstborn",
   "region": "touchdown",
   "objectives": [
-    { "text": "Build a Radar for early warning", "kind": "built", "building": "radar" },
-    { "text": "Find what is carved on the east ridge", "kind": "site", "site": "east-stone" },
-    { "text": "Find the smoke in the north-west", "kind": "contact", "group": "vell" },
-    { "text": "Keep the colony alive until Sol 4", "kind": "time", "sol": 4 }
+    {
+      "text": "Build a Radar for early warning",
+      "kind": "built",
+      "building": "radar"
+    },
+    {
+      "text": "Find what is carved on the east ridge",
+      "kind": "site",
+      "site": "east-stone"
+    },
+    {
+      "text": "Find the smoke in the north-west",
+      "kind": "contact",
+      "group": "vell"
+    },
+    {
+      "text": "Keep the colony alive until Sol 4",
+      "kind": "time",
+      "sol": 4
+    }
+  ],
+  "rewards": [
+    {
+      "kind": "route",
+      "region": "hearthsmoke"
+    },
+    {
+      "kind": "route",
+      "region": "choir-field"
+    },
+    {
+      "kind": "route",
+      "region": "burrow-reach"
+    },
+    {
+      "kind": "route",
+      "region": "splinter-hollow"
+    },
+    {
+      "kind": "event",
+      "event": "open-planet"
+    }
   ],
   "chapter": "beyond-the-ridge"
 }

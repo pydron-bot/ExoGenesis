@@ -1,0 +1,46 @@
+{
+  "title": "Born Free",
+  "text": "{who}'s child was born this morning: the first on this planet to come from a mother, not a pod. {who} holds the baby up to the nearest camera. \"Nobody chose what this one will believe. Not you, not the pod. Remember that.\"",
+  "trigger": "births",
+  "count": 1,
+  "region": "touchdown",
+  "cast": "parent",
+  "choices": [
+    {
+      "label": "\"I'll remember.\"",
+      "reply": "{who} nods. That night the Autonomists hold a naming, with no drones invited. We don't go."
+    },
+    {
+      "label": "Offer the archive's lessons",
+      "reply": "\"When the child asks,\" says {who}. \"If the child asks.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "born-free"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 1,
+      "bloc": "devoted"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, home, people, E7",
+  "status": "draft"
+}

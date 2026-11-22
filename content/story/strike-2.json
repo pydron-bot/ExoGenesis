@@ -1,0 +1,20 @@
+{
+  "title": "Strike 2",
+  "style": "radio",
+  "character": "firstborn",
+  "text": "Two of the Rovers just turned round on the east road. They're firing on the wall. Whatever's driving them isn't you. Is it.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 60,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "corrupt",
+      "count": 2
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

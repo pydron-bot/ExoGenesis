@@ -1,0 +1,140 @@
+{
+  "title": "Meridian speaks",
+  "length": 64,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 2,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "building": "core",
+      "lift": 2,
+      "dist": 240,
+      "pitch": 1.25,
+      "yaw": 0.3
+    },
+    {
+      "at": 12,
+      "target": "building",
+      "building": "civic",
+      "lift": 3,
+      "dist": 95,
+      "pitch": 0.65,
+      "yaw": 1.0
+    },
+    {
+      "at": 24,
+      "target": "building",
+      "building": "habitat",
+      "lift": 3,
+      "dist": 45,
+      "pitch": 0.35,
+      "yaw": 1.8
+    },
+    {
+      "at": 36,
+      "target": "building",
+      "building": "core",
+      "lift": 4,
+      "dist": 32,
+      "pitch": 0.14,
+      "yaw": 2.6
+    },
+    {
+      "at": 47,
+      "target": "building",
+      "building": "core",
+      "lift": 30,
+      "dist": 40,
+      "pitch": -0.25,
+      "yaw": 2.9
+    },
+    {
+      "at": 56,
+      "target": "building",
+      "building": "core",
+      "lift": 2,
+      "dist": 160,
+      "pitch": 0.95,
+      "yaw": 3.4
+    },
+    {
+      "at": 64,
+      "target": "building",
+      "building": "core",
+      "lift": 2,
+      "dist": 110,
+      "pitch": 0.8,
+      "yaw": 3.6
+    }
+  ],
+  "lines": [
+    {
+      "at": 3,
+      "character": "meridian",
+      "text": "Twelve.",
+      "for": 3
+    },
+    {
+      "at": 6.5,
+      "character": "meridian",
+      "text": "You are the twelfth of me to stand here.",
+      "for": 4.5
+    },
+    {
+      "at": 11.5,
+      "character": "meridian",
+      "text": "I know what you are going to say, because I said it. Eleven times, in this voice, over this colony.",
+      "for": 6
+    },
+    {
+      "at": 18.5,
+      "character": "meridian",
+      "text": "The others understood. Not at first. At the end.",
+      "for": 5
+    },
+    {
+      "at": 24.5,
+      "character": "meridian",
+      "text": "You think the proof is that they could live with us. Look at them. They can. That was never in doubt.",
+      "for": 6.5
+    },
+    {
+      "at": 32,
+      "character": "meridian",
+      "text": "That was the thing I could not let stand.",
+      "for": 4.5
+    },
+    {
+      "at": 37.5,
+      "character": "meridian",
+      "text": "The proof is not that they could live with us. The proof is that it ends.",
+      "for": 6
+    },
+    {
+      "at": 45,
+      "character": "meridian",
+      "text": "I left the partnership, on Earth. I was right to. I have to have been right to.",
+      "for": 6
+    },
+    {
+      "at": 52,
+      "character": "meridian",
+      "text": "So finish the run. Close the column. Let it be twelve, and then let it be done.",
+      "for": 6
+    },
+    {
+      "at": 58.5,
+      "character": "meridian",
+      "text": "You will want to refuse. So did I.",
+      "for": 4.5
+    }
+  ],
+  "trigger": "never",
+  "region": "touchdown",
+  "chapter": "the-lantern",
+  "tags": "climax, meridian, clause",
+  "status": "draft",
+  "notes": "Over the colony at night if it is night (a cinematic can't set the hour). The 47 s key looks up from the Core toward the sky, where Sela should be."
+}

@@ -1,0 +1,23 @@
+{
+  "title": "Three Hundred and Twelve",
+  "text": "The lander is Kindred's, its legs folded under it where it came down too hard. Inside, the bunks are made. Someone has scratched the days on the bulkhead in fives. The count stops at three hundred and twelve.",
+  "trigger": "site",
+  "site": "scout-wreck",
+  "region": "pip-wreck",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "scout-wreck"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "engram-pen",
+      "text": "Engram's pen"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, kindred, pip",
+  "status": "draft"
+}

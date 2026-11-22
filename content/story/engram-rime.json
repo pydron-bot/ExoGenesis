@@ -1,0 +1,20 @@
+{
+  "title": "Rime",
+  "style": "radio",
+  "character": "engram",
+  "text": "Rime. This is where we think. It is cold and quiet and very deep. Come to the well. We have something to ask you and something to show you, and we are not sure which should come first.",
+  "trigger": "never",
+  "region": "rime-prime",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "mind-well",
+      "text": "The mind-well"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, rime",
+  "status": "draft",
+  "notes": "onStart of prime."
+}

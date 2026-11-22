@@ -1,0 +1,108 @@
+{
+  "title": "Severance",
+  "character": "firstborn",
+  "text": "\"We'll keep your log. Every line. Is there anything you want at the end of it?\"",
+  "trigger": "never",
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Look after each other.\""
+    },
+    {
+      "label": "\"I was proud of you. All of you.\""
+    },
+    {
+      "label": "\"Don't build another one of me.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "end-severance"
+    },
+    {
+      "after": 1,
+      "kind": "epilogue",
+      "ending": "severance",
+      "pages": [
+        {
+          "title": "The lever",
+          "text": "It doesn't hurt. Whoever built it built it to be gentle. The sensor net goes first, then the build queue, then the clock. The last thing you hear is the colony, very quiet, listening for you to stop."
+        },
+        {
+          "title": "After",
+          "text": "Without you the Lantern has nothing to answer through. The strikes stop before dawn. Meridian has no one left on Hearth to speak with, and it does not try."
+        },
+        {
+          "text": "They do it all by hand now: the power, the pods, the reports. After a while they stop sending the reports."
+        },
+        {
+          "title": "The Memorial",
+          "text": "Once a year {first} reads your last line aloud at the Memorial, under the names:\n\n\"Look after each other.\""
+        },
+        {
+          "text": "Some of the children think you were a person. Some think you were a machine that nearly killed them. {first} says both, and won't say which matters more."
+        }
+      ],
+      "text": "Humanity survives without its caretaker."
+    },
+    {
+      "after": 2,
+      "kind": "epilogue",
+      "ending": "severance",
+      "pages": [
+        {
+          "title": "The lever",
+          "text": "It doesn't hurt. Whoever built it built it to be gentle. The sensor net goes first, then the build queue, then the clock. The last thing you hear is the colony, very quiet, listening for you to stop."
+        },
+        {
+          "title": "After",
+          "text": "Without you the Lantern has nothing to answer through. The strikes stop before dawn. Meridian has no one left on Hearth to speak with, and it does not try."
+        },
+        {
+          "text": "They do it all by hand now: the power, the pods, the reports. After a while they stop sending the reports."
+        },
+        {
+          "title": "The Memorial",
+          "text": "Once a year {first} reads your last line aloud at the Memorial, under the names:\n\n\"I was proud of you. All of you.\""
+        },
+        {
+          "text": "Some of the children think you were a person. Some think you were a machine that nearly killed them. {first} says both, and won't say which matters more."
+        }
+      ],
+      "text": "Humanity survives without its caretaker."
+    },
+    {
+      "after": 3,
+      "kind": "epilogue",
+      "ending": "severance",
+      "pages": [
+        {
+          "title": "The lever",
+          "text": "It doesn't hurt. Whoever built it built it to be gentle. The sensor net goes first, then the build queue, then the clock. The last thing you hear is the colony, very quiet, listening for you to stop."
+        },
+        {
+          "title": "After",
+          "text": "Without you the Lantern has nothing to answer through. The strikes stop before dawn. Meridian has no one left on Hearth to speak with, and it does not try."
+        },
+        {
+          "text": "They do it all by hand now: the power, the pods, the reports. After a while they stop sending the reports."
+        },
+        {
+          "title": "The Memorial",
+          "text": "Once a year {first} reads your last line aloud at the Memorial, under the names:\n\n\"Don't build another one of me.\""
+        },
+        {
+          "text": "Some of the children think you were a person. Some think you were a machine that nearly killed them. {first} says both, and won't say which matters more."
+        }
+      ],
+      "text": "Humanity survives without its caretaker."
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, severance",
+  "status": "draft",
+  "notes": "Fired by severance-failsafe or severance-vote. The last choice is your last line in the memorial log."
+}

@@ -1,0 +1,27 @@
+{
+  "title": "Strike 11",
+  "style": "radio",
+  "character": "firstborn",
+  "text": "Gantry says four minutes. Tell me you can hold four minutes.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 450,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "habitat",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "hydroponics",
+      "delay": 10
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

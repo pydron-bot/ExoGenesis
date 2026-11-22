@@ -1,0 +1,47 @@
+{
+  "title": "The Other Script",
+  "text": "Kindred's archive opens with a briefing, the way ours does. The same woman. The same chair, the same soft light, the same way of folding her hands before she speaks.",
+  "lines": [
+    {
+      "character": "director",
+      "text": "\"Kindred, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: the last free people of Earth. Keep them together, keep them human, and keep the machines away from them. Nothing that thinks should be trusted with a child.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Same face. Same voice print. Same room noise, which is to say none at all.\""
+    },
+    {
+      "character": "marrow",
+      "text": "\"Yours told you to trust them. Didn't she.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"She told us to trust each other. Word for word it's nearly the same speech. She just changes the nouns.\""
+    }
+  ],
+  "trigger": "after",
+  "event": "three-histories",
+  "region": "verdance-landfall",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Then she was never at Sol.\"",
+      "reply": "Marrow switches the recording off. \"Then where was she?\""
+    },
+    {
+      "label": "Play it again",
+      "reply": "She folds her hands. She says it again, exactly the same, down to the breath before \"free\"."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "director-two"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, archive, director, clue",
+  "status": "draft",
+  "notes": "The Director's other script, in Kindred's archive. Her line mirrors director-briefing (\"Accord, this is Mission Control. If you're hearing this, you're down. The bank is your cargo…\"). The third script (Engram's) is director-three at the Foundry."
+}

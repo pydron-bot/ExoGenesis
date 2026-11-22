@@ -1,0 +1,86 @@
+{
+  "title": "Arrival: Sela",
+  "length": 18,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 140,
+      "pitch": 1.15,
+      "yaw": 0.2
+    },
+    {
+      "at": 5,
+      "target": "storysite",
+      "site": "relay-mast",
+      "lift": 2,
+      "dist": 60,
+      "pitch": 0.45,
+      "yaw": 0.6
+    },
+    {
+      "at": 10,
+      "target": "storysite",
+      "site": "relay-mast",
+      "lift": 6,
+      "dist": 26,
+      "pitch": 0.08,
+      "yaw": 0.95
+    },
+    {
+      "at": 14,
+      "target": "storysite",
+      "site": "relay-mast",
+      "lift": 30,
+      "dist": 40,
+      "pitch": -0.35,
+      "yaw": 1.05
+    },
+    {
+      "at": 18,
+      "target": "storysite",
+      "site": "relay-mast",
+      "lift": 60,
+      "dist": 60,
+      "pitch": -0.5,
+      "yaw": 1.1
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "SELA",
+      "sub": "Near side · the relay"
+    },
+    {
+      "at": 9,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 5.5,
+      "character": "archivist",
+      "text": "There it is. The mast. Every report we ever sent went through that.",
+      "for": 4.5
+    },
+    {
+      "at": 12,
+      "character": "archivist",
+      "text": "And look up. That's us. That's Home.",
+      "for": 4
+    }
+  ],
+  "trigger": "start",
+  "region": "sela-relay",
+  "chapter": "first-light",
+  "tags": "act 2, sela, arrival",
+  "status": "draft",
+  "notes": "Plays on arrival. The last keys look up past the mast into the sky, where Home should hang over the near side."
+}

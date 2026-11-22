@@ -1,0 +1,65 @@
+{
+  "title": "The Failsafe",
+  "character": "bede",
+  "text": "\"If you're hearing this, they've used it. I'm sorry. I built it to be gentle, and I built it so that it would not need you to agree. I hope it was the right call. I'm nearly always sorry about the things I make.\"",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"It's in the hydroponics bay. It's a lever. It's just a lever.\" A breath. \"They've voted. I'm sorry. I didn't vote for it, but I won't stop them.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "trust-decides"
+    },
+    {
+      "kind": "flag",
+      "flag": "failsafe-built"
+    },
+    {
+      "kind": "distrust",
+      "count": 45
+    }
+  ],
+  "region": "touchdown",
+  "unless": "trust-settled",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Let them",
+      "reply": "You do not fight the lever. It would be very easy to."
+    },
+    {
+      "label": "Ask for one more minute",
+      "reply": "\"One minute,\" {first} says. \"Nobody's counting.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "trust-settled"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "severance"
+    },
+    {
+      "after": 1,
+      "kind": "event",
+      "event": "severance"
+    },
+    {
+      "after": 2,
+      "kind": "event",
+      "event": "severance"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, trust, severance, bede",
+  "status": "draft",
+  "notes": "Autonomist-led (failsafe-built and acceptance ≤ 45): Bede's recorded message plays when the failsafe is thrown."
+}

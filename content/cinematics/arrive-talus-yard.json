@@ -1,0 +1,77 @@
+{
+  "title": "Arrival: Talus",
+  "length": 16,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 130,
+      "pitch": 1.15,
+      "yaw": 0.6
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "site": "yard-site",
+      "lift": 2,
+      "dist": 55,
+      "pitch": 0.5,
+      "yaw": 0.9
+    },
+    {
+      "at": 11,
+      "target": "storysite",
+      "site": "cache-berth",
+      "lift": 2,
+      "dist": 50,
+      "pitch": 0.45,
+      "yaw": 3.6
+    },
+    {
+      "at": 16,
+      "target": "site",
+      "x": 0,
+      "z": -4,
+      "lift": 0,
+      "dist": 80,
+      "pitch": 0.8,
+      "yaw": 0.4
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "TALUS",
+      "sub": "The yard · asteroid"
+    },
+    {
+      "at": 7,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 7,
+      "character": "archivist",
+      "text": "The yard goes on the flat to the south-west. The cache pad's north-east.",
+      "for": 4
+    },
+    {
+      "at": 11.5,
+      "character": "archivist",
+      "text": "It's lit. Somebody kept the lights on for us.",
+      "for": 4
+    }
+  ],
+  "trigger": "start",
+  "region": "talus-yard",
+  "chapter": "engram",
+  "tags": "act 2, outposts, talus, arrival",
+  "status": "draft"
+}

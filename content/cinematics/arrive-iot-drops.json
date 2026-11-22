@@ -1,0 +1,77 @@
+{
+  "title": "Arrival: Io-T",
+  "length": 17,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 150,
+      "pitch": 1.1,
+      "yaw": 5.6
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "site": "sensor-ridge",
+      "lift": 2,
+      "dist": 70,
+      "pitch": 0.4,
+      "yaw": 5.8
+    },
+    {
+      "at": 12,
+      "target": "storysite",
+      "site": "drop-zone",
+      "lift": 4,
+      "dist": 120,
+      "pitch": 0.55,
+      "yaw": 0.2
+    },
+    {
+      "at": 17,
+      "target": "site",
+      "x": 0,
+      "z": -4,
+      "lift": 0,
+      "dist": 80,
+      "pitch": 0.8,
+      "yaw": 0.4
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "IO-T",
+      "sub": "Thalassa · the drop field"
+    },
+    {
+      "at": 8,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 7,
+      "character": "archivist",
+      "text": "Sulfur. Everything smells of it, even through the sensors.",
+      "for": 4
+    },
+    {
+      "at": 12.5,
+      "character": "archivist",
+      "text": "The plain to the north-east is graded flat. Nobody grades a plain for nothing.",
+      "for": 4.5
+    }
+  ],
+  "trigger": "start",
+  "region": "iot-drops",
+  "chapter": "engram",
+  "tags": "act 2, engram, io-t, arrival",
+  "status": "draft"
+}

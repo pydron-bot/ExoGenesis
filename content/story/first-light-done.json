@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "The relay keeps forwarding. The seam keeps its secret. From the mast's rim Home is a blue crescent, small enough to cover with a thumb. Three new routes are on the Gantry's card: Verdance, where Marrow's voice comes from; Talus, a rock with room for a yard; and Ash, where one of the relay's carriers points.",
+  "trigger": "never",
+  "region": "sela-relay",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, sela, expedition, travel",
+  "status": "draft",
+  "notes": "onDone of first-light. The Act 2 \"Expedition complete\" card: Return to Touchdown travels home; Stay keeps playing here (the Command Core lists every route)."
+}

@@ -1,0 +1,38 @@
+{
+  "title": "The Marro",
+  "style": "radio",
+  "character": "keeper",
+  "text": "Fire from the sky. We know this song. This time we sing the other part.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "the-fight"
+    },
+    {
+      "kind": "flag",
+      "flag": "keeper-song"
+    }
+  ],
+  "delay": 150,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "boost",
+      "stat": "warning",
+      "amount": 30,
+      "seconds": 450,
+      "text": "Vell watchers on the ridges"
+    },
+    {
+      "after": 0,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 5
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, vell, ally",
+  "status": "draft"
+}

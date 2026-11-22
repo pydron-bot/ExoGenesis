@@ -1,0 +1,20 @@
+{
+  "title": "Talus",
+  "style": "radio",
+  "character": "archivist",
+  "text": "Talus. Nothing alive, nothing to fight, and more metal in the first metre than our whole plain. The archive says a supply cache was set down on the north-east pad before launch. For a yard. For us.",
+  "trigger": "never",
+  "region": "talus-yard",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "cache-berth",
+      "text": "The supply cache"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, outposts, talus, radio",
+  "status": "draft",
+  "notes": "onStart of yard."
+}

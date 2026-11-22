@@ -1,0 +1,24 @@
+{
+  "title": "Strike 10",
+  "style": "radio",
+  "character": "clause",
+  "text": "strike 23 of 40. units reassigned: 2.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 400,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "corrupt",
+      "count": 2
+    },
+    {
+      "after": 0,
+      "kind": "pack"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

@@ -1,0 +1,60 @@
+{
+  "title": "Covenant",
+  "text": "The Lantern stands, cold. Its batteries are ours now, and they point at nothing. Meridian has not said a word since you took it.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "lantern-intact"
+    },
+    {
+      "kind": "flag",
+      "flag": "proof-ready",
+      "not": true
+    }
+  ],
+  "region": "lantern",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Write the report"
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "end-covenant"
+    },
+    {
+      "after": 1,
+      "kind": "epilogue",
+      "ending": "covenant",
+      "pages": [
+        {
+          "title": "Sela",
+          "text": "You hold the Lantern the way you would hold a weapon you mean never to use: carefully, and in plain view. Every sol the colony can see it, and see that it is dark."
+        },
+        {
+          "text": "Meridian did not answer. A seized instrument proves that you can take things, and that was never the question. The question was whether you could leave them whole, and for that you had not brought enough."
+        },
+        {
+          "title": "The report",
+          "text": "At the end of the sol the charter asked, as it always had, for a Biosphere Report. You wrote one. Planet health, colony size, fauna balance, flora cover. Then a section the form had no field for: who had died, and who had stood with us, and why."
+        },
+        {
+          "title": "After",
+          "text": "The colony grew. Some years it trusted you more than others, and said so. When the children asked where the second moon-light had gone, somebody always told them, and nobody told it the same way twice."
+        },
+        {
+          "text": "The Ledger under Vess still holds eleven closed columns. The twelfth has no last line. {first} keeps the slate it would be written on, and has never written on it."
+        }
+      ],
+      "text": "The partnership survives, with its eyes open."
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, covenant",
+  "status": "draft",
+  "notes": "Seized intact without every Proof condition (proof-ready unset): Covenant."
+}

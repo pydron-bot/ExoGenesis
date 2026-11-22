@@ -1,0 +1,25 @@
+{
+  "title": "The Lantern fires (4)",
+  "style": "radio",
+  "character": "firstborn",
+  "text": "The rings have started here too. Whatever you're doing, do it soon.",
+  "trigger": "after",
+  "event": "lantern-landing",
+  "delay": 1100,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "delay": 7
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "delay": 9
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, strike",
+  "status": "draft"
+}

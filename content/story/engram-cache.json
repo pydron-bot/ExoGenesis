@@ -1,0 +1,12 @@
+{
+  "title": "Kora Answers",
+  "style": "radio",
+  "character": "engram",
+  "text": "We did not take it. It arrived. Caches arrive here quite often; we had thought it was luck. We will look at the log. Thank you for asking us instead of telling us.",
+  "trigger": "never",
+  "delay": 8,
+  "chapter": "engram",
+  "tags": "act 2, engram, radio",
+  "status": "draft",
+  "notes": "Started by cache-missing's first choice."
+}

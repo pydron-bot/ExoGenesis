@@ -1,0 +1,20 @@
+{
+  "title": "Maren",
+  "style": "radio",
+  "character": "engram",
+  "text": "Welcome to Maren. Please don't mind the drones. They are curious, as we are. Come up the orange road; we have put the lights on for you.",
+  "trigger": "never",
+  "region": "maren-works",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "works-gate",
+      "text": "The works gate"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, maren",
+  "status": "draft",
+  "notes": "onStart of the-works."
+}

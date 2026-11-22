@@ -1,0 +1,48 @@
+{
+  "title": "The Lid",
+  "text": "At the terminator, where the light gives out, the ground is cut. A seam runs north and south as far as the sensors reach, dead straight, its lips raised and machined. It isn't a fault. It's a join.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Sefa's map. The Enclave had this on their map. They called it the Lid.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"She said their caretaker went quiet every night the moon was up. I thought it was a figure of speech.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "far-door"
+    },
+    {
+      "kind": "flag",
+      "flag": "survivors-met"
+    }
+  ],
+  "region": "sela-relay",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "door-seen"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "lid-known"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "far-door"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, sela, lid, enclave",
+  "status": "draft",
+  "notes": "The variant of the-door when the Enclave was found (survivors-met). Sets lid-known for the climax writer."
+}

@@ -1,0 +1,38 @@
+{
+  "title": "Hearth",
+  "text": "Someone has written HEARTH on the wall by the Core in charcoal, under the planet's catalogue number. By evening half the colony is saying it. Nobody voted. Nobody asked us.",
+  "trigger": "flag",
+  "flag": "keeper-song",
+  "delay": 90,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "Use it in the logs",
+      "reply": "The logs say Hearth now. The interface still says HOME. Some things take longer."
+    },
+    {
+      "label": "Keep the catalogue name",
+      "reply": "The logs keep the number. The colonists keep the name."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "hearth-named"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -1
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, home, vell",
+  "status": "draft"
+}

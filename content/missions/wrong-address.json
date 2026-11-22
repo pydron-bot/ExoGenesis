@@ -1,0 +1,34 @@
+{
+  "title": "Wrong Address",
+  "summary": "Opens once three of the four expeditions are done (counter act1-trips, event heights-route routes Signal Heights). Trace the Biosphere Report's carrier from the pinnacle (E12): it goes to the moon.",
+  "after": "beyond-the-ridge",
+  "region": "signal-heights",
+  "objectives": [
+    {
+      "text": "Climb to the pinnacle in the north-west",
+      "kind": "site",
+      "site": "carrier-trace"
+    },
+    {
+      "text": "Build a Radar",
+      "kind": "built",
+      "building": "radar"
+    },
+    {
+      "text": "Trace the Biosphere Report's carrier",
+      "kind": "flag",
+      "flag": "wrong-address"
+    }
+  ],
+  "onStart": "heights-arrival",
+  "onDone": "moon-watch",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "wrong-address"
+    }
+  ],
+  "tags": "act 1, expedition, signal-heights, E12",
+  "chapter": "the-planet",
+  "status": "draft"
+}

@@ -1,0 +1,26 @@
+{
+  "title": "Margin Revised",
+  "text": "The report goes out at sol's end, as it always does. The acknowledgement comes back with the margin field rewritten. The number is the same. The word beside it has changed from \"noted\" to \"sufficient\".",
+  "trigger": "mission",
+  "mission": "foundry",
+  "delay": 1440,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "counter",
+      "counter": "lead",
+      "amount": 6
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "threshold revised. margin sufficient. run 12 closes on present score."
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, lead, fallback",
+  "status": "draft",
+  "notes": "Fallback so the climax always comes: four sols at home after the Foundry, the Clause stops waiting (+6 lead, enough on its own)."
+}

@@ -1,6 +1,6 @@
 {
   "name": "Talus Yard",
-  "description": "Act 2, chapter `outposts` (STORY.md §16): the `yard` mission, Accord's first off-world outpost on the asteroid Talus. Rough cratered rock with low ridges, rich alloy deposits (2,400–3,000) and four isotope seams. A levelled apron south-west of the Core for the yard (`yard-site`). North-east, a ringed depot pad where the supply cache should be (`cache-berth`): empty; its depot log says it was re-routed an hour ago on a Thalassa trajectory (`cache-rerouted`). No life and no packs (packs ×0, one open spawn, 30 min grace); the threat is the clock and the cache. Still needs: the cache object itself (or its absence as a scripted beat), the depot log, and the expedition package.",
+  "description": "Act 2, chapter `outposts` (STORY.md §16): the `yard` mission, Accord's first off-world outpost on the asteroid Talus. Rough cratered rock with low ridges, rich alloy deposits (2,400–3,000) and four isotope seams. A levelled apron south-west of the Core for the yard (`yard-site`). North-east, a ringed depot pad where the supply cache should be (`cache-berth`): empty; its depot log says it was re-routed an hour ago on a Thalassa trajectory (`cache-rerouted`). No life and no packs (packs ×0, one open spawn, 30 min grace); the threat is the clock and the cache. The cache is an absence: cache-missing (the depot log) fires at cache-berth. Expedition: 800 alloys, 4 drones, 2 Rovers (nothing to fight).",
   "body": "talus",
   "size": 240,
   "detail": 5,
@@ -348,5 +348,18 @@
       "isotopes": 1000
     }
   ],
-  "herds": []
+  "herds": [],
+  "expedition": [
+    {
+      "alloys": 800,
+      "isotopes": 40,
+      "drones": 4,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 2
+        }
+      ]
+    }
+  ]
 }

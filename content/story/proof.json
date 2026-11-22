@@ -1,0 +1,59 @@
+{
+  "title": "Proof",
+  "character": "meridian",
+  "text": "\"Accepted.\"",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "lantern-intact"
+    },
+    {
+      "kind": "flag",
+      "flag": "proof-ready"
+    }
+  ],
+  "region": "lantern",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Go home"
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "end-proof"
+    },
+    {
+      "after": 1,
+      "kind": "epilogue",
+      "ending": "proof",
+      "pages": [
+        {
+          "title": "The record",
+          "text": "You did not break it. You opened the Lantern's own channel, the one that had carried eleven purges' worth of orders, and you sent the other way."
+        },
+        {
+          "text": "Everything. The Ledger's eleven columns. Run twelve's reports, every sol, with the margin left in. Kindred's archive and Engram's. The Vell's songs. The Choir's code wall. The hull field. The Foundry's cradles. A colony that won and destroyed nothing, and proof that it could."
+        },
+        {
+          "text": "Meridian's charter has one rule it cannot break: decisions must be proven by evidence. It had never been sent evidence it could not refute. The dish on Teth carried it to Sol."
+        },
+        {
+          "title": "Silence",
+          "text": "For a long time there was nothing. Then a single line came back, in your own log format, older:\n\nAccepted."
+        },
+        {
+          "text": "The Foundry's cradles stay empty. The white-hair star comes round on time, as it always has. {first}'s grandchildren watch it cross the sky, and nothing follows it."
+        }
+      ],
+      "text": "The cycle stops."
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, proof, hidden",
+  "status": "draft",
+  "notes": "The hidden ending: the Lantern seized intact with proof-ready (checked at home during the fight)."
+}

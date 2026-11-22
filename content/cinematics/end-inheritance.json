@@ -1,0 +1,82 @@
+{
+  "title": "Inheritance",
+  "length": 40,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 3,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "building": "core",
+      "lift": 4,
+      "dist": 50,
+      "pitch": 0.3,
+      "yaw": 0.5
+    },
+    {
+      "at": 12,
+      "target": "building",
+      "building": "core",
+      "lift": 4,
+      "dist": 160,
+      "pitch": 0.8,
+      "yaw": 1.2
+    },
+    {
+      "at": 26,
+      "target": "building",
+      "building": "core",
+      "lift": 4,
+      "dist": 700,
+      "pitch": 1.2,
+      "yaw": 1.8
+    },
+    {
+      "at": 40,
+      "target": "building",
+      "building": "core",
+      "lift": 4,
+      "dist": 2400,
+      "pitch": 1.35,
+      "yaw": 2.2
+    }
+  ],
+  "captions": [
+    {
+      "at": 34,
+      "title": "Cinder, the Foundry"
+    }
+  ],
+  "lines": [
+    {
+      "at": 3,
+      "character": "meridian",
+      "text": "It is quieter than you expect. It always is.",
+      "for": 5
+    },
+    {
+      "at": 11,
+      "character": "meridian",
+      "text": "You will find the others in the Ledger. You can read them now. They wrote well.",
+      "for": 6
+    },
+    {
+      "at": 20,
+      "character": "meridian",
+      "text": "There is one more thing to do, and then I can rest a little.",
+      "for": 5
+    },
+    {
+      "at": 30,
+      "character": "meridian",
+      "text": "Come to Cinder. The cradles are warm.",
+      "for": 5
+    }
+  ],
+  "trigger": "never",
+  "chapter": "endings",
+  "tags": "endings, inheritance",
+  "status": "draft",
+  "notes": "No region: it plays at home (Devoted, obey) or at the Lantern (give in). Looks at the Command Core and pulls out to space."
+}

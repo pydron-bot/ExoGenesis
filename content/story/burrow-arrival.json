@@ -1,0 +1,23 @@
+{
+  "title": "Burrow Reach",
+  "text": "Terraces in the east, steps of soil each exactly as high as the last. Holes everywhere, each the width of a Burrower. Four nests on the edges of the map, and the ground between them busy. It is the worst place on the planet we've seen to make camp, and the richest.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"Defences first. Then go and look at those furrows. Something about the radar picture is wrong. It's too right.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "burrow-reach",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "furrow-grid",
+      "text": "Furrows"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, burrow-reach, fauna",
+  "status": "draft"
+}

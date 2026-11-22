@@ -1,0 +1,41 @@
+{
+  "title": "The Old Cellar",
+  "text": "Under the hull, a hatch. It was sealed from the inside, then welded again from the outside, in a different hand. The drones cut it. Below: bunks for twenty, a water still, a wall of tally marks, and a plate of hull alloy scratched with a map.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"They were hiding down there. From what?\""
+    },
+    {
+      "speaker": "Scratched on the plate",
+      "text": "\"IT KNOWS THE DOORS. GO DOWN. GO DEEP.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"The map's a crater. South-west, a long way off, with a cut marked in its rim. Someone wanted the next ones to find it.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "old-cellar",
+  "region": "splinter-hollow",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "cellar-opened"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "old-cellar"
+    },
+    {
+      "after": 0,
+      "kind": "route",
+      "region": "deep-layer"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, splinter-hollow, survivors",
+  "status": "draft"
+}

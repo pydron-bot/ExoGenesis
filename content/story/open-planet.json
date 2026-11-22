@@ -1,0 +1,25 @@
+{
+  "title": "The Open Planet",
+  "character": "firstborn",
+  "text": "\"The radar's finished its first full sweep. Smoke in a vale to the north-west. A plain to the east that's too flat to be real. Furrows in the north. A hollow ringed by hills.\"",
+  "lines": [
+    {
+      "text": "\"The Core says it can send an expedition overland: drones, a few units, no colonists. Someone has to stay and keep the lights on. I'll keep them on.\""
+    },
+    {
+      "text": "\"Bring back something worth the trip.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "log",
+      "text": "Four overland routes from the Command Core: Hearthsmoke Vale, the Choir Field, Burrow Reach and Splinter Hollow. Select the Core to travel."
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, home, routes",
+  "status": "draft"
+}

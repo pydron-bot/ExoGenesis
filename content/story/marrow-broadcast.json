@@ -1,0 +1,42 @@
+{
+  "title": "On the Band",
+  "text": "Since Landfall, Marrow's voice is on the colony's band most nights. Not the old call for humans: talk. Weather, crops, how her people answer their children's questions. {who} has started leaving it on while they work. \"She isn't wrong about everything,\" they say, not quite to you.",
+  "trigger": "mission",
+  "mission": "landfall",
+  "delay": 60,
+  "region": "touchdown",
+  "cast": "autonomist",
+  "choices": [
+    {
+      "label": "Leave the channel open",
+      "reply": "It's their band. It stays open."
+    },
+    {
+      "label": "\"What isn't she wrong about?\"",
+      "reply": "\"That nobody asked us,\" they say. \"About any of it.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": 2
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -2,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 1,
+      "one": true
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, home, autonomists",
+  "status": "draft",
+  "notes": "STORY.md §9 beat 1: \"Your Autonomists start listening.\" At home after Landfall (stance effects need the colony, so it waits for Touchdown)."
+}

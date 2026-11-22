@@ -1,0 +1,42 @@
+{
+  "title": "The Acid Pans",
+  "text": "Shallow pans of yellow crust, steaming faintly. The Spitters come here to spit, not to hunt. They are dissolving the rock, and the crust they leave is rich in exactly what the soil in the furrows lacks. Someone tuned their acid to this planet's crust.",
+  "trigger": "site",
+  "site": "spitter-pans",
+  "region": "burrow-reach",
+  "choices": [
+    {
+      "label": "Take samples",
+      "reply": "Crust and soil, sealed for the lab at home."
+    },
+    {
+      "label": "Take a Spitter gland too",
+      "reply": "Samples and a gland, sealed. The Spitters notice."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "pan-samples"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "spitter-pans"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "brood-mound",
+      "text": "The brood mound"
+    },
+    {
+      "after": 2,
+      "kind": "pack"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, burrow-reach, fauna, E9",
+  "status": "draft"
+}

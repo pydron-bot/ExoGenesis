@@ -1,0 +1,23 @@
+{
+  "title": "Hearthsmoke Vale",
+  "text": "The convoy comes down into a wide green vale with a stream across it. Two columns of smoke stand in the still air, one north-west, one north-east. The drones log no predator tracks for a kilometre in any direction.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"The Vell came from somewhere. I think this is it. Go slowly. Whoever they are, they were here first.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "hearthsmoke",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "vale-smoke",
+      "text": "Smoke"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell",
+  "status": "draft"
+}

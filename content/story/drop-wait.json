@@ -1,0 +1,36 @@
+{
+  "title": "The Range",
+  "text": "The mast comes up and the plain opens out below it: flat, graded, pocked with old impacts in tidy rows, like a firing range.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Engram's report goes out in about a minute. If the pattern holds, something comes down not long after. Keep your units off the middle of the plain.\""
+    }
+  ],
+  "trigger": "built",
+  "building": "sensor",
+  "region": "iot-drops",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "countdown",
+      "timer": "drop",
+      "amount": 60,
+      "text": "Engram's report goes out: then the drop"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "sensor-ridge"
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "drop-zone",
+      "amount": 40
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, io-t",
+  "status": "draft"
+}

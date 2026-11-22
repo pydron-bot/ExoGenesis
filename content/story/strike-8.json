@@ -1,0 +1,32 @@
+{
+  "title": "Strike 8",
+  "style": "radio",
+  "character": "archivist",
+  "text": "I've found the build lock. It's one line in your own permissions table. I've crossed it out. With a pen. On the console. I don't know why that worked.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 300,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "unlock",
+      "building": "turret"
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "radar",
+      "delay": 9
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "civic",
+      "delay": 11
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

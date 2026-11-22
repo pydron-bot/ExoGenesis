@@ -1,0 +1,53 @@
+{
+  "title": "The Choir",
+  "summary": "Expedition to the Choir Field (E8). Meet the Choir at its loop, read the code wall (a fragment of the Closing Clause), clear the Spitters there and listen to the tower with a Sensor Mast.",
+  "after": "beyond-the-ridge",
+  "region": "choir-field",
+  "objectives": [
+    {
+      "text": "Find the Choir's loop in the north",
+      "kind": "site",
+      "site": "choir-loop"
+    },
+    {
+      "text": "Read the wall of code in the south-east",
+      "kind": "site",
+      "site": "code-wall"
+    },
+    {
+      "text": "Drive off the Spitters at the wall",
+      "kind": "any",
+      "of": [
+        {
+          "kind": "flag",
+          "flag": "wall-spitters-beaten"
+        },
+        {
+          "kind": "kills",
+          "count": 12
+        }
+      ]
+    },
+    {
+      "text": "Build a Sensor Mast to hear the tower",
+      "kind": "built",
+      "building": "sensor"
+    }
+  ],
+  "onStart": "choir-arrival",
+  "onDone": "choir-done",
+  "rewards": [
+    {
+      "kind": "counter",
+      "counter": "act1-trips",
+      "amount": 1
+    },
+    {
+      "kind": "flag",
+      "flag": "choir-fragment"
+    }
+  ],
+  "tags": "act 1, expedition, choir-field, choir",
+  "chapter": "the-planet",
+  "status": "draft"
+}

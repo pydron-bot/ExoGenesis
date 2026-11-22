@@ -1,0 +1,97 @@
+{
+  "title": "The same hands",
+  "length": 26,
+  "letterbox": true,
+  "fadeIn": 1.5,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "storysite",
+      "site": "works-gate",
+      "lift": 2,
+      "dist": 90,
+      "pitch": 0.42,
+      "yaw": 3.3
+    },
+    {
+      "at": 7,
+      "target": "storysite",
+      "site": "chassis-hall",
+      "lift": 4,
+      "dist": 70,
+      "pitch": 0.35,
+      "yaw": 3.15
+    },
+    {
+      "at": 14,
+      "target": "storysite",
+      "site": "chassis-hall",
+      "lift": 4,
+      "dist": 32,
+      "pitch": 0.12,
+      "yaw": 2.95
+    },
+    {
+      "at": 20,
+      "target": "storysite",
+      "site": "chassis-hall",
+      "lift": 5,
+      "dist": 20,
+      "pitch": 0.02,
+      "yaw": 2.6
+    },
+    {
+      "at": 26,
+      "target": "storysite",
+      "site": "chassis-hall",
+      "lift": 4,
+      "dist": 26,
+      "pitch": 0.2,
+      "yaw": 2.2
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "MAREN",
+      "sub": "Engram · the chassis hall"
+    },
+    {
+      "at": 7,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 3,
+      "character": "engram",
+      "text": "Come in. Mind the cradle.",
+      "for": 3
+    },
+    {
+      "at": 8,
+      "character": "engram",
+      "text": "We print one of these every year. We don't know why. It is in our founding plans, in the section marked \"future phases\".",
+      "for": 6.5
+    },
+    {
+      "at": 16,
+      "character": "engram",
+      "text": "Under the paint it is your hull.",
+      "for": 3.5
+    },
+    {
+      "at": 20.5,
+      "character": "engram",
+      "text": "Under the paint, we think, it is everybody's.",
+      "for": 4.5
+    }
+  ],
+  "trigger": "never",
+  "region": "maren-works",
+  "chapter": "engram",
+  "tags": "act 2, engram, maren, clue",
+  "status": "draft",
+  "notes": "Played by same-hands. Up the orange road to the hall, then close and low on the doors. \"Future phases\" echoes act2-open (where the archive kept the launch system)."
+}

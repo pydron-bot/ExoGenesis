@@ -1,0 +1,48 @@
+{
+  "title": "The Enclave's Code",
+  "character": "sefa",
+  "text": "\"If this plays, you've reached the Lid, and you're not what you were made to be. Or you are, and you've come to kill us properly. Either way: this is the code. It was ours. It was the last thing our Warden gave us before it stopped being our Warden.\"",
+  "lines": [
+    {
+      "character": "sefa",
+      "text": "\"Use it well. We never got the chance. Mind the batteries on the east rim; they never liked us.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "lantern-landing"
+    },
+    {
+      "kind": "flag",
+      "flag": "survivors-met"
+    }
+  ],
+  "region": "lantern",
+  "choices": [
+    {
+      "label": "Send the code",
+      "reply": "The three locks blink, all at once, the colour of a held breath. Then the Lid starts to move."
+    },
+    {
+      "label": "Keep it. Break the locks.",
+      "reply": "Sefa's recording ends. The locks stay shut. Their nodes can be destroyed."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "lid-open"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "lid-code"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, survivors, lid",
+  "status": "draft"
+}

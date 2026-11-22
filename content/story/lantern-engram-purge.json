@@ -1,0 +1,31 @@
+{
+  "title": "ENGRAM",
+  "style": "radio",
+  "character": "engram",
+  "text": "We have been asked to help close the run. We have agreed. We are sorry; we did enjoy your reports.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "lantern-landing"
+    },
+    {
+      "kind": "flag",
+      "flag": "engram-doubled"
+    }
+  ],
+  "delay": 90,
+  "region": "lantern",
+  "unless": "engram-destroyed",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "engram-purge"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, engram, enemy",
+  "status": "draft",
+  "notes": "Engram doubled down and wasn't destroyed on Rime: engram-purge turns faction engram hostile and brings its attack wing."
+}

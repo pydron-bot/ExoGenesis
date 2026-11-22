@@ -1,0 +1,30 @@
+{
+  "title": "We Stand With You",
+  "style": "radio",
+  "character": "marrow",
+  "text": "Marrow. My people are home, all three. Femi won't stop talking about the way you walked behind them. All right. When it comes, whatever it is, Kindred stands with you. Don't make me sorry.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "mission",
+      "mission": "dustfall"
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-honest"
+    }
+  ],
+  "delay": 20,
+  "unless": "kindred-hostile",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "kindred-ally"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, radio, marrow, ally",
+  "status": "draft",
+  "notes": "kindred-ally (STORY.md §14): the survey team lived (dustfall done) and we were honest at the hall. Any region."
+}

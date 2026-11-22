@@ -1,0 +1,40 @@
+{
+  "title": "Run Twelve",
+  "summary": "The climax at home (STORY.md §16). Starts after the Foundry and waits for the Clause: once lead ≥ 6, Meridian speaks (meridian-speaks, cine-meridian) and Trust decides. Severance and Inheritance end the game from here; the fight is ten minutes of strikes and turned units while the Gantry fuels the strike force, then the travel to the Lantern.",
+  "after": "foundry",
+  "region": "touchdown",
+  "objectives": [
+    {
+      "text": "Keep the colony well. The report goes out at each sol's end",
+      "kind": "after",
+      "event": "meridian-speaks"
+    },
+    {
+      "text": "Hold until the strike force is ready",
+      "kind": "timer",
+      "timer": "strike-force"
+    }
+  ],
+  "onDone": "strike-force-lifts",
+  "fails": [
+    {
+      "text": "The cryo bank has failed under the strikes.",
+      "kind": "all",
+      "of": [
+        {
+          "kind": "after",
+          "event": "meridian-speaks"
+        },
+        {
+          "kind": "cryoBelow",
+          "count": 10
+        }
+      ]
+    }
+  ],
+  "onFail": "cycle",
+  "chapter": "the-lantern",
+  "tags": "climax, clause",
+  "status": "draft",
+  "notes": "Its first objective is deliberately ordinary: doing well is what wakes the Clause. Title kept spoiler-free (GOALS shows it while it waits)."
+}

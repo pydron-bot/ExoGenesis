@@ -1,0 +1,29 @@
+{
+  "title": "Smoke on the Horizon",
+  "text": "From the rise above the stream the drones can see the village: stilt huts round a fire, drying racks, a child chasing something through the reeds. Not a camp. A village, old enough to have paths worn into the ground. Tall people, thin, dark-eyed. Human.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"So this is where they come from. There are more of them than I thought. There are more of them than us.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "vale-smoke",
+  "region": "hearthsmoke",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "vale-smoke"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "keeper-stones",
+      "text": "The stone circle"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell, E4",
+  "status": "draft"
+}

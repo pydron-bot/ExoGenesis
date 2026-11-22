@@ -1,0 +1,38 @@
+{
+  "title": "Strike 12",
+  "style": "radio",
+  "character": "meridian",
+  "text": "You could let it be quick. I would.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 500,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "civic",
+      "delay": 9
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "depot",
+      "delay": 10
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "solar",
+      "delay": 11
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "turret"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

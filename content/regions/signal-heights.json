@@ -10,6 +10,26 @@
   "siteLat": 50,
   "siteLon": 20,
   "packScale": 1.1,
+  "expedition": [
+    {
+      "alloys": 650,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "arc",
+          "count": 3
+        },
+        {
+          "unit": "rover",
+          "count": 2
+        },
+        {
+          "unit": "tank",
+          "count": 1
+        }
+      ]
+    }
+  ],
   "height": [
     "0*121",
     "0*121",
@@ -439,6 +459,13 @@
       "x": 70,
       "z": -60,
       "r": 14
+    },
+    {
+      "id": "north-crags",
+      "label": "Where the Skimmerwings come off the crags (Signal)",
+      "x": 95,
+      "z": 75,
+      "r": 12
     }
   ],
   "seams": [

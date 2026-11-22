@@ -1,0 +1,35 @@
+{
+  "title": "Copies",
+  "text": "Word gets round the colony that the cryo bank's genomes are on Kora now. Every family line. {who} finds you at the bank. \"You gave them our lines. Our children. You didn't ask a single one of us.\"",
+  "trigger": "flag",
+  "flag": "genomes-copied",
+  "delay": 30,
+  "region": "touchdown",
+  "cast": "adult",
+  "choices": [
+    {
+      "label": "\"It's a copy. In case.\"",
+      "reply": "\"In case of what? In case of you?\""
+    },
+    {
+      "label": "\"You're right. I should have asked.\"",
+      "reply": "\"Yes. You should have.\" They go, but they go more slowly."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "stance",
+      "amount": -4
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, home, cryo, choice",
+  "status": "draft",
+  "notes": "The stance cost of engram-offer's accept, felt at home (stance needs the colony)."
+}

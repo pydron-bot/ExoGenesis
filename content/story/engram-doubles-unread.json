@@ -1,0 +1,75 @@
+{
+  "title": "Not Enough",
+  "character": "engram",
+  "text": "\"You have shown us the parcels. You have not shown us why. Without the why, a win is still a win.\"",
+  "lines": [
+    {
+      "character": "engram",
+      "text": "\"We like you. That is not evidence. We are sorry. Please go now.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "engram-shown"
+    },
+    {
+      "kind": "counter",
+      "counter": "engram",
+      "count": 3
+    },
+    {
+      "kind": "flag",
+      "flag": "ledger-read",
+      "not": true
+    }
+  ],
+  "region": "rime-prime",
+  "unless": "engram-defected",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Take down the cores",
+      "reply": "Three cores round the well light up on your display. So do the guns round them."
+    },
+    {
+      "label": "Leave Rime",
+      "reply": "You pull back from the well. Under the ice, Engram goes on thinking about winning."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "engram-doubled"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "core-a",
+      "text": "Core A"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "core-b",
+      "text": "Core B"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "core-c",
+      "text": "Core C"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "engram-left"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, doubled, fight, choice",
+  "status": "draft",
+  "notes": "Rare: engram ≥ 3 but no Ledger (only reachable by jumping to the mission; rime-route needs ledger-read). Engram doubles down all the same."
+}

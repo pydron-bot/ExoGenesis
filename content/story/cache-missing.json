@@ -1,0 +1,55 @@
+{
+  "title": "The Empty Berth",
+  "text": "The pad is ringed and lit and empty. The clamps stand open. In the dust are the marks of something heavy that sat here a long time, then left. The depot's log terminal still has power.",
+  "lines": [
+    {
+      "speaker": "Depot log",
+      "text": "CACHE 07 · ACCORD · held. CACHE 07 · re-routed · T−61 min · trajectory THALASSA · authority: (none)"
+    },
+    {
+      "character": "archivist",
+      "text": "\"An hour. It left an hour before we got here. And the authority field isn't wiped. It's blank. As if it never needed one.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "cache-berth",
+  "region": "talus-yard",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Ask Engram about it",
+      "reply": "You send one line to Kora: did you take our cache?"
+    },
+    {
+      "label": "Log it",
+      "reply": "Logged: one supply cache, ours, gone to Thalassa."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "cache-rerouted"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "cache-berth"
+    },
+    {
+      "after": 1,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": 1
+    },
+    {
+      "after": 1,
+      "kind": "event",
+      "event": "engram-cache"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, outposts, talus, cache, clue",
+  "status": "draft",
+  "notes": "STORY.md §12: the one time Meridian's rigging reaches Accord. Asking rather than accusing: engram +1."
+}

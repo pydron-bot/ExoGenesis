@@ -1,0 +1,37 @@
+{
+  "title": "The Pen",
+  "text": "The last of the pen's guards goes down. The gate opens by itself, the way a dead hand opens. Four Kindred scouts come out into the dust and stare at your units for a long time before they decide to follow them.",
+  "trigger": "flag",
+  "flag": "pen-guard-down",
+  "region": "pip-wreck",
+  "unless": "scouts-freed",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": -3
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "scouts-freed"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "scouts-forced"
+    },
+    {
+      "after": 0,
+      "kind": "spawn",
+      "site": "engram-pen",
+      "unit": "engineer",
+      "count": 4
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, kindred, pip, force",
+  "status": "draft",
+  "notes": "By force: engram −3 (STORY.md §16), on top of engram-fired-on's −1."
+}

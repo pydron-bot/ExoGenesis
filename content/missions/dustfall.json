@@ -1,0 +1,53 @@
+{
+  "title": "Dustfall",
+  "summary": "Escort Marrow's survey team (Kindred engineers, the allied encounter survey-team: they walk to the hull and back on their own) to a centuries-old Kindred hull. The manifest says \"Captain: Marrow, I.\" (marrow-manifest, marrow-grief). Then hold off what comes out of the hold. Fails if the team dies (survey-team-lost).",
+  "after": "landfall",
+  "region": "dunmore-dustfall",
+  "objectives": [
+    {
+      "text": "Meet Marrow's survey team at their camp",
+      "kind": "site",
+      "site": "survey-camp"
+    },
+    {
+      "text": "Escort the team to the signal under the dunes",
+      "kind": "site",
+      "site": "old-hull"
+    },
+    {
+      "text": "Read the hull's manifest",
+      "kind": "flag",
+      "flag": "marrow-manifest"
+    },
+    {
+      "text": "Hold off what comes out of the hold",
+      "kind": "flag",
+      "flag": "swarm-beaten"
+    }
+  ],
+  "onStart": "marrow-dunmore",
+  "onDone": "dustfall-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "survey-home"
+    }
+  ],
+  "fails": [
+    {
+      "text": "Marrow's survey team was killed.",
+      "kind": "flag",
+      "flag": "survey-team-lost"
+    },
+    {
+      "text": "Kindred turned on us.",
+      "kind": "flag",
+      "flag": "kindred-hostile"
+    }
+  ],
+  "onFail": "survey-lost",
+  "chapter": "kindred",
+  "tags": "act 2, kindred, dunmore, escort",
+  "status": "draft",
+  "notes": "The escort: an allied faction encounter rather than spawned units, because no condition can count units of one kind (units counts every combat unit). Its doneFlag survey-team-lost is exact."
+}

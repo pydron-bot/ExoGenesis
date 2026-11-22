@@ -1,0 +1,35 @@
+{
+  "title": "The Gate",
+  "style": "radio",
+  "character": "marrow",
+  "text": "One drone. All right. Walk it up to the hall, slowly. My people have their hands on their guns, not on their triggers. Keep it that way.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "kindred-gate"
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-attacked",
+      "not": true
+    }
+  ],
+  "region": "verdance-landfall",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "kindred-gate"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "council-hall",
+      "text": "Council hall"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, radio, marrow",
+  "status": "draft"
+}

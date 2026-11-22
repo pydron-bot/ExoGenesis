@@ -1,0 +1,39 @@
+{
+  "title": "Designer Marks",
+  "summary": "Expedition to Burrow Reach (E9). The furrow grid, the Spitters' acid pans and the brood mound: the fauna were engineered. Samples go home for Fauna Genomics (the designer-marks event).",
+  "after": "beyond-the-ridge",
+  "region": "burrow-reach",
+  "objectives": [
+    {
+      "text": "Reach the furrow grid in the north",
+      "kind": "site",
+      "site": "furrow-grid"
+    },
+    {
+      "text": "Take samples at the acid pans",
+      "kind": "site",
+      "site": "spitter-pans"
+    },
+    {
+      "text": "Decide what to do with the brood mound",
+      "kind": "after",
+      "event": "brood-mound"
+    }
+  ],
+  "onStart": "burrow-arrival",
+  "onDone": "burrow-done",
+  "rewards": [
+    {
+      "kind": "counter",
+      "counter": "act1-trips",
+      "amount": 1
+    },
+    {
+      "kind": "flag",
+      "flag": "marks-seen"
+    }
+  ],
+  "tags": "act 1, expedition, burrow-reach, fauna",
+  "chapter": "the-planet",
+  "status": "draft"
+}

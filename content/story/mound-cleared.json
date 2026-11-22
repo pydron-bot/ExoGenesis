@@ -1,0 +1,37 @@
+{
+  "title": "The Mound, Cleared",
+  "text": "The last Brute is down. In the chambers the young Burrowers don't wake and don't run. In the deepest cell the drones find a plate of our hull alloy set into the wall, cut with a grid and one word in an old script: KEEP.",
+  "trigger": "flag",
+  "flag": "mound-cleared",
+  "region": "burrow-reach",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "brood-mound"
+    },
+    {
+      "after": 0,
+      "kind": "alloys",
+      "amount": 120
+    },
+    {
+      "after": 0,
+      "kind": "planet",
+      "amount": -2
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "keep-plate"
+    },
+    {
+      "after": 0,
+      "kind": "log",
+      "text": "The hull plate from the mound: +120 alloys."
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, burrow-reach, fauna",
+  "status": "draft"
+}

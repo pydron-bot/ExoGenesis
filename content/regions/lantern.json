@@ -1,6 +1,6 @@
 {
   "name": "The Lid",
-  "description": "The climax, chapter `the-lantern` (STORY.md §16): the `the-lantern` mission on Sela's far side (lon 180°, opposite `sela-relay`). The Lid: a crater 150 u across north-east of the drop, with terraced walls (four benches stepping down to a floor 34 u below the plain) and a raised platform at the centre holding the Lantern's core (`lantern-core`). We land outside it at `drop-zone` (the Core's pad). Three locks stand on the rim, each a node of relic grid `lid` with two sentinels (`lid-lock-n`, `lid-lock-e`, `lid-lock-w`): the Survivors' code opens the Lid, otherwise destroy the locks (when all three nodes fall, the `lid` cache at the core pays out). A ramp cuts through the south-west rim down to the second terrace (`breach`). Relic grids `terraces` (Accord-pattern sentinels on the benches) and `core-ring` (three sentinels, three nodes round the platform). When `lid-open` is set: `core-guard` (4 sentinels at the core), `lid-raised` (6 Brutes, attack: stand-ins for the corrupted units the Lantern raises) and `terrace-watch` (10 Swarmers patrolling the floor). No wildlife packs (airless). Rich seams on the floor. Still needs: the Lantern as a faction (its strikes on the colony, corrupted Accord units in place of the Brute/Swarmer stand-ins), allies spawned by flag (Kindred marines on `kindred-ally`, Engram drones on `engram-defected`, Vell runners revealing the map on `keeper-song`, the Choir jamming a battery on `choir-fragment`), the Lid itself as an object that opens, and the strike-force expedition package from the Gantry.",
+  "description": "The climax, chapter `the-lantern` (STORY.md §16): the `the-lantern` mission on Sela's far side (lon 180°, opposite `sela-relay`). The Lid: a crater 150 u across north-east of the drop, with terraced walls (four benches stepping down to a floor 34 u below the plain) and a raised platform at the centre holding the Lantern's core (`lantern-core`). We land outside it at `drop-zone` (the Core's pad). Three locks stand on the rim, each a node of relic grid `lid` with two sentinels (`lid-lock-n`, `lid-lock-e`, `lid-lock-w`): the Survivors' code opens the Lid, otherwise destroy the locks (when all three nodes fall, the `lid` cache at the core pays out). A ramp cuts through the south-west rim down to the second terrace (`breach`). Relic grids `terraces` (Accord-pattern sentinels on the benches) and `core-ring` (three sentinels, three nodes round the platform). When `lid-open` is set: `core-guard` (4 sentinels at the core) and the Lantern's raised units. No wildlife packs (airless). Rich seams on the floor. Factions: the Lantern (team 4, hostile) holds batteries round the rim and the core platform and raises Accord-pattern units when the Lid opens (`lid-raised`, `lid-raised-heavy`, `terrace-watch`); the breach battery (team 5, hostile) covers the cut and goes neutral when the Choir jams it (`lantern-choir`, on `choir-fragment`); Engram (team 6, neutral) is allied on `engram-defected` (`engram-wing` holds the breach) or hostile on `engram-purge` (`engram-purge-wing` attacks; set by `lantern-engram-purge` when Engram doubled down and survived). Kindred marines (`kindred-ally`) land as our units (`lantern-kindred`); the Vell's song reveals the map (`lantern-vell`). The strike force is the expedition package.",
   "body": "sela",
   "size": 400,
   "detail": 4,
@@ -703,25 +703,225 @@
     },
     {
       "id": "lid-raised",
-      "unit": "brute",
+      "unit": "rover",
       "count": 6,
       "x": 45,
       "z": 78,
       "mode": "attack",
-      "flag": "lid-open"
+      "flag": "lid-open",
+      "faction": "lantern"
+    },
+    {
+      "id": "lid-raised-heavy",
+      "unit": "tank",
+      "count": 3,
+      "x": 52,
+      "z": 82,
+      "mode": "attack",
+      "flag": "lid-open",
+      "faction": "lantern"
     },
     {
       "id": "terrace-watch",
-      "unit": "swarmer",
-      "count": 10,
+      "unit": "lancer",
+      "count": 5,
       "x": 33.5,
       "z": 66.5,
       "mode": "patrol",
       "r": 16,
       "x2": 76.5,
       "z2": 86.5,
-      "flag": "lid-open"
+      "flag": "lid-open",
+      "faction": "lantern"
+    },
+    {
+      "id": "rim-watch",
+      "unit": "rover",
+      "count": 4,
+      "x": 100,
+      "z": 140,
+      "mode": "patrol",
+      "r": 14,
+      "x2": 60,
+      "z2": 160,
+      "faction": "lantern"
+    },
+    {
+      "id": "engram-wing",
+      "unit": "skiff",
+      "count": 6,
+      "x": -8,
+      "z": 36,
+      "mode": "patrol",
+      "r": 18,
+      "x2": -15.5,
+      "z2": 55.5,
+      "flag": "engram-defected",
+      "faction": "engram"
+    },
+    {
+      "id": "engram-purge-wing",
+      "unit": "tank",
+      "count": 4,
+      "x": 150,
+      "z": -60,
+      "mode": "attack",
+      "flag": "engram-purge",
+      "faction": "engram"
     }
   ],
-  "herds": []
+  "herds": [],
+  "factions": [
+    {
+      "id": "lantern",
+      "name": "The Lantern",
+      "color": "#d9d2ff",
+      "team": 4,
+      "attitude": "hostile"
+    },
+    {
+      "id": "lantern-battery",
+      "name": "The breach battery",
+      "color": "#b49cff",
+      "team": 5,
+      "attitude": "hostile"
+    },
+    {
+      "id": "engram",
+      "name": "Engram",
+      "color": "#ff7a45",
+      "team": 6,
+      "attitude": "neutral",
+      "flag": "engram-purge",
+      "allyFlag": "engram-defected"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "turret",
+      "x": 35,
+      "z": 99,
+      "yaw": -90,
+      "faction": "lantern"
+    },
+    {
+      "kind": "turret",
+      "x": 55,
+      "z": 99,
+      "yaw": 90,
+      "faction": "lantern"
+    },
+    {
+      "kind": "cannon",
+      "x": 45,
+      "z": 108,
+      "yaw": 180,
+      "faction": "lantern",
+      "story": "core-cannon-down"
+    },
+    {
+      "kind": "cannon",
+      "x": 30,
+      "z": 165,
+      "yaw": 180,
+      "faction": "lantern"
+    },
+    {
+      "kind": "flak",
+      "x": 60,
+      "z": 165,
+      "yaw": 180,
+      "faction": "lantern"
+    },
+    {
+      "kind": "cannon",
+      "x": 112,
+      "z": 84,
+      "yaw": -90,
+      "faction": "lantern"
+    },
+    {
+      "kind": "turret",
+      "x": 112,
+      "z": 112,
+      "yaw": -90,
+      "faction": "lantern"
+    },
+    {
+      "kind": "turret",
+      "x": -22,
+      "z": 86,
+      "yaw": 90,
+      "faction": "lantern"
+    },
+    {
+      "kind": "cannon",
+      "x": -22,
+      "z": 112,
+      "yaw": 90,
+      "faction": "lantern"
+    },
+    {
+      "kind": "cannon",
+      "x": -30,
+      "z": 66,
+      "yaw": 160,
+      "faction": "lantern-battery"
+    },
+    {
+      "kind": "cannon",
+      "x": 2,
+      "z": 68,
+      "yaw": -160,
+      "faction": "lantern-battery"
+    },
+    {
+      "kind": "turret",
+      "x": -14,
+      "z": 72,
+      "yaw": 180,
+      "faction": "lantern-battery",
+      "story": "breach-battery-down"
+    },
+    {
+      "kind": "flak",
+      "x": -16,
+      "z": 80,
+      "yaw": 180,
+      "faction": "lantern-battery"
+    }
+  ],
+  "expedition": [
+    {
+      "alloys": 1500,
+      "isotopes": 300,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 6
+        },
+        {
+          "unit": "tank",
+          "count": 4
+        },
+        {
+          "unit": "lancer",
+          "count": 4
+        },
+        {
+          "unit": "artillery",
+          "count": 2
+        },
+        {
+          "unit": "engineer",
+          "count": 2
+        },
+        {
+          "unit": "gunship",
+          "count": 2
+        }
+      ]
+    }
+  ]
 }

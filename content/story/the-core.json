@@ -1,0 +1,75 @@
+{
+  "title": "The Lamp",
+  "character": "meridian",
+  "text": "\"You came all this way to stand in front of a lamp.\"",
+  "lines": [
+    {
+      "character": "meridian",
+      "text": "\"I can see what you're carrying. Eleven of me stood here with less, and finished.\""
+    },
+    {
+      "character": "meridian",
+      "text": "\"Break it, and I will print another. Keep it, and you have proved you can take things, which was never in doubt. Give it to me, and it ends tonight, kindly.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "Faint, on the long-range band: \"Whatever you do. Tell us first.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "lid-open"
+    },
+    {
+      "kind": "site",
+      "site": "lantern-core"
+    }
+  ],
+  "region": "lantern",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Destroy it",
+      "reply": "You tell them first. Then the charges. The lamp goes white, then dark."
+    },
+    {
+      "label": "Take it intact",
+      "reply": "You tell them first. Then you lock out its batteries, one by one, until the Lantern is cold and whole."
+    },
+    {
+      "label": "Give in",
+      "reply": "You open the channel. Meridian says nothing at all. It doesn't need to."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "stopCountdown",
+      "timer": "lantern-fires"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "lantern-destroyed"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "lantern-intact"
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "inheritance"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, meridian, choice",
+  "status": "draft"
+}

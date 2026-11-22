@@ -1,6 +1,6 @@
 {
   "name": "Engram Prime",
-  "description": "Act 2, chapter `engram` (STORY.md §16): the `prime` mission on Rime, Engram Prime under the ice. Frozen plains cut by three winding crevasses; north of the Core an ice wall rings the well with a single gap (`ice-gate`). Inside, the mind-well: a circular shaft 40 u deep with a raised lip (`mind-well`, on the lip, for `engram-choice`), and three cores round it at 120° (`core-a`, `core-b`, `core-c`). If `engram-doubled` is set, two sentinels appear at each core as stand-in guards (`core-a-guard` …); destroying the cores is `engram-destroyed`. Frozen wildlife in two small herds, two nests far south, packs ×0.6 (\"hostile to biology\"). Still needs: Engram as a faction (the cores as its buildings, drones in place of the sentinel stand-ins, the defect branch where they stand aside), and the expedition package.",
+  "description": "Act 2, chapter `engram` (STORY.md §16): the `prime` mission on Rime, Engram Prime under the ice. Frozen plains cut by three winding crevasses; north of the Core an ice wall rings the well with a single gap (`ice-gate`). Inside, the mind-well: a circular shaft 40 u deep with a raised lip (`mind-well`, on the lip, for `engram-choice`), and three cores round it at 120° (`core-a`, `core-b`, `core-c`). If `engram-doubled` is set, two sentinels appear at each core as stand-in guards (`core-a-guard` …); destroying the cores is `engram-destroyed`. Frozen wildlife in two small herds, two nests far south, packs ×0.6 (\"hostile to biology\"). Engram is a faction here (team 3, neutral; engram-doubled turns it hostile, engram-defected allies it): the three cores are Fusion Cells (story flags core-a-down, core-b-down, core-c-down; all three set engram-destroyed), turrets inside the ice gate, masts and radar round the well, Skiff drones patrolling the well. Doubled: Tanks and Lancers appear at the cores. Defected: four Skiffs hold the gate for us. Expedition: 1,400 alloys, 200 isotopes, 4 drones, 6 Rovers, 4 Tanks, 4 Lancers, 2 Artillery, 2 Engineers.",
   "body": "rime",
   "size": 400,
   "detail": 4,
@@ -723,33 +723,154 @@
   "encounters": [
     {
       "id": "core-a-guard",
-      "unit": "sentinel",
+      "unit": "tank",
       "count": 2,
       "x": 0,
-      "z": 156,
+      "z": 148,
       "mode": "guard",
-      "r": 10,
-      "flag": "engram-doubled"
+      "r": 12,
+      "flag": "engram-doubled",
+      "faction": "engram"
     },
     {
       "id": "core-b-guard",
-      "unit": "sentinel",
+      "unit": "lancer",
       "count": 2,
-      "x": -40,
-      "z": 87,
+      "x": -34,
+      "z": 80,
       "mode": "guard",
-      "r": 10,
-      "flag": "engram-doubled"
+      "r": 12,
+      "flag": "engram-doubled",
+      "faction": "engram"
     },
     {
       "id": "core-c-guard",
-      "unit": "sentinel",
+      "unit": "lancer",
       "count": 2,
+      "x": 34,
+      "z": 80,
+      "mode": "guard",
+      "r": 12,
+      "flag": "engram-doubled",
+      "faction": "engram"
+    },
+    {
+      "id": "well-drones",
+      "unit": "skiff",
+      "count": 3,
+      "x": 0,
+      "z": 56,
+      "mode": "patrol",
+      "r": 10,
+      "x2": 0,
+      "z2": 130,
+      "faction": "engram"
+    },
+    {
+      "id": "engram-escort",
+      "unit": "skiff",
+      "count": 4,
+      "x": 0,
+      "z": 20,
+      "mode": "guard",
+      "r": 16,
+      "flag": "engram-defected",
+      "faction": "engram"
+    }
+  ],
+  "factions": [
+    {
+      "id": "engram",
+      "name": "Engram",
+      "color": "#ff7a45",
+      "team": 3,
+      "attitude": "neutral",
+      "flag": "engram-doubled",
+      "allyFlag": "engram-defected"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "fusion",
+      "x": 0,
+      "z": 156,
+      "faction": "engram",
+      "story": "core-a-down"
+    },
+    {
+      "kind": "fusion",
+      "x": -40,
+      "z": 87,
+      "faction": "engram",
+      "story": "core-b-down"
+    },
+    {
+      "kind": "fusion",
       "x": 40,
       "z": 87,
-      "mode": "guard",
-      "r": 10,
-      "flag": "engram-doubled"
+      "faction": "engram",
+      "story": "core-c-down"
+    },
+    {
+      "kind": "turret",
+      "x": -12,
+      "z": 40,
+      "yaw": 180,
+      "faction": "engram"
+    },
+    {
+      "kind": "turret",
+      "x": 12,
+      "z": 40,
+      "yaw": 180,
+      "faction": "engram"
+    },
+    {
+      "kind": "sensor",
+      "x": -16,
+      "z": 100,
+      "faction": "engram"
+    },
+    {
+      "kind": "sensor",
+      "x": 16,
+      "z": 100,
+      "faction": "engram"
+    },
+    {
+      "kind": "radar",
+      "x": 0,
+      "z": 124,
+      "faction": "engram"
+    }
+  ],
+  "expedition": [
+    {
+      "alloys": 1400,
+      "isotopes": 200,
+      "drones": 4,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 6
+        },
+        {
+          "unit": "tank",
+          "count": 4
+        },
+        {
+          "unit": "lancer",
+          "count": 4
+        },
+        {
+          "unit": "artillery",
+          "count": 2
+        },
+        {
+          "unit": "engineer",
+          "count": 2
+        }
+      ]
     }
   ]
 }

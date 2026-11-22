@@ -1,0 +1,23 @@
+{
+  "title": "The Deep Layer",
+  "text": "The map on the cellar plate was right. A crater wide enough to hold Touchdown twice, and its walls aren't rock. They're ruins, stacked: foundations on foundations on foundations, down and down. Relic grids stand on the rim and on the floor.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"How many colonies is that? How many times did someone build here?\""
+    }
+  ],
+  "trigger": "never",
+  "region": "deep-layer",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "crater-rim",
+      "text": "The rim"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, deep-layer, survivors, optional",
+  "status": "draft"
+}

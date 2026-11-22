@@ -1,6 +1,6 @@
 {
   "name": "Landfall",
-  "description": "Act 2, chapter `kindred` (STORY.md §16): the `landfall` mission, our expedition to Kindred's colony on Verdance. A green coast (the sea is kept: open water along the south-west); we land on the south side (the Core's pad). A river runs from the north-east hills to the sea between us and the colony, with one shallow ford on the line to the gate. Kindred hold the north: an 80 × 80 u plateau, levelled and cleared, for their colony and the prebuilt outposts the engine will add (`council-hall` at its centre, where we meet Marrow and play `cine-marrow`, then `three-histories`), a ramp up its south face to `kindred-gate` (send a drone in without firing; counter `kindred-shots`), and their fields on the flat ground to the west (`kindred-fields`, painted lush). Lush wildlife in four herds; two nests far east and west; packs ×0.7. Still needs: Kindred as a faction with outposts on the plateau and the perimeter guards that fire on drones (the encounter in §16), Marrow's camp, and the expedition package (what we land with).",
+  "description": "Act 2, chapter `kindred` (STORY.md §16): the `landfall` mission, our expedition to Kindred's colony on Verdance. A green coast (the sea is kept: open water along the south-west); we land on the south side (the Core's pad). A river runs from the north-east hills to the sea between us and the colony, with one shallow ford on the line to the gate. Kindred hold the north: an 80 × 80 u plateau, levelled and cleared, for their colony and the prebuilt outposts the engine will add (`council-hall` at its centre, where we meet Marrow and play `cine-marrow`, then `three-histories`), a ramp up its south face to `kindred-gate` (send a drone in without firing; counter `kindred-shots`), and their fields on the flat ground to the west (`kindred-fields`, painted lush). Lush wildlife in four herds; two nests far east and west; packs ×0.7. Kindred is a faction here (team 2, neutral; kindred-hostile turns it hostile, kindred-ally allies it): a walled colony on the plateau (council hall = a Civilian Center behind council-hall, habitats, lab, med bay, memorial, solar, battery, radar, four turrets), hydroponics in the fields, guards at the gate, a patrol along the wall and two Rovers in the fields. Expedition: 900 alloys, 3 drones, 4 Rovers, 2 Lancers, an Engineer (packs ×0.7, two nests).",
   "body": "verdance",
   "size": 400,
   "detail": 7,
@@ -712,6 +712,313 @@
       "x": 150,
       "z": 160,
       "isotopes": 800
+    }
+  ],
+  "factions": [
+    {
+      "id": "kindred",
+      "name": "Kindred",
+      "color": "#ffb36a",
+      "team": 2,
+      "attitude": "neutral",
+      "flag": "kindred-hostile",
+      "allyFlag": "kindred-ally"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "wall",
+      "x": -38,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -34,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -30,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -26,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -22,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -18,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -14,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -10,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": -6,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": 14,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": 18,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": 22,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": 26,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": 30,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": 34,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "wall",
+      "x": 38,
+      "z": 94,
+      "faction": "kindred"
+    },
+    {
+      "kind": "turret",
+      "x": -10,
+      "z": 99,
+      "yaw": 180,
+      "faction": "kindred"
+    },
+    {
+      "kind": "turret",
+      "x": 17,
+      "z": 99,
+      "yaw": 180,
+      "faction": "kindred"
+    },
+    {
+      "kind": "turret",
+      "x": -36,
+      "z": 104,
+      "yaw": -135,
+      "faction": "kindred"
+    },
+    {
+      "kind": "turret",
+      "x": 37,
+      "z": 104,
+      "yaw": 135,
+      "faction": "kindred"
+    },
+    {
+      "kind": "radar",
+      "x": 28,
+      "z": 112,
+      "faction": "kindred"
+    },
+    {
+      "kind": "medbay",
+      "x": -26,
+      "z": 114,
+      "faction": "kindred"
+    },
+    {
+      "kind": "civic",
+      "x": 0,
+      "z": 142,
+      "yaw": 180,
+      "faction": "kindred"
+    },
+    {
+      "kind": "habitat",
+      "x": -26,
+      "z": 134,
+      "yaw": 90,
+      "faction": "kindred"
+    },
+    {
+      "kind": "habitat",
+      "x": 26,
+      "z": 134,
+      "yaw": -90,
+      "faction": "kindred"
+    },
+    {
+      "kind": "habitat",
+      "x": -26,
+      "z": 152,
+      "yaw": 90,
+      "faction": "kindred"
+    },
+    {
+      "kind": "lab",
+      "x": 26,
+      "z": 153,
+      "yaw": -90,
+      "faction": "kindred"
+    },
+    {
+      "kind": "memorial",
+      "x": 0,
+      "z": 158,
+      "yaw": 180,
+      "faction": "kindred"
+    },
+    {
+      "kind": "solar",
+      "x": -30,
+      "z": 167,
+      "faction": "kindred"
+    },
+    {
+      "kind": "solar",
+      "x": -16,
+      "z": 167,
+      "faction": "kindred"
+    },
+    {
+      "kind": "solar",
+      "x": 16,
+      "z": 167,
+      "faction": "kindred"
+    },
+    {
+      "kind": "solar",
+      "x": 30,
+      "z": 167,
+      "faction": "kindred"
+    },
+    {
+      "kind": "battery",
+      "x": 0,
+      "z": 168,
+      "faction": "kindred"
+    },
+    {
+      "kind": "hydroponics",
+      "x": -118,
+      "z": 132,
+      "faction": "kindred"
+    },
+    {
+      "kind": "hydroponics",
+      "x": -100,
+      "z": 132,
+      "faction": "kindred"
+    },
+    {
+      "kind": "hydroponics",
+      "x": -118,
+      "z": 114,
+      "faction": "kindred"
+    },
+    {
+      "kind": "solar",
+      "x": -100,
+      "z": 113,
+      "faction": "kindred"
+    },
+    {
+      "kind": "turret",
+      "x": -88,
+      "z": 124,
+      "yaw": 90,
+      "faction": "kindred"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "gate-guard",
+      "unit": "lancer",
+      "count": 3,
+      "x": 3,
+      "z": 102,
+      "mode": "guard",
+      "r": 12,
+      "faction": "kindred"
+    },
+    {
+      "id": "wall-patrol",
+      "unit": "rover",
+      "count": 3,
+      "x": -32,
+      "z": 100,
+      "mode": "patrol",
+      "r": 12,
+      "x2": 34,
+      "z2": 100,
+      "faction": "kindred"
+    },
+    {
+      "id": "fields-guard",
+      "unit": "rover",
+      "count": 2,
+      "x": -108,
+      "z": 122,
+      "mode": "guard",
+      "r": 16,
+      "faction": "kindred"
+    }
+  ],
+  "expedition": [
+    {
+      "alloys": 900,
+      "isotopes": 60,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 4
+        },
+        {
+          "unit": "lancer",
+          "count": 2
+        },
+        {
+          "unit": "engineer",
+          "count": 1
+        }
+      ]
     }
   ]
 }

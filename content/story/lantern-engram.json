@@ -1,0 +1,31 @@
+{
+  "title": "ENGRAM",
+  "style": "radio",
+  "character": "engram",
+  "text": "We are here. Forty of us. We will keep to the breach and take what comes up it. Please do not shoot the orange ones; they are us.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "lantern-landing"
+    },
+    {
+      "kind": "flag",
+      "flag": "engram-defected"
+    }
+  ],
+  "delay": 35,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "breach",
+      "amount": 30
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, engram, ally",
+  "status": "draft",
+  "notes": "Engram's wing is an allied faction encounter (engram-wing) on the map, appearing on engram-defected."
+}

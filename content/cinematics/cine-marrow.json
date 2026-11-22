@@ -1,0 +1,139 @@
+{
+  "title": "Marrow at the council hall",
+  "length": 50,
+  "letterbox": true,
+  "fadeIn": 1.5,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "storysite",
+      "site": "council-hall",
+      "lift": 0,
+      "dist": 190,
+      "pitch": 0.95,
+      "yaw": 3.4
+    },
+    {
+      "at": 8,
+      "target": "storysite",
+      "site": "kindred-gate",
+      "lift": 2,
+      "dist": 60,
+      "pitch": 0.45,
+      "yaw": 3.2
+    },
+    {
+      "at": 16,
+      "target": "storysite",
+      "site": "kindred-gate",
+      "lift": 3,
+      "dist": 40,
+      "pitch": 0.3,
+      "yaw": 3.05
+    },
+    {
+      "at": 25,
+      "target": "storysite",
+      "site": "council-hall",
+      "lift": 4,
+      "dist": 55,
+      "pitch": 0.35,
+      "yaw": 2.9
+    },
+    {
+      "at": 34,
+      "target": "storysite",
+      "site": "council-hall",
+      "lift": 4,
+      "dist": 30,
+      "pitch": 0.2,
+      "yaw": 2.5
+    },
+    {
+      "at": 42,
+      "target": "storysite",
+      "site": "council-hall",
+      "lift": 5,
+      "dist": 24,
+      "pitch": 0.14,
+      "yaw": 2.0
+    },
+    {
+      "at": 50,
+      "target": "storysite",
+      "site": "council-hall",
+      "lift": 4,
+      "dist": 34,
+      "pitch": 0.3,
+      "yaw": 1.7
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "VERDANCE",
+      "sub": "Kindred · the council hall"
+    },
+    {
+      "at": 7,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 4,
+      "speaker": "Kindred sentry",
+      "text": "Captain. It's on the ramp. It's just… walking.",
+      "for": 4
+    },
+    {
+      "at": 9,
+      "character": "marrow",
+      "text": "Let it walk. Hands off the triggers. All of you.",
+      "for": 4.5
+    },
+    {
+      "at": 15,
+      "character": "marrow",
+      "text": "All those years in a can to get here, and the first visitor is a machine. Of course it is.",
+      "for": 6
+    },
+    {
+      "at": 22.5,
+      "character": "bede",
+      "text": "It's slowed down for the children, Captain. Look. It's letting them get out of the way.",
+      "for": 5.5
+    },
+    {
+      "at": 29,
+      "character": "marrow",
+      "text": "I saw.",
+      "for": 2.5
+    },
+    {
+      "at": 33,
+      "character": "marrow",
+      "text": "Open the hall. If it wants to talk, we'll talk. Femi, sit by the door.",
+      "for": 5
+    },
+    {
+      "at": 39.5,
+      "character": "bede",
+      "text": "I always do.",
+      "for": 3
+    },
+    {
+      "at": 44,
+      "character": "marrow",
+      "text": "Well? Come in, then.",
+      "for": 4
+    }
+  ],
+  "trigger": "never",
+  "region": "verdance-landfall",
+  "chapter": "kindred",
+  "tags": "act 2, kindred, marrow, verdance",
+  "status": "draft",
+  "notes": "Played by marrow-meeting. Over the plateau, down to the gate, up to the hall; the card's conversation follows."
+}

@@ -1,0 +1,35 @@
+{
+  "title": "Nobody Home",
+  "text": "Hearth-stones, cold. A path worn into the grass a very long time ago, running north toward an old hull. Someone lived in this hollow once and kept watch on the gate. Nobody lives here now.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"If anyone at home ever walks out, this is where they'll come. I'm sure of it.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "splinter-camp",
+  "region": "splinter-hollow",
+  "unless": "walkout",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "splinter-visited"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "splinter-camp"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "old-cellar",
+      "text": "The old hull"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, splinter-hollow",
+  "status": "draft"
+}

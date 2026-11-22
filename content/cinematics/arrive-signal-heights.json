@@ -1,0 +1,70 @@
+{
+  "letterbox": true,
+  "title": "Arrival: Signal Heights",
+  "length": 16,
+  "fadeIn": 1.2,
+  "fadeOut": 1,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "lift": 8,
+      "building": "core",
+      "dist": 170,
+      "pitch": 0.6,
+      "yaw": 0.8
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "lift": 10,
+      "site": "carrier-trace",
+      "dist": 85,
+      "pitch": 0.18,
+      "yaw": 0.6
+    },
+    {
+      "at": 11,
+      "target": "storysite",
+      "lift": 6,
+      "site": "listening-post",
+      "dist": 90,
+      "pitch": 0.3,
+      "yaw": -0.3
+    },
+    {
+      "at": 16,
+      "target": "storysite",
+      "lift": 20,
+      "site": "listening-post",
+      "dist": 140,
+      "pitch": 0.1,
+      "yaw": 0.4
+    }
+  ],
+  "captions": [
+    {
+      "at": 0.8,
+      "title": "SIGNAL HEIGHTS",
+      "sub": "Overland expedition · the plateau above the snow line"
+    },
+    {
+      "at": 10,
+      "title": "SIGNAL HEIGHTS",
+      "sub": "A pinnacle, an old mast, and wings in the crags."
+    }
+  ],
+  "lines": [
+    {
+      "at": 6.5,
+      "character": "archivist",
+      "text": "High enough. If the carrier's wrong, we'll see it from here.",
+      "for": 4.5
+    }
+  ],
+  "trigger": "start",
+  "region": "signal-heights",
+  "tags": "act 1, arrival, signal-heights",
+  "chapter": "the-planet",
+  "status": "draft"
+}

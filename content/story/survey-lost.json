@@ -1,0 +1,33 @@
+{
+  "title": "Three Names",
+  "text": "The last of the survey team stops moving at the foot of a dune. The wind starts covering them at once. On the channel Marrow says their names, all three, and then the channel goes quiet.",
+  "trigger": "never",
+  "region": "dunmore-dustfall",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Dunmore keeps what it has."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists the way home."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "survey-lost"
+    },
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, fail, travel",
+  "status": "draft",
+  "notes": "onFail of dustfall (survey-team-lost, or kindred-hostile)."
+}

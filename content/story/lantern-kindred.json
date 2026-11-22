@@ -1,0 +1,38 @@
+{
+  "title": "Marrow",
+  "style": "radio",
+  "character": "marrow",
+  "text": "Marrow. Six of mine are on your drop zone. They'll take your orders today. Don't make me regret saying that.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "lantern-landing"
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-ally"
+    }
+  ],
+  "delay": 20,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "spawn",
+      "site": "drop-zone",
+      "unit": "lancer",
+      "count": 4
+    },
+    {
+      "after": 0,
+      "kind": "spawn",
+      "site": "drop-zone",
+      "unit": "tank",
+      "count": 2
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, kindred, ally",
+  "status": "draft"
+}

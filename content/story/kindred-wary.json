@@ -1,0 +1,23 @@
+{
+  "title": "Not Yet",
+  "style": "radio",
+  "character": "marrow",
+  "text": "Marrow. They're home. Thank you for that, and I mean it. But back at the hall you showed me what you wanted me to see, and I haven't forgotten. We'll talk again.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "mission",
+      "mission": "dustfall"
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-withheld"
+    }
+  ],
+  "delay": 20,
+  "unless": "kindred-ally",
+  "chapter": "kindred",
+  "tags": "act 2, kindred, radio, marrow",
+  "status": "draft",
+  "notes": "Dustfall done but we held back at the hall: no alliance yet. Freeing the scouts on Pip (scouts-home) can still win it."
+}

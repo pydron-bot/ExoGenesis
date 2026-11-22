@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "The ice is quiet over the well. Whatever Engram is now, it decided it here, with you watching. On the long trip home the Kora band hisses softly, and you leave it on.",
+  "trigger": "never",
+  "region": "rime-prime",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, expedition, travel",
+  "status": "draft",
+  "notes": "onDone of prime. The Act 2 \"Expedition complete\" card: Return to Touchdown travels home; Stay keeps playing here (the Command Core lists every route)."
+}

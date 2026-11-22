@@ -1,0 +1,32 @@
+{
+  "title": "Strike 3",
+  "style": "radio",
+  "character": "archivist",
+  "text": "The rings come six to ten seconds before the beam. Get people out from under them. That is the entire science. I've checked.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 95,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "civic",
+      "delay": 10
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "hydroponics",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "turret"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

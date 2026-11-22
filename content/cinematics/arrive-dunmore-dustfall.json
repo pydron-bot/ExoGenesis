@@ -1,0 +1,76 @@
+{
+  "title": "Arrival: Dunmore",
+  "length": 17,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 150,
+      "pitch": 1.05,
+      "yaw": 2.4
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "site": "dune-sea",
+      "lift": 3,
+      "dist": 70,
+      "pitch": 0.4,
+      "yaw": 2.7
+    },
+    {
+      "at": 12,
+      "target": "storysite",
+      "site": "old-hull",
+      "lift": 3,
+      "dist": 50,
+      "pitch": 0.3,
+      "yaw": 3.4
+    },
+    {
+      "at": 17,
+      "target": "storysite",
+      "site": "survey-camp",
+      "lift": 0,
+      "dist": 60,
+      "pitch": 0.7,
+      "yaw": 3.8
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "DUNMORE",
+      "sub": "Dustfall · cold desert"
+    },
+    {
+      "at": 8,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 7,
+      "character": "marrow",
+      "text": "The signal's north-east of you, under that long dune. It's been there longer than the dune has.",
+      "for": 5
+    },
+    {
+      "at": 13,
+      "character": "marrow",
+      "text": "My team's waiting by your lander. Don't keep them.",
+      "for": 3.5
+    }
+  ],
+  "trigger": "start",
+  "region": "dunmore-dustfall",
+  "chapter": "kindred",
+  "tags": "act 2, kindred, dunmore, arrival",
+  "status": "draft"
+}

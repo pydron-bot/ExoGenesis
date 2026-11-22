@@ -1,0 +1,15 @@
+{
+  "title": "The Foundry",
+  "summary": "STUB written by the-lantern's writer so clause-wakes can follow it (its id is fixed). The Foundry writer replaces this whole record (STORY.md §16, chapter the-foundry): it must set flag foundry-found.",
+  "after": "beyond-the-ridge",
+  "region": "cinder-foundry",
+  "objectives": [
+    { "text": "Reach the print hall", "kind": "site", "site": "print-hall" }
+  ],
+  "rewards": [
+    { "kind": "flag", "flag": "foundry-found" }
+  ],
+  "chapter": "the-foundry",
+  "tags": "act 2, foundry, stub",
+  "status": "idea"
+}

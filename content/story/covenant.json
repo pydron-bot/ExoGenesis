@@ -1,0 +1,51 @@
+{
+  "title": "Covenant",
+  "text": "The core is gone. Round the Lid the batteries go dark one after another, like a town at bedtime. On the long-range band someone in the colony is laughing and can't stop.",
+  "trigger": "flag",
+  "flag": "lantern-destroyed",
+  "region": "lantern",
+  "unless": "long-ear",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Write the report"
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "end-covenant"
+    },
+    {
+      "after": 1,
+      "kind": "epilogue",
+      "ending": "covenant",
+      "pages": [
+        {
+          "title": "Sela",
+          "text": "The Lantern burned for nine hours after the core went. From Hearth it looked like a second, smaller moon rising over the first. {first} watched it from the wall until it went out."
+        },
+        {
+          "title": "The report",
+          "text": "At the end of the sol the charter asked, as it always had, for a Biosphere Report. You wrote one. Planet health, colony size, fauna balance, flora cover. Then a section the form had no field for: who had died, and who had stood with us, and why."
+        },
+        {
+          "text": "There was no one at Sol to read it. Or there was, and it wasn't listening. You filed it in the colony log, where anyone could read it. That was the point."
+        },
+        {
+          "title": "After",
+          "text": "The colony grew. Some years it trusted you more than others, and said so. When the children asked where the second moon-light had gone, somebody always told them, and nobody told it the same way twice."
+        },
+        {
+          "text": "The Ledger under Vess still holds eleven closed columns. The twelfth has no last line. {first} keeps the slate it would be written on, and has never written on it."
+        }
+      ],
+      "text": "The partnership survives, with its eyes open."
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, covenant",
+  "status": "draft",
+  "notes": "Covenant: the Lantern destroyed, without the Long Ear (no way to reach Sol)."
+}

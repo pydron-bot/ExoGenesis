@@ -1,0 +1,61 @@
+{
+  "title": "Landfall",
+  "summary": "Kindred's colony on Verdance. Land outside the wire, walk one drone to the gate without firing (attacking Kindred sets kindred-attacked, then kindred-hostile: the mission fails), meet Marrow at the council hall (cine-marrow), compare archives (three-histories, director-two). Honest or not at the hall decides kindred-ally later.",
+  "after": "first-light",
+  "region": "verdance-landfall",
+  "objectives": [
+    {
+      "text": "Land outside Kindred's perimeter",
+      "kind": "here",
+      "place": "verdance-landfall"
+    },
+    {
+      "text": "Walk a drone up to Kindred's gate. Don't fire on them",
+      "kind": "all",
+      "of": [
+        {
+          "kind": "site",
+          "site": "kindred-gate"
+        },
+        {
+          "kind": "flag",
+          "flag": "kindred-attacked",
+          "not": true
+        }
+      ]
+    },
+    {
+      "text": "Meet Captain Marrow at the council hall",
+      "kind": "after",
+      "event": "marrow-meeting"
+    },
+    {
+      "text": "Compare the archives",
+      "kind": "after",
+      "event": "director-two"
+    }
+  ],
+  "onStart": "kindred-perimeter",
+  "onDone": "landfall-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "kindred-contact"
+    },
+    {
+      "kind": "route",
+      "region": "dunmore-dustfall"
+    }
+  ],
+  "fails": [
+    {
+      "text": "Kindred closed their gate to us.",
+      "kind": "flag",
+      "flag": "kindred-hostile"
+    }
+  ],
+  "onFail": "kindred-closed",
+  "chapter": "kindred",
+  "tags": "act 2, kindred, verdance",
+  "status": "draft"
+}

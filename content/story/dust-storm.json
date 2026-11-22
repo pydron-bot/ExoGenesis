@@ -1,0 +1,18 @@
+{
+  "title": "Dust Storm",
+  "text": "The wind comes off the dune sea in a brown wall. Sight drops to a few metres. Under the noise, something in the sand is moving the same way as the survey team.",
+  "trigger": "flag",
+  "flag": "survey-set-out",
+  "delay": 70,
+  "region": "dunmore-dustfall",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "pack"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, dunmore, threat",
+  "status": "draft",
+  "notes": "The storm is narration; the pack is real. The engine has no weather."
+}

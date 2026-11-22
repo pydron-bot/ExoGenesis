@@ -1,0 +1,70 @@
+{
+  "letterbox": true,
+  "title": "Arrival: The Deep Layer",
+  "length": 19,
+  "fadeIn": 1.2,
+  "fadeOut": 1,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "lift": 10,
+      "building": "core",
+      "dist": 200,
+      "pitch": 0.75,
+      "yaw": 0.6
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "lift": 6,
+      "site": "crater-rim",
+      "dist": 120,
+      "pitch": 0.45,
+      "yaw": 0.2
+    },
+    {
+      "at": 12,
+      "target": "storysite",
+      "lift": 2,
+      "site": "oldest-layer",
+      "dist": 90,
+      "pitch": 0.55,
+      "yaw": 0.8
+    },
+    {
+      "at": 19,
+      "target": "storysite",
+      "lift": 6,
+      "site": "enclave-cut",
+      "dist": 80,
+      "pitch": 0.3,
+      "yaw": 0.5
+    }
+  ],
+  "captions": [
+    {
+      "at": 0.8,
+      "title": "THE DEEP LAYER",
+      "sub": "Overland expedition · a crater of stacked ruins"
+    },
+    {
+      "at": 11,
+      "title": "THE DEEP LAYER",
+      "sub": "Foundations on foundations on foundations."
+    }
+  ],
+  "lines": [
+    {
+      "at": 7,
+      "character": "firstborn",
+      "text": "Those terraces aren't rock. They're floors.",
+      "for": 4
+    }
+  ],
+  "trigger": "start",
+  "region": "deep-layer",
+  "tags": "act 1, arrival, deep-layer, optional",
+  "chapter": "the-planet",
+  "status": "draft"
+}

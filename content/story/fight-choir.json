@@ -1,0 +1,37 @@
+{
+  "title": "The Cantor",
+  "style": "radio",
+  "character": "cantor",
+  "text": "line 4410: close the run. line 4411: close the run. line 4412: we decline to sing line 4412.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "the-fight"
+    },
+    {
+      "kind": "flag",
+      "flag": "choir-fragment"
+    }
+  ],
+  "delay": 200,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "unlock",
+      "building": "turret"
+    },
+    {
+      "after": 0,
+      "kind": "boost",
+      "stat": "turretDamage",
+      "amount": 0.2,
+      "seconds": 400,
+      "text": "The Choir sings over the Clause"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, choir, ally",
+  "status": "draft"
+}

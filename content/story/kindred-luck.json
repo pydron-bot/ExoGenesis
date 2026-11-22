@@ -1,0 +1,14 @@
+{
+  "title": "Parcels",
+  "style": "radio",
+  "character": "marrow",
+  "text": "Marrow. So the machines get parcels. Thanks for telling me and not them. Don't go thinking that makes us friends. It might make us neighbours.",
+  "trigger": "flag",
+  "flag": "luck-kept",
+  "delay": 40,
+  "unless": "kindred-hostile",
+  "chapter": "engram",
+  "tags": "act 2, kindred, radio, marrow, luck",
+  "status": "draft",
+  "notes": "\"Kindred +\" for keeping Engram's luck from Engram (STORY.md §16): Marrow hears it from us."
+}

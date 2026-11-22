@@ -1,0 +1,31 @@
+{
+  "title": "The Keeper's Song",
+  "character": "keeper",
+  "text": "\"You came back to the stones. Sit. I will sing it properly, once, and you will carry it home.\"",
+  "trigger": "trust",
+  "group": "vell",
+  "delay": 6,
+  "region": "hearthsmoke",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Listen",
+      "reply": "The Marro sings."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "keeper-song"
+    },
+    {
+      "after": 1,
+      "kind": "cinematic",
+      "cinematic": "cine-keeper"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell, E5",
+  "status": "draft"
+}

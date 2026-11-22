@@ -10,6 +10,22 @@
   "siteLat": 10,
   "siteLon": -20,
   "packScale": 0.75,
+  "expedition": [
+    {
+      "alloys": 500,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 3
+        },
+        {
+          "unit": "scout",
+          "count": 1
+        }
+      ]
+    }
+  ],
   "height": [
     "90*40 89*11 88*12 87*15 88*12 89*11 90*40",
     "90 89*41 88*8 87*10 86*21 87*10 88*8 89*41 90",

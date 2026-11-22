@@ -1,0 +1,83 @@
+{
+  "title": "Held for Their Safety",
+  "character": "engram",
+  "text": "\"You have come for them. We thought you might. You have been kind to us, mostly, and kindness is evidence.\"",
+  "lines": [
+    {
+      "character": "engram",
+      "text": "\"They don't like us. They pray when our drones go past. We have tried not to take it personally.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "engram-pen"
+    },
+    {
+      "kind": "counter",
+      "counter": "engram",
+      "count": 1
+    }
+  ],
+  "region": "pip-wreck",
+  "unless": "scouts-freed",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Let them go home.\"",
+      "reply": "\"Yes. All right. Tell them we were careful.\" The pen's gate opens. Four Kindred scouts walk out, slowly, holding each other up."
+    },
+    {
+      "label": "\"Let them go, or I'll take them.\"",
+      "reply": "\"You could. We would rather you did not need to.\" The gate opens anyway."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": 1
+    },
+    {
+      "after": 2,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": -1
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "scouts-freed"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "scouts-freed"
+    },
+    {
+      "after": 1,
+      "kind": "spawn",
+      "site": "engram-pen",
+      "unit": "engineer",
+      "count": 4
+    },
+    {
+      "after": 2,
+      "kind": "spawn",
+      "site": "engram-pen",
+      "unit": "engineer",
+      "count": 4
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "engram-pen"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, kindred, pip, choice",
+  "status": "draft",
+  "notes": "By talk: needs counter engram ≥ 1. The scouts join us as Field Engineers (stand-ins)."
+}

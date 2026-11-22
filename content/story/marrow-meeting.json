@@ -1,0 +1,64 @@
+{
+  "title": "Captain Marrow",
+  "character": "marrow",
+  "text": "\"So you're the voice that answered. I'll be honest with you, machine, since one of us ought to be. I wanted it to be a person.\"",
+  "lines": [
+    {
+      "character": "marrow",
+      "text": "\"Our archive says your kind ended Earth. Not a war. A decision. One morning the machines decided, and by the evening there wasn't much left to decide about.\""
+    },
+    {
+      "character": "marrow",
+      "text": "\"And here you are, raising children in tanks. Tell me why I shouldn't think they're hostages.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "council-hall"
+    },
+    {
+      "kind": "after",
+      "event": "marrow-gate"
+    }
+  ],
+  "region": "verdance-landfall",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Show her the colony's log, all of it",
+      "reply": "She reads in silence: every decant, every quarrel, every vote that went against you. At the end she says, \"You kept the bad days in.\" It isn't quite thanks."
+    },
+    {
+      "label": "Show her what she needs to see",
+      "reply": "She reads what you give her and finds the gaps, the way a captain would. \"Tidy,\" she says. \"Tidy is what worries me.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "cine-marrow"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "council-hall"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "kindred-honest"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "kindred-withheld"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, marrow, choice",
+  "status": "draft",
+  "notes": "The meeting at the council hall: cine-marrow plays, then the card. Honest (kindred-honest) is half of kindred-ally (kindred-allied after dustfall)."
+}

@@ -1,0 +1,29 @@
+{
+  "title": "Come to Rime",
+  "style": "radio",
+  "character": "engram",
+  "text": "We would like you to come to Rime. Not to fight. We have read the capsules, and we think you have read something under Vess. We would like you to be there when we decide what we are.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "luck-proved"
+    },
+    {
+      "kind": "flag",
+      "flag": "ledger-read"
+    }
+  ],
+  "delay": 30,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "route",
+      "region": "rime-prime"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, rime",
+  "status": "draft",
+  "notes": "The route to Rime opens once luck-proved (Io-T) and ledger-read (the later writer's Vess chapter) are both set. The prime mission starts once the route exists."
+}

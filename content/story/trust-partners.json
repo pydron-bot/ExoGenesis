@@ -1,0 +1,56 @@
+{
+  "title": "We Stand",
+  "character": "firstborn",
+  "text": "\"We've talked. Not everyone agrees. Enough of us do.\"",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"You've been in our heads since the pods. If that thing is in yours, then it's in yours, and we'll fight it there too.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Practically: the Lantern has to see us to hit us, and it's on Sela. The Gantry can put a strike force on the far side in ten minutes. If we're still here in ten minutes.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"So we're still here in ten minutes.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "timer",
+      "timer": "trust-wait"
+    },
+    {
+      "kind": "majority",
+      "stance": "devoted",
+      "not": true
+    }
+  ],
+  "region": "touchdown",
+  "unless": "trust-settled",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Then we fight.\"",
+      "reply": "The Gantry starts to fuel."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "trust-settled"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "the-fight"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, trust, partners",
+  "status": "draft",
+  "notes": "Partner-led (neither Autonomists nor Devoted lead; Severance already checked): the fight."
+}

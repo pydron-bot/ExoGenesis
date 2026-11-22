@@ -1,0 +1,33 @@
+{
+  "title": "Strike 5",
+  "style": "radio",
+  "character": "meridian",
+  "text": "They are not afraid of you. That was always the hardest part.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 170,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "depot",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "solar",
+      "delay": 9
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "pod",
+      "seconds": 40
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

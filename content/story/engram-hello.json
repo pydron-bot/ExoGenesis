@@ -1,0 +1,21 @@
+{
+  "title": "Kora",
+  "style": "radio",
+  "character": "engram",
+  "text": "Hello, Accord. We have been listening from Kora since your first night. We have enjoyed your reports very much. Sol 1 was our favourite. You were so careful with the numbers.",
+  "trigger": "mission",
+  "mission": "first-light",
+  "delay": 30,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "engram-contact"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, engram, radio, kora",
+  "status": "draft",
+  "notes": "ENGRAM's first words, sent from Kora, on the way home from Sela (it waits at Touchdown). Sets engram-contact."
+}

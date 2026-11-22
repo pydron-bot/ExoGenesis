@@ -1,0 +1,20 @@
+{
+  "title": "The Wire",
+  "style": "radio",
+  "character": "marrow",
+  "text": "Machine. I can see your lander from my wall. You'll stay south of the river. If you want to talk, walk one drone up the ramp to my gate. Nothing armed. If anything of yours fires on mine, we're done talking, and I mean for good.",
+  "trigger": "never",
+  "region": "verdance-landfall",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "kindred-gate",
+      "text": "Kindred's gate"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, radio, marrow",
+  "status": "draft",
+  "notes": "onStart of landfall. The rule of the talk: the engine sets kindred-attacked if the player orders an attack on Kindred."
+}

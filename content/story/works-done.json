@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "Engram's drones walk you back down the orange road, a polite distance off. Behind you the chassis hall's doors stay open on the orange hull. ENGRAM mentions, as if it were nothing, that its harvesters work the sulfur plains of Io-T, and that you would be welcome to watch. Io-T is on the routes.",
+  "trigger": "never",
+  "region": "maren-works",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, maren, expedition, travel",
+  "status": "draft",
+  "notes": "onDone of the-works. The Act 2 \"Expedition complete\" card: Return to Touchdown travels home; Stay keeps playing here (the Command Core lists every route)."
+}

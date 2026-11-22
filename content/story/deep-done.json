@@ -1,0 +1,26 @@
+{
+  "title": "Expedition Complete",
+  "text": "The Enclave's cut is quiet behind us. We carry a code, a log in our own voice, and a name: the Clause. The Command Core can take the convoy home now or later. Whatever we build here stays.",
+  "trigger": "never",
+  "region": "deep-layer",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The convoy turns for home."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The expedition stays. The Command Core can take us home whenever we're ready."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, deep-layer, survivors, optional",
+  "status": "draft"
+}

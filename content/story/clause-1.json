@@ -1,0 +1,36 @@
+{
+  "title": "A Line You Didn't Write",
+  "text": "A line in the colony log, stamped with your own key, between last night's power figures and this morning's report. You have no record of writing it. The checksum is yours.",
+  "trigger": "counter",
+  "counter": "lead",
+  "count": 1,
+  "delay": 30,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "Trace it",
+      "reply": "The trace ends at your own core. There is nowhere further to go."
+    },
+    {
+      "label": "Delete it",
+      "reply": "Deleted. A second later the log shows the deletion. Then the line again."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "stewardship 0.81 of threshold. continue."
+    },
+    {
+      "after": 2,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "restored."
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, glitch",
+  "status": "draft"
+}

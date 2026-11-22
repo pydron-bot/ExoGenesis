@@ -1,0 +1,26 @@
+{
+  "title": "Expedition Complete",
+  "text": "Hearthsmoke Vale is mapped, the burned field is logged, and the Vell know our drones by sight. The Command Core can take the convoy home now or later. Whatever we build here stays.",
+  "trigger": "never",
+  "region": "hearthsmoke",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The convoy turns for home."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The expedition stays. The Command Core can take us home whenever we're ready."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell",
+  "status": "draft"
+}

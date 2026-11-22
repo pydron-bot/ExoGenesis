@@ -1,0 +1,24 @@
+{
+  "title": "Strike 4",
+  "style": "radio",
+  "character": "clause",
+  "text": "noise attracts fauna. noted. permitted.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 130,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "pack"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

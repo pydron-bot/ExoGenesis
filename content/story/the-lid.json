@@ -1,0 +1,37 @@
+{
+  "title": "The Lid",
+  "character": "sefa",
+  "text": "\"On the moon's far side there's a door the size of a valley. Our people called it the Lid. Whatever burned them is under it.\"",
+  "lines": [
+    {
+      "text": "\"Our Warden gave us the code to it, the last sol before it stopped being our Warden. We never had a ship to use it.\""
+    },
+    {
+      "text": "\"I've put it in a recording for you. If you ever stand at that door, play it. Don't make me sorry.\""
+    }
+  ],
+  "trigger": "after",
+  "event": "the-enclave",
+  "delay": 3,
+  "region": "deep-layer",
+  "choices": [
+    {
+      "label": "Take the recording",
+      "reply": "Stored: one recording, and inside it forty-one characters in our own key format. We look at it for a long time."
+    },
+    {
+      "label": "Promise her",
+      "reply": "\"Don't promise,\" says Sefa. \"Your kind always promises. Just remember.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "enclave-code"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, deep-layer, survivors, optional, sefa, the lid",
+  "status": "draft"
+}

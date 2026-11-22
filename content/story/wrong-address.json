@@ -1,0 +1,41 @@
+{
+  "title": "Wrong Address",
+  "character": "archivist",
+  "text": "\"Bearing confirmed. Elevation… no. That's not right. Run it again.\"",
+  "lines": [
+    {
+      "text": "\"Same answer. The report doesn't leave the system. It never has. The carrier is aimed at something that crosses our sky once a sol.\""
+    },
+    {
+      "text": "\"Things that cross our sky once a sol: the sun, which it isn't. And the moon.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "carrier-trace"
+    },
+    {
+      "kind": "built",
+      "building": "radar"
+    }
+  ],
+  "region": "signal-heights",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "wrong-address"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "carrier-trace"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights, E12, biosphere report",
+  "status": "draft"
+}

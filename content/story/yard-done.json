@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "The yard is running: a depot chewing at the rock, a bay with its doors open. The empty berth stays lit. Thalassa hangs low over the horizon, banded and enormous, and somewhere round it are Engram's moons. Maren and Pip are on the routes.",
+  "trigger": "never",
+  "region": "talus-yard",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, outposts, talus, expedition, travel",
+  "status": "draft",
+  "notes": "onDone of yard. The Act 2 \"Expedition complete\" card: Return to Touchdown travels home; Stay keeps playing here (the Command Core lists every route)."
+}

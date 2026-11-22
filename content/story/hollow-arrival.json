@@ -1,0 +1,23 @@
+{
+  "title": "Splinter Hollow",
+  "text": "A basin inside a ring of green hills. Sheltered, watered, quiet. The convoy came in over the hills the hard way; there is an easier way in, from the east. It is the kind of place you'd choose if you wanted to be left alone.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"Some of the Autonomists talk about a place like this. A hollow past the hills, where nobody's watching. I didn't think it was real.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "splinter-hollow",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "hollow-gate",
+      "text": "The way in"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, splinter-hollow",
+  "status": "draft"
+}

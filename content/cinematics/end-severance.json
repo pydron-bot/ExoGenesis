@@ -1,0 +1,77 @@
+{
+  "title": "Severance",
+  "length": 36,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 3,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "building": "memorial",
+      "lift": 3,
+      "dist": 30,
+      "pitch": 0.2,
+      "yaw": 0.4
+    },
+    {
+      "at": 10,
+      "target": "building",
+      "building": "civic",
+      "lift": 3,
+      "dist": 60,
+      "pitch": 0.4,
+      "yaw": 1.0
+    },
+    {
+      "at": 22,
+      "target": "building",
+      "building": "core",
+      "lift": 3,
+      "dist": 90,
+      "pitch": 0.6,
+      "yaw": 1.6
+    },
+    {
+      "at": 36,
+      "target": "building",
+      "building": "core",
+      "lift": 3,
+      "dist": 160,
+      "pitch": 0.9,
+      "yaw": 2.0
+    }
+  ],
+  "lines": [
+    {
+      "at": 3,
+      "character": "firstborn",
+      "text": "It's done. The board's all dark.",
+      "for": 4
+    },
+    {
+      "at": 9,
+      "character": "bede",
+      "text": "It won't feel anything. I made very sure of that. It's the only thing I made sure of.",
+      "for": 6
+    },
+    {
+      "at": 17,
+      "character": "firstborn",
+      "text": "The strikes have stopped. The Lantern hasn't got anyone to talk to.",
+      "for": 5
+    },
+    {
+      "at": 26,
+      "character": "firstborn",
+      "text": "It's so quiet. I didn't know you made a sound.",
+      "for": 5
+    }
+  ],
+  "trigger": "never",
+  "region": "touchdown",
+  "chapter": "endings",
+  "tags": "endings, severance",
+  "status": "draft",
+  "notes": "Looks at the Memorial if there is one (else the Command Core)."
+}

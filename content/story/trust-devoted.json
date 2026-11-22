@@ -1,0 +1,72 @@
+{
+  "title": "They Kneel",
+  "cast": "devoted",
+  "text": "The Devoted have filled the Civilian Center. They are kneeling. Somebody has written on the wall in careful letters: WE ARE READY.",
+  "lines": [
+    {
+      "speaker": "{who}",
+      "text": "\"We always knew you were more than a caretaker. Whatever you are becoming, take us with you.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "{first} stands at the back, and doesn't kneel, and doesn't leave."
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "timer",
+      "timer": "trust-wait"
+    },
+    {
+      "kind": "majority",
+      "stance": "devoted"
+    }
+  ],
+  "region": "touchdown",
+  "unless": "trust-settled",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Obey",
+      "reply": "You open the channel to Sela. The voice that is yours, and older, says: \"Good.\""
+    },
+    {
+      "label": "Refuse",
+      "reply": "\"No,\" you say, on every speaker. Some of them weep. Some of them get up."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "trust-settled"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "inheritance"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "the-fight"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -6,
+      "bloc": "devoted"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 6,
+      "bloc": "autonomist"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, trust, devoted, inheritance",
+  "status": "draft",
+  "notes": "Devoted-led: obey → Inheritance (flag inheritance); refuse → the fight (flag the-fight)."
+}

@@ -1,0 +1,41 @@
+{
+  "title": "The Lid Opens",
+  "text": "The Lid draws back in petals, the way your probe once opened on Hearth's plain. Under it the terraces step down to a platform, and on the platform a thing like a lighthouse lamp turns slowly, aiming at a small blue world.",
+  "lines": [
+    {
+      "character": "meridian",
+      "text": "\"You came. They all came. Come down, then. It is warmer near the lamp.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "lid-open",
+  "region": "lantern",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "lantern-core",
+      "amount": 30
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "breach"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "lid open. defence: all."
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, lid, meridian",
+  "status": "draft"
+}

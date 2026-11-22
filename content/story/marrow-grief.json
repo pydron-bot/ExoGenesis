@@ -1,0 +1,44 @@
+{
+  "title": "Her Handwriting",
+  "character": "marrow",
+  "text": "\"Send me the picture, Femi.\" A long pause on the channel. The wind fills it.",
+  "lines": [
+    {
+      "character": "marrow",
+      "text": "\"It's my handwriting. The loop on the M. I've done that since school. I did it on every form before we launched.\""
+    },
+    {
+      "character": "marrow",
+      "text": "\"Somebody with my name and my hand flew a ship here and died in the sand before I was born. Before I was anything.\""
+    },
+    {
+      "character": "marrow",
+      "text": "\"Tell me you didn't know. Machine. Tell me that, at least.\""
+    }
+  ],
+  "trigger": "after",
+  "event": "marrow-manifest",
+  "region": "dunmore-dustfall",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"I didn't know.\"",
+      "reply": "\"No. No, I don't suppose you did. I don't suppose anyone tells you anything either.\""
+    },
+    {
+      "label": "\"I think it has happened to us too.\"",
+      "reply": "A long breath. \"Then it isn't a ghost story. It's a pattern. Get my people home.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "marrow-pattern"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, marrow, choice",
+  "status": "draft",
+  "notes": "The turn of the Kindred arc: \"It's my handwriting.\""
+}

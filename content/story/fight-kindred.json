@@ -1,0 +1,38 @@
+{
+  "title": "Marrow",
+  "style": "radio",
+  "character": "marrow",
+  "text": "Marrow. I've two landers on your plain and the rest at Verdance, waiting on your Gantry. Tell your people mine are coming in. Tell them not to shoot.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "the-fight"
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-ally"
+    }
+  ],
+  "delay": 45,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "spawn",
+      "site": "east-stone",
+      "unit": "lancer",
+      "count": 3
+    },
+    {
+      "after": 0,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "autonomist"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, kindred, ally",
+  "status": "draft",
+  "notes": "Kindred marines join us at home (as our units). Spawn site: Touchdown has only east-stone; a site nearer the Core would be better."
+}

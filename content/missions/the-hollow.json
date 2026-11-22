@@ -1,0 +1,35 @@
+{
+  "title": "The Hollow",
+  "summary": "Expedition to Splinter Hollow (E11). The gate, the splinter camp (the walkout's settlers, or nobody yet) and the old cellar: a Survivors' hiding place whose map points to the Deep Layer.",
+  "after": "beyond-the-ridge",
+  "region": "splinter-hollow",
+  "objectives": [
+    {
+      "text": "Scout the gap in the hills to the east",
+      "kind": "site",
+      "site": "hollow-gate"
+    },
+    {
+      "text": "Find the camp in the south-west",
+      "kind": "site",
+      "site": "splinter-camp"
+    },
+    {
+      "text": "Open the cellar under the old hull",
+      "kind": "site",
+      "site": "old-cellar"
+    }
+  ],
+  "onStart": "hollow-arrival",
+  "onDone": "hollow-done",
+  "rewards": [
+    {
+      "kind": "counter",
+      "counter": "act1-trips",
+      "amount": 1
+    }
+  ],
+  "tags": "act 1, expedition, splinter-hollow",
+  "chapter": "the-planet",
+  "status": "draft"
+}

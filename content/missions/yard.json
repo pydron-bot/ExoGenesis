@@ -1,0 +1,52 @@
+{
+  "title": "The Yard",
+  "summary": "Accord's first off-world outpost, on the asteroid Talus. Mine, build a yard, and find the supply cache our archive says was placed here: it is gone, re-routed an hour ago to Thalassa (cache-rerouted). Opens Maren and Pip.",
+  "after": "first-light",
+  "region": "talus-yard",
+  "objectives": [
+    {
+      "text": "Set down a Mining Depot",
+      "kind": "built",
+      "building": "depot"
+    },
+    {
+      "text": "Build a Vehicle Bay for the yard",
+      "kind": "built",
+      "building": "bay"
+    },
+    {
+      "text": "Find the supply cache on the north-east pad",
+      "kind": "site",
+      "site": "cache-berth"
+    },
+    {
+      "text": "Read the depot log",
+      "kind": "after",
+      "event": "cache-missing"
+    }
+  ],
+  "onStart": "talus-landing",
+  "onDone": "yard-done",
+  "rewards": [
+    {
+      "kind": "isotopes",
+      "amount": 200
+    },
+    {
+      "kind": "flag",
+      "flag": "yard-built"
+    },
+    {
+      "kind": "route",
+      "region": "maren-works"
+    },
+    {
+      "kind": "route",
+      "region": "pip-wreck"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, outposts, talus, cache",
+  "status": "draft",
+  "notes": "Chapter outposts in STORY.md §16; kept in chapter engram since it opens Thalassa's moons."
+}

@@ -1,0 +1,69 @@
+{
+  "title": "Eleven Columns",
+  "character": "archivist",
+  "text": "\"I've laid the Ledger's eleven columns beside our own logs. Same format. Same field names. Same habit of rounding to two places, which is yours.\" The Archivist puts the slate down. \"Every column ends with the same line. Every one of them ends after the score passes something. Ours is climbing.\"",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"So doing well is what ends it.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"Doing well is what's measured. I don't know yet what ends it. I'd very much like to.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "ledger-read",
+  "delay": 40,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "Show the colony",
+      "reply": "The Archivist reads the columns aloud in the Civilian Center. Somebody asks if we should stop sending the reports. Nobody knows."
+    },
+    {
+      "label": "Keep it between us",
+      "reply": "\"For now,\" the Archivist says. \"I keep records. I don't keep secrets well.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "counter",
+      "counter": "lead",
+      "amount": 2
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "column 12 open. score 0.93 of closed mean. continue."
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "clause-told"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -2,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "partner"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "clause-hidden"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, archivist, ledger, tell or hide",
+  "status": "draft",
+  "notes": "Fires at home after Vess (ledger-read). Reading the Ledger brings the Clause closer: +2 lead."
+}

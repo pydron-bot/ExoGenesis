@@ -1,0 +1,44 @@
+{
+  "title": "The Furrows",
+  "text": "Close up, the furrows are worse. A sine wave cut into the ground, crest to crest four metres exactly, running dead straight for a kilometre. The Burrowers here aren't digging at random. Each one walks its own furrow and tamps the soil down behind it.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"Someone ploughed this. A long time ago. And they taught the animals to keep ploughing after they'd gone.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "furrow-grid",
+  "region": "burrow-reach",
+  "choices": [
+    {
+      "label": "Survey the grid",
+      "reply": "Spacing 4.00 m, error under a centimetre. The interval matches the planting grid in our own farm templates, the ones we haven't used yet."
+    },
+    {
+      "label": "Watch the Burrowers",
+      "reply": "One Burrower, one furrow, one pass a day. Not hunting. Working."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "marks-seen"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "furrow-grid"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "spitter-pans",
+      "text": "Acid pans"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, burrow-reach, fauna, E9",
+  "status": "draft"
+}

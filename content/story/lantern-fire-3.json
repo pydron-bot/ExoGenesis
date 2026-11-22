@@ -1,0 +1,30 @@
+{
+  "title": "The Lantern fires (3)",
+  "style": "radio",
+  "character": "clause",
+  "text": "colony in range. expedition in range. choose.",
+  "trigger": "after",
+  "event": "lantern-landing",
+  "delay": 780,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "delay": 9
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, strike",
+  "status": "draft"
+}

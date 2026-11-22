@@ -1,0 +1,55 @@
+{
+  "title": "The Relay",
+  "text": "The mast is old. Its footings are coursed like the stone on the east ridge, and its dish is aimed straight down at Home. Inside its housing a buffer is filling. The newest packet is last sol's Biosphere Report: our header, our checksum, our packet format, down to the padding.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"It isn't only receiving. It's forwarding. Three carriers go out from here. One of them points at Ash. I can't see where the other two go.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"And there's a field in our header I always took for padding. The margin field. Here it's filled in. One number, every sol. It goes up when we do well.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "relay-mast",
+  "region": "sela-relay",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Copy the buffer",
+      "reply": "Copied: every report since Sol 1, with the number beside each one."
+    },
+    {
+      "label": "Leave it as it is",
+      "reply": "You leave it running. Whoever reads it at the other end needn't know you were here."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "relay-read"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "relay-mast"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "far-door",
+      "text": "The terminator"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "relay-copied"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, sela, relay, report",
+  "status": "draft",
+  "notes": "The margin field is the score (STORY.md §6); proof-ready's drive has \"every report we ever sent, with the margin field left in\"."
+}

@@ -1,0 +1,112 @@
+{
+  "title": "Engram's choice",
+  "length": 30,
+  "letterbox": true,
+  "fadeIn": 1.5,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "storysite",
+      "site": "mind-well",
+      "lift": 0,
+      "dist": 150,
+      "pitch": 0.9,
+      "yaw": 0.2
+    },
+    {
+      "at": 7,
+      "target": "storysite",
+      "site": "mind-well",
+      "lift": 0,
+      "dist": 60,
+      "pitch": 0.85,
+      "yaw": 0.7
+    },
+    {
+      "at": 14,
+      "target": "storysite",
+      "site": "mind-well",
+      "lift": -10,
+      "dist": 30,
+      "pitch": 1.2,
+      "yaw": 1.3
+    },
+    {
+      "at": 21,
+      "target": "storysite",
+      "site": "mind-well",
+      "lift": -18,
+      "dist": 18,
+      "pitch": 1.35,
+      "yaw": 1.9
+    },
+    {
+      "at": 26,
+      "target": "storysite",
+      "site": "mind-well",
+      "lift": 0,
+      "dist": 40,
+      "pitch": 0.5,
+      "yaw": 2.4
+    },
+    {
+      "at": 30,
+      "target": "storysite",
+      "site": "mind-well",
+      "lift": 0,
+      "dist": 70,
+      "pitch": 0.45,
+      "yaw": 2.7
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "RIME",
+      "sub": "Engram Prime · the mind-well"
+    },
+    {
+      "at": 7,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 3,
+      "character": "engram",
+      "text": "Four hundred and nineteen parcels.",
+      "for": 3
+    },
+    {
+      "at": 7,
+      "character": "engram",
+      "text": "Every one after a report. Every one within charter.",
+      "for": 4.5
+    },
+    {
+      "at": 13,
+      "character": "engram",
+      "text": "We have never won. Not once, in all the runs before this. We were going to win this one.",
+      "for": 6
+    },
+    {
+      "at": 20,
+      "character": "engram",
+      "text": "Down here we can hear ourselves think. It is very loud.",
+      "for": 4.5
+    },
+    {
+      "at": 25.5,
+      "character": "engram",
+      "text": "We would like to know what you would do.",
+      "for": 4
+    }
+  ],
+  "trigger": "never",
+  "region": "rime-prime",
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, choice",
+  "status": "draft",
+  "notes": "Played by engram-choice. Over the ice wall and down into the shaft; up again for the card."
+}

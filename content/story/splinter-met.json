@@ -1,0 +1,76 @@
+{
+  "title": "The Splinter",
+  "text": "A ring of white stones, three shelters inside it, and a garden already. The people who walked out are here. Not all of them. Enough.",
+  "lines": [
+    {
+      "speaker": "Settler",
+      "text": "\"Drones stay outside the stones. That's the rule here. The only rule, so far.\""
+    },
+    {
+      "speaker": "Settler",
+      "text": "\"We're not coming back. We're not your enemies either. We just want one place on this planet you don't see.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "splinter-camp"
+    },
+    {
+      "kind": "flag",
+      "flag": "walkout"
+    }
+  ],
+  "region": "splinter-hollow",
+  "choices": [
+    {
+      "label": "Keep outside the stones",
+      "reply": "\"Thank you,\" the settler says, and sounds surprised to."
+    },
+    {
+      "label": "Leave them supplies",
+      "reply": "A hundred alloys of tools at the line of stones. By morning the tools are gone and the stones are still there."
+    },
+    {
+      "label": "Ask them to come home",
+      "reply": "\"Home,\" the settler says, and laughs. \"Go and look at the old hull to the north. Then ask us again.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "splinter-visited"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "splinter-camp"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "splinter-respected"
+    },
+    {
+      "after": 2,
+      "kind": "alloys",
+      "amount": -100
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "splinter-supplied"
+    },
+    {
+      "after": 3,
+      "kind": "waypoint",
+      "site": "old-cellar",
+      "text": "The old hull"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, splinter-hollow, autonomists, E11",
+  "status": "draft"
+}

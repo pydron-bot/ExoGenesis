@@ -1,0 +1,30 @@
+{
+  "title": "That's Twice",
+  "style": "radio",
+  "character": "marrow",
+  "text": "Marrow. I've got four people back I'd stopped counting. You went and got them off a machine that didn't want to give them up. That's twice now. All right. Kindred stands with you.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "scouts-freed"
+    },
+    {
+      "kind": "mission",
+      "mission": "dustfall"
+    }
+  ],
+  "delay": 30,
+  "unless": "kindred-ally",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "kindred-ally"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, engram, radio, marrow, ally",
+  "status": "draft",
+  "notes": "The other way to kindred-ally (STORY.md §16: Pip by force makes it easier): the scouts freed on Pip and the survey team saved, however the hall went. Never with kindred-hostile: dustfall fails then."
+}

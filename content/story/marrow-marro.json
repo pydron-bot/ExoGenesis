@@ -1,0 +1,37 @@
+{
+  "title": "The Marro",
+  "text": "There is something you could tell her. The Vell's song-keeper wears a title worn down from a name: the Marro, for the first who came down, the one who carried their names.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "marrow-grief"
+    },
+    {
+      "kind": "flag",
+      "flag": "keeper-song"
+    }
+  ],
+  "region": "dunmore-dustfall",
+  "choices": [
+    {
+      "label": "Tell her the Vell keep her name",
+      "reply": "\"The Marro.\" She says it twice, trying it. \"Then some of us lived. Somewhere, after. Take me to them when this is over. I want to hear it from them.\""
+    },
+    {
+      "label": "Not now",
+      "reply": "It can wait. She has had enough for one day."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "marrow-vell"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, marrow, vell",
+  "status": "draft",
+  "notes": "Only with keeper-song (Act 1). marrow-vell: Marrow asks to meet the Vell (for the climax / endings writer)."
+}

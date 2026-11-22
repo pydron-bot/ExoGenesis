@@ -1,0 +1,27 @@
+{
+  "title": "Strike 7",
+  "style": "radio",
+  "character": "clause",
+  "text": "build queue: 4 items removed. reason: none required.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 255,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "battery",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "queue 0 of 4. continue."
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

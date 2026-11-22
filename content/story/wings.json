@@ -1,0 +1,21 @@
+{
+  "title": "Wings",
+  "text": "A whole flight off the crags this time, straight for the dish, screaming on the same band it listens on.",
+  "trigger": "after",
+  "event": "post-listens",
+  "delay": 100,
+  "region": "signal-heights",
+  "unless": "act1-done",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "spawn",
+      "unit": "skimmerwing",
+      "count": 7,
+      "site": "north-crags"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights",
+  "status": "draft"
+}

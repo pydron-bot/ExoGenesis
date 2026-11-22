@@ -1,0 +1,70 @@
+{
+  "letterbox": true,
+  "title": "Arrival: Hearthsmoke Vale",
+  "length": 17,
+  "fadeIn": 1.2,
+  "fadeOut": 1,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "lift": 6,
+      "building": "core",
+      "dist": 170,
+      "pitch": 0.62,
+      "yaw": 2.4
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "lift": 6,
+      "site": "vale-smoke",
+      "dist": 95,
+      "pitch": 0.32,
+      "yaw": 3.3
+    },
+    {
+      "at": 11.5,
+      "target": "camp",
+      "lift": 8,
+      "group": "vell",
+      "dist": 75,
+      "pitch": 0.28,
+      "yaw": 3.9
+    },
+    {
+      "at": 17,
+      "target": "storysite",
+      "lift": 6,
+      "site": "keeper-stones",
+      "dist": 85,
+      "pitch": 0.3,
+      "yaw": 3.5
+    }
+  ],
+  "captions": [
+    {
+      "at": 0.8,
+      "title": "HEARTHSMOKE VALE",
+      "sub": "Overland expedition · the Vell's country"
+    },
+    {
+      "at": 9,
+      "title": "HEARTHSMOKE VALE",
+      "sub": "Two fires burning. Someone is home."
+    }
+  ],
+  "lines": [
+    {
+      "at": 4,
+      "character": "firstborn",
+      "text": "Smoke in the north-west, and again in the north-east. Go slowly.",
+      "for": 4.5
+    }
+  ],
+  "trigger": "start",
+  "region": "hearthsmoke",
+  "tags": "act 1, arrival, hearthsmoke",
+  "chapter": "the-planet",
+  "status": "draft"
+}

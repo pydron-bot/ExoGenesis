@@ -1,0 +1,20 @@
+{
+  "title": "Sela",
+  "style": "radio",
+  "character": "archivist",
+  "text": "Telemetry's good. You're down. The mast is north-west of you, on the rim of the big crater. That's where our report goes every night. Mind the relics round it: they're ours, more or less.",
+  "trigger": "never",
+  "region": "sela-relay",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "relay-mast",
+      "text": "The relay mast"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, sela, radio",
+  "status": "draft",
+  "notes": "onStart of first-light. The Archivist talks from home, by relay."
+}

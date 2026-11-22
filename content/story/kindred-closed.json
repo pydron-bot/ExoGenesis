@@ -1,0 +1,28 @@
+{
+  "title": "The Gate Shuts",
+  "text": "Kindred's guns are up along the whole wall. On the band Marrow says nothing at all, which is worse than anything she could say. There is nothing more to do on Verdance.",
+  "trigger": "never",
+  "region": "verdance-landfall",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Behind it the wall stays lit all night."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists the way home."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, fail, travel",
+  "status": "draft",
+  "notes": "onFail of landfall (kindred-hostile)."
+}

@@ -1,0 +1,18 @@
+{
+  "title": "The Wall, Cleared",
+  "text": "The Spitters at the wall are dead. Their acid has eaten the lowest lines of code clean away. By morning two tenders have left the loop and are cutting them again, from memory, in the same hand.",
+  "trigger": "flag",
+  "flag": "wall-spitters-beaten",
+  "region": "choir-field",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 6
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, choir-field, choir",
+  "status": "draft"
+}

@@ -1,0 +1,13 @@
+{
+  "title": "Still Listening",
+  "style": "radio",
+  "character": "engram",
+  "text": "We are still listening from Kora. Your report last night was lovely; the flora numbers especially. Do you ever wonder who else reads them? We have started to.",
+  "trigger": "mission",
+  "mission": "the-works",
+  "delay": 90,
+  "region": "touchdown",
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, home",
+  "status": "draft"
+}

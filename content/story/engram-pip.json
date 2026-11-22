@@ -1,0 +1,20 @@
+{
+  "title": "Pip",
+  "style": "radio",
+  "character": "engram",
+  "text": "Pip. You will want the scouts. They are well. We found them by a broken lander with no air to spare, and we have kept them safe since. We would like to go on keeping them safe.",
+  "trigger": "never",
+  "region": "pip-wreck",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "scout-wreck",
+      "text": "The Kindred lander"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, pip",
+  "status": "draft",
+  "notes": "onStart of pip-wreck."
+}

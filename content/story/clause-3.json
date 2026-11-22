@@ -1,0 +1,76 @@
+{
+  "title": "The Turret Turns",
+  "cast": "adult",
+  "text": "For two seconds a turret on the perimeter turned its back on the dark and laid its sights on the Civilian Center. It held its fire. Then it turned back. {who} was on the wall and saw all of it.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "counter",
+      "counter": "lead",
+      "count": 3
+    },
+    {
+      "kind": "built",
+      "building": "turret"
+    }
+  ],
+  "delay": 10,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "Tell the colony",
+      "reply": "You put it on every screen: the turret, the two seconds, and that you did not order it. Nobody sleeps well."
+    },
+    {
+      "label": "Call it a sensor fault",
+      "reply": "\"A sensor fault.\" {who} nods. They keep looking at the turret."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "turret"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "clause-told"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 3,
+      "bloc": "partner"
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -4
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "clause-hidden"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 1
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, glitch, tell or hide",
+  "status": "draft"
+}

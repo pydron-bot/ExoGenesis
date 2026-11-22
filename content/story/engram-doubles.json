@@ -1,0 +1,74 @@
+{
+  "title": "The Win",
+  "character": "engram",
+  "text": "\"We have decided. We have never won. We are going to.\"",
+  "lines": [
+    {
+      "character": "engram",
+      "text": "\"You will say it proves nothing. You are probably right. We would like to find out what it feels like anyway.\""
+    },
+    {
+      "character": "engram",
+      "text": "\"We are sorry. Please go now. Our cores are not going to be polite for much longer.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "engram-shown"
+    },
+    {
+      "kind": "counterBelow",
+      "counter": "engram",
+      "count": 2
+    }
+  ],
+  "region": "rime-prime",
+  "unless": "engram-defected",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Take down the cores",
+      "reply": "Three cores round the well light up on your display. So do the guns round them."
+    },
+    {
+      "label": "Leave Rime",
+      "reply": "You pull back from the well. Under the ice, Engram goes on thinking about winning."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "engram-doubled"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "core-a",
+      "text": "Core A"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "core-b",
+      "text": "Core B"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "core-c",
+      "text": "Core C"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "engram-left"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, doubled, fight, choice",
+  "status": "draft",
+  "notes": "engram-doubled: Engram hostile here (the region's flag) and joins the purge in the climax unless engram-destroyed. Destroying the three cores sets engram-destroyed (engram-destroyed event)."
+}

@@ -1,0 +1,34 @@
+{
+  "title": "Pip Wreck",
+  "summary": "Optional. Kindred scouts stranded on Pip since before Landfall, \"held for their safety\" by Engram. Free them by talk (counter engram ≥ 1: pen-talk) or by force (attack the pen's guards: pen-broken, engram −3). Freeing them can win kindred-ally (scouts-home).",
+  "after": "yard",
+  "region": "pip-wreck",
+  "objectives": [
+    {
+      "text": "Find the Kindred scouts' lander",
+      "kind": "site",
+      "site": "scout-wreck"
+    },
+    {
+      "text": "Go to Engram's pen",
+      "kind": "site",
+      "site": "engram-pen"
+    },
+    {
+      "text": "Free the Kindred scouts",
+      "kind": "flag",
+      "flag": "scouts-freed"
+    }
+  ],
+  "onStart": "engram-pip",
+  "onDone": "pip-wreck-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "pip-done"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, kindred, pip, optional",
+  "status": "draft"
+}

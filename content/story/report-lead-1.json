@@ -1,0 +1,30 @@
+{
+  "title": "Report sent",
+  "style": "radio",
+  "speaker": "Biosphere Report",
+  "text": "Biosphere Report sent. Planet health high. On every line the relay on Sela lets us see, ours beats Kindred's and Engram's.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "act1-done"
+    },
+    {
+      "kind": "planet",
+      "count": 60
+    }
+  ],
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "counter",
+      "counter": "lead",
+      "amount": 1
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, lead, report",
+  "status": "draft",
+  "notes": "The lead mechanism (STORY.md §12: the Clause wakes when our report beats the others' for long enough). A chain: each step waits a sol (360 s) after the last and needs planet health ≥ 60 at home. +1 lead each."
+}

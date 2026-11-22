@@ -1,0 +1,33 @@
+{
+  "title": "Strike 13",
+  "style": "radio",
+  "character": "archivist",
+  "text": "Fuelled. They're loading the shuttles. Hold. Just hold.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 560,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "habitat",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "battery",
+      "delay": 10
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "strike force detected. reprioritise."
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

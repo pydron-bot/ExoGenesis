@@ -1,0 +1,43 @@
+{
+  "title": "The Burned Field",
+  "text": "A crater, shallow and wide, its soil fused to green glass. In the middle lies a hull, broken open from above. Its frame uses our joint pattern and our bolt spacing. Whatever hit it came straight down, once, very hard. The glass is old: older than the oldest trees in the vale.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"Straight down? From what? There's nothing up there but the moon.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "burned-field",
+  "region": "hearthsmoke",
+  "choices": [
+    {
+      "label": "Scan the hull",
+      "reply": "Our alloy, to four decimal places. Archive: \"No match on file.\""
+    },
+    {
+      "label": "Mark it and go",
+      "reply": "Logged: one hull, burned from above."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "sky-fire"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "burned-field"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "wreck-scanned"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell, sky-fire",
+  "status": "draft"
+}

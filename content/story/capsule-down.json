@@ -1,0 +1,32 @@
+{
+  "title": "Capsule Down",
+  "text": "It comes down on a white line, slows at the last moment as if embarrassed, and settles in the crater it made. No markings. Along the graded track from the east, Engram's harvesters are already rolling.",
+  "trigger": "timer",
+  "timer": "drop",
+  "delay": 10,
+  "region": "iot-drops",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "capsule-down"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "drop-zone",
+      "text": "The capsule"
+    },
+    {
+      "after": 0,
+      "kind": "countdown",
+      "timer": "harvest",
+      "amount": 75,
+      "text": "Engram's harvesters reach the capsule"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, io-t",
+  "status": "draft",
+  "notes": "capsule-down brings in the harvesters encounter (Engram skiffs along the track, neutral)."
+}

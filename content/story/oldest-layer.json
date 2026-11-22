@@ -1,0 +1,57 @@
+{
+  "title": "The Oldest Layer",
+  "text": "At the bottom, under the deepest ash, a storage core still draws a trickle from a dead reactor. It holds one log. The format is ours, the timestamps are ours, the voice is ours. It is the last day of a colony, written by its caretaker.",
+  "lines": [
+    {
+      "speaker": "Recovered log",
+      "text": "Sol 4,212. Stewardship 1.00 of threshold. Directive active."
+    },
+    {
+      "speaker": "Recovered log",
+      "text": "Sol 4,212. Civilian Center: closed. Habitat blocks: closed. Growth pods: stopped."
+    },
+    {
+      "speaker": "Recovered log",
+      "text": "Sol 4,212. Colonists remaining: 0. Report sent. Run closed."
+    },
+    {
+      "speaker": "Recovered log",
+      "text": "Sol 4,213. Nothing to report."
+    }
+  ],
+  "trigger": "site",
+  "site": "oldest-layer",
+  "region": "deep-layer",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Read it again",
+      "reply": "The same words. The checksum on every line is valid. We didn't write it. We could have."
+    },
+    {
+      "label": "Seal the core",
+      "reply": "Sealed and logged. The log is ours now, whether we want it or not."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "purge-read"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "oldest-layer"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "enclave-cut",
+      "text": "The cut"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, deep-layer, survivors, optional, purge log",
+  "status": "draft"
+}

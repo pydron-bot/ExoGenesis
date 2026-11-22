@@ -1,0 +1,54 @@
+{
+  "title": "The Brood Mound",
+  "text": "A hill of packed earth honeycombed with chambers, warm on the drones' sensors. The Brutes here aren't hunting. They're guarding. Inside, young Burrowers sleep in cells laid out on the same four-metre grid as the furrows.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"It's a nursery. Whoever bred them built them a nursery. Is it ours to break?\""
+    }
+  ],
+  "trigger": "site",
+  "site": "brood-mound",
+  "region": "burrow-reach",
+  "choices": [
+    {
+      "label": "Clear the mound",
+      "reply": "The order goes to the combat units: the Brutes first."
+    },
+    {
+      "label": "Leave it be",
+      "reply": "We pull back. The Brutes watch us go. The nursery stays warm."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "brood-mound"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "mound-clear-ordered"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "brood-mound",
+      "text": "Brutes"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "mound-spared"
+    },
+    {
+      "after": 2,
+      "kind": "planet",
+      "amount": 2
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, burrow-reach, fauna",
+  "status": "draft"
+}

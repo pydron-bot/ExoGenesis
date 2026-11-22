@@ -1,0 +1,108 @@
+{
+  "title": "The first launch",
+  "length": 20,
+  "letterbox": true,
+  "fadeIn": 1.5,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "building": "launch-gantry",
+      "lift": 4,
+      "dist": 70,
+      "pitch": 0.35,
+      "yaw": 0.7
+    },
+    {
+      "at": 5,
+      "target": "building",
+      "building": "launch-gantry",
+      "lift": 6,
+      "dist": 38,
+      "pitch": 0.12,
+      "yaw": 1.15
+    },
+    {
+      "at": 9.5,
+      "target": "building",
+      "building": "launch-gantry",
+      "lift": 12,
+      "dist": 30,
+      "pitch": -0.12,
+      "yaw": 1.4
+    },
+    {
+      "at": 13.5,
+      "target": "building",
+      "building": "launch-gantry",
+      "lift": 60,
+      "dist": 70,
+      "pitch": -0.45,
+      "yaw": 1.55
+    },
+    {
+      "at": 17,
+      "target": "building",
+      "building": "launch-gantry",
+      "lift": 150,
+      "dist": 120,
+      "pitch": -0.62,
+      "yaw": 1.62
+    },
+    {
+      "at": 20,
+      "target": "building",
+      "building": "launch-gantry",
+      "lift": 195,
+      "dist": 160,
+      "pitch": -0.7,
+      "yaw": 1.66
+    }
+  ],
+  "captions": [
+    {
+      "at": 0,
+      "title": "LAUNCH GANTRY",
+      "sub": "Flight 1 · destination Sela, near side"
+    },
+    {
+      "at": 6,
+      "title": "T−10",
+      "sub": "Shuttle on internal power"
+    },
+    {
+      "at": 9.5,
+      "title": "IGNITION"
+    },
+    {
+      "at": 12.5,
+      "title": "CLEAR OF THE TOWER"
+    },
+    {
+      "at": 16,
+      "title": "TRANSFER ORBIT",
+      "sub": "Sela · near side · the relay"
+    }
+  ],
+  "lines": [
+    {
+      "at": 2.5,
+      "character": "archivist",
+      "text": "Flight one. Everything nominal. I've never said that out loud before.",
+      "for": 3.5
+    },
+    {
+      "at": 10.5,
+      "character": "firstborn",
+      "text": "Go on, then.",
+      "for": 2.5
+    }
+  ],
+  "trigger": "never",
+  "region": "touchdown",
+  "chapter": "first-light",
+  "tags": "act 2, gantry, launch",
+  "status": "draft",
+  "notes": "Played by sela-sky (onDone of build-gantry). No shuttle animation exists: the camera climbs the gantry and tilts up into the sky the shuttle has gone into. Falls back to the Core if no gantry stands (play test)."
+}

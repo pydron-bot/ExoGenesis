@@ -1,0 +1,44 @@
+{
+  "title": "A Door the Size of a Valley",
+  "text": "At the terminator, where the light gives out, the ground is cut. A seam runs north and south as far as the sensors reach, dead straight, its lips raised and machined. It isn't a fault. It's a join.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"That's a door. That is a door the size of a valley.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"No lock. No hinge. No handle. Whatever is under it doesn't expect to be opened from this side.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "far-door"
+    },
+    {
+      "kind": "flag",
+      "flag": "survivors-met",
+      "not": true
+    }
+  ],
+  "region": "sela-relay",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "door-seen"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "far-door"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, sela, lid",
+  "status": "draft",
+  "notes": "Without survivors-met. With it, the-door-lid fires instead."
+}

@@ -1,0 +1,38 @@
+{
+  "title": "The Works",
+  "summary": "Engram's forward foundry on Maren: polite drones everywhere, a thousand ways to fight and no reason to. At the chassis hall our Command Core's hull under orange paint (same-hands, cine-same-hands); Engram offers to safeguard the cryo bank (engram-offer: counter engram).",
+  "after": "yard",
+  "region": "maren-works",
+  "objectives": [
+    {
+      "text": "Follow the orange road to the works gate",
+      "kind": "site",
+      "site": "works-gate"
+    },
+    {
+      "text": "Visit the chassis hall",
+      "kind": "site",
+      "site": "chassis-hall"
+    },
+    {
+      "text": "Hear Engram's offer",
+      "kind": "flag",
+      "flag": "engram-answered"
+    }
+  ],
+  "onStart": "engram-maren",
+  "onDone": "works-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "engram-met"
+    },
+    {
+      "kind": "route",
+      "region": "iot-drops"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, maren",
+  "status": "draft"
+}

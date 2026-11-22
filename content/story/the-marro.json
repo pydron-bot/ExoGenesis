@@ -1,0 +1,37 @@
+{
+  "title": "The Marro",
+  "character": "keeper",
+  "text": "\"You asked my name. I have none. I have the title. The Marro.\"",
+  "lines": [
+    {
+      "text": "\"The first who came down, the one who carried our names. We say it still.\""
+    },
+    {
+      "text": "\"It was longer once. It wore down, the way a step wears down. Marro. Marrow, maybe. The first one would know. The first one is a long time burned.\""
+    }
+  ],
+  "trigger": "after",
+  "event": "keeper-song",
+  "delay": 20,
+  "region": "hearthsmoke",
+  "choices": [
+    {
+      "label": "Write it down",
+      "reply": "Logged: the Marro, from a name, perhaps Marrow. The archive has nobody by that name."
+    },
+    {
+      "label": "Thank them",
+      "reply": "The Marro nods, as if thanks were a thing you hand over, and takes it."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "marro-heard"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell, the marro",
+  "status": "draft"
+}

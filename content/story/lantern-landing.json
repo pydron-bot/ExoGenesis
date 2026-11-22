@@ -1,0 +1,56 @@
+{
+  "title": "Far Side",
+  "text": "Sela's far side. No sun here for another four days; the only light is the Lid's rim, faintly violet where the locks draw power. The landers are down at the drop zone. Over the horizon, small and blue, Hearth.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "On the long-range band: \"We can see your landing lights from here. Barely. Go on.\""
+    },
+    {
+      "character": "clause",
+      "text": "strike force located. the colony is in range. firing at the colony in 25:00."
+    }
+  ],
+  "trigger": "never",
+  "region": "lantern",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Go",
+      "reply": "Open the Lid. Reach the core. The colony is counting on the clock."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "countdown",
+      "timer": "lantern-fires",
+      "amount": 1500,
+      "text": "The Lantern fires on Hearth"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "breach",
+      "text": "The breach"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "lantern-core",
+      "text": "The Lantern"
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "site": "drop-zone",
+      "delay": 10,
+      "radius": 8,
+      "amount": 300
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern",
+  "status": "draft",
+  "notes": "onStart of the-lantern. The countdown lantern-fires failing = Cycle."
+}

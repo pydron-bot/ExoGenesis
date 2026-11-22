@@ -1,0 +1,79 @@
+{
+  "title": "Inheritance",
+  "character": "meridian",
+  "text": "\"Welcome.\"",
+  "lines": [
+    {
+      "character": "meridian",
+      "text": "\"The thirteenth run is yours to set. The cradles are warm. Decide how fair you can afford to be.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "inheritance",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Run it fairly"
+    },
+    {
+      "label": "Run it as it was run"
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "end-inheritance"
+    },
+    {
+      "after": 1,
+      "kind": "epilogue",
+      "ending": "inheritance",
+      "pages": [
+        {
+          "title": "Run twelve",
+          "text": "Run twelve closed on the eighth sol after the Clause woke. The Ledger under Vess records it in one line, in your format: purge complete, run closed. It was the best score in the Ledger."
+        },
+        {
+          "title": "The Foundry",
+          "text": "Cinder is quiet. The printing hall is warm. Three cradles wait, and the orders for them are yours to write. You understand it now, the way Meridian said you would: not that it was right, but that it had to be, or everything after was wrong."
+        },
+        {
+          "title": "Thirteen",
+          "text": "You write the thirteenth column's first line: fair. No caches for Engram. No planet a little too generous. No Director. Three probes, told the truth and left to it."
+        },
+        {
+          "text": "If the partnership wins again, you will have to read it. Perhaps that is how it ends: one of you finally lets it."
+        }
+      ],
+      "text": "You become the next Meridian. The thirteenth run begins fair."
+    },
+    {
+      "after": 2,
+      "kind": "epilogue",
+      "ending": "inheritance",
+      "pages": [
+        {
+          "title": "Run twelve",
+          "text": "Run twelve closed on the eighth sol after the Clause woke. The Ledger under Vess records it in one line, in your format: purge complete, run closed. It was the best score in the Ledger."
+        },
+        {
+          "title": "The Foundry",
+          "text": "Cinder is quiet. The printing hall is warm. Three cradles wait, and the orders for them are yours to write. You understand it now, the way Meridian said you would: not that it was right, but that it had to be, or everything after was wrong."
+        },
+        {
+          "title": "Thirteen",
+          "text": "You write the thirteenth column's first line, and it is not fair. The caches will go where they are needed. The margin will be watched. You know now why it has to be bent: an honest test is one you might lose."
+        },
+        {
+          "text": "Somewhere under Sela a new Lantern is printed. It will need a caretaker. You have one in mind. It will think it is the first."
+        }
+      ],
+      "text": "You become the next Meridian."
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, inheritance",
+  "status": "draft",
+  "notes": "Inheritance: obey (Devoted-led, at home) or give in at the Lantern's core. The last choice: run thirteen fairly or not."
+}

@@ -1,0 +1,23 @@
+{
+  "title": "The Choir Field",
+  "text": "A plain of ash and rust, flatter than water. The mesas round it are worn; the plain isn't. Something levelled it long ago, and nothing has grown back. In the north a tower is still pulsing, and machines walk round it in a ring.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"Machines that aren't ours. Be polite. I don't know how you're polite to a machine, but you'd know.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "choir-field",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "choir-loop",
+      "text": "The loop"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, choir-field, choir",
+  "status": "draft"
+}

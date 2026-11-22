@@ -1,0 +1,36 @@
+{
+  "title": "The Well Goes Quiet",
+  "text": "The third core goes dark and the well stops humming. Nothing comes up the shaft. On the Kora band, where ENGRAM has talked to you since your first night, there is only carrier.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "core-a-down"
+    },
+    {
+      "kind": "flag",
+      "flag": "core-b-down"
+    },
+    {
+      "kind": "flag",
+      "flag": "core-c-down"
+    }
+  ],
+  "region": "rime-prime",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "engram-destroyed"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, doubled, fight",
+  "status": "draft",
+  "notes": "The three cores are Engram outposts with story flags core-a-down, core-b-down, core-c-down."
+}

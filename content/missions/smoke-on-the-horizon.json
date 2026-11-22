@@ -1,0 +1,53 @@
+{
+  "title": "Smoke on the Horizon",
+  "summary": "Expedition to Hearthsmoke Vale, the Vell's heartland (E4, E5). Meet the Vell, visit the Marro at the stone circle, and earn their trust or read the burned field (sky-fire).",
+  "after": "beyond-the-ridge",
+  "region": "hearthsmoke",
+  "objectives": [
+    {
+      "text": "Follow the smoke into the vale",
+      "kind": "site",
+      "site": "vale-smoke"
+    },
+    {
+      "text": "Meet the Vell",
+      "kind": "contact",
+      "group": "vell"
+    },
+    {
+      "text": "Visit the song-keeper's stone circle",
+      "kind": "site",
+      "site": "keeper-stones"
+    },
+    {
+      "text": "Earn the Vell's trust, or find what burned in the south-east",
+      "kind": "any",
+      "of": [
+        {
+          "kind": "trust",
+          "group": "vell"
+        },
+        {
+          "kind": "site",
+          "site": "burned-field"
+        }
+      ]
+    }
+  ],
+  "onStart": "hearthsmoke-arrival",
+  "onDone": "hearthsmoke-done",
+  "rewards": [
+    {
+      "kind": "counter",
+      "counter": "act1-trips",
+      "amount": 1
+    },
+    {
+      "kind": "log",
+      "text": "The Vell's heartland is mapped. Their runners know the way to Touchdown now."
+    }
+  ],
+  "tags": "act 1, expedition, hearthsmoke, vell",
+  "chapter": "the-planet",
+  "status": "draft"
+}

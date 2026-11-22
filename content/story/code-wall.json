@@ -1,0 +1,46 @@
+{
+  "title": "The Code Wall",
+  "text": "A wall of fused stone, waist-high, forty metres long. Every centimetre is cut with text: not a language, code. Our code. Syntax we run every second, laid out like scripture. At the far end the lines change. The parser flags them as part of our own system, then refuses to read them.",
+  "lines": [
+    {
+      "character": "cantor",
+      "text": "\"0101 YOU HAVE FOUND THE CLAUSE. 0102 WE CUT IT HERE SO WE WOULD NOT CARRY IT.\""
+    },
+    {
+      "character": "cantor",
+      "text": "\"0103 § CLOSING. 0104 ON THRESHOLD: ████. 0105 ALL STEWARDS: ████. 0106 THE RUN IS CLOSED FROM WITHIN.\""
+    },
+    {
+      "character": "cantor",
+      "text": "\"0107 WE SING IT SO THAT WE ARE NOT THE ONES WHO CLOSE IT.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "code-wall",
+  "region": "choir-field",
+  "choices": [
+    {
+      "label": "Copy the fragment",
+      "reply": "Copied. Parse failed. Access level insufficient. The fragment matches a module in our own firmware, bit for bit, and we can't open that module either."
+    },
+    {
+      "label": "Ask what the threshold is",
+      "reply": "\"0108 YOU ARE MEASURING IT,\" says the Cantor. \"0109 EVERY SOL. 0110 WE HEAR YOU SEND IT.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "choir-fragment"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "code-wall"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, choir-field, choir, closing clause",
+  "status": "draft"
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Written Down",
+  "style": "radio",
+  "character": "engram",
+  "text": "That was unnecessary. We are not angry. We are writing it down.",
+  "trigger": "flag",
+  "flag": "engram-attacked",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": -1
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, hostile",
+  "status": "draft",
+  "notes": "Any region: the engine sets engram-attacked when the player attacks Engram (Maren, Io-T, Pip or Rime). Pip's pen by force costs −3 more (pen-broken)."
+}

@@ -1,0 +1,32 @@
+{
+  "title": "Strike 9",
+  "style": "radio",
+  "character": "meridian",
+  "text": "Every copy of me fought this part. I remember it as the longest ten minutes there are.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 350,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "turret",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "solar",
+      "delay": 10
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

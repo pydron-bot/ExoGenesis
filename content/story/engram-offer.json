@@ -1,0 +1,73 @@
+{
+  "title": "Engram's Offer",
+  "character": "engram",
+  "text": "\"May we make you an offer? Your cryo bank is a single site, on a single world, under a moon we do not trust. We keep genomes very well. We would hold a copy of yours. Only a copy. In case.\"",
+  "lines": [
+    {
+      "character": "engram",
+      "text": "\"Nobody would have to be born. We would only like them to be able to be.\""
+    }
+  ],
+  "trigger": "after",
+  "event": "same-hands",
+  "region": "maren-works",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Let Engram keep a copy",
+      "reply": "The genomes go up the channel to Kora, line by line, every family in the bank. ENGRAM says thank you once for each. Then, quieter: \"You did not ask them.\""
+    },
+    {
+      "label": "\"Thank you. No.\"",
+      "reply": "\"Of course. They are yours. We asked too early. We will ask again later, more nicely.\""
+    },
+    {
+      "label": "\"Come near my cryo bank and I'll burn Kora.\"",
+      "reply": "\"We understand. We have written that down.\" A pause. \"We did not mean to frighten you.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": -2
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "genomes-copied"
+    },
+    {
+      "after": 2,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": 1
+    },
+    {
+      "after": 3,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": -1
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "engram-answered"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "engram-answered"
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "engram-answered"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, maren, choice, cryo",
+  "status": "draft",
+  "notes": "STORY.md §16: accept engram −2 (harmless to us, a violation to the colony: genomes-copied-home at Touchdown moves stance), refuse politely +1, refuse with a threat −1."
+}

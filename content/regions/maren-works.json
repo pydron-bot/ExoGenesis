@@ -1,6 +1,6 @@
 {
   "name": "The Works",
-  "description": "Act 2, chapter `engram` (STORY.md §16): the `the-works` mission, Engram's forward foundry on Maren. A grey cratered moon; a road (painted Engram orange) runs north from our landing through `works-gate` to a raised, levelled apron where the chassis hall stands (`chassis-hall`: the same hull as our Command Core under orange paint, event `same-hands`, then `engram-offer`). Two more levelled terraces west and north-east of the apron are left empty for Engram's outposts. East, a lumpy dark slag field with a dumped hull (`slag-field`). No wildlife (packs ×0, open spawn, 30 min grace): \"a thousand ways to fight and no reason to\". Still needs: Engram as a faction (the chassis hall and its works as prebuilt outposts on the apron and terraces, polite drones everywhere), any encounters if the talk goes wrong, and the expedition package.",
+  "description": "Act 2, chapter `engram` (STORY.md §16): the `the-works` mission, Engram's forward foundry on Maren. A grey cratered moon; a road (painted Engram orange) runs north from our landing through `works-gate` to a raised, levelled apron where the chassis hall stands (`chassis-hall`: the same hull as our Command Core under orange paint, event `same-hands`, then `engram-offer`). Two more levelled terraces west and north-east of the apron are left empty for Engram's outposts. East, a lumpy dark slag field with a dumped hull (`slag-field`). No wildlife (packs ×0, open spawn, 30 min grace): \"a thousand ways to fight and no reason to\". Engram is a faction here (team 3, neutral): sensor masts at the gate, the chassis hall (a Vehicle Bay behind chassis-hall) with printers, fusion cells, a lab, radar and repair pad on the apron, solar and batteries on the west terrace, an airpad on the north-east terrace, a deep mine in the slag; polite drones on the road, the apron, the terrace and the slag (Scouts, Skiffs, Rovers as stand-ins). Expedition: 800 alloys, 3 drones, 3 Rovers, 2 Lancers.",
   "body": "maren",
   "size": 360,
   "detail": 4,
@@ -476,5 +476,195 @@
       "alloys": 500
     }
   ],
-  "herds": []
+  "herds": [],
+  "factions": [
+    {
+      "id": "engram",
+      "name": "Engram",
+      "color": "#ff7a45",
+      "team": 3,
+      "attitude": "neutral"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "sensor",
+      "x": -12,
+      "z": 42,
+      "faction": "engram"
+    },
+    {
+      "kind": "sensor",
+      "x": 12,
+      "z": 42,
+      "faction": "engram"
+    },
+    {
+      "kind": "bay",
+      "x": 0,
+      "z": 134,
+      "yaw": 180,
+      "faction": "engram"
+    },
+    {
+      "kind": "printer",
+      "x": -26,
+      "z": 108,
+      "faction": "engram"
+    },
+    {
+      "kind": "printer",
+      "x": 26,
+      "z": 108,
+      "faction": "engram"
+    },
+    {
+      "kind": "fusion",
+      "x": -28,
+      "z": 148,
+      "faction": "engram"
+    },
+    {
+      "kind": "fusion",
+      "x": 28,
+      "z": 148,
+      "faction": "engram"
+    },
+    {
+      "kind": "lab",
+      "x": 0,
+      "z": 157,
+      "yaw": 180,
+      "faction": "engram"
+    },
+    {
+      "kind": "radar",
+      "x": -36,
+      "z": 92,
+      "faction": "engram"
+    },
+    {
+      "kind": "repairpad",
+      "x": 36,
+      "z": 92,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": -110,
+      "z": 96,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": -96,
+      "z": 96,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": -110,
+      "z": 112,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": -96,
+      "z": 112,
+      "faction": "engram"
+    },
+    {
+      "kind": "battery",
+      "x": -103,
+      "z": 124,
+      "faction": "engram"
+    },
+    {
+      "kind": "airpad",
+      "x": 108,
+      "z": 118,
+      "faction": "engram"
+    },
+    {
+      "kind": "sensor",
+      "x": 122,
+      "z": 134,
+      "faction": "engram"
+    },
+    {
+      "kind": "battery",
+      "x": 96,
+      "z": 106,
+      "faction": "engram"
+    },
+    {
+      "kind": "deepmine",
+      "x": 120,
+      "z": 2,
+      "faction": "engram"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "road-drones",
+      "unit": "scout",
+      "count": 4,
+      "x": 0,
+      "z": 30,
+      "mode": "patrol",
+      "r": 10,
+      "x2": 0,
+      "z2": 100,
+      "faction": "engram"
+    },
+    {
+      "id": "apron-drones",
+      "unit": "skiff",
+      "count": 4,
+      "x": 0,
+      "z": 112,
+      "mode": "guard",
+      "r": 20,
+      "faction": "engram"
+    },
+    {
+      "id": "terrace-drones",
+      "unit": "scout",
+      "count": 2,
+      "x": -100,
+      "z": 104,
+      "mode": "guard",
+      "r": 16,
+      "faction": "engram"
+    },
+    {
+      "id": "slag-drones",
+      "unit": "rover",
+      "count": 2,
+      "x": 92,
+      "z": -4,
+      "mode": "patrol",
+      "r": 12,
+      "x2": 130,
+      "z2": 30,
+      "faction": "engram"
+    }
+  ],
+  "expedition": [
+    {
+      "alloys": 800,
+      "isotopes": 40,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 3
+        },
+        {
+          "unit": "lancer",
+          "count": 2
+        }
+      ]
+    }
+  ]
 }

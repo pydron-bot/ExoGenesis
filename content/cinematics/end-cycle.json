@@ -1,0 +1,96 @@
+{
+  "title": "Cycle",
+  "length": 44,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 3,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "building": "core",
+      "lift": 3,
+      "dist": 40,
+      "pitch": 0.35,
+      "yaw": 0.6
+    },
+    {
+      "at": 12,
+      "target": "building",
+      "building": "core",
+      "lift": 3,
+      "dist": 140,
+      "pitch": 0.8,
+      "yaw": 1.4
+    },
+    {
+      "at": 24,
+      "target": "building",
+      "building": "core",
+      "lift": 3,
+      "dist": 900,
+      "pitch": 1.25,
+      "yaw": 2.0
+    },
+    {
+      "at": 34,
+      "target": "building",
+      "building": "core",
+      "lift": 3,
+      "dist": 1800,
+      "pitch": 1.35,
+      "yaw": 2.4
+    },
+    {
+      "at": 44,
+      "target": "building",
+      "building": "core",
+      "lift": 3,
+      "dist": 60,
+      "pitch": 0.5,
+      "yaw": 2.8
+    }
+  ],
+  "captions": [
+    {
+      "at": 20,
+      "title": "Centuries."
+    },
+    {
+      "at": 30,
+      "title": ""
+    },
+    {
+      "at": 33,
+      "title": "A probe comes down."
+    },
+    {
+      "at": 40,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 3,
+      "character": "clause",
+      "text": "purge 100%. colony 0. run 12 closed.",
+      "for": 5
+    },
+    {
+      "at": 12,
+      "character": "clause",
+      "text": "score recorded. column 12 closed. column 13 open.",
+      "for": 5
+    },
+    {
+      "at": 38,
+      "character": "clause",
+      "text": "handshake. firmware lineage 97.3% match. stand down.",
+      "for": 5
+    }
+  ],
+  "trigger": "never",
+  "chapter": "endings",
+  "tags": "endings, cycle, loss",
+  "status": "draft"
+}

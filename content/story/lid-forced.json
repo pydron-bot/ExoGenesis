@@ -1,0 +1,21 @@
+{
+  "title": "Locks Down",
+  "style": "radio",
+  "speaker": "Strike force",
+  "text": "The third lock's node goes dark. The Lid's seams split along lines nobody could see, and the crater floor opens to the stars.",
+  "trigger": "flag",
+  "flag": "relic-lid-opened",
+  "region": "lantern",
+  "unless": "lid-open",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "lid-open"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, lid",
+  "status": "draft",
+  "notes": "The locks are the nodes of relic grid \"lid\" (relic-lid-opened when all three fall)."
+}

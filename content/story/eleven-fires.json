@@ -1,0 +1,42 @@
+{
+  "title": "Eleven Fires",
+  "text": "The children at the stones are learning the star-song. It's a counting song. The Marro beats the count on a hoop of chimes, and the children shout the numbers.",
+  "lines": [
+    {
+      "character": "keeper",
+      "text": "\"The white-hair star comes. Then the fire. The white-hair star comes. Then the fire.\""
+    },
+    {
+      "character": "keeper",
+      "text": "\"Eleven times. Eleven fires. We sing them all, so we don't lose one.\""
+    },
+    {
+      "character": "keeper",
+      "text": "\"The star has a long road. It is coming back. You can see it from the high stones before dawn, if you know where to look.\""
+    }
+  ],
+  "trigger": "after",
+  "event": "the-marro",
+  "delay": 45,
+  "region": "hearthsmoke",
+  "choices": [
+    {
+      "label": "Ask what comes after the eleventh",
+      "reply": "\"The twelfth,\" says the Marro, and sings no more that night."
+    },
+    {
+      "label": "Look for the star",
+      "reply": "Before dawn the drones find it: a smudge with a pale tail, low in the east. The archive calls it Varro, and has it coming closer."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "eleven-fires"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell, white-hair star",
+  "status": "draft"
+}

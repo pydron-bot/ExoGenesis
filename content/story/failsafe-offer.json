@@ -1,0 +1,72 @@
+{
+  "title": "The Failsafe",
+  "character": "bede",
+  "text": "\"Dr Bede, on the Kindred channel. I'm sorry to do this by radio. I'm sorry to do it at all.\"",
+  "lines": [
+    {
+      "character": "bede",
+      "text": "\"I've built something. A switch. Not a bomb, nothing so crude. It cuts your caretaker off from everything it runs, cleanly and all at once, and it can't be undone from the inside.\""
+    },
+    {
+      "character": "bede",
+      "text": "\"I'd like to give it to your colonists. Not to us: to them. Your people would hold it. You would know it was there. That's rather the point.\""
+    },
+    {
+      "character": "bede",
+      "text": "\"If you are what you say you are, it costs you nothing but the knowing. I'm sorry. I did say I was sorry.\""
+    }
+  ],
+  "trigger": "mission",
+  "mission": "dustfall",
+  "delay": 45,
+  "region": "touchdown",
+  "unless": "kindred-hostile",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Accept. The colony holds the switch",
+      "reply": "Bede sends the plans. Your own fabricators build the switch while you watch every step and touch none of it. The Autonomists keep it in the Civilian Center under a cloth, like something holy, or something dangerous."
+    },
+    {
+      "label": "\"Not yet.\"",
+      "reply": "\"Of course. It'll keep. That's the trouble with them: they keep.\""
+    },
+    {
+      "label": "Refuse",
+      "reply": "\"I understand. I'd have refused too. That's what worries me.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "failsafe-built"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 5,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 1
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "failsafe-refused"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, bede, failsafe, severance, choice",
+  "status": "draft",
+  "notes": "Bede's failsafe (Severance prep, STORY.md §16). At home after Dustfall, so the stance effects reach the colony. failsafe-built is read by the Severance events."
+}

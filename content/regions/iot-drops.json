@@ -1,6 +1,6 @@
 {
   "name": "The Drop Field",
-  "description": "Act 2, chapter `engram` (STORY.md §16): the `drop-field` mission on Io-T, where Meridian's capsules land right after Engram's reports go out. Yellow sulfur plains with four broad calderas (dark pits in red and pale halos), geothermal vents on their flanks and one by the Core. North-east, a broad levelled plain scarred by old impacts (`drop-zone`: build a Sensor Array near it, wait for a drop, reach a capsule first). A straight graded track runs in from the east edge to the plain (`harvester-track`: where Engram's harvesters come from). West of the Core a long ridge with a flat top gives the view (`sensor-ridge`). No life, no packs (open spawn, 30 min grace). Hooks: the countdown, `luck-proved` at the capsule, the tell / keep choice. Still needs: the capsule drop (an object or wreck spawned by an effect), Engram's harvesters as a racing faction along the track, and the expedition package.",
+  "description": "Act 2, chapter `engram` (STORY.md §16): the `drop-field` mission on Io-T, where Meridian's capsules land right after Engram's reports go out. Yellow sulfur plains with four broad calderas (dark pits in red and pale halos), geothermal vents on their flanks and one by the Core. North-east, a broad levelled plain scarred by old impacts (`drop-zone`: build a Sensor Array near it, wait for a drop, reach a capsule first). A straight graded track runs in from the east edge to the plain (`harvester-track`: where Engram's harvesters come from). West of the Core a long ridge with a flat top gives the view (`sensor-ridge`). No life, no packs (open spawn, 30 min grace). Hooks: the countdown, `luck-proved` at the capsule, the tell / keep choice. The capsule is a near-harmless strike at drop-zone (capsule-falls), then capsule-down. Engram is a faction here (team 3, neutral): the harvester yard at the east end of the track (bay, airpad, solar, battery), sensor masts watching the plain; the harvesters (3 Skiffs) patrol track → drop zone once capsule-down is set. Expedition: 900 alloys, 3 drones, 4 Rovers, 2 Scouts.",
   "body": "io-t",
   "size": 360,
   "detail": 3,
@@ -502,5 +502,102 @@
       "isotopes": 900
     }
   ],
-  "herds": []
+  "herds": [],
+  "factions": [
+    {
+      "id": "engram",
+      "name": "Engram",
+      "color": "#ff7a45",
+      "team": 3,
+      "attitude": "neutral"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "bay",
+      "x": 166,
+      "z": 42,
+      "yaw": -90,
+      "faction": "engram"
+    },
+    {
+      "kind": "airpad",
+      "x": 164,
+      "z": 2,
+      "yaw": -90,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": 148,
+      "z": -12,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": 162,
+      "z": -18,
+      "faction": "engram"
+    },
+    {
+      "kind": "battery",
+      "x": 148,
+      "z": 4,
+      "faction": "engram"
+    },
+    {
+      "kind": "sensor",
+      "x": 118,
+      "z": 44,
+      "faction": "engram"
+    },
+    {
+      "kind": "sensor",
+      "x": 100,
+      "z": 128,
+      "faction": "engram"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "harvesters",
+      "unit": "skiff",
+      "count": 3,
+      "x": 160,
+      "z": 22,
+      "mode": "patrol",
+      "r": 10,
+      "x2": 74,
+      "z2": 92,
+      "flag": "capsule-down",
+      "faction": "engram"
+    },
+    {
+      "id": "yard-drones",
+      "unit": "scout",
+      "count": 2,
+      "x": 158,
+      "z": 22,
+      "mode": "guard",
+      "r": 14,
+      "faction": "engram"
+    }
+  ],
+  "expedition": [
+    {
+      "alloys": 900,
+      "isotopes": 60,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 4
+        },
+        {
+          "unit": "scout",
+          "count": 2
+        }
+      ]
+    }
+  ]
 }

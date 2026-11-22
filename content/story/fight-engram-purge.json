@@ -1,0 +1,42 @@
+{
+  "title": "ENGRAM",
+  "style": "radio",
+  "character": "engram",
+  "text": "We are sorry. We were promised a win, and we have never had one. We will be quick. You taught us how.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "the-fight"
+    },
+    {
+      "kind": "flag",
+      "flag": "engram-doubled"
+    }
+  ],
+  "delay": 120,
+  "region": "touchdown",
+  "unless": "engram-destroyed",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "corrupt",
+      "count": 2
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "civic",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "solar",
+      "delay": 9
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, engram, enemy",
+  "status": "draft"
+}

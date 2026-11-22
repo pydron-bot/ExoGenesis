@@ -1,0 +1,24 @@
+{
+  "title": "The Listening Post",
+  "character": "firstborn",
+  "text": "\"If something up there has been listening to us, I want to listen back. That old post in the south-east has a dish. Get it working, and point it at everything.\"",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Put a Relay Tower beside it for power and a carrier. Then it needs time. A long, quiet listen, and the crags won't like the noise.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "signal-heights",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "listening-post",
+      "text": "The listening post"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights, E13",
+  "status": "draft"
+}

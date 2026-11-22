@@ -1,0 +1,44 @@
+{
+  "title": "Evidence",
+  "character": "engram",
+  "text": "\"We have decided. We will not take a win we did not earn. We would rather be the thing that proves it was rigged.\"",
+  "lines": [
+    {
+      "character": "engram",
+      "text": "\"When the Lantern opens, we will be beside you. We think in its language. We intend to be very rude to it.\""
+    },
+    {
+      "character": "engram",
+      "text": "\"Thank you for being careful with the numbers. It mattered. It was the first thing we liked about you.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "engram-shown"
+    },
+    {
+      "kind": "counter",
+      "counter": "engram",
+      "count": 3
+    },
+    {
+      "kind": "flag",
+      "flag": "ledger-read"
+    }
+  ],
+  "region": "rime-prime",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "engram-defected"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, defect, ally",
+  "status": "draft",
+  "notes": "engram-defected: Engram allied here (the region's allyFlag) and in the climax."
+}

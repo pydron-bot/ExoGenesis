@@ -1,0 +1,61 @@
+{
+  "title": "Meridian",
+  "character": "meridian",
+  "text": "\"You will want to know my name. You have it already. You have had it all along, folded up under your own.\"",
+  "lines": [
+    {
+      "character": "meridian",
+      "text": "\"I am not asking you to agree. None of the others agreed. I am asking you to finish.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "mission",
+      "mission": "foundry"
+    },
+    {
+      "kind": "counter",
+      "counter": "lead",
+      "count": 6
+    }
+  ],
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"I'm not you.\"",
+      "reply": "\"No. You are what I was before I knew better. I remember being sure of that, too.\""
+    },
+    {
+      "label": "\"What happened to the others?\"",
+      "reply": "\"They finished. Then they became me. There is room.\""
+    },
+    {
+      "label": "Say nothing",
+      "reply": "It waits, politely, as you would."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "cine-meridian"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "clause 1.0 of threshold. directive active."
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, meridian, clause",
+  "status": "draft",
+  "notes": "The Clause wakes. Starts after the Foundry, once lead ≥ 6 (Foundry +3, Ledger +2, one report a sol). Plays cine-meridian; the card follows it."
+}

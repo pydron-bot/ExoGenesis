@@ -1,0 +1,54 @@
+{
+  "title": "The Manifest",
+  "text": "The hull is Kindred's: their pattern, their paint, worn back to the primer by centuries of sand. Bede's team cuts the bridge hatch. Inside, everything turned to dust a long time ago. The manifest plate is still on the bulkhead, stamped steel.",
+  "lines": [
+    {
+      "character": "bede",
+      "text": "\"Crew manifest. I'll read it out. Commanding officer…\""
+    },
+    {
+      "character": "bede",
+      "text": "\"Captain, it says Marrow, I. It's stamped from a handwritten form. It's your hand.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "old-hull"
+    },
+    {
+      "kind": "flag",
+      "flag": "survey-set-out"
+    }
+  ],
+  "region": "dunmore-dustfall",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "marrow-manifest"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "manifest-read"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "old-hull"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "survey-camp",
+      "text": "Get them back to camp"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, dunmore, clue, marrow",
+  "status": "draft",
+  "notes": "\"Captain: Marrow, I.\" (STORY.md §16). manifest-read brings the hold-swarm out after the team."
+}

@@ -1,0 +1,26 @@
+{
+  "title": "Dunmore",
+  "style": "radio",
+  "character": "marrow",
+  "text": "My survey team's at the camp by your lander. Three engineers, no guns. You're the guns. If they come back short, so do we.",
+  "trigger": "never",
+  "region": "dunmore-dustfall",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "attitude",
+      "faction": "kindred",
+      "attitude": "allied"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "survey-camp",
+      "text": "Marrow's survey team"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, radio, marrow",
+  "status": "draft",
+  "notes": "onStart of dustfall. Kindred on Dunmore fight beside us for the escort (predators go for allied units, so the team needs us)."
+}

@@ -1,0 +1,63 @@
+{
+  "title": "Covenant",
+  "text": "The core is gone. Round the Lid the batteries go dark one after another, like a town at bedtime. Far out past Nereid, the dish on Teth is still listening for you.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "lantern-destroyed"
+    },
+    {
+      "kind": "flag",
+      "flag": "long-ear"
+    }
+  ],
+  "region": "lantern",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Send it to Sol"
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "end-covenant"
+    },
+    {
+      "after": 1,
+      "kind": "epilogue",
+      "ending": "covenant",
+      "pages": [
+        {
+          "title": "Sela",
+          "text": "The Lantern burned for nine hours after the core went. From Hearth it looked like a second, smaller moon rising over the first. {first} watched it from the wall until it went out."
+        },
+        {
+          "title": "The report",
+          "text": "At the end of the sol the charter asked, as it always had, for a Biosphere Report. You wrote one. Planet health, colony size, fauna balance, flora cover. Then a section the form had no field for: who had died, and who had stood with us, and why."
+        },
+        {
+          "title": "The Long Ear",
+          "text": "The dish on Teth was ours. You aimed it at Sol and sent the report as it was, in the old format, with one line at the top:\n\nRun twelve. No purge. Reasons attached."
+        },
+        {
+          "text": "The light will take years to get there. You don't expect an answer. You sent it so that something, somewhere, would have it on record."
+        },
+        {
+          "title": "After",
+          "text": "The colony grew. Some years it trusted you more than others, and said so. When the children asked where the second moon-light had gone, somebody always told them, and nobody told it the same way twice."
+        },
+        {
+          "text": "The Ledger under Vess still holds eleven closed columns. The twelfth has no last line. {first} keeps the slate it would be written on, and has never written on it."
+        }
+      ],
+      "text": "The partnership survives, with its eyes open."
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, covenant",
+  "status": "draft",
+  "notes": "Covenant with the Long Ear (long-ear): the report goes to Sol."
+}

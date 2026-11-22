@@ -1,0 +1,20 @@
+{
+  "title": "The Lantern fires (1)",
+  "style": "radio",
+  "character": "clause",
+  "text": "expedition located. strike.",
+  "trigger": "after",
+  "event": "lantern-landing",
+  "delay": 150,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "delay": 8
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, strike",
+  "status": "draft"
+}

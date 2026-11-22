@@ -1,0 +1,49 @@
+{
+  "title": "The Clean Signal",
+  "character": "archivist",
+  "text": "\"I've been cleaning up the Director's recordings for the archive. There was nothing to clean.\"",
+  "lines": [
+    {
+      "text": "\"No noise. None. A signal that crossed light-years should be filthy. This one is cleaner than my voice in this room.\""
+    },
+    {
+      "text": "\"No compression artefacts, no dropouts, no drift. Either Mission Control had equipment nobody on a dying Earth could build, or these weren't sent from Earth at all.\""
+    },
+    {
+      "text": "\"I'd like to be wrong. I'd like you to tell me I'm wrong.\""
+    }
+  ],
+  "trigger": "colonists",
+  "count": 30,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "\"I don't know. Let's find out.\"",
+      "reply": "\"Good,\" says the Archivist. \"Then we find out.\" They ask for lab time. We give it."
+    },
+    {
+      "label": "\"It's a good archive. That's all.\"",
+      "reply": "\"Yes. Too good.\" The Archivist leaves the recordings on the shared screen, where anyone can read the noise floor. It is flat."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "clean-signal"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, home, archive, E10",
+  "status": "draft"
+}

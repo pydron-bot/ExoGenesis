@@ -1,0 +1,23 @@
+{
+  "title": "The Gate",
+  "text": "The only gap in the hills is narrow enough to hold with two turrets. Someone thought so before us: there are footings here in our own pattern. The turrets are long gone.",
+  "trigger": "site",
+  "site": "hollow-gate",
+  "region": "splinter-hollow",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "hollow-gate"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "splinter-camp",
+      "text": "A camp"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, splinter-hollow",
+  "status": "draft"
+}

@@ -1,0 +1,43 @@
+{
+  "title": "First Light",
+  "text": "The shuttle sits on the Gantry's rail with its belly lit from below. The colony has come out to watch. Above the ridge Sela is up, full and grey, as it has been on every clear night since the landing.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"I used to think it was beautiful.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"I still do. I just don't like it looking back.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Launch",
+      "reply": "The shuttle climbs on a column of white. The colony watches it until it is a star, and then not even that."
+    },
+    {
+      "label": "Not tonight",
+      "reply": "The route to Sela is on the Gantry's card when you're ready."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "cine-first-launch"
+    },
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "sela-relay"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, gantry, launch, firstborn",
+  "status": "draft",
+  "notes": "onDone of build-gantry. The launch cinematic plays first, then the card; Launch travels to Sela."
+}

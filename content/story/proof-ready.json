@@ -1,0 +1,60 @@
+{
+  "title": "Just in Case",
+  "character": "archivist",
+  "text": "Before the shuttles lift, the Archivist hands you a drive. Not a copy for the shuttle: a copy for you. \"Everything. The Ledger. Every report we ever sent, with the margin field left in. Kindred's archive, Engram's. The Vell's songs, transcribed. The Teth dish codes.\"",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"If you get there and find you don't have to break it. Just in case. It's an argument. It's the best one I've got.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "the-fight"
+    },
+    {
+      "kind": "planet",
+      "count": 70
+    },
+    {
+      "kind": "acceptance",
+      "count": 60
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-ally"
+    },
+    {
+      "kind": "flag",
+      "flag": "ledger-read"
+    },
+    {
+      "kind": "flag",
+      "flag": "long-ear"
+    },
+    {
+      "kind": "flag",
+      "flag": "keeper-song"
+    },
+    {
+      "kind": "flag",
+      "flag": "choir-fragment"
+    }
+  ],
+  "delay": 240,
+  "region": "touchdown",
+  "unless": "engram-destroyed",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "proof-ready"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, proof, hidden",
+  "status": "draft",
+  "notes": "The hidden ending's gate (STORY.md §17), checked at home where planet health and acceptance live: planet ≥ 70, acceptance ≥ 60, kindred-ally, ledger-read, long-ear, the Vell trusted (keeper-song) and the Choir (choir-fragment), Engram not destroyed (unless). Sets proof-ready, which the Lantern's seize choice reads."
+}

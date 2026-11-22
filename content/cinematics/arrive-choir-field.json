@@ -1,0 +1,70 @@
+{
+  "letterbox": true,
+  "title": "Arrival: The Choir Field",
+  "length": 16,
+  "fadeIn": 1.2,
+  "fadeOut": 1,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "lift": 6,
+      "building": "core",
+      "dist": 160,
+      "pitch": 0.7,
+      "yaw": 0.3
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "lift": 8,
+      "site": "choir-loop",
+      "dist": 80,
+      "pitch": 0.3,
+      "yaw": 0.2
+    },
+    {
+      "at": 11,
+      "target": "camp",
+      "lift": 10,
+      "group": "choir",
+      "dist": 55,
+      "pitch": 0.22,
+      "yaw": -0.6
+    },
+    {
+      "at": 16,
+      "target": "storysite",
+      "lift": 4,
+      "site": "code-wall",
+      "dist": 70,
+      "pitch": 0.35,
+      "yaw": 0.9
+    }
+  ],
+  "captions": [
+    {
+      "at": 0.8,
+      "title": "THE CHOIR FIELD",
+      "sub": "Overland expedition · ash, rust, and a tower still pulsing"
+    },
+    {
+      "at": 10,
+      "title": "THE CHOIR FIELD",
+      "sub": "Something levelled this plain. Nothing has grown back."
+    }
+  ],
+  "lines": [
+    {
+      "at": 6.5,
+      "character": "cantor",
+      "text": "0001 CARRIER DETECTED.",
+      "for": 3
+    }
+  ],
+  "trigger": "start",
+  "region": "choir-field",
+  "tags": "act 1, arrival, choir-field",
+  "chapter": "the-planet",
+  "status": "draft"
+}

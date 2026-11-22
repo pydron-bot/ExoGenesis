@@ -1,0 +1,48 @@
+{
+  "title": "The Lantern",
+  "summary": "Sela's far side. Open the Lid (the Enclave's code, or break its three locks), fight down to the core, and decide: destroy it, seize it or give in. Allies by flag. If the countdown runs out, the Lantern fires on Hearth: Cycle.",
+  "after": "clause-wakes",
+  "region": "lantern",
+  "objectives": [
+    {
+      "text": "Open the Lid",
+      "kind": "flag",
+      "flag": "lid-open"
+    },
+    {
+      "text": "Reach the Lantern's core",
+      "kind": "site",
+      "site": "lantern-core"
+    },
+    {
+      "text": "Decide what becomes of it",
+      "kind": "any",
+      "of": [
+        {
+          "kind": "flag",
+          "flag": "lantern-destroyed"
+        },
+        {
+          "kind": "flag",
+          "flag": "lantern-intact"
+        },
+        {
+          "kind": "flag",
+          "flag": "inheritance"
+        }
+      ]
+    }
+  ],
+  "onStart": "lantern-landing",
+  "fails": [
+    {
+      "text": "The Lantern fired on Hearth.",
+      "kind": "timer",
+      "timer": "lantern-fires"
+    }
+  ],
+  "onFail": "cycle",
+  "chapter": "the-lantern",
+  "tags": "climax, lantern",
+  "status": "draft"
+}

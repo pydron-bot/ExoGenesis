@@ -1,0 +1,70 @@
+{
+  "letterbox": true,
+  "title": "Arrival: Burrow Reach",
+  "length": 16,
+  "fadeIn": 1.2,
+  "fadeOut": 1,
+  "camera": [
+    {
+      "at": 0,
+      "target": "building",
+      "lift": 6,
+      "building": "core",
+      "dist": 170,
+      "pitch": 0.7,
+      "yaw": 0.2
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "lift": 2,
+      "site": "furrow-grid",
+      "dist": 110,
+      "pitch": 0.55,
+      "yaw": 0.1
+    },
+    {
+      "at": 11,
+      "target": "storysite",
+      "lift": 2,
+      "site": "furrow-grid",
+      "dist": 70,
+      "pitch": 0.42,
+      "yaw": 0.6
+    },
+    {
+      "at": 16,
+      "target": "storysite",
+      "lift": 6,
+      "site": "brood-mound",
+      "dist": 80,
+      "pitch": 0.35,
+      "yaw": 0.9
+    }
+  ],
+  "captions": [
+    {
+      "at": 0.8,
+      "title": "BURROW REACH",
+      "sub": "Overland expedition · four nests, and ground that has been ploughed"
+    },
+    {
+      "at": 10,
+      "title": "BURROW REACH",
+      "sub": "Defences first."
+    }
+  ],
+  "lines": [
+    {
+      "at": 6.5,
+      "character": "firstborn",
+      "text": "Those furrows are too straight. Nothing digs that straight.",
+      "for": 4
+    }
+  ],
+  "trigger": "start",
+  "region": "burrow-reach",
+  "tags": "act 1, arrival, burrow-reach",
+  "chapter": "the-planet",
+  "status": "draft"
+}

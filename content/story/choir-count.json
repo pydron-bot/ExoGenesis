@@ -1,0 +1,23 @@
+{
+  "title": "Listening to the Choir",
+  "text": "The Sensor Mast catches what the tower has been broadcasting all along: the code wall, read aloud, on a loop. Under it runs a second signal, very slow. Eleven pulses. A long gap. Eleven pulses again.",
+  "lines": [
+    {
+      "character": "cantor",
+      "text": "\"0201 ELEVEN CLOSED. 0202 ONE OPEN. 0203 WE COUNT SO THAT SOMEONE COUNTS.\""
+    }
+  ],
+  "trigger": "built",
+  "building": "sensor",
+  "region": "choir-field",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "choir-count"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, choir-field, choir",
+  "status": "draft"
+}

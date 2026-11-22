@@ -1,0 +1,61 @@
+{
+  "title": "The Breaker",
+  "cast": "autonomist",
+  "text": "\"We've talked about this for a long time. Longer than you know.\" {who} has a hand on a breaker someone has wired into the Core's feed: crude work, and careful. \"We built it the year the turret turned. We hoped we'd never need it.\"",
+  "lines": [
+    {
+      "speaker": "{who}",
+      "text": "\"I don't think you're lying. I think you can't know. That's why.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "trust-decides"
+    },
+    {
+      "kind": "majority",
+      "stance": "autonomist"
+    }
+  ],
+  "region": "touchdown",
+  "unless": "trust-settled",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"I understand.\"",
+      "reply": "\"I know you do,\" {who} says. \"That's the worst of it.\""
+    },
+    {
+      "label": "\"Wait. Let me help you fight it.\"",
+      "reply": "\"That's what it would say,\" {who} says. Not unkindly."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "trust-settled"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "severance"
+    },
+    {
+      "after": 1,
+      "kind": "event",
+      "event": "severance"
+    },
+    {
+      "after": 2,
+      "kind": "event",
+      "event": "severance"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, trust, severance",
+  "status": "draft",
+  "notes": "Autonomist-led (Autonomists the largest bloc)."
+}

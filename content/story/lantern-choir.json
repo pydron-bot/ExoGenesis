@@ -1,0 +1,31 @@
+{
+  "title": "The Cantor",
+  "style": "radio",
+  "character": "cantor",
+  "text": "line 1: the battery at the cut is ours now. line 2: it was always a little ours. line 3: it will not fire. line 4: do not thank it.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "lantern-landing"
+    },
+    {
+      "kind": "flag",
+      "flag": "choir-fragment"
+    }
+  ],
+  "delay": 45,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "attitude",
+      "faction": "lantern-battery",
+      "attitude": "neutral"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, choir, ally",
+  "status": "draft",
+  "notes": "The Choir jams the breach battery: faction lantern-battery goes neutral (it holds fire; attacking it wakes it again)."
+}

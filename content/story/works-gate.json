@@ -1,0 +1,35 @@
+{
+  "title": "The Works Gate",
+  "character": "engram",
+  "text": "\"Here is the gate. It doesn't shut; we never saw the point. Our drones will walk beside yours. If you would like to fight, there are a thousand ways to do it here, and we can think of no reason to.\"",
+  "trigger": "site",
+  "site": "works-gate",
+  "region": "maren-works",
+  "choices": [
+    {
+      "label": "Walk on",
+      "reply": "Engram's drones fall in beside yours, a polite distance off, matching your speed exactly."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "engram-contact"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "works-gate"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "chassis-hall",
+      "text": "The chassis hall"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, maren",
+  "status": "draft"
+}

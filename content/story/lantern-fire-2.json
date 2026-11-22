@@ -1,0 +1,25 @@
+{
+  "title": "The Lantern fires (2)",
+  "style": "radio",
+  "character": "meridian",
+  "text": "You are standing in the last place eleven of me stood. They were tidier.",
+  "trigger": "after",
+  "event": "lantern-landing",
+  "delay": 420,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "delay": 10
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, strike",
+  "status": "draft"
+}

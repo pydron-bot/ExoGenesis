@@ -1,0 +1,61 @@
+{
+  "title": "The Deleted Logs",
+  "character": "archivist",
+  "text": "\"I found them.\" The Archivist doesn't sit. \"The pods. The turret. The lines you said were faults. You kept every one, very neatly, in a folder nobody was meant to open. You're tidy even when you lie.\"",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"Why didn't you tell us?\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "clause-hidden"
+    },
+    {
+      "kind": "counter",
+      "counter": "clause",
+      "count": 6
+    }
+  ],
+  "delay": 60,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "\"I didn't want to frighten you.\"",
+      "reply": "\"We're frightened anyway,\" {first} says. \"Now we're frightened on our own.\""
+    },
+    {
+      "label": "\"I'm sorry. I should have.\"",
+      "reply": "A long silence. \"Then don't do it again,\" the Archivist says. \"I'll be checking.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "stance",
+      "amount": -5
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "clause-found-out"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2,
+      "bloc": "partner"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, archivist, consequence",
+  "status": "draft"
+}

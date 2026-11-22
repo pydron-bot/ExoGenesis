@@ -1,0 +1,36 @@
+{
+  "title": "The Survey Team",
+  "character": "bede",
+  "text": "\"Femi Bede. I'm the one who looks at hulls. I'm sorry about the hour, and the wind, and that we can't fight. We'll walk; you keep the things with teeth off us. It seems a fair trade to me. It may not to you.\"",
+  "trigger": "site",
+  "site": "survey-camp",
+  "region": "dunmore-dustfall",
+  "choices": [
+    {
+      "label": "Lead on",
+      "reply": "The three of them shoulder their packs and set off north-east, into the dunes, without waiting to see whether you follow."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "survey-set-out"
+    },
+    {
+      "after": 1,
+      "kind": "clearWaypoint",
+      "site": "survey-camp"
+    },
+    {
+      "after": 1,
+      "kind": "waypoint",
+      "site": "old-hull",
+      "text": "The signal"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, bede, escort",
+  "status": "draft",
+  "notes": "survey-set-out brings in the survey-team encounter (allied Kindred engineers walking camp → hull → camp)."
+}

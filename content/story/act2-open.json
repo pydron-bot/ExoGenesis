@@ -1,0 +1,41 @@
+{
+  "title": "Up There",
+  "text": "Marrow is on the band again tonight, the same words as every night. Overhead, Sela turns its grey face to the colony. The report goes up to it as each sol ends, and nothing comes back.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"She thinks nobody's listening. And the moon thinks we don't know.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"There's a launch system in the archive. Small, cheap, orbital. It's filed under 'future phases', as if somebody expected us to get this far.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"Then let's get this far.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "act1-done",
+  "delay": 20,
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Start on it",
+      "reply": "Research Orbital Launch at a Tech Lab, then build a Launch Gantry. The first flight goes to Sela."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "hint",
+      "target": "goals",
+      "text": "Act 2: research Orbital Launch at a Tech Lab, then build a Launch Gantry. The first flight goes to Sela."
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, gantry, tutorial",
+  "status": "draft",
+  "notes": "Act 2 opens (STORY.md §16). Fires at home once act1-done is set by the Act 1 writer's signal mission. The build-gantry mission starts after signal."
+}

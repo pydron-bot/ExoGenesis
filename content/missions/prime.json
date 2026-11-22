@@ -1,0 +1,47 @@
+{
+  "title": "Engram Prime",
+  "summary": "Rime: Engram Prime under the ice. Opens once luck-proved and ledger-read (rime-route). At the mind-well Engram decides (engram-choice): it defects if counter engram ≥ 3 and ledger-read (engram-defects), otherwise it doubles down (engram-doubles): destroy its three cores (engram-destroyed) or leave (engram-left).",
+  "after": "drop-field",
+  "region": "rime-prime",
+  "objectives": [
+    {
+      "text": "Pass through the ice gate",
+      "kind": "site",
+      "site": "ice-gate"
+    },
+    {
+      "text": "Go down to the mind-well",
+      "kind": "site",
+      "site": "mind-well"
+    },
+    {
+      "text": "See Engram's choice through",
+      "kind": "any",
+      "of": [
+        {
+          "kind": "flag",
+          "flag": "engram-defected"
+        },
+        {
+          "kind": "flag",
+          "flag": "engram-destroyed"
+        },
+        {
+          "kind": "flag",
+          "flag": "engram-left"
+        }
+      ]
+    }
+  ],
+  "onStart": "engram-rime",
+  "onDone": "prime-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "rime-done"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, choice",
+  "status": "draft"
+}

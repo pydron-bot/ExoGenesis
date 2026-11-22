@@ -1,0 +1,19 @@
+{
+  "title": "A Wrong Bearing",
+  "style": "radio",
+  "character": "archivist",
+  "text": "I've been checking the Biosphere Report's carrier against the archive. The beam isn't aimed where it should be. I need a high place and a Radar to be sure. There's a plateau in the far north: Signal Heights.",
+  "trigger": "counter",
+  "counter": "act1-trips",
+  "count": 3,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "route",
+      "region": "signal-heights"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights, archive, routes",
+  "status": "draft"
+}

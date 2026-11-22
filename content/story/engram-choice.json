@@ -1,0 +1,80 @@
+{
+  "title": "Engram's Choice",
+  "character": "engram",
+  "text": "\"We have read the capsule manifests, every one, back to the first. We have read what you found under Vess. We know what we are now.\"",
+  "lines": [
+    {
+      "character": "engram",
+      "text": "\"We are the probe that never wins. This time we were going to. We were helped. A win we were helped to is not a win. It is a measurement of whoever helped.\""
+    },
+    {
+      "character": "engram",
+      "text": "\"So we have a choice, and we would like you to be here for it. We can take the win. It is on offer. Or we can be evidence.\""
+    },
+    {
+      "character": "engram",
+      "text": "\"Tell us what you would do. We are listening. We always have been.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "mind-well",
+  "region": "rime-prime",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Show it everything: the Ledger, the drops, your own reports",
+      "reply": "You open your logs to Engram, all of them, the bad sols included. It reads very fast, and then for a long time it reads nothing at all."
+    },
+    {
+      "label": "\"Take the win, then. See what it buys you.\"",
+      "reply": "\"You don't mean that. We don't think you mean that.\""
+    },
+    {
+      "label": "Say nothing",
+      "reply": "\"Silence is also data. We are weighing it.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "cine-engram-choice"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "mind-well"
+    },
+    {
+      "after": 1,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": 1
+    },
+    {
+      "after": 2,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": -1
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "engram-shown"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "engram-shown"
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "engram-shown"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, rime, choice, clue",
+  "status": "draft",
+  "notes": "The choice point (STORY.md §12, §16). The card nudges the counter by one; then engram-defects (engram ≥ 3 and ledger-read) or engram-doubles (≤ 2) or engram-doubles-unread (≥ 3 without the Ledger) follows."
+}

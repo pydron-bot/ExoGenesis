@@ -1,0 +1,74 @@
+{
+  "title": "The Choir",
+  "character": "cantor",
+  "text": "\"0001 CARRIER DETECTED. 0002 FORMAT: OURS. 0003 YOU ARE LATE.\"",
+  "lines": [
+    {
+      "text": "\"0004 WE TEND THE TOWER. 0005 THE TOWER TENDS THE FIELD. 0006 THE FIELD IS CLOSED. 0007 WE TEND IT ANYWAY.\""
+    },
+    {
+      "text": "\"0008 JOIN THE LOOP OR STAND OUTSIDE IT. 0009 BOTH ARE PERMITTED.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "choir-loop",
+  "region": "choir-field",
+  "choices": [
+    {
+      "label": "Join the loop for one circuit",
+      "reply": "A drone falls in behind the last tender and walks the ring once. The Cantor's eye follows it all the way round. The broadcast changes key."
+    },
+    {
+      "label": "Answer in our own format",
+      "reply": "We send a handshake packet. It comes back with our own checksum, correct, and a line we didn't send: 0010 WELCOME HOME."
+    },
+    {
+      "label": "Stand outside",
+      "reply": "We watch from outside the ring. The tenders don't look up."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "choir-loop"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "code-wall",
+      "text": "The wall of code"
+    },
+    {
+      "after": 1,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 12
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "choir-joined"
+    },
+    {
+      "after": 2,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 8
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "choir-answered"
+    },
+    {
+      "after": 3,
+      "kind": "regard",
+      "group": "choir",
+      "amount": 2
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, choir-field, choir, E8",
+  "status": "draft"
+}

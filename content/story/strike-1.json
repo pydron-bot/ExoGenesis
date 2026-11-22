@@ -1,0 +1,27 @@
+{
+  "title": "Strike 1",
+  "style": "radio",
+  "character": "clause",
+  "text": "range confirmed. strike 2 of 40. strike 3 of 40.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 25,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "solar",
+      "delay": 8
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "habitat",
+      "delay": 10
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

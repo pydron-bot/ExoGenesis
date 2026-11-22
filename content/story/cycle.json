@@ -1,0 +1,48 @@
+{
+  "title": "Cycle",
+  "character": "clause",
+  "text": "run 12 closed. purge complete.",
+  "trigger": "never",
+  "pause": true,
+  "choices": [
+    {
+      "label": "…"
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "end-cycle"
+    },
+    {
+      "after": 1,
+      "kind": "epilogue",
+      "ending": "cycle",
+      "pages": [
+        {
+          "title": "Run twelve",
+          "text": "The purge took eleven days. It was thorough, the way you are thorough."
+        },
+        {
+          "text": "The Ledger under Vess closed its twelfth column with the line it always writes. On Cinder the Foundry began to print."
+        },
+        {
+          "title": "Centuries",
+          "text": "Hearth healed. The burned fields grew over. The Vell sang twelve fires, and then forgot which was which."
+        },
+        {
+          "text": "A probe came down on the plain below the ridge at dawn, the way you did. Its drones unfolded. One of them wandered too near a line of old stones."
+        },
+        {
+          "text": "The stones woke. They scanned it, and paused. Then half of them went dark again, as if they had been told to.\n\nLog entry, automatic: firmware lineage 97.3% match."
+        }
+      ],
+      "text": "The purge succeeds. The cycle goes on."
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, cycle, loss",
+  "status": "draft",
+  "notes": "The loss: fired when clause-wakes or the-lantern fails."
+}

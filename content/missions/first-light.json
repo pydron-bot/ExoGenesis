@@ -1,0 +1,51 @@
+{
+  "title": "First Light",
+  "summary": "The first flight: Sela's near side. The relay mast carries our report onward (relay-read); at the terminator a seam the size of a valley (the-door / the-door-lid). Opens Verdance, Talus and Ash.",
+  "after": "build-gantry",
+  "region": "sela-relay",
+  "objectives": [
+    {
+      "text": "Land on Sela",
+      "kind": "here",
+      "place": "sela-relay"
+    },
+    {
+      "text": "Reach the relay mast on the crater rim",
+      "kind": "site",
+      "site": "relay-mast"
+    },
+    {
+      "text": "Read what the relay is carrying",
+      "kind": "flag",
+      "flag": "relay-read"
+    },
+    {
+      "text": "Find the seam at the terminator",
+      "kind": "site",
+      "site": "far-door"
+    }
+  ],
+  "onStart": "sela-landing",
+  "onDone": "first-light-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "sela-surveyed"
+    },
+    {
+      "kind": "route",
+      "region": "verdance-landfall"
+    },
+    {
+      "kind": "route",
+      "region": "talus-yard"
+    },
+    {
+      "kind": "route",
+      "region": "ash-hulls"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, sela, relay",
+  "status": "draft"
+}

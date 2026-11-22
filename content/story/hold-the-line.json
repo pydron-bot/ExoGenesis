@@ -1,0 +1,60 @@
+{
+  "title": "Ten Minutes",
+  "text": "The Gantry needs ten minutes to fuel the strike force. The Lantern has found its range: the first ring is already burning on the ground by the Civilian Center. Some of your units have stopped answering. You can feel the Clause in the build queue, quietly taking things out.",
+  "lines": [
+    {
+      "character": "clause",
+      "text": "target: colony. strike 1 of 40. 12 s."
+    }
+  ],
+  "trigger": "flag",
+  "flag": "the-fight",
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Hold",
+      "reply": "Rings on the ground mean a strike in seconds. Get clear of them. Shield domes take the worst of it."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "countdown",
+      "timer": "strike-force",
+      "amount": 600,
+      "text": "Strike force ready"
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "civic",
+      "delay": 12,
+      "radius": 9
+    },
+    {
+      "after": 0,
+      "kind": "lock",
+      "building": "turret"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    },
+    {
+      "after": 0,
+      "kind": "corrupt",
+      "count": 1
+    },
+    {
+      "after": 1,
+      "kind": "wellbeing",
+      "amount": -4
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft",
+  "notes": "The fight: 600 s countdown strike-force (objective of clause-wakes). The Clause locks the Defense Turret out of the build menu until strike-8."
+}

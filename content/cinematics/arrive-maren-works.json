@@ -1,0 +1,77 @@
+{
+  "title": "Arrival: Maren",
+  "length": 18,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 150,
+      "pitch": 1.1,
+      "yaw": 0.1
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "site": "works-gate",
+      "lift": 2,
+      "dist": 60,
+      "pitch": 0.35,
+      "yaw": 0.2
+    },
+    {
+      "at": 12,
+      "target": "storysite",
+      "site": "chassis-hall",
+      "lift": 6,
+      "dist": 110,
+      "pitch": 0.4,
+      "yaw": 0.15
+    },
+    {
+      "at": 18,
+      "target": "site",
+      "x": 0,
+      "z": -4,
+      "lift": 0,
+      "dist": 80,
+      "pitch": 0.8,
+      "yaw": 0.4
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "MAREN",
+      "sub": "Engram · the works"
+    },
+    {
+      "at": 8,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 7,
+      "character": "engram",
+      "text": "Hello. Yes, the road is orange. We like orange.",
+      "for": 4
+    },
+    {
+      "at": 12.5,
+      "character": "engram",
+      "text": "That is the chassis hall at the top. We will show you, if you like.",
+      "for": 4.5
+    }
+  ],
+  "trigger": "start",
+  "region": "maren-works",
+  "chapter": "engram",
+  "tags": "act 2, engram, maren, arrival",
+  "status": "draft"
+}

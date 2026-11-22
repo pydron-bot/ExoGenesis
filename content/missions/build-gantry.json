@@ -1,0 +1,28 @@
+{
+  "title": "The Gantry",
+  "summary": "Act 2 opens at home: research Orbital Launch and build the Launch Gantry. Its first flight is to Sela (sela-sky, cine-first-launch).",
+  "after": "signal",
+  "region": "touchdown",
+  "objectives": [
+    {
+      "text": "Research Orbital Launch at a Tech Lab",
+      "kind": "researched",
+      "research": "orbital-launch"
+    },
+    {
+      "text": "Build a Launch Gantry",
+      "kind": "built",
+      "building": "launch-gantry"
+    }
+  ],
+  "onDone": "sela-sky",
+  "rewards": [
+    {
+      "kind": "route",
+      "region": "sela-relay"
+    }
+  ],
+  "chapter": "first-light",
+  "tags": "act 2, gantry",
+  "status": "draft"
+}

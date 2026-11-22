@@ -1,0 +1,35 @@
+{
+  "title": "The Strike Force",
+  "text": "The shuttles are fuelled and full. On the pad the Gantry's arms swing back. Above the ridge Sela is up, and for the first time the colony looks at it the way you do.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"We'll hold here. Go and put out the light.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Launch",
+      "reply": "The strike force lifts. The colony holds its breath and its ground."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "route",
+      "region": "lantern"
+    },
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "lantern"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, travel",
+  "status": "draft",
+  "notes": "onDone of clause-wakes. Routes and travels to the Lantern (Sela, far side)."
+}

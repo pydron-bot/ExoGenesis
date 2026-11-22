@@ -1,0 +1,40 @@
+{
+  "title": "Moon Watch",
+  "text": "The moon is up over the crags, grey and plain and close. The Radar on the pinnacle follows it across the sky, the way it has followed every report we ever sent.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"It isn't going to Sol. It's going up. Every sol, our report goes to the moon.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "…"
+    },
+    {
+      "character": "firstborn",
+      "text": "\"We've been sending our grades to the thing in the sky.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "signal-heights",
+  "choices": [
+    {
+      "label": "Keep listening up here",
+      "reply": "The expedition stays. The old listening post in the south-east still has a dish."
+    },
+    {
+      "label": "Take it home first",
+      "reply": "The convoy turns for home. The Heights will keep."
+    }
+  ],
+  "effects": [
+    {
+      "after": 2,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights, the moon",
+  "status": "draft"
+}

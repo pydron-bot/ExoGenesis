@@ -1,0 +1,100 @@
+{
+  "title": "Harvested",
+  "text": "Engram's harvesters reach the capsule first. They take it apart with great care and no hurry and carry it off down the track in pieces. They leave the shell, and on the shell, the manifest plate. Your mast reads it from the ridge.",
+  "lines": [
+    {
+      "speaker": "Capsule manifest",
+      "text": "SUPPLY 0419 · RECIPIENT: ENGRAM · RELEASE ON: REPORT RECEIVED · NOTE: ADJUSTMENT WITHIN CHARTER"
+    },
+    {
+      "character": "archivist",
+      "text": "\"Within charter. Somebody checked they were allowed to cheat before they cheated. That's almost worse.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"It isn't luck. It never was. They report, and they get paid. Four hundred and nineteen times.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "capsule-down"
+    },
+    {
+      "kind": "timer",
+      "timer": "harvest"
+    }
+  ],
+  "region": "iot-drops",
+  "unless": "capsule-read",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Tell Engram what we found",
+      "reply": "You send it all to Kora: the manifest, the timings, the margin field in the header. For a long while Kora sends nothing back."
+    },
+    {
+      "label": "Tell Marrow, not Engram",
+      "reply": "You send it to Verdance instead and file it with the relay buffer. Engram can find out the way you did."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "capsule-read"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "luck-proved"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "drop-zone"
+    },
+    {
+      "after": 1,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": 2
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "luck-told"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "luck-decided"
+    },
+    {
+      "after": 1,
+      "kind": "event",
+      "event": "engram-luck"
+    },
+    {
+      "after": 2,
+      "kind": "counter",
+      "counter": "engram",
+      "amount": -1
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "luck-kept"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "luck-decided"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, io-t, luck, clue, choice",
+  "status": "draft",
+  "notes": "luck-proved all the same when the harvesters win the race: the plate is left behind."
+}

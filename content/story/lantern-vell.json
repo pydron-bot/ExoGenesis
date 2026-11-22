@@ -1,0 +1,54 @@
+{
+  "title": "The Marro's Song",
+  "style": "radio",
+  "character": "keeper",
+  "text": "Before you left, the Marro sang us a song about the moon. It is a map. Three locks, the cut in the wall, the lamp at the bottom. Eleven times we watched the fire come from there.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "lantern-landing"
+    },
+    {
+      "kind": "flag",
+      "flag": "keeper-song"
+    }
+  ],
+  "delay": 10,
+  "region": "lantern",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "lantern-core",
+      "amount": 40
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "lid-lock-n",
+      "amount": 22
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "lid-lock-e",
+      "amount": 22
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "lid-lock-w",
+      "amount": 22
+    },
+    {
+      "after": 0,
+      "kind": "reveal",
+      "site": "breach",
+      "amount": 26
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, lantern, vell, ally",
+  "status": "draft"
+}

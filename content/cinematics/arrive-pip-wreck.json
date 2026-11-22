@@ -1,0 +1,77 @@
+{
+  "title": "Arrival: Pip",
+  "length": 16,
+  "letterbox": true,
+  "fadeIn": 2,
+  "fadeOut": 1.5,
+  "camera": [
+    {
+      "at": 0,
+      "target": "site",
+      "x": 0,
+      "z": 0,
+      "lift": 0,
+      "dist": 120,
+      "pitch": 1.1,
+      "yaw": 5.9
+    },
+    {
+      "at": 6,
+      "target": "storysite",
+      "site": "scout-wreck",
+      "lift": 2,
+      "dist": 50,
+      "pitch": 0.4,
+      "yaw": 5.7
+    },
+    {
+      "at": 11,
+      "target": "storysite",
+      "site": "engram-pen",
+      "lift": 2,
+      "dist": 55,
+      "pitch": 0.45,
+      "yaw": 0.5
+    },
+    {
+      "at": 16,
+      "target": "site",
+      "x": 0,
+      "z": -4,
+      "lift": 0,
+      "dist": 80,
+      "pitch": 0.8,
+      "yaw": 0.4
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "PIP",
+      "sub": "Thalassa · the wreck"
+    },
+    {
+      "at": 7,
+      "title": ""
+    }
+  ],
+  "lines": [
+    {
+      "at": 7,
+      "character": "archivist",
+      "text": "Kindred's lander, north-west. It came down hard.",
+      "for": 3.5
+    },
+    {
+      "at": 11.5,
+      "character": "archivist",
+      "text": "And that ring to the north-east is Engram's. There are people inside it.",
+      "for": 4
+    }
+  ],
+  "trigger": "start",
+  "region": "pip-wreck",
+  "chapter": "engram",
+  "tags": "act 2, engram, pip, arrival",
+  "status": "draft"
+}

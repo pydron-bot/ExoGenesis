@@ -1,0 +1,12 @@
+{
+  "title": "Samples from the Reach",
+  "text": "The samples from Burrow Reach are in the cold store, labelled in the drones' neat hand: acid crust, soil from the furrows, a scrape of Spitter gland. A Tech Lab with a botanist could read them. The research is Fauna Genomics.",
+  "trigger": "flag",
+  "flag": "pan-samples",
+  "delay": 45,
+  "region": "touchdown",
+  "unless": "research-fauna-genomics",
+  "chapter": "the-planet",
+  "tags": "act 1, home, burrow-reach, E9",
+  "status": "draft"
+}

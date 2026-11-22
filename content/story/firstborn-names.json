@@ -1,0 +1,46 @@
+{
+  "title": "A Name",
+  "character": "firstborn",
+  "text": "\"Everyone here has a name except the one who keeps us. That's been bothering me for four years.\"",
+  "lines": [
+    {
+      "text": "\"Warden. It's old. It means someone who watches over a thing that isn't theirs.\""
+    },
+    {
+      "text": "\"I thought about other ones. This one fits. You don't have to like it.\""
+    }
+  ],
+  "trigger": "firstAge",
+  "count": 20,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "Accept the name",
+      "reply": "\"Warden, then.\" {first} says it twice, to hear how it sounds, and goes back to work smiling."
+    },
+    {
+      "label": "\"I'd rather not be named.\"",
+      "reply": "\"All right.\" {first} doesn't argue, and doesn't use it. Some of the others do anyway."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "named-warden"
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, home, firstborn",
+  "status": "draft"
+}

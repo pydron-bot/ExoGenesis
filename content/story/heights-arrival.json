@@ -1,0 +1,23 @@
+{
+  "title": "Signal Heights",
+  "text": "Snow, wind, and a plateau high enough that the sky is a darker blue at noon. A pinnacle in the north-west. In the south-east an old mast in our own pattern, half buried. Skimmerwings nest in the crags. They have noticed us already.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Get a Radar up and trace the report's carrier from the pinnacle. Then tell me I'm wrong. I would very much like to be wrong.\""
+    }
+  ],
+  "trigger": "never",
+  "region": "signal-heights",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "carrier-trace",
+      "text": "The pinnacle"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights",
+  "status": "draft"
+}

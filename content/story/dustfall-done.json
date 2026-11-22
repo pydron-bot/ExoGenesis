@@ -1,0 +1,27 @@
+{
+  "title": "Expedition Complete",
+  "text": "The survey team is back at their camp, sand in everything, the manifest plate wrapped in a coat. Bede thanks every one of your units by its number. Marrow's shuttle is already on its way down for them.",
+  "trigger": "never",
+  "region": "dunmore-dustfall",
+  "choices": [
+    {
+      "label": "Return to Touchdown",
+      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+    },
+    {
+      "label": "Stay a while",
+      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "travel",
+      "region": "touchdown"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, dunmore, expedition, travel",
+  "status": "draft",
+  "notes": "onDone of dustfall. The Act 2 \"Expedition complete\" card: Return to Touchdown travels home; Stay keeps playing here (the Command Core lists every route)."
+}

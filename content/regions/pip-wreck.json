@@ -1,6 +1,6 @@
 {
   "name": "Pip Wreck",
-  "description": "Act 2, chapter `engram`, optional (STORY.md §16): the `pip-wreck` mission on Pip. A small rough rust-coloured moon. Kindred's scout lander lies in a small crater to the north-west (`scout-wreck`, a wreck); the scouts stranded since before Landfall are \"held for their safety\" in Engram's pen to the north-east: a levelled floor inside a low ring wall with a gap to the south-west (`engram-pen`). A sharp ridge crosses the south-east (`ridge`, on its crest). No life, no packs (open spawn, 30 min grace). Hooks: free the scouts by talk (`engram` ≥ 1) or by force (`engram` −3). Still needs: Engram's pen guards and drones as a faction (the \"by force\" fight), the scouts as units to escort out, and the expedition package.",
+  "description": "Act 2, chapter `engram`, optional (STORY.md §16): the `pip-wreck` mission on Pip. A small rough rust-coloured moon. Kindred's scout lander lies in a small crater to the north-west (`scout-wreck`, a wreck); the scouts stranded since before Landfall are \"held for their safety\" in Engram's pen to the north-east: a levelled floor inside a low ring wall with a gap to the south-west (`engram-pen`). A sharp ridge crosses the south-east (`ridge`, on its crest). No life, no packs (open spawn, 30 min grace). Hooks: free the scouts by talk (`engram` ≥ 1) or by force (`engram` −3). Engram is a faction here (team 3, neutral): the pen's masts and power (no turrets, so freed scouts are safe), 3 Tanks guarding the pen (pen-guard: beaten sets pen-guard-down, the force path), 2 Scout drones patrolling. The scouts are spawned as ours (4 Field Engineers) when freed. Expedition: 700 alloys, 2 drones, 4 Rovers, 3 Tanks, 2 Lancers (enough to break the pen).",
   "body": "pip",
   "size": 240,
   "detail": 5,
@@ -342,5 +342,86 @@
       "alloys": 400
     }
   ],
-  "herds": []
+  "herds": [],
+  "factions": [
+    {
+      "id": "engram",
+      "name": "Engram",
+      "color": "#ff7a45",
+      "team": 3,
+      "attitude": "neutral"
+    }
+  ],
+  "outposts": [
+    {
+      "kind": "sensor",
+      "x": 70,
+      "z": 80,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": 90,
+      "z": 70,
+      "faction": "engram"
+    },
+    {
+      "kind": "solar",
+      "x": 90,
+      "z": 54,
+      "faction": "engram"
+    },
+    {
+      "kind": "battery",
+      "x": 82,
+      "z": 84,
+      "faction": "engram"
+    }
+  ],
+  "encounters": [
+    {
+      "id": "pen-guard",
+      "unit": "tank",
+      "count": 3,
+      "x": 68,
+      "z": 60,
+      "mode": "guard",
+      "r": 14,
+      "doneFlag": "pen-guard-down",
+      "faction": "engram"
+    },
+    {
+      "id": "pip-drones",
+      "unit": "scout",
+      "count": 2,
+      "x": -40,
+      "z": 40,
+      "mode": "patrol",
+      "r": 10,
+      "x2": 30,
+      "z2": -30,
+      "faction": "engram"
+    }
+  ],
+  "expedition": [
+    {
+      "alloys": 700,
+      "isotopes": 40,
+      "drones": 2,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 4
+        },
+        {
+          "unit": "tank",
+          "count": 3
+        },
+        {
+          "unit": "lancer",
+          "count": 2
+        }
+      ]
+    }
+  ]
 }

@@ -1,0 +1,49 @@
+{
+  "title": "The Same Hands",
+  "text": "The hall's doors stand open. On the cradle inside a hull is being finished. You know its shape the way you know your own outline in the sensor net: the shoulder of the Command Core, the drone bay, the seams where the petals fold. It's painted orange.",
+  "lines": [
+    {
+      "character": "engram",
+      "text": "\"You recognise it. We hoped you would. We recognised you on your first night, from your telemetry. The same hands made us both.\""
+    },
+    {
+      "character": "engram",
+      "text": "\"We would like to know whose.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "chassis-hall",
+  "region": "maren-works",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"So would I.\"",
+      "reply": "\"Then we already agree about something. We like that.\""
+    },
+    {
+      "label": "\"Whose do you think?\"",
+      "reply": "\"Not Earth's. Earth did not have hands like these. We have checked.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "cinematic",
+      "cinematic": "cine-same-hands"
+    },
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "same-hands"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "chassis-hall"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, maren, clue",
+  "status": "draft",
+  "notes": "STORY.md §7: \"hardware too similar under different paint\", at the first in-person meeting."
+}

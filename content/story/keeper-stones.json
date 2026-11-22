@@ -1,0 +1,69 @@
+{
+  "title": "The Stone Circle",
+  "character": "keeper",
+  "text": "\"Sky-walker. You came down in fire and burned nothing. That is new.\"",
+  "lines": [
+    {
+      "text": "\"I am the Marro. I keep the songs. The songs say others came like you, in a shell that opened like a flower.\""
+    },
+    {
+      "text": "\"They say a lot of other things. Not to strangers.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "keeper-stones",
+  "region": "hearthsmoke",
+  "choices": [
+    {
+      "label": "Stay and listen anyway",
+      "reply": "We stay at the edge of the stones until the fire is low. The Marro hums, not singing, not stopping. It sounds like counting."
+    },
+    {
+      "label": "Leave a gift of alloys",
+      "reply": "Sixty alloys of cut plate, left on the flat stone. The Marro taps one with a knuckle and smiles at the sound."
+    },
+    {
+      "label": "Ask about the south",
+      "reply": "\"The burned ground. The children don't go there. Go, if you must. Then come back and tell me what you saw.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "keeper-stones"
+    },
+    {
+      "after": 1,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 10
+    },
+    {
+      "after": 2,
+      "kind": "alloys",
+      "amount": -60
+    },
+    {
+      "after": 2,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 16
+    },
+    {
+      "after": 3,
+      "kind": "regard",
+      "group": "vell",
+      "amount": 4
+    },
+    {
+      "after": 3,
+      "kind": "waypoint",
+      "site": "burned-field",
+      "text": "The burned ground"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, hearthsmoke, vell, E5",
+  "status": "draft"
+}

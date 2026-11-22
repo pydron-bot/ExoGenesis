@@ -1,0 +1,77 @@
+{
+  "letterbox": true,
+  "title": "The Enclave's Cut",
+  "length": 23,
+  "fadeIn": 1.2,
+  "fadeOut": 1.2,
+  "region": "deep-layer",
+  "trigger": "never",
+  "camera": [
+    {
+      "at": 0,
+      "target": "storysite",
+      "lift": 4,
+      "site": "oldest-layer",
+      "dist": 110,
+      "pitch": 0.4,
+      "yaw": 3.6
+    },
+    {
+      "at": 7,
+      "target": "storysite",
+      "lift": 6,
+      "site": "enclave-cut",
+      "dist": 90,
+      "pitch": 0.28,
+      "yaw": 3.2
+    },
+    {
+      "at": 14,
+      "target": "storysite",
+      "lift": 4,
+      "site": "enclave-cut",
+      "dist": 50,
+      "pitch": 0.16,
+      "yaw": 3.7
+    },
+    {
+      "at": 23,
+      "target": "storysite",
+      "lift": 3,
+      "site": "enclave-cut",
+      "dist": 34,
+      "pitch": 0.1,
+      "yaw": 4.2
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "THE DEEP LAYER",
+      "sub": "The cut through the rim"
+    }
+  ],
+  "lines": [
+    {
+      "at": 3.5,
+      "character": "sefa",
+      "text": "Stop there, caretaker. That's close enough for guns.",
+      "for": 4
+    },
+    {
+      "at": 8.5,
+      "character": "sefa",
+      "text": "Seven generations we've lived in this cut. Every one of them was told: if a machine like the old one comes, run.",
+      "for": 5.5
+    },
+    {
+      "at": 15,
+      "character": "sefa",
+      "text": "I'm too old to run. Come in. Let's see what you are.",
+      "for": 5
+    }
+  ],
+  "tags": "act 1, expedition, deep-layer, survivors, optional, sefa",
+  "chapter": "the-planet",
+  "status": "draft"
+}

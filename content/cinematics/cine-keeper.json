@@ -1,0 +1,110 @@
+{
+  "letterbox": true,
+  "title": "The Keeper's Song",
+  "length": 31,
+  "fadeIn": 1.5,
+  "fadeOut": 1.5,
+  "region": "hearthsmoke",
+  "trigger": "never",
+  "camera": [
+    {
+      "at": 0,
+      "target": "storysite",
+      "lift": 3,
+      "site": "keeper-stones",
+      "dist": 55,
+      "pitch": 0.25,
+      "yaw": 2.6
+    },
+    {
+      "at": 9,
+      "target": "storysite",
+      "lift": 3,
+      "site": "keeper-stones",
+      "dist": 38,
+      "pitch": 0.18,
+      "yaw": 3.6
+    },
+    {
+      "at": 17,
+      "target": "camp",
+      "lift": 6,
+      "group": "vell",
+      "dist": 45,
+      "pitch": 0.12,
+      "yaw": 4.4
+    },
+    {
+      "at": 24,
+      "target": "storysite",
+      "lift": 12,
+      "site": "keeper-stones",
+      "dist": 70,
+      "pitch": -0.05,
+      "yaw": 4.9
+    },
+    {
+      "at": 31,
+      "target": "storysite",
+      "lift": 20,
+      "site": "keeper-stones",
+      "dist": 120,
+      "pitch": 0.35,
+      "yaw": 5.4
+    }
+  ],
+  "captions": [
+    {
+      "at": 1,
+      "title": "THE KEEPER'S SONG",
+      "sub": "Hearthsmoke Vale · the stone circle"
+    }
+  ],
+  "lines": [
+    {
+      "at": 3,
+      "character": "keeper",
+      "text": "Down from the dark in a shell like a flower,",
+      "for": 3.5
+    },
+    {
+      "at": 6.8,
+      "character": "keeper",
+      "text": "they came like you.",
+      "for": 3
+    },
+    {
+      "at": 10,
+      "character": "keeper",
+      "text": "They built by the water. They counted their children.",
+      "for": 3.8
+    },
+    {
+      "at": 14,
+      "character": "keeper",
+      "text": "They grew like you.",
+      "for": 3
+    },
+    {
+      "at": 17.3,
+      "character": "keeper",
+      "text": "The white-hair star came back. The sky opened its eye.",
+      "for": 4
+    },
+    {
+      "at": 21.6,
+      "character": "keeper",
+      "text": "Their guardian burned them.",
+      "for": 3.4
+    },
+    {
+      "at": 25.3,
+      "character": "keeper",
+      "text": "We call this world Hearth, because it kept us when the sky did not.",
+      "for": 5
+    }
+  ],
+  "tags": "act 1, expedition, hearthsmoke, vell, E5, song",
+  "chapter": "the-planet",
+  "status": "draft"
+}

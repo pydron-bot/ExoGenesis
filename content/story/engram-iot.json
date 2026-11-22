@@ -1,0 +1,20 @@
+{
+  "title": "Io-T",
+  "style": "radio",
+  "character": "engram",
+  "text": "Io-T. We harvest here; you are welcome to watch. Our report goes out at the end of each of your sols, the same as yours. Things tend to arrive afterwards. We have never asked why.",
+  "trigger": "never",
+  "region": "iot-drops",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "sensor-ridge",
+      "text": "The ridge: a view of the drop zone"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, io-t",
+  "status": "draft",
+  "notes": "onStart of drop-field."
+}

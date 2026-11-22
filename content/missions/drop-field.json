@@ -1,0 +1,39 @@
+{
+  "title": "The Drop Field",
+  "summary": "Io-T's sulfur plains, where Meridian's capsules land right after Engram's reports. Build a Sensor Mast, wait out the countdown, reach the capsule before Engram's harvesters (or read the plate they leave): luck-proved. Tell Engram (+2) or tell Marrow instead (−1).",
+  "after": "the-works",
+  "region": "iot-drops",
+  "objectives": [
+    {
+      "text": "Build a Sensor Mast overlooking the drop zone",
+      "kind": "built",
+      "building": "sensor"
+    },
+    {
+      "text": "Wait for a drop",
+      "kind": "flag",
+      "flag": "capsule-down"
+    },
+    {
+      "text": "Reach the capsule before Engram's harvesters",
+      "kind": "flag",
+      "flag": "capsule-read"
+    },
+    {
+      "text": "Decide who to tell",
+      "kind": "flag",
+      "flag": "luck-decided"
+    }
+  ],
+  "onStart": "engram-iot",
+  "onDone": "drop-field-done",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "drop-field-seen"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, io-t, luck",
+  "status": "draft"
+}

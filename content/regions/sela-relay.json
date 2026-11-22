@@ -1,6 +1,6 @@
 {
   "name": "Sela Relay",
-  "description": "Act 2 opener, chapter `first-light` (STORY.md §16): the `first-light` mission, the first flight to Sela. The grey near side of the moon: a flat landing ground (`landing-flat`, the Core's pad), craters all round, and a big crater to the north-west with the relay mast standing on its south-east rim (`relay-mast`: the Biosphere Report's relay, precursor make, our own packet format). Relic grid `relay` (a node at the mast, three sentinels, a small cache) wakes as we come close and half of it stands down at the handshake. Near the east edge, at the terminator, a dead-straight seam with raised lips runs the whole height of the map: `far-door`, \"a door the size of a valley\", which can't be opened (the Enclave's map called it the Lid; see `lantern` on the far side). No wildlife (airless moon: no herds, packs ×0, one open spawn with no nest); a long grace. Hooks: `relay-read` at `relay-mast`, `the-door` at `far-door`, `sela-sky` on landing, `engram-hello` on leaving. Still needs: an expedition package (what the lander carries: no starting base, limited alloys).",
+  "description": "Act 2 opener, chapter `first-light` (STORY.md §16): the `first-light` mission, the first flight to Sela. The grey near side of the moon: a flat landing ground (`landing-flat`, the Core's pad), craters all round, and a big crater to the north-west with the relay mast standing on its south-east rim (`relay-mast`: the Biosphere Report's relay, precursor make, our own packet format). Relic grid `relay` (a node at the mast, three sentinels, a small cache) wakes as we come close and half of it stands down at the handshake. Near the east edge, at the terminator, a dead-straight seam with raised lips runs the whole height of the map: `far-door`, \"a door the size of a valley\", which can't be opened (the Enclave's map called it the Lid; see `lantern` on the far side). No wildlife (airless moon: no herds, packs ×0, one open spawn with no nest); a long grace. Hooks: `relay-read` at `relay-mast`, `the-door` at `far-door`, `sela-sky` on landing, `engram-hello` on leaving. Expedition: a light lander (700 alloys, 3 drones, 4 Rovers, 2 Tanks, an Engineer) for the relay grid's sentinels.",
   "body": "sela",
   "size": 320,
   "detail": 3.5,
@@ -454,5 +454,26 @@
       "isotopes": 700
     }
   ],
-  "herds": []
+  "herds": [],
+  "expedition": [
+    {
+      "alloys": 700,
+      "isotopes": 40,
+      "drones": 3,
+      "units": [
+        {
+          "unit": "rover",
+          "count": 4
+        },
+        {
+          "unit": "tank",
+          "count": 2
+        },
+        {
+          "unit": "engineer",
+          "count": 1
+        }
+      ]
+    }
+  ]
 }

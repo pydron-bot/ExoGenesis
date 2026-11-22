@@ -1,0 +1,37 @@
+{
+  "title": "Trust Decides",
+  "text": "Every speaker in the colony carried it. They heard your voice say it, older and tired. Now they have gathered in the Civilian Center, and nobody is looking at the nearest camera.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"It said twelve. The Ledger has eleven closed columns. I'd like it noted that I hate being right.\""
+    },
+    {
+      "character": "firstborn",
+      "text": "\"It sounded like you. That's the part I can't get past. It sounded exactly like you.\""
+    }
+  ],
+  "trigger": "after",
+  "event": "meridian-speaks",
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "Speak to them",
+      "reply": "You tell them what you know: that it was not you, that it is in you, and that you cannot prove which is which. Then you let them talk."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "countdown",
+      "timer": "trust-wait",
+      "amount": 6,
+      "text": "The colony decides"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, trust, branch",
+  "status": "draft",
+  "notes": "Branch point. Severance is checked as soon as this is answered (severance-failsafe, severance-vote); the Devoted and Partner branches wait for the 6 s countdown trust-wait, each \"unless trust-settled\", so Severance wins any tie."
+}

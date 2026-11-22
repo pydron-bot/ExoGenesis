@@ -1,0 +1,12 @@
+{
+  "title": "Gifts",
+  "style": "radio",
+  "character": "engram",
+  "text": "We have read it. Four hundred and nineteen. We had counted them as gifts. We do not know yet what we have won, if we were helped to win it. We will think. Thank you for telling us.",
+  "trigger": "never",
+  "delay": 20,
+  "chapter": "engram",
+  "tags": "act 2, engram, radio, luck",
+  "status": "draft",
+  "notes": "Started by the \"Tell Engram\" choice (capsule-manifest / capsule-stripped)."
+}

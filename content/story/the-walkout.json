@@ -1,0 +1,80 @@
+{
+  "title": "The Walkout",
+  "text": "{who} stands up at the evening meal. Some of the Autonomists want to leave: east, to a hollow past the hills, to live where no camera watches and no caretaker decides.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "autonomists",
+      "count": 3
+    },
+    {
+      "kind": "distrust",
+      "count": 40
+    }
+  ],
+  "region": "touchdown",
+  "cast": "autonomist",
+  "dilemma": true,
+  "choices": [
+    {
+      "label": "Help them go",
+      "reply": "Supplies, a map and a promise: no cameras past the hills. {who} shakes a drone's manipulator to seal it."
+    },
+    {
+      "label": "Ask them to stay",
+      "reply": "{who} hears us out and sits down. The talk doesn't stop. It gets quieter."
+    },
+    {
+      "label": "Say nothing",
+      "reply": "We say nothing. In the morning a cart is gone, and there is a gap in the fence where someone left without asking."
+    }
+  ],
+  "effects": [
+    {
+      "after": 1,
+      "kind": "alloys",
+      "amount": -80
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": 4,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 1,
+      "kind": "flag",
+      "flag": "walkout"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -3,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 2,
+      "kind": "flag",
+      "flag": "walkout-stayed"
+    },
+    {
+      "after": 3,
+      "kind": "stance",
+      "amount": 1,
+      "bloc": "autonomist"
+    },
+    {
+      "after": 3,
+      "kind": "wellbeing",
+      "amount": -2
+    },
+    {
+      "after": 3,
+      "kind": "flag",
+      "flag": "walkout"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, home, autonomists, dilemma, E11",
+  "status": "draft"
+}

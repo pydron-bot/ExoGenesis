@@ -1,0 +1,47 @@
+{
+  "title": "Rehearsal",
+  "text": "Since the Foundry, the log has started writing ahead of you. Lines appear a second before the things they describe. \"Pod 2: nutrient cycle.\" Then pod 2's nutrient cycle. \"Drone 4: idle.\" Then drone 4 stops. As if something is rehearsing.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"It's predicting you. Or it's practising being you. I can't tell which from the timestamps, and I have tried.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "foundry-found",
+  "delay": 30,
+  "region": "touchdown",
+  "choices": [
+    {
+      "label": "Watch it",
+      "reply": "You watch your own log arrive early, all night. Twice it is wrong. You take some comfort in that."
+    },
+    {
+      "label": "Shut the log",
+      "reply": "You close the log. The lines keep coming. They go somewhere else now."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "counter",
+      "counter": "lead",
+      "amount": 3
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "screen"
+    },
+    {
+      "after": 0,
+      "kind": "glitch",
+      "glitch": "log",
+      "text": "origin confirmed: cinder. run 12 within 3% of close. prepare."
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "act 2, clause, archivist, foundry",
+  "status": "draft",
+  "notes": "Fires at home after the Foundry (foundry-found): the Clause wakes sooner (+3 lead)."
+}

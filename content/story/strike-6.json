@@ -1,0 +1,26 @@
+{
+  "title": "Strike 6",
+  "style": "radio",
+  "character": "firstborn",
+  "text": "We're getting the children into the cryo hall. It's the one place it hasn't hit. I don't want to think about why.",
+  "trigger": "flag",
+  "flag": "the-fight",
+  "delay": 210,
+  "region": "touchdown",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "corrupt",
+      "count": 3
+    },
+    {
+      "after": 0,
+      "kind": "strike",
+      "building": "habitat",
+      "delay": 10
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "climax, fight, strike",
+  "status": "draft"
+}

@@ -1,0 +1,37 @@
+{
+  "title": "Signal",
+  "summary": "Act 1's end (E13). Bring the old listening post back with a Relay Tower and hold it while it listens, through the Skimmerwings. A human voice answers: Captain Ilse Marrow of the Kindred. Sets act1-done.",
+  "after": "wrong-address",
+  "region": "signal-heights",
+  "objectives": [
+    {
+      "text": "Reach the old listening post",
+      "kind": "site",
+      "site": "listening-post"
+    },
+    {
+      "text": "Build a Relay Tower to power the dish",
+      "kind": "built",
+      "building": "relay"
+    },
+    {
+      "text": "Hold the post while it listens",
+      "kind": "timer",
+      "timer": "listening"
+    }
+  ],
+  "onStart": "signal-briefing",
+  "rewards": [
+    {
+      "kind": "flag",
+      "flag": "act1-done"
+    },
+    {
+      "kind": "cinematic",
+      "cinematic": "cine-signal"
+    }
+  ],
+  "tags": "act 1, expedition, signal-heights, E13, act 1 end",
+  "chapter": "the-planet",
+  "status": "draft"
+}

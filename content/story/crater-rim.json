@@ -1,0 +1,34 @@
+{
+  "title": "Looking In",
+  "text": "From the rim the layers are easy to count: terraces of foundation, each in our interlock, each capped with the same thin band of glassy ash. The drones count down from the rim to the floor. Eleven.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"The Vell sing about eleven fires. I thought it was a song.\""
+    }
+  ],
+  "trigger": "site",
+  "site": "crater-rim",
+  "region": "deep-layer",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "layers-counted"
+    },
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "crater-rim"
+    },
+    {
+      "after": 0,
+      "kind": "waypoint",
+      "site": "oldest-layer",
+      "text": "The oldest layer"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, deep-layer, survivors, optional, layers",
+  "status": "draft"
+}

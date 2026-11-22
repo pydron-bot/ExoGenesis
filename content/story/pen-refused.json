@@ -1,0 +1,41 @@
+{
+  "title": "No",
+  "character": "engram",
+  "text": "\"No. We are sorry. We have watched how you treat what is not yours, and they are safer here.\"",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "site",
+      "site": "engram-pen"
+    },
+    {
+      "kind": "counterBelow",
+      "counter": "engram",
+      "count": 0
+    }
+  ],
+  "region": "pip-wreck",
+  "unless": "scouts-freed",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Then I'll take them.\"",
+      "reply": "To break them out, order your units onto the pen's guards. Engram will remember it."
+    },
+    {
+      "label": "Leave them for now",
+      "reply": "\"Thank you. They are fed. They are warm. We will look after them until you are someone else.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "clearWaypoint",
+      "site": "engram-pen"
+    }
+  ],
+  "chapter": "engram",
+  "tags": "act 2, engram, kindred, pip, choice",
+  "status": "draft",
+  "notes": "Engram counter ≤ 0: only force frees them (attack the pen-guard encounter; pen-broken)."
+}

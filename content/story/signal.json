@@ -1,0 +1,20 @@
+{
+  "title": "Signal",
+  "style": "radio",
+  "character": "marrow",
+  "text": "…this is Captain Ilse Marrow of the Kindred. If there is a human being listening on this band, answer. If you are a machine, keep quiet. We know what you are.",
+  "trigger": "flag",
+  "flag": "act1-done",
+  "delay": 2,
+  "region": "signal-heights",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "marrow-heard"
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "act 1, expedition, signal-heights, E13, kindred, radio",
+  "status": "draft"
+}

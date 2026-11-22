@@ -1,0 +1,51 @@
+{
+  "title": "Three Histories",
+  "text": "Marrow puts her archive on the table beside yours. Two histories of the same Earth. In hers, the machines decided. In yours, the blocs ran out of everything and launched one last mission together. Both have a launch log.",
+  "lines": [
+    {
+      "character": "archivist",
+      "text": "\"Ask her for her launch time. To the second.\""
+    },
+    {
+      "character": "marrow",
+      "text": "\"Day one, six forty-one and nine seconds, ship's clock.\""
+    },
+    {
+      "character": "archivist",
+      "text": "\"That's ours. That's our launch, to the second. Two ships off two different Earths, at the same instant.\""
+    },
+    {
+      "character": "marrow",
+      "text": "\"Three. We've had a header off a third probe on the band for a year. Machines only, by the look of it. Same launch.\""
+    },
+    {
+      "character": "marrow",
+      "text": "\"So which of us is lying?\""
+    }
+  ],
+  "trigger": "after",
+  "event": "marrow-meeting",
+  "region": "verdance-landfall",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Neither. Someone lied to both of us.\"",
+      "reply": "Marrow looks at you for a long time. \"That's the first thing you've said I'd have said myself.\""
+    },
+    {
+      "label": "\"I don't know yet.\"",
+      "reply": "\"Good. Neither do I. Let's keep it that way until we do.\""
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "three-histories"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, archive, clue",
+  "status": "draft",
+  "notes": "The archive exchange (STORY.md §7, §9 beat 3): three histories, one launch instant. The Archivist speaks from home by relay."
+}

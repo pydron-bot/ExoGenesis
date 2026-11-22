@@ -1,0 +1,19 @@
+{
+  "title": "That's Your Answer",
+  "style": "radio",
+  "character": "marrow",
+  "text": "That's your answer, then. I'd hoped it would be a different one. Don't come back.",
+  "trigger": "flag",
+  "flag": "kindred-attacked",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "kindred-hostile"
+    }
+  ],
+  "chapter": "kindred",
+  "tags": "act 2, kindred, radio, marrow, hostile",
+  "status": "draft",
+  "notes": "Any region (Verdance or Dunmore): the engine sets kindred-attacked when the player attacks Kindred. kindred-hostile turns Kindred hostile on both regions and fails landfall / dustfall."
+}
