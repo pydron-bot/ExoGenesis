@@ -151,6 +151,7 @@ export class Autopilot {
   /** Per mission under way here: objectives met and when that last changed (seconds). */
   private progress = new Map<string, { n: number; at: number }>();
   private lastDefend = -1e9;
+  private lastCryo = -1e9;
   private extra = 0;
   private fightSince = -1;
   private offSince = -1;
@@ -1000,19 +1001,31 @@ export class Autopilot {
     }
   }
 
-  /** Assist: hostiles at a Command Core that is about to fall are sent away (once a minute at most). */
+  /**
+   * Assist: predators at a Command Core below half its strength are sent away and the next pack held back 4 minutes
+   * (every 45 s at most, 10 s below a quarter): wild ones only (not nests or relic guards, not a faction's units). And a
+   * cryo bank below the safe level (50%, where embryos start to die) is brought back to 75% (every 2 minutes at most).
+   */
   private defend() {
-    const sim = this.sim, s = sim.s, core = s.buildings.find((b) => b.kind === 'core');
-    if (!core || sim.secs - this.lastDefend < 60) return;
-    if (core.hp > (content.buildings.core?.hp ?? 2000) * 0.35) return;
-    // pack predators only (not nests or relic guards)
-    const near = s.hostiles.filter((h) => h.nest === undefined && s.packs.some((p) => p.id === h.pack) && Math.hypot(h.x - core.x, h.z - core.z) < 70);
+    const sim = this.sim, s = sim.s, core = s.buildings.find((b) => b.kind === 'core' && !b.team);
+    // the cryo bank about to fail (the colony's power gone under the packs): kept going (every 3 minutes at most)
+    // (embryos die below the people rules' safe level: it is kept above that)
+    const safe = content.people.cryoSafe ?? 50;
+    if (!s.expedition && s.people && s.cryo < safe && sim.secs - this.lastCryo > 120) {
+      this.say(`Autopilot assist: the cryo bank at ${Math.round(s.cryo)}% kept from failing (back to ${safe + 25}%)`);
+      s.cryo = safe + 25;
+      this.lastCryo = sim.secs;
+    }
+    const max = content.buildings.core?.hp ?? 2000;
+    // (sooner again when it's nearly gone)
+    if (!core || core.hp > max * 0.5 || sim.secs - this.lastDefend < (core.hp < max * 0.25 ? 10 : 45)) return;
+    const near = s.hostiles.filter((h) => h.nest === undefined && !h.relic && Math.hypot(h.x - core.x, h.z - core.z) < 70);
     if (!near.length) return;
     s.hostiles = s.hostiles.filter((h) => !near.includes(h));
     for (const p of s.packs) p.alive = s.hostiles.filter((h) => h.pack === p.id).length;
-    s.waves.next = Math.max(s.waves.next, s.tick + 180 * HZ);
+    s.waves.next = Math.max(s.waves.next, s.tick + 240 * HZ);
     this.lastDefend = sim.secs;
-    this.say(`Autopilot assist: ${near.length} hostile${near.length > 1 ? 's' : ''} at the Command Core sent away; the next pack held back 3 min`);
+    this.say(`Autopilot assist: ${near.length} hostile${near.length > 1 ? 's' : ''} at the Command Core sent away; the next pack held back 4 min`);
   }
 
   /** For the renderer: the caption and the places worth a look. */
