@@ -11,6 +11,8 @@ import { blocOf } from './people-types';
 const SOL = content.colony.solSeconds;
 
 export interface ConditionWorld {
+  /** The region being played. */
+  region: string;
   /** Story sites on the region being played. */
   sites: { id: string; x: number; z: number; r: number }[];
 }
@@ -77,6 +79,8 @@ export function conditionMet(sim: Sim, kind: Condition, c: ConditionDef, w: Cond
     case 'linesGone': return (s.people?.gone.length ?? 0) >= n;
     case 'regard': return (s.camps ?? []).some((x) => x.group === c.group && !x.gone && x.regard >= (c.count ?? 0));
     case 'regardBelow': return (s.camps ?? []).some((x) => x.group === c.group && x.met && !x.gone && x.regard <= (c.count ?? 0));
+    case 'here': return !!c.place && (c.place === w.region || sim.everywhere);
+    case 'visited': return !!c.place && (!!s.campaign?.visited.includes(c.place) || (sim.everywhere && c.place === w.region));
     case 'all': return !!c.of?.length && c.of.every((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'any': return !!c.of?.some((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'never': return false;

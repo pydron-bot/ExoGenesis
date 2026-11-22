@@ -1,0 +1,10 @@
+{
+  "name": "Orbital Launch",
+  "description": "A shuttle and the gantry to fly it from: unlocks the Launch Gantry, for routes to other worlds.",
+  "branch": "economy",
+  "requires": "isotope-cells",
+  "cost": 220,
+  "isotopes": 40,
+  "seconds": 90,
+  "order": 20
+}

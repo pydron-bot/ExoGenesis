@@ -847,3 +847,20 @@ body.placing:not(.menu-open) #hud > #place-hint.on { display: block; }
 }
 body.rts #over-chronicle { display: none; }
 #hud #over-chronicle { border: 1px solid var(--cyan); color: var(--cyan); margin-right: 6px; }
+
+/* ---------- campaign travel (main.ts travelTo, colony-hud.ts trips) ---------- */
+#goals-list li.away { opacity: 0.6; font-style: italic; }
+body.expedition #r-cryo, body.expedition #r-people, body.expedition #r-mood, body.expedition #r-food { display: none; }
+#card .grp.trips { display: flex; flex-wrap: wrap; gap: 4px; }
+#card .grp.trips button { flex: 1 1 100%; }
+#travel {
+  position: fixed; inset: 0; z-index: 60; background: #02060a; opacity: 0; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  transition: opacity 1.2s ease; font-family: var(--mono, ui-monospace, monospace); text-align: center; padding: 0 16px;
+}
+#travel.on { opacity: 1; pointer-events: auto; }
+#travel.now { transition: none; }
+#travel .tv-t { color: #fff; font-size: clamp(18px, 4vw, 30px); letter-spacing: 0.22em; text-transform: uppercase; transition: opacity 0.3s; }
+#travel .tv-s { color: var(--cyan, #5ff3ff); font-size: 12px; letter-spacing: 0.14em; opacity: 0.75; max-width: 560px; transition: opacity 0.3s; }
+#travel.swap .tv-t, #travel.swap .tv-s { opacity: 0; }
+body.travelling #hud { pointer-events: none; }

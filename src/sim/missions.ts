@@ -3,7 +3,10 @@
  * Owned by the Sim (src/sim/core.ts), checked once a second.
  *
  * A mission starts when the colony is deployed and the mission it follows (if
- * any) is done, in its region (if it names one). Objectives are conditions
+ * any) is done, and its region (if it names one) is being played, has been, or
+ * is on the campaign's routes. A mission set elsewhere stays under way while
+ * you play other regions (GOALS names its region): its objectives and fail
+ * conditions are only checked in its own region. Objectives are conditions
  * (src/sim/conditions.ts) and stay met once met, in any order. When all are met
  * the mission is done: its rewards run (story effects), its "when done" event
  * fires, and missions that follow it start.
@@ -15,7 +18,7 @@ import type { Sim } from './core';
 import { TICK_HZ, type MissionSnap, type MissionState } from './types';
 
 export class Missions {
-  constructor(private sim: Sim, private region: () => { id: string; sites: { id: string; x: number; z: number; r: number }[] }) {}
+  constructor(private sim: Sim) {}
 
   get s(): MissionState { return (this.sim.s.missions ??= { active: [], done: [], marks: {} }); }
 
@@ -50,12 +53,15 @@ export class Missions {
     }
     for (const id of [...m.active]) {
       const def = content.missions[id];
+      // set in another region: it waits there (campaign travel)
+      if (!this.sim.story.here(def.region)) continue;
+      const w = this.sim.story.world(def.region);
       // a fail condition met while it's under way: it fails (before any objective counts)
-      const fail = (def.fails ?? []).find((f) => conditionMet(this.sim, f.kind, f, { sites: this.region().sites }));
+      const fail = (def.fails ?? []).find((f) => conditionMet(this.sim, f.kind, f, w));
       if (fail) { this.fail(id, fail.text, quiet); changed = true; continue; }
       const marks = (m.marks[id] ??= []);
       def.objectives.forEach((o, i) => {
-        if (marks.includes(i) || !conditionMet(this.sim, o.kind, o, { sites: this.region().sites })) return;
+        if (marks.includes(i) || !conditionMet(this.sim, o.kind, o, w)) return;
         marks.push(i);
         changed = true;
         if (!quiet) this.sim.emit(`✓ ${o.text}`, 'info', 'objective');
@@ -93,7 +99,11 @@ export class Missions {
 
   private ready(id: string, def: MissionDef) {
     if (!this.sim.deployed) return false;
-    if (def.region && def.region !== this.region().id) return false;
+    if (def.region && !this.sim.story.here(def.region)) {
+      // elsewhere: only once the campaign can get there
+      const c = this.sim.s.campaign;
+      if (!c || !(c.routes.includes(def.region) || c.visited.includes(def.region))) return false;
+    }
     if (this.s.failed?.includes(id)) return false;
     return !def.after || this.s.done.includes(def.after);
   }

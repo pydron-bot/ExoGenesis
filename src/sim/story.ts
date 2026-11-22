@@ -40,6 +40,14 @@ export class Story {
 
   has(flag: string) { return this.s.flags.includes(flag); }
 
+  /** Is this region (empty = any) the one being played? A headless playthrough counts every region as here. */
+  here(region?: string) { return !region || this.sim.everywhere || region === this.region().id; }
+  /** What a trigger or objective set in `region` sees: the region being played and its story sites. */
+  world(region?: string) {
+    const r = this.region();
+    return { region: r.id, sites: this.sim.everywhere && region && region !== r.id ? content.regions[region]?.sites ?? [] : r.sites };
+  }
+
   step() {
     const sim = this.sim, st = this.s;
     // delayed events whose time has come
@@ -66,10 +74,19 @@ export class Story {
       st.fired = st.fired.filter((x) => x !== a.id);
       st.answered = st.answered.filter((x) => x !== a.id);
     }
+    // events and cinematics started elsewhere whose region this is
+    if (st.away?.length) for (const id of [...st.away]) {
+      const cine = id.startsWith('cine:'), key = cine ? id.slice(5) : id;
+      const region = cine ? content.cinematics[key]?.region : content.story[key]?.region;
+      if (!(cine ? content.cinematics[key] : content.story[key])) { st.away = st.away.filter((x) => x !== id); continue; }
+      if (!this.here(region)) continue;
+      st.away = st.away.filter((x) => x !== id);
+      if (cine) this.playCine(key); else this.fire(key);
+    }
     let dilemma = this.dilemmaOk();
     for (const [id, ev] of Object.entries(content.story)) {
       if (st.fired.includes(id) || st.timers.some((t) => t.id === id)) continue;
-      if (ev.region && ev.region !== this.region().id) continue;
+      if (!this.here(ev.region) || st.away?.includes(id)) continue;
       if (ev.unless && this.has(ev.unless)) continue;
       if (ev.dilemma && !dilemma) continue;
       if (!this.met(ev)) continue;
@@ -80,9 +97,9 @@ export class Story {
     }
     for (const [id, cd] of Object.entries(content.cinematics)) {
       if (cd.scene === 'landing' || cd.trigger === 'never' || st.cines?.includes(id)) continue;
-      if (cd.region && cd.region !== this.region().id) continue;
+      if (!this.here(cd.region)) continue;
       if (cd.unless && this.has(cd.unless)) continue;
-      if (!conditionMet(sim, cd.trigger, cd, { sites: this.region().sites })) continue;
+      if (!conditionMet(sim, cd.trigger, cd, this.world(cd.region))) continue;
       (st.cines ??= []).push(id);
       this.playCine(id);
     }
@@ -104,6 +121,8 @@ export class Story {
   playCine(id: string) {
     const cd = content.cinematics[id], st = this.s;
     if (!cd || cd.scene === 'landing' || st.cineQueue?.includes(id)) return;
+    // a cinematic set somewhere else plays when that region is played
+    if (!this.here(cd.region)) { if (!(st.away ??= []).includes(`cine:${id}`)) st.away.push(`cine:${id}`); return; }
     (st.cineQueue ??= []).push(id);
   }
 
@@ -115,13 +134,15 @@ export class Story {
 
   /** Is the event's trigger satisfied right now? */
   private met(ev: StoryDef): boolean {
-    return conditionMet(this.sim, ev.trigger, ev, { sites: this.region().sites });
+    return conditionMet(this.sim, ev.trigger, ev, this.world(ev.region));
   }
 
   /** Fire an event now (its trigger met, an `event` effect, or a debug command). */
   fire(id: string) {
     const ev = content.story[id], st = this.s;
     if (!ev || st.fired.includes(id)) return;
+    // an event set somewhere else (a mission's briefing, an `event` effect) waits until that region is played
+    if (!this.here(ev.region)) { if (!(st.away ??= []).includes(id)) st.away.push(id); return; }
     st.fired.push(id);
     if (ev.cast) {
       const c = this.sim.s.people ? this.sim.people.castFor(ev.cast) : undefined;
@@ -229,6 +250,15 @@ export class Story {
       case 'hint': st.hint = { target: e.target ?? 'build', building: e.building, text: e.text ? this.fill(e.text) : '', n: (st.hint?.n ?? 0) + 1 }; break;
       case 'unhint': if (st.hint) st.hint = null; break;
       case 'cinematic': if (e.cinematic) this.playCine(e.cinematic); break;
+      case 'travel': if (e.region && content.regions[e.region] && s.campaign && e.region !== this.region().id) s.travel = e.region; break;
+      case 'route': {
+        const c = s.campaign;
+        if (!c || !e.region || !content.regions[e.region] || c.routes.includes(e.region)) break;
+        c.routes.push(e.region);
+        sim.emit(`New route: ${content.regions[e.region].name}`, 'info', 'message');
+        break;
+      }
+      case 'unroute': if (s.campaign && e.region) s.campaign.routes = s.campaign.routes.filter((x) => x !== e.region); break;
       case 'win': sim.end('won', e.text ? this.fill(e.text) : ''); break;
       case 'fail': sim.end('story', e.text ? this.fill(e.text) : ''); break;
     }
@@ -269,7 +299,8 @@ export class Story {
     return t;
   }
   private firstName() {
-    return this.sim.s.people ? this.sim.people.first()?.name.split(' ')[0] : undefined;
+    // away from home (no colonists here) the campaign remembers the Firstborn
+    return (this.sim.s.people ? this.sim.people.first()?.name : undefined)?.split(' ')[0] ?? this.sim.s.campaign?.first?.name.split(' ')[0];
   }
   /** Who is talking on an event (its character's name, or its speaker). */
   private who(ev: StoryDef) {

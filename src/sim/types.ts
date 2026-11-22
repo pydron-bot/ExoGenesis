@@ -304,6 +304,21 @@ export interface StoryState {
   cast?: Record<string, { id: number; name: string; line: string }>;
   /** Dilemmas that can come again, and the tick they re-arm. */
   again?: { id: string; at: number }[];
+  /** Events (and `cine:<id>` cinematics) started while their region wasn't being played: they fire there (campaign travel). */
+  away?: string[];
+}
+
+/**
+ * Campaign travel (STORY.md §13, src/sim/campaign.ts): where the campaign has been and where it can go. Shared by
+ * every region, with the story, missions and research (`SharedState`).
+ */
+export interface CampaignInfo {
+  /** Regions played at least once (the one being played included). */
+  visited: string[];
+  /** Regions the player can travel to (`route` effects). */
+  routes: string[];
+  /** The first pod-born colonist (the Firstborn), for {first} away from home. */
+  first?: { id: number; name: string };
 }
 
 /** Missions (content/missions): which are under way, done, and which objectives are met. */
@@ -447,6 +462,12 @@ export interface SimState {
   players?: PlayerState[];
   /** Skirmish rules (absent in the campaign). */
   skirmish?: { fog: boolean; packs: boolean; unitCap?: number };
+  /** Campaign travel: visited regions and routes (absent in a skirmish; older saves start one). */
+  campaign?: CampaignInfo;
+  /** An expedition without colonists: no cryo bank, people or pods here (a region's `expedition`). */
+  expedition?: boolean;
+  /** A `travel` effect asked to go to this region (the renderer saves and goes). */
+  travel?: string;
 }
 
 /** How a skirmish starts (Sim.newSkirmish). */
@@ -539,7 +560,9 @@ export type Command =
   /** The player opened a part of the HUD (tutorial `opened` conditions): 'build', 'people', 'select:solar'… */
   | { type: 'ui'; what: string }
   /** The story inspector (play tests): set or clear a flag, change a counter, finish an objective or mission, jump the clock, end a countdown. */
-  | { type: 'inspect'; flag?: string; unflag?: string; counter?: { id: string; value: number }; objective?: { mission: string; index: number }; finish?: string; fail?: string; skip?: number; expire?: string; unlock?: string }
+  | { type: 'inspect'; flag?: string; unflag?: string; counter?: { id: string; value: number }; objective?: { mission: string; index: number }; finish?: string; fail?: string; skip?: number; expire?: string; unlock?: string; route?: string; unroute?: string }
+  /** Campaign travel: forget a travel request (a play test can't travel). */
+  | { type: 'travelled' }
   /** First contact with an inhabitant camp: the player's answer. */
   | { type: 'contact'; camp: number; choice: ContactChoice }
   /** A holding's standing order (the frontier). */
@@ -560,7 +583,7 @@ export interface PlaySetup { sol?: number; alloys?: number; isotopes?: number; c
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
-  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef }; skirmish?: SkirmishSetup }
+  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef }; skirmish?: SkirmishSetup; shared?: import('./campaign').SharedState }
   | { type: 'cmd'; cmd: Command; team?: number }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }
@@ -570,7 +593,9 @@ export type ToWorker =
   | { type: 'content'; patch: Record<string, Record<string, unknown>> }
   /** Autosave to IndexedDB every few seconds while on; `flush` saves right now. */
   | { type: 'autosave'; on: boolean }
-  | { type: 'flush' };
+  | { type: 'flush' }
+  /** Campaign travel: save this region and make `to` the campaign's current region; answered with 'travelled'. */
+  | { type: 'travel'; to: string };
 
 export interface DroneSnap {
   id: number; x: number; z: number; heading: number; tx: number; tz: number;
@@ -657,6 +682,8 @@ export interface Snapshot {
   /** Story cards waiting (ids, oldest first) and flags set. */
   /** `first`: the first pod-born colonist's name, for {first} in story text. */
   story: StorySnap;
+  /** Campaign travel (absent in a skirmish): the region being played, home, visited, routes, a travel asked for. */
+  campaign?: { here: string; home: string; visited: string[]; routes: string[]; travel?: string; expedition: boolean };
   /** Inhabitant camps (structures show once explored). */
   camps: CampSnap[];
   /** Inhabitants in sight: x, z, heading, camp index, elder (1/0) per person. */
@@ -699,5 +726,6 @@ export type EventCue = 'placed' | 'online' | 'unitReady' | 'droneReady' | 'packC
 export type FromWorker =
   | Snapshot
   | { type: 'saved'; reqId: number; state: SimState }
+  | { type: 'travelled'; to: string; ok: boolean }
   /** `at`: where it happened (the minimap pings it; the log line jumps the camera there). */
   | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue; at?: { x: number; z: number } };

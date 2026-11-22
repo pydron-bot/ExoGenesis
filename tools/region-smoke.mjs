@@ -74,7 +74,7 @@ await page.evaluate(() => __exo.sim.flush());
 await page.waitForTimeout(1500);
 const autoBefore = await page.evaluate(() => new Promise((res) => {
   const r = indexedDB.open('exogenesis', 1);
-  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
+  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('region:touchdown'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
 }));
 check(autoBefore?.region === 'touchdown', 'Touchdown autosave written with its region');
 const tdWet = await page.evaluate(() => {
@@ -99,7 +99,7 @@ check(saved.region === 'farside', 'preview game state carries the draft region')
 await page.waitForTimeout(11000); // past an autosave interval
 const autoAfter = await page.evaluate(() => new Promise((res) => {
   const r = indexedDB.open('exogenesis', 1);
-  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
+  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('region:touchdown'); g.onsuccess = () => res(g.result?.sim ? { region: g.result.sim.region, seed: g.result.sim.seed } : null); };
 }));
 check(autoAfter?.region === 'touchdown' && autoAfter.seed === autoBefore.seed, 'play test leaves the real autosave alone');
 
@@ -121,7 +121,7 @@ check(wt?.detail === true, 'detailed water by default on desktop');
 // a Touchdown save refuses to load in another region
 const tdState = await page.evaluate(() => new Promise((res) => {
   const r = indexedDB.open('exogenesis', 1);
-  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('auto'); g.onsuccess = () => res(g.result.sim); };
+  r.onsuccess = () => { const g = r.result.transaction('saves').objectStore('saves').get('region:touchdown'); g.onsuccess = () => res(g.result.sim); };
 }));
 const logBefore = await page.textContent('#log').catch(() => '');
 await page.evaluate((st) => __exo.sim.load(st), tdState);

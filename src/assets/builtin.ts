@@ -4,7 +4,7 @@
  * Editor only.
  */
 import * as THREE from 'three';
-import { buildBattery, buildCannon, buildCore, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPrinter, buildPointDefense, buildRadar, buildBay, buildCivic, buildFarm, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
+import { buildBattery, buildCannon, buildCore, buildDeposit, buildDepot, buildDrone, buildGate, buildGeothermal, buildPrinter, buildPointDefense, buildRadar, buildBay, buildLaunchGantry, buildCivic, buildFarm, buildRepairPad, buildScaffold, buildSolar, buildTurret, buildVent, buildWall } from '../world/region';
 import { ARCHETYPES, Mesher, floraMaterial, mulberry, palette } from '../world/flora';
 import { BODY_PLAN_NAMES, buildCreatureLook, creatureMaterial } from '../world/fauna-models';
 import { STANDINS } from '../world/inhabitant-models';
@@ -47,6 +47,7 @@ export const BUILTINS: Builtin[] = [
   { id: 'battery', name: 'Battery Bank', group: 'Buildings', where: 'src/world/region.ts buildBattery()', usedBy: { coll: 'buildings', id: 'battery' }, swappable: true, build: buildBattery },
   { id: 'turret', name: 'Defense Turret', group: 'Buildings', where: 'src/world/region.ts buildTurret()', usedBy: { coll: 'buildings', id: 'turret' }, swappable: true, note: 'An asset model won\'t aim: the built-in turns its "head" part toward targets.', build: buildTurret },
   { id: 'radar', name: 'Radar', group: 'Buildings', where: 'src/world/region.ts buildRadar()', usedBy: { coll: 'buildings', id: 'radar' }, swappable: true, note: 'An asset model won\'t spin: the built-in turns its "dish" part.', build: buildRadar },
+  { id: 'launch-gantry', name: 'Launch Gantry', group: 'Buildings', where: 'src/world/region.ts buildLaunchGantry()', usedBy: { coll: 'buildings', id: 'launch-gantry' }, swappable: true, build: buildLaunchGantry },
   { id: 'bay', name: 'Vehicle Bay', group: 'Buildings', where: 'src/world/region.ts buildBay()', usedBy: { coll: 'buildings', id: 'bay' }, swappable: true, note: 'Units roll out of the door side (−Z).', build: buildBay },
   { id: 'cannon', name: 'Siege Cannon', group: 'Buildings', where: 'src/world/region.ts buildCannon()', usedBy: { coll: 'buildings', id: 'cannon' }, swappable: true, note: 'An asset model won\'t aim: the built-in turns its "head" part.', build: buildCannon },
   { id: 'pointdefense', name: 'Point Defense', group: 'Buildings', where: 'src/world/region.ts buildPointDefense()', usedBy: { coll: 'buildings', id: 'pointdefense' }, swappable: true, note: 'An asset model won\'t aim: the built-in turns its "head" part.', build: buildPointDefense },

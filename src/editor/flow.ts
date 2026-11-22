@@ -54,6 +54,9 @@ export function effectShort(e: Partial<EffectDef>): string {
     case 'win': return 'WIN';
     case 'fail': return 'LOSE';
     case 'cinematic': return `play ${e.cinematic ?? '?'}`;
+    case 'travel': return `travel to ${e.region ?? '?'}`;
+    case 'route': return `route to ${e.region ?? '?'}`;
+    case 'unroute': return `no route to ${e.region ?? '?'}`;
     case undefined: return '?';
     default: return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace(/ \(.*\)/, '').replace('the Group', e.group ?? '?').replace('the Flag', `flag ${e.flag ?? '?'}`).replace('the Event', e.event ?? '?');
   }
@@ -202,6 +205,8 @@ export function condText(kind: Condition, c: ConditionDef): string {
     case 'linesGone': return `${pl(n, 'line')} gone`;
     case 'regard': return `${c.group ?? '?'} regard ≥ ${c.count ?? 0}`;
     case 'regardBelow': return `${c.group ?? '?'} regard ≤ ${c.count ?? 0}`;
+    case 'here': return `playing ${c.place ?? '?'}`;
+    case 'visited': return `been to ${c.place ?? '?'}`;
     case 'all': case 'any': return (c.of ?? []).map((x) => `${x.not ? 'not ' : ''}${condText(x.kind as Condition, x as ConditionDef)}`).join(kind === 'all' ? ' and ' : ' or ') || `(empty ${kind} group)`;
     case 'never': return 'only when started';
   }

@@ -4,7 +4,7 @@
  * sends commands. Updated a few times a second, not every frame.
  */
 import type { ZoomCamera } from './camera';
-import type { BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, ResearchDef, StoryDef, UnitDef } from './content/defs';
+import type { BodyDef, BuildingDef, ColonyRules, InhabitantDef, MissionDef, PeopleRules, RegionDef, ResearchDef, StoryDef, UnitDef } from './content/defs';
 import { ContactCard } from './contact-card';
 import { PeopleHud } from './people-hud';
 import { ResearchHud } from './research-hud';
@@ -24,6 +24,11 @@ interface HudDeps {
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
   missions: Record<string, MissionDef>;
+  /** Campaign travel: regions and the worlds they're on (route lists, GOALS naming another region). */
+  regions?: Record<string, RegionDef>;
+  bodies?: Record<string, BodyDef>;
+  /** Campaign travel: save this region and go to that one. */
+  travel?(region: string): void;
   rules: ColonyRules;
   people: PeopleRules;
   ui: RegionUi;
@@ -62,6 +67,8 @@ export class ColonyHud {
   private last = 0;
   /** Recycle asks twice: the building armed, and until when (performance.now ms). */
   private recycleArmed = { id: -1, until: 0 };
+  /** Travel asks twice too: the region armed, and until when. */
+  private travelArmed = { region: '', until: 0 };
   /**
    * Radar as the HUD shows it. A radar that's short of power can flick on and
    * off from tick to tick; the minimap and pack timer ride through short drops
@@ -219,11 +226,15 @@ export class ColonyHud {
     const missions = m.active.map((a) => ({ a, def: this.d.missions[a.id] })).filter((x) => x.def);
     let head = 'GOALS', html = '';
     if (missions.length) {
-      head = missions.map((x) => x.def.title.toUpperCase()).join(' · ');
+      // a mission set in another region (campaign travel) says where: its objectives wait until you go
+      const here = s.campaign?.here;
+      const away = (def: MissionDef) => !!here && !!def.region && def.region !== here;
+      const place = (def: MissionDef) => (away(def) ? ` · ${(this.d.regions?.[def.region!]?.name ?? def.region!).toUpperCase()}` : '');
+      head = missions.map((x) => x.def.title.toUpperCase() + place(x.def)).join(' · ');
       let now = false;
       html = missions.map(({ a, def }) => def.objectives.map((o, i) => {
         const done = a.marks[i];
-        const cls = done ? 'done' : now ? '' : ((now = true), 'now');
+        const cls = done ? 'done' : away(def) ? 'away' : now ? '' : ((now = true), 'now');
         return `<li class="${cls}">${esc(o.text)}</li>`;
       }).join('')).join('');
     } else if (m.done.length) html = '<li class="done">All missions complete</li>';
@@ -401,11 +412,13 @@ export class ColonyHud {
       const pe = this.people.buildingRows(s, b, d);
       rows.push(...pe.rows);
       if (d.role === 'core') {
-        rows.push(['Cryo bank', `${s.people.embryos} embryos · ${s.cryo.toFixed(1)}%`]);
+        if (!s.campaign?.expedition) rows.push(['Cryo bank', `${s.people.embryos} embryos · ${s.cryo.toFixed(1)}%`]);
         rows.push(['Drones', `${s.drones.length} / ${s.droneCap ?? this.d.rules.maxDrones}${s.fab.queued ? ` · fabricating ${Math.floor(s.fab.progress * 100)}%` : ''}`]);
       }
       const btn: string[] = [];
       if (d.role === 'core') btn.push(`<button data-act="fab" title="Fabricate a worker drone">+ Drone <small>${this.d.rules.droneCost}◆</small></button>`);
+      let trips = '';
+      if ((d.role === 'core' || (d.role === 'launch' && b.progress >= 1)) && s.campaign) trips = this.trips(s, d.role === 'launch');
       let queue = '';
       if (d.role === 'factory' && b.progress >= 1) {
         const q = b.queue ?? [];
@@ -455,11 +468,40 @@ export class ColonyHud {
       }
       html = `<div class="t">${esc(d.name.toUpperCase())}</div><div class="s ${cls}">${esc(st)}</div>
         <div class="hp"><i style="width:${Math.min(100, (b.hp / d.hp) * 100).toFixed(0)}%;background:${b.hp / d.hp > 0.6 ? '#5bff9a' : b.hp / d.hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
-        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${names}${queue}${lab}${pe.html}${orders}
+        ${rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}${names}${queue}${lab}${pe.html}${orders}${trips}
         <div class="grp">${btn.join('')}</div>`;
     }
     card.classList.add('on');
     if (html !== this.cardKey) { card.innerHTML = html; this.cardKey = html; }
+  }
+
+  /**
+   * Campaign travel from a building's card: the Command Core goes overland (regions on this world) and, on an
+   * expedition, home and anywhere on the routes (the expedition's own lander); a Launch Gantry flies off-world.
+   * Each asks twice.
+   */
+  private trips(s: Snapshot, gantry: boolean) {
+    const c = s.campaign!, R = this.d.regions ?? {};
+    const world = (id: string) => { const b = R[id]?.body; return b && this.d.bodies?.[b] ? b : 'home'; };
+    const worldName = (id: string) => (this.d.bodies?.[world(id)]?.name ?? 'Home').replace(/\b[A-Z]{2,}\b/g, (w) => w[0] + w.slice(1).toLowerCase());
+    const here = c.here, onHere = (id: string) => world(id) === world(here);
+    const away = here !== c.home;
+    const dest = c.routes.filter((id) => id !== here && id !== c.home && R[id]);
+    let go: string[], note = '';
+    if (gantry) go = dest.filter((id) => !onHere(id));
+    else if (away) go = [c.home, ...dest];
+    else {
+      go = dest.filter(onHere);
+      const off = dest.length - go.length;
+      if (off) note = `${off} route${off > 1 ? 's' : ''} off this world: from a Launch Gantry`;
+    }
+    if (!go.length && !note) return `<div class="h">${gantry ? 'LAUNCH' : 'TRAVEL'}</div><small class="help">${gantry ? 'No routes to other worlds yet.' : 'No routes yet.'}</small>`;
+    const armed = (id: string) => this.travelArmed.region === id && performance.now() < this.travelArmed.until;
+    const label = (id: string) => (id === c.home && away ? `Return to ${R[id]?.name ?? id}` : `${R[id]?.name ?? id}${onHere(id) ? '' : ` · ${worldName(id)}`}`);
+    const buttons = go.map((id) => armed(id)
+      ? `<button data-act="travel:${esc(id)}" class="armed" title="Save this region and go">Sure? Go to ${esc(R[id]?.name ?? id)}</button>`
+      : `<button data-act="travel:${esc(id)}" class="go" title="${esc(onHere(id) ? 'Overland' : 'By shuttle')}${c.visited.includes(id) ? ' · been there: its colony is as you left it' : ' · a new expedition'}">${esc(label(id))}</button>`);
+    return `<div class="h">${gantry ? 'LAUNCH' : 'TRAVEL'}</div><div class="grp trips">${buttons.join('')}</div>${note ? `<small class="help">${esc(note)}</small>` : ''}`;
   }
 
   /** One button per kind of selected unit with an ability: ready, on (seconds left) or cooling down. */
@@ -501,6 +543,14 @@ export class ColonyHud {
     }
     const b = this.cur.buildings.find((x) => x.id === sel.id);
     if (this.people.act(act, b)) { this.cardKey = ''; this.renderCard(this.cur); return; }
+    if (act.startsWith('travel:')) {
+      const id = act.slice(7);
+      if (this.travelArmed.region === id && performance.now() < this.travelArmed.until) { this.travelArmed = { region: '', until: 0 }; this.d.travel?.(id); }
+      else this.travelArmed = { region: id, until: performance.now() + 4000 };
+      this.cardKey = '';
+      this.renderCard(this.cur);
+      return;
+    }
     if (act === 'fab') this.d.command({ type: 'fab' });
     else if (b && act.startsWith('produce:')) this.d.command({ type: 'produce', id: b.id, unit: act.slice(8) });
     else if (b && act === 'unqueue') this.d.command({ type: 'unqueue', id: b.id });
@@ -645,7 +695,10 @@ export class ColonyHud {
       $('over-load').textContent = 'New skirmish';
       return;
     }
-    $('over-title').textContent = s.over === 'won' ? 'COLONY ENDURES' : 'COLONY LOST';
+    // an expedition lost: the campaign goes on at home
+    const lostAway = !!s.campaign && s.campaign.here !== s.campaign.home && s.over !== 'won';
+    $('over-restart').textContent = lostAway ? `Back to ${this.d.regions?.[s.campaign!.home]?.name ?? 'home'}` : 'New game';
+    $('over-title').textContent = s.over === 'won' ? 'COLONY ENDURES' : lostAway ? 'EXPEDITION LOST' : 'COLONY LOST';
     $('over-sub').textContent = s.over === 'won' || s.over === 'story' ? (s.overText || (s.over === 'won' ? 'You won through.' : 'The colony is lost.')) : s.over === 'core' ? 'The Command Core was destroyed.' : s.over === 'cryo' ? 'The cryo bank failed. The last embryos are gone, and no one is left to carry on.' : 'No colonists are left, and the cryo bank is empty.';
     const sol = Math.floor(s.secs / this.d.rules.solSeconds) + 1;
     $('over-stats').textContent = `Lasted ${mmss(s.secs)} (Sol ${sol}) · ${s.stats.kills} predators killed · ${s.stats.packsBeaten} packs beaten\n${Math.round(s.stats.mined)} alloys mined · ${s.stats.buildingsLost} buildings lost · ${s.stats.unitsLost ?? 0} units lost · missions ${s.missions?.done.length ?? 0}${s.planet ? ` · planet health ${Math.round(s.planet.health)}` : ''}${s.people ? `\n${s.people.stats.grown} grown · ${s.people.stats.births} born · ${s.people.stats.deaths} lost · ${s.people.stats.departed} left · ${s.people.embryos} embryos left` : ''}`;
