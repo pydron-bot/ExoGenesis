@@ -2,7 +2,7 @@
   "title": "Report sent",
   "style": "radio",
   "speaker": "Biosphere Report",
-  "text": "Biosphere Report sent. Planet health high. On every line the relay on Sela lets us see, ours beats Kindred's and Engram's.",
+  "text": "Biosphere Report sent. Planet health high. Since the Heights we listen for the moon's side of it, and tonight it answers: an acknowledgement, in our own packet format.",
   "trigger": "all",
   "of": [
     {

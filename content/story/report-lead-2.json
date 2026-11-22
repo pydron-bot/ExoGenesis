@@ -2,7 +2,7 @@
   "title": "Report sent",
   "style": "radio",
   "speaker": "Biosphere Report",
-  "text": "Biosphere Report sent. Ahead again. The relay acknowledged it faster than it used to.",
+  "text": "Biosphere Report sent. High again. The acknowledgement comes back faster than it used to.",
   "trigger": "all",
   "of": [
     {

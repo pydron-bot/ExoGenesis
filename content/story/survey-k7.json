@@ -2,7 +2,7 @@
   "title": "Comet K-7",
   "style": "radio",
   "character": "engram",
-  "text": "We see you on Cinder. We have a question you may be able to answer from there. Comet K-7 has the wrong tail. Its spectrum is refined isotope stock, not ice. We have tracked it for four hundred sols, and every perihelion it passes within a day of Cinder. We think it is somebody's larder.",
+  "text": "We see you on Cinder. We have a question you may be able to answer from there. Comet K-7 has the wrong tail. Its spectrum is refined isotope stock, not ice. We have tracked it since the night we landed, and every perihelion it passes within a day of Cinder. We think it is somebody's larder.",
   "trigger": "all",
   "of": [
     {

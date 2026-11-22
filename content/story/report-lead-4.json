@@ -2,7 +2,7 @@
   "title": "Report sent",
   "style": "radio",
   "speaker": "Biosphere Report",
-  "text": "Biosphere Report sent. Ahead. The margin field has started counting up.",
+  "text": "Biosphere Report sent. High. The number in that field has started counting up.",
   "trigger": "all",
   "of": [
     {

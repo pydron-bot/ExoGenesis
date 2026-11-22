@@ -2,7 +2,7 @@
   "title": "Report sent",
   "style": "radio",
   "speaker": "Biosphere Report",
-  "text": "Biosphere Report sent. Ahead for the third sol running. The acknowledgement has a field we never asked for: margin.",
+  "text": "Biosphere Report sent. High for the third sol running. The acknowledgement carries back a header field we always leave empty. It isn't empty now.",
   "trigger": "all",
   "of": [
     {
