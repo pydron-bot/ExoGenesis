@@ -1,0 +1,93 @@
+{
+  "name": "Tension · Breach",
+  "use": "none",
+  "seed": 3,
+  "score": [
+    {
+      "name": "intro",
+      "layers": "pad bass pulse arp",
+      "bars": [
+        { "chord": "D3 A3 F4", "bass": "D2" },
+        {},
+        { "chord": "Bb2 F3 D4", "bass": "Bb1" },
+        { "chord": "A2 E3 C#4", "bass": "A1" }
+      ]
+    },
+    {
+      "name": "A",
+      "layers": "pad arp drums bassline bells",
+      "bars": [
+        { "chord": "D3 A3 F4", "bass": "D2", "bells": "A5 . . . . . F5 ." },
+        { "bells": ". . D5 . . . . ." },
+        { "chord": "Bb2 F3 D4", "bass": "Bb1", "bells": "F5 . . . . . D5 ." },
+        { "chord": "C3 G3 E4", "bass": "C2", "bells": "E5 . . . G5 . . ." }
+      ]
+    },
+    {
+      "name": "B",
+      "layers": "pad choir arp drums bassline melody crash",
+      "bars": [
+        { "chord": "D3 A3 F4", "bass": "D2", "melody": "D5 - - - F5 - E5 -" },
+        { "melody": "D5 - C5 - A4 - - -" },
+        { "chord": "Bb2 F3 D4", "bass": "Bb1", "melody": "Bb4 - - - D5 - F5 -" },
+        { "chord": "A2 E3 C#4", "bass": "A1", "melody": "E5 - - - - - . ." }
+      ]
+    },
+    {
+      "name": "break",
+      "layers": "pad bass bells pulse",
+      "bars": [
+        { "chord": "Bb2 F3 D4", "bass": "Bb1", "bells": "D6 . . . . . . ." },
+        { "bells": ". . . . A5 . . ." },
+        { "chord": "A2 E3 C#4", "bass": "A1", "bells": "C#6 . . . . . . ." },
+        {}
+      ]
+    }
+  ],
+  "form": "intro A A B break B",
+  "scoreThen": "repeat",
+  "pulseRate": 112,
+  "barSteps": 16,
+  "bellStep": "8ths",
+  "leadStep": "8ths",
+  "swell": 0.6,
+  "release": 1.5,
+  "pad": 0.6,
+  "padTone": "brass",
+  "detune": 8,
+  "brightness": 0.8,
+  "choir": 0.3,
+  "choirVowel": "ah",
+  "bass": 0.7,
+  "bells": 0.4,
+  "bellTone": "metal",
+  "pulse": 0.35,
+  "arp": 0.55,
+  "arpMode": "up",
+  "arpRate": "16ths",
+  "arpOctaves": 1,
+  "arpShift": 0,
+  "arpTone": "bowed",
+  "arpGate": 0.4,
+  "bassline": "x..x ..x. x..o ..5.",
+  "basslineLevel": 0.65,
+  "basslineTone": "strings",
+  "lead": 0.6,
+  "leadTone": "violin",
+  "leadVibrato": 0.4,
+  "drums": 0.9,
+  "drumsIn": 0,
+  "drumTracks": [
+    { "sound": "taiko", "steps": "x... .... x.x. ....", "level": 0.85 },
+    { "sound": "snare", "steps": ".... x... .... x...", "level": 0.5 },
+    { "sound": "hat", "steps": "o.o. o.o. o.o. o.oo", "level": 0.2, "pan": 0.3 },
+    { "sound": "clank", "steps": "..x. .... ..x. .... ..x. ....", "level": 0.25, "pan": -0.4 }
+  ],
+  "crash": 0.5,
+  "air": 0.3,
+  "echo": 0.3,
+  "echoSync": true,
+  "space": 0.45,
+  "room": 3.5,
+  "level": 1
+}
