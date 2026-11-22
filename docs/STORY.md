@@ -531,3 +531,80 @@ any order; the Foundry opens when two are done; the climax when the Clause wakes
 | `clause` | — | The Clause's log lines | Your log format, wrong. Lower-case, numbers, no verbs of feeling |
 
 Existing: `director`, `firstborn`.
+
+## 19. Style sheet
+
+> Written 2026-11-22, after the line edit that joined the four writers' campaign into one voice. Check new
+> records against it; where a record and this sheet disagree, fix the record.
+
+### Canon numbers
+
+| Fact | Value |
+|---|---|
+| Runs | Eleven before this one; this is **run twelve** ("Run 12 open" at the Foundry; ACCORD 12, KINDRED 12, ENGRAM 12 on the berths) |
+| Hulls on Ash | **33** (11 × 3): six a row in three rows (18), two slumped into the pit (ACCORD 1 among them), thirteen under the ash to the west |
+| The Ledger | Eleven closed columns ("Purge complete, run closed."), the twelfth open (Accord 0.93, Kindred 0.58, Engram 0.79), a thirteenth ruled and empty |
+| The purge log | Sol 4,212, the first run; it is also column 01 of the Ledger. Runs last thousands of sols; ours is young |
+| Firmware lineage | **97.3%** match (every relic handshake, the Cycle ending) |
+| Launch | Day one, 06:41:09 ship's clock, all three probes on one instant from the Foundry's rail; the fabricated voyage log says **214 years** (characters round it to "two hundred") |
+| Teth to Sol | **Four years and three months** at the speed of light ("four years" in speech) |
+| Engram's parcels | The capsule Accord reads is **SUPPLY 0419**; the numbering runs on from earlier runs (Meridian's thumb is newly heavy, not new) |
+| Talus | CACHE 07, re-routed T−61 min ("an hour") before we landed |
+| Kindred's people | Three on Dunmore's survey team (Bede among them); four scouts on Pip, 312 days scratched on their bulkhead |
+| The cryo bank | A hundred and twenty lives (the Director); the Firstborn steps out at 16 and names you at 20 ("four years") |
+| The relay's carriers | Three, from Sela: Ash, Cinder, Teth. Vess is a routing entry ("LEDGER"), not a carrier |
+| The Enclave | Descends from the first run (the caretaker whose log is at the bottom of the Deep Layer); "longer than anyone can count" in the cut |
+
+### Names and how to write them
+
+- **Hearth**: the Vell's word, and the colonists' only after the Keeper's Song (`keeper-song`). Narration says Home;
+  the interface says HOME. Don't put Hearth in narration that can fire without `keeper-song`.
+- **Warden**: only the colony's name for you, only after `firstborn-names` (`named-warden`), and only in colonists'
+  mouths. Sefa's people had a *caretaker*. Meridian never uses a name for you, nor does the Clause.
+- **The Lantern**: unnamed until `trust-decides`, where the Archivist files it as the Lantern; before that it is
+  "the thing in the sky", "whatever burned them", "the door". **The Lid**: Sefa's people's word (the-lid); without
+  the Enclave the Archivist calls the seam "a lid" at the door.
+- **The Clause**: the Choir's code wall ("YOU HAVE FOUND THE CLAUSE") and Sefa are the only sources before the
+  climax. Its log lines are lower case, numbers, no verbs of feeling.
+- **Meridian**: never named before `meridian-speaks`. **The Ledger** may be unread at the climax (two of three
+  threads open the Foundry): climax text that every path sees mustn't lean on it.
+- **The Marro** (title; `the-marro` explains it's worn down from Marrow); "the song-keeper" before that.
+  **The white-hair star** (Vell) is **Comet Varro** (archive). **The Cantor** is capitalised, as a name.
+- Building and research names as the game spells them: Command Core, Launch Gantry, Civilian Center (a proper
+  name, so US spelling), Defense Turret, Sensor Mast, Relay Tower, Tech Lab, Biosphere Report. Common nouns stay
+  lower case: the cryo bank, a growth pod, the Gantry's card.
+
+### Voices
+
+- **Narration** is the colony's log. It says **we** for the colony and its expedition ("We pull back", "The
+  expedition stays") and **you** for the caretaker alone: its own key, its own log, its choices ("You open the
+  channel"). Never "I" outside quotes.
+- **Quotes**: straight double quotes for speech in person; radio and recordings (Marrow on the band, the
+  Archivist's survey notes, ENGRAM from Kora) are unquoted text on a card with a speaker. Single quotes inside
+  double for quoted words.
+- **ENGRAM**: "we", no contractions, courteous, precise. **Marrow**: clipped, says "machine", never "AI".
+  **Bede**: apologises. **The Cantor**: numbered capitals, four digits, a new hundred per scene (0001 the loop,
+  0101 the wall, 0201 the count, 0301 Vess, 0401 the Lantern). **Meridian**: your voice, older, patient; no name for you.
+  **The Archivist**: pedantic, "I'd like it noted", delighted and frightened by evidence. **Sefa**: wry, old,
+  afraid *for* you. Colonists say "the AI" until they have a name for you.
+- British spelling (colour, defence, favourite, towards, recognise), except game names (Civilian Center, Defense
+  Turret). Sols, not days, for colony time. Plain short sentences; at most one exclamation in a scene, and
+  usually none. Choice labels under about 40 characters; the reply carries the detail.
+- **Expedition Complete** cards: same title everywhere; each region's text and its "Return" reply are its own.
+  The "Stay a while" reply always tells you the Command Core (or its card) can take you home.
+
+### Who knows what, when
+
+| Knowledge | First source | Don't use before |
+|---|---|---|
+| The archive is too clean | `clean-signal` (30 colonists) | — |
+| Engineered fauna | `furrows` / `designer-marks` | Burrow Reach or Fauna Genomics |
+| Eleven fires, the white-hair star | Hearthsmoke (`eleven-fires`) or the Deep Layer's rim | — |
+| The Clause (name) | `code-wall` (Choir) or `the-enclave` | the climax may not assume it |
+| The report goes to the moon | `wrong-address` / `moon-watch` | Signal Heights |
+| Kindred, Marrow | `signal` (Act 1 end) | — |
+| Engram | `engram-hello` (first flight) or `three-histories` | Act 2 |
+| The relay, the margin field | `relay-read` (Sela) | the first flight |
+| Runs, twelve | `thirty-three` (Ash) or the Foundry's log | — |
+| The Lantern (name) | `trust-decides` | the climax |
+| Meridian (name) | `meridian-speaks` | the climax |
