@@ -11,9 +11,28 @@ export interface Release {
   date: string;
   title: string;
   notes: string[];
+  /**
+   * The Field Guide pages (content/guide/<id>.json) this release added or changed: each one's `updated` (or `since`)
+   * is this version. Required from 0.73.0 on (tools/guide-check.mjs): a feature lists at least one page; a patch that
+   * changes nothing a player needs to learn says `guide: []`. What's new links to them.
+   */
+  guide?: string[];
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '0.73.0',
+    date: '2026-11-23',
+    title: 'The Field Guide',
+    notes: [
+      'New: the Field Guide, a page on every part of the game (building, power and the night, defence, units, colonists, research, the story, travel, the factions and the interface). Open it from the game menu, the title screen or Controls; search it, and follow the See also links',
+      'Your first game starts with a short look around: each part of the screen in turn, with the game paused. Skip it, or watch it again from the top of the Field Guide',
+      'Tips: the first time something new comes up in play (your first night, the first pack), a small note offers the page on it. Read opens it, × puts it away, and each one comes once. Turn them off in Options → Field Guide tips',
+      'Show me on a page points at the part of the screen it is about',
+      'Pages new or changed since you last looked carry a NEW or UPDATED badge, and What\'s new links to the pages each release changed',
+    ],
+    guide: ['orientation'],
+  },
   {
     version: '0.72.0',
     date: '2026-11-23',

@@ -1,0 +1,12 @@
+{
+  "title": "Power and the night",
+  "section": "power",
+  "order": 0,
+  "summary": "Solar works by day; batteries carry you through the night. The cryo bank comes first.",
+  "text": "Every building draws power, and the **cryo bank** draws it before anything else. The ⚡ readout shows what you make against what you use.\n\n**Solar Arrays** make power by day only: at night they give a trickle. Store the day's spare power in **Batteries** (🔋) to get through the dark.\n\n- Build a Battery before your first night\n- Geothermal Plants on a vent give steady power, day and night\n- When the batteries run dry, buildings brown out: guns stop and the cryo bank loses integrity",
+  "points": "energy",
+  "trigger": "time",
+  "sol": 1.6,
+  "see": "orientation, defence",
+  "since": "0.73.0"
+}

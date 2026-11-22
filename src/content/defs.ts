@@ -843,11 +843,12 @@ export const pageShape = {
   text: str({ label: 'Text', multiline: true, help: '{first} is the first colonist\'s name.' }),
 } satisfies Shape;
 /** Where a hint can point. */
-export const HINT_TARGETS = ['build', 'buildItem', 'goals', 'minimap', 'alloys', 'energy', 'battery', 'cryo', 'clock', 'threat', 'army', 'people', 'mood', 'food', 'pause', 'fast'] as const;
+export const HINT_TARGETS = ['build', 'buildItem', 'goals', 'minimap', 'alloys', 'energy', 'battery', 'cryo', 'clock', 'threat', 'army', 'people', 'mood', 'food', 'pause', 'fast', 'menu', 'log', 'drones', 'planet', 'isotopes'] as const;
 const HINT_HELP: Record<(typeof HINT_TARGETS)[number], string> = {
   build: 'the Build button', buildItem: 'the Building in the build menu (the Build button while the menu is shut)', goals: 'the GOALS panel', minimap: 'the radar minimap',
   alloys: 'alloys (◆)', energy: 'power (⚡)', battery: 'the battery (🔋)', cryo: 'the cryo bank (❄)', clock: 'the clock', threat: 'the threat counter (⚠)', army: 'combat units (⚔)',
   people: 'colonists (👤)', mood: 'wellbeing and acceptance (☺ ⚖)', food: 'biomass (🌱)', pause: 'the pause button', fast: 'fast forward',
+  menu: 'the ☰ Menu button (save, options, the Field Guide)', log: 'the log of messages', drones: 'worker drones (the drone count)', planet: 'planet health', isotopes: 'exotic isotopes',
 };
 const on = (field: string, is: readonly string[], need = true) => ({ field, is, need });
 
@@ -1037,6 +1038,42 @@ export const storyShape = {
   ...organizeFields,
 } satisfies Shape;
 export type StoryDef = Infer<typeof storyShape>;
+
+/**
+ * The Field Guide (content/guide/<id>.json, src/guide.ts): pages on the game's concepts for players, in sections,
+ * offered as a tip the first time a page's trigger holds in play. `orientation` carries the first-game tour.
+ * Every release lists the pages it added or changed (src/changelog.ts `guide`; tools/guide-check.mjs).
+ */
+export const GUIDE_SECTIONS = ['basics', 'economy', 'power', 'defence', 'army', 'people', 'research', 'story', 'travel', 'factions', 'interface'] as const;
+export type GuideSection = (typeof GUIDE_SECTIONS)[number];
+export const GUIDE_SECTION_NAMES: Record<GuideSection, string> = {
+  basics: 'Basics', economy: 'Alloys & building', power: 'Power & night', defence: 'Defence', army: 'Units & fighting', people: 'Colonists',
+  research: 'Research', story: 'Story & choices', travel: 'Travel & other worlds', factions: 'Factions', interface: 'Interface',
+};
+/** A version number, x.y.z. */
+export const VERSION_RE = /^\d+\.\d+\.\d+$/;
+export const guideTourShape = {
+  target: choice(HINT_TARGETS.filter((t) => t !== 'buildItem'), { label: 'Points at', helps: HINT_HELP }),
+  text: str({ label: 'Text', multiline: true, help: 'What the bubble says at this step (a sentence or two).' }),
+} satisfies Shape;
+const { trigger: _guideTrigger, ...guideCondition } = conditionWithGroup('trigger', 'Tip when');
+export const guideShape = {
+  title: str({ label: 'Title' }),
+  section: choice(GUIDE_SECTIONS, { label: 'Section', helps: GUIDE_SECTION_NAMES, help: 'Which heading it sits under.' }),
+  order: int({ label: 'Order', min: 0, max: 1000, help: 'Its place within the section (lowest first).' }),
+  summary: str({ label: 'Summary', help: 'One line: shown in the list and on its tip.' }),
+  text: str({ label: 'Text', multiline: true, help: 'Paragraphs separated by a blank line. **bold** and lines starting "- " (a bulleted list) are allowed.' }),
+  points: choice(HINT_TARGETS.filter((t) => t !== 'buildItem'), { label: 'Show me', optional: true, helps: HINT_HELP, help: 'The part of the HUD its Show me button (and a tip\'s Read) points at.' }),
+  trigger: choice(CONDITIONS, { label: 'Tip when', optional: true, helps: CONDITION_HELP, help: 'The first time this holds in play, the page is offered as a tip (once per player). Empty = never a tip.' }),
+  ...guideCondition,
+  see: str({ label: 'See also', optional: true, help: 'Other guide pages, by id, separated by commas (e.g. "power, night").' }),
+  since: str({ label: 'Added in', help: 'The release (x.y.z) the page was added in. Must be a release in the changelog.' }),
+  updated: str({ label: 'Last changed in', optional: true, help: 'The release (x.y.z) it last changed meaningfully in (NEW / UPDATED badges; the release lists it). Empty = Added in.' }),
+  tour: list(guideTourShape, { label: 'Tour', max: 14, optional: true, help: 'Only the orientation page: the steps of the first-game look around.' }),
+} satisfies Shape;
+export type GuideDef = Infer<typeof guideShape>;
+/** The guide page ids a See also lists. */
+export const seeAlso = (g: { see?: string }) => (g.see ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 
 export const objectiveShape = {
   text: str({ label: 'Text', help: 'What the GOALS panel says ("Build a Solar Array").' }),
@@ -1638,6 +1675,7 @@ export const COLLECTIONS = {
   characters: { path: 'characters', kind: 'many', shape: characterShape, label: 'Characters', title: 'name', group: 'Story' },
   voices: { path: 'voices', kind: 'many', shape: voiceShape, label: 'Colonist voices', title: 'on', group: 'Story' },
   lore: { path: 'lore', kind: 'many', shape: loreShape, label: 'Story bible', title: 'title', group: 'Story' },
+  guide: { path: 'guide', kind: 'many', shape: guideShape, label: 'Field Guide', title: 'title', group: 'Story' },
   colony: { path: 'rules/colony.json', kind: 'single', shape: colonyRulesShape, label: 'Colony rules', group: 'Rules' },
   threats: { path: 'rules/threats.json', kind: 'single', shape: threatRulesShape, label: 'Threat rules', group: 'Rules' },
   people: { path: 'rules/people.json', kind: 'single', shape: peopleRulesShape, label: 'People rules', group: 'Rules' },

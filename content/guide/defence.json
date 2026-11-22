@@ -1,0 +1,12 @@
+{
+  "title": "Predator packs",
+  "section": "defence",
+  "order": 0,
+  "summary": "Packs come from nests on a timer, bigger at night. Turrets and units hold them off.",
+  "text": "The planet's predators come in **packs** from their nests. The threat counter (⚠) says when the next one is due; packs that arrive at night are bigger.\n\n- Build **Turrets** on the side the packs come from, with power to run them\n- Combat units from a Vehicle Bay can go after a pack, or a nest\n- A destroyed nest sends no packs until it grows back\n\nIf the Command Core falls, the colony is lost.",
+  "points": "threat",
+  "trigger": "packs",
+  "count": 1,
+  "see": "power",
+  "since": "0.73.0"
+}

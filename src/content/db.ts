@@ -2,7 +2,7 @@
  * Builds and validates the content database from raw files. Shared by the game
  * loader, the editor and the `content:check` script, so all three agree.
  */
-import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, MUSIC_LAYERS, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, TEXT_NEEDED, type ThreatRules, type UnitDef, type VoiceDef, type WildlifeDef, locate, regionCells } from './defs';
+import { ASSET_EXT, type AssetDef, BEATS, type BiomeDef, type BodyDef, type BuildingDef, COLLECTIONS, type ChapterDef, type CharacterDef, type CinematicDef, type CollectionName, type ColonyRules, type GuideDef, type InhabitantDef, type InterfaceDef, type LoreDef, type MissionDef, MUSIC_LAYERS, type MusicDef, type PeopleRules, REGION_SIZE_STEP, type RegionDef, type ResearchDef, type SoundRules, type StoryDef, TEXT_NEEDED, type ThreatRules, type UnitDef, type VoiceDef, type WildlifeDef, locate, regionCells, seeAlso, VERSION_RE } from './defs';
 import { validate, type IdIndex, type Issue } from './schema';
 import { parseNotes } from '../audio/notes';
 import { parseSteps } from '../audio/drums';
@@ -18,6 +18,8 @@ export interface ContentDb {
   /** Editor only (the game ignores them). */
   chapters: Record<string, ChapterDef>;
   lore: Record<string, LoreDef>;
+  /** The Field Guide (src/guide.ts). */
+  guide: Record<string, GuideDef>;
   assets: Record<string, AssetDef>;
   inhabitants: Record<string, InhabitantDef>;
   story: Record<string, StoryDef>;
@@ -74,6 +76,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     wildlife: recs.wildlife,
     chapters: recs.chapters,
     lore: recs.lore,
+    guide: recs.guide,
     assets: recs.assets,
     inhabitants: recs.inhabitants,
     story: recs.story,
@@ -102,6 +105,7 @@ export const REQUIRED: Partial<Record<CollectionName, string[]>> = {
   biomes: ['verdant'],
   wildlife: ['grazer'],
   cinematics: ['landing'],
+  guide: ['orientation'],
 };
 
 export function requiredIssues(db: ContentDb): FileIssue[] {
@@ -318,6 +322,18 @@ function crossIssues(db: ContentDb): FileIssue[] {
     const words = [ev.title, ev.text, ...(ev.choices ?? []).flatMap((c) => [c.label, c.reply ?? ''])].join(' ');
     if (!ev.cast && /\{who(Line)?\}/.test(words)) out.push({ path: P, field: 'cast', msg: '{who} needs the event to be About someone' });
     if (ev.again && !ev.dilemma) out.push({ path: P, field: 'again', msg: 'only colony dilemmas come again' });
+  }
+  // the Field Guide: tip triggers like story triggers; See also names real pages; versions are x.y.z; one tour
+  for (const [id, g] of Object.entries(db.guide ?? {})) {
+    if (!g || typeof g !== 'object') continue;
+    const P = `guide/${id}.json`;
+    if (g.trigger) condIssues(P, '', g.trigger, g as unknown as Record<string, unknown>);
+    for (const x of seeAlso(g)) {
+      if (x === id) out.push({ path: P, field: 'see', msg: 'a page can\'t send you to itself' });
+      else if (!db.guide[x]) out.push({ path: P, field: 'see', msg: `there is no guide page "${x}" (content/guide/${x}.json)` });
+    }
+    for (const f of ['since', 'updated'] as const) if (typeof g[f] === 'string' && !VERSION_RE.test(g[f])) out.push({ path: P, field: f, msg: `"${g[f]}" is not a version (write x.y.z, e.g. 0.73.0)` });
+    if (g.tour?.length && id !== 'orientation') out.push({ path: P, field: 'tour', msg: 'only the orientation page\'s tour is played' });
   }
   if (db.buildings.core && db.buildings.core.role !== 'core') out.push({ path: 'buildings/core.json', field: 'role', msg: 'must be core' });
   if (db.buildings.core?.model) out.push({ path: 'buildings/core.json', field: 'model', msg: 'the Command Core model is fixed (the landing cinematic animates it)' });
