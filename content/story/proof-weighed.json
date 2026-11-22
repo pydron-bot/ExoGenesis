@@ -1,0 +1,54 @@
+{
+  "title": "The Argument Holds",
+  "style": "radio",
+  "character": "archivist",
+  "text": "The Archivist, on the relay from home, as the Lid comes up: \"The last report went up with you. Planet health, every adult who said yes, Kindred, the Vell, the Choir, the Ledger, the dish on Teth. I ran it twice. It holds. If you can take that thing whole, take it whole. It's the only way anyone at Sol ever reads it.\"",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "lid-open"
+    },
+    {
+      "kind": "homePlanet",
+      "count": 70
+    },
+    {
+      "kind": "acceptance",
+      "count": 60
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-ally"
+    },
+    {
+      "kind": "flag",
+      "flag": "keeper-song"
+    },
+    {
+      "kind": "flag",
+      "flag": "choir-fragment"
+    },
+    {
+      "kind": "flag",
+      "flag": "ledger-read"
+    },
+    {
+      "kind": "flag",
+      "flag": "long-ear"
+    }
+  ],
+  "region": "lantern",
+  "unless": "engram-destroyed",
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "proof-holds"
+    }
+  ],
+  "chapter": "endings",
+  "tags": "endings, proof, hidden, lantern",
+  "status": "draft",
+  "notes": "The Proof's gate (STORY.md §17), weighed at the Lantern once the Lid is open: the colony's side from the home snapshot (home planet health ≥ 70, acceptance ≥ 60, as they were when the strike force left), the rest from flags (kindred-ally, the Vell: keeper-song, the Choir: choir-fragment, ledger-read, long-ear; Engram not destroyed). Sets proof-holds, which proof and covenant-seized read as opposites, so seizing the core intact gives exactly one of them. (One event, because a trigger holds at most 8 conditions and no nested groups.)"
+}

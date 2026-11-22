@@ -9,37 +9,8 @@
       "flag": "lantern-intact"
     },
     {
-      "kind": "homePlanet",
-      "count": 70
-    },
-    {
-      "kind": "acceptance",
-      "count": 60
-    },
-    {
       "kind": "flag",
-      "flag": "kindred-ally"
-    },
-    {
-      "kind": "flag",
-      "flag": "engram-destroyed",
-      "not": true
-    },
-    {
-      "kind": "flag",
-      "flag": "keeper-song"
-    },
-    {
-      "kind": "flag",
-      "flag": "choir-fragment"
-    },
-    {
-      "kind": "flag",
-      "flag": "ledger-read"
-    },
-    {
-      "kind": "flag",
-      "flag": "long-ear"
+      "flag": "proof-holds"
     }
   ],
   "region": "lantern",
@@ -84,5 +55,5 @@
   "chapter": "endings",
   "tags": "endings, proof, hidden",
   "status": "draft",
-  "notes": "The hidden ending (STORY.md §17), decided at the Lantern's core when it is seized intact. The colony's side is read from the home snapshot (planet health ≥ 70 at home, acceptance ≥ 60), the rest from flags: kindred-ally, Engram not destroyed, the Vell trusted (keeper-song), the Choir (choir-fragment), ledger-read, long-ear. covenant-seized has the exact opposite condition, so one of the two fires."
+  "notes": "The hidden ending: the Lantern seized intact with proof-holds (proof-weighed, at the Lantern: every Proof condition, the colony's from the home snapshot)."
 }

@@ -8,48 +8,9 @@
       "flag": "lantern-intact"
     },
     {
-      "kind": "any",
-      "of": [
-        {
-          "kind": "homePlanet",
-          "count": 70,
-          "not": true
-        },
-        {
-          "kind": "acceptance",
-          "count": 60,
-          "not": true
-        },
-        {
-          "kind": "flag",
-          "flag": "kindred-ally",
-          "not": true
-        },
-        {
-          "kind": "flag",
-          "flag": "engram-destroyed"
-        },
-        {
-          "kind": "flag",
-          "flag": "keeper-song",
-          "not": true
-        },
-        {
-          "kind": "flag",
-          "flag": "choir-fragment",
-          "not": true
-        },
-        {
-          "kind": "flag",
-          "flag": "ledger-read",
-          "not": true
-        },
-        {
-          "kind": "flag",
-          "flag": "long-ear",
-          "not": true
-        }
-      ]
+      "kind": "flag",
+      "flag": "proof-holds",
+      "not": true
     }
   ],
   "region": "lantern",
@@ -95,5 +56,5 @@
   "chapter": "endings",
   "tags": "endings, covenant",
   "status": "draft",
-  "notes": "Seized intact without every Proof condition (any one of proof's conditions missing; the exact complement of proof's trigger): Covenant."
+  "notes": "Seized intact without every Proof condition (proof-holds unset: proof-weighed didn't hold): Covenant. The exact opposite of proof."
 }
