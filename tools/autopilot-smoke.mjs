@@ -6,14 +6,17 @@
  * (`Autopilot`, src/sim/autopilot.ts) on a fresh Touchdown builds, chases the tutorials and says what it does,
  * does nothing while off or before the colony deploys; travel: with no mission here and one under way in a routed
  * region it sets `travel` (home → overland; an expedition → home), not while a card waits; assist ticks off a stuck
- * objective (logged) and sends away a pack at a falling Core; off: neither.
+ * objective (logged) and sends away a pack at a falling Core; off: neither. Its own play: 15 min at home puts depots on
+ * every deposit (relays toward the far ones), batteries for the nights, a lab, Deep Survey and a Deep-Core Mine; the
+ * Choir wall's spitters fought for their flag; Dunmore's survey team escorted (Kindred never fired on) and Dustfall
+ * done; the Long Ear's three plates held at once; a nest raided once the army is big enough.
  *
  * Browser (a dev server, default http://localhost:5176/; `--url`): a fresh colony, then the title's Options →
  * "Watch the computer play" (CONTINUE with the autopilot): the AUTOPILOT badge, buildings going up with no input, a
  * story card answered by the bot (the chosen button lit first), the camera moving on its own, ×3 from the badge,
  * Stop hands control back (nothing more built), the game menu turns it on again; a travel round trip (a mission on
- * an Act 1 region jumped to): the reload keeps it on, it plays there and comes home on its own, still on. No page
- * errors.
+ * an Act 1 region jumped to): the reload keeps it on, it plays there and comes home on its own, still on; an ending
+ * (Cycle fired): the card answered, the epilogue's pages turned, and it stops on the end screen. No page errors.
  *   node tools/autopilot-smoke.mjs [--headless-only] [--url http://localhost:5176/]
  */
 import path from 'node:path';
@@ -104,7 +107,7 @@ function game(region = 'touchdown', cfg = { on: true }) {
   g.sim.command({ type: 'landing', stage: 'deploy' });
   g.s.waves.next = 1e12;
   g.s.missions.active = [];
-  for (let i = 0; i < 12 && !g.s.travel; i++) {
+  for (let i = 0; i < 80 && !g.s.travel; i++) { // (up to ~7 min: a project under way at its lab is seen through first)
     g.run(5);
     for (const id of [...(g.s.story.cineQueue ?? [])]) g.sim.command({ type: 'cinematic', id, done: true });
     for (const id of [...g.s.story.inbox]) g.sim.command({ type: 'story', id, choice: 0 });
@@ -136,6 +139,69 @@ function game(region = 'touchdown', cfg = { on: true }) {
   const n0 = g.s.hostiles.length;
   g.run(3);
   check(n0 > 0 && g.s.hostiles.length < n0 && g.said.some((t) => /sent away/.test(t)), `assist: a pack at a falling Core sent away (${n0} → ${g.s.hostiles.length})`);
+}
+
+// ---------- the colony, the army and the missions (the brain's own play) ----------
+/** A region with the autopilot on, a mission jumped to; cards answered with the first choice, cinematics done. */
+function play(region, mission, cfg = { on: true }) {
+  const g = game(region, cfg);
+  g.sim.command({ type: 'landing', stage: 'deploy' });
+  if (mission) { g.sim.command({ type: 'debug', mission }); delete g.s.travel; }
+  g.whys = new Set();
+  g.play = (secs, until = () => false) => {
+    for (let t = 0; t < secs && !until(); t++) {
+      g.run(1);
+      delete g.s.travel;
+      for (const id of [...(g.s.story.cineQueue ?? [])]) g.sim.command({ type: 'cinematic', id, done: true });
+      for (const id of [...g.s.story.inbox]) { const ev = C.story[id], sh = ev ? M.shownChoices(ev, g.s.story.flags) : []; g.sim.command({ type: 'story', id, choice: sh.length ? sh[0] : 0 }); }
+      if (g.ap.fight) g.whys.add(g.ap.fight.f.why);
+    }
+  };
+  return g;
+}
+{
+  // home: power for the night, depots on every deposit it can reach (a relay toward a far one), a gun by outlying buildings
+  const g = play('touchdown');
+  g.s.waves.next = 1e12;
+  g.play(900);
+  const b = g.s.buildings.filter((x) => !x.team), n = (k) => b.filter((x) => x.kind === k).length;
+  const mined = g.s.deposits.filter((d) => b.some((x) => x.kind === 'depot' && Math.hypot(x.x - d.x, x.z - d.z) <= C.buildings.depot.range)).length;
+  check(mined >= 3 && n('relay') >= 1, `15 min at home: depots on ${mined} of ${g.s.deposits.length} deposits, ${n('relay')} relay toward the far ones`);
+  check(n('battery') >= 2 && g.s.cryo >= 90, `power for the nights: ${n('battery')} batteries, ${n('solar')} solar, ${n('geothermal')} geothermal; cryo ${Math.round(g.s.cryo)}%`);
+  check(n('lab') >= 1 && g.s.research.done.includes('deep-survey') && b.some((x) => C.buildings[x.kind]?.role === 'deepmine'), `a Tech Lab, Deep Survey researched and a Deep-Core Mine on a seam (${g.s.research.done.join(', ')})`);
+  check(Object.keys(g.ap.spent).length > 5 && !g.s.travel, `it spends on its own (${Object.entries(g.ap.spent).slice(0, 6).map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')})`);
+}
+{
+  // a flag objective traced back to an encounter: the Choir wall's spitters fought for
+  const g = play('choir-field', 'the-choir');
+  g.play(900, () => g.s.story.flags.includes('wall-spitters-beaten'));
+  check(g.s.story.flags.includes('wall-spitters-beaten') && [...g.whys].some((w) => /Spitter/i.test(w)), `the Choir wall: the army fights the spitters for the flag (${[...g.whys].join(' · ')}; ${Math.round(g.sim.secs)} s)`);
+}
+{
+  // an escort: Dunmore's survey team kept company, Kindred (neutral) never fired on
+  const g = play('dunmore-dustfall', 'dustfall');
+  g.play(1200, () => g.s.missions.done.includes('dustfall') || g.s.missions.failed?.includes('dustfall'));
+  check([...g.whys].some((w) => /^Escorting/.test(w)), `Dunmore: the army escorts the survey team (${[...g.whys].join(' · ')})`);
+  check(!g.s.story.flags.includes('kindred-attacked') && g.s.factions.find((f) => f.id === 'kindred')?.attitude !== 'hostile', 'Kindred (neutral) never fired on');
+  check(g.s.missions.done.includes('dustfall'), `Dustfall done (${Math.round(g.sim.secs)} s; flags ${g.s.story.flags.filter((f) => /survey|manifest|swarm/.test(f)).join(', ')})`);
+}
+{
+  // several places held at once: the force splits over the Long Ear's three plates
+  const g = play('teth-ear', 'long-ear');
+  g.play(900, () => g.s.missions.done.includes('long-ear'));
+  check(g.s.missions.done.includes('long-ear') && [...g.whys].some((w) => /places at once/.test(w)), `the Long Ear: three plates held at once (${[...g.whys].join(' · ')}; ${Math.round(g.sim.secs)} s)`);
+}
+{
+  // a nest raid once the army is big enough (and no pack is about)
+  const g = play('touchdown');
+  g.s.waves.next = 1e12;
+  g.run(1);
+  const core = g.s.buildings.find((b) => b.kind === 'core');
+  g.sim.command({ type: 'debug', units: { unit: 'tank', x: core.x + 6, z: core.z - 16, n: 6 } });
+  const nests = () => g.s.hostiles.filter((h) => h.nest !== undefined).length;
+  const n0 = nests();
+  g.play(400, () => nests() < n0);
+  check(n0 > 0 && nests() < n0 && [...g.whys].some((w) => /^Raiding the nest/.test(w)), `a nest raided by the army (${n0} → ${nests()} nests; ${[...g.whys].join(' · ')})`);
 }
 
 // ---------- browser ----------
@@ -210,6 +276,13 @@ if (!process.argv.includes('--headless-only')) {
     await ready();
     a = await ap();
     check(a.region === 'touchdown' && a.on && a.badge, `home again on its own, still on (${a.region}, ${a.on})`);
+    // an ending: the card answered, the epilogue's pages read and turned, then it stops on the end screen
+    await page.evaluate(() => __exo.sim.command({ type: 'debug', story: 'cycle' }));
+    const paged = await page.waitForFunction(() => document.querySelector('#epilogue .ap-pick'), null, { timeout: 180000 }).then(() => true, () => false);
+    const ended = await page.waitForFunction(() => !__exo.autopilot.on && !document.getElementById('epilogue') && __exo.sim.cur?.over, null, { timeout: 240000 }).then(() => true, () => false);
+    a = await ap();
+    const last = await page.evaluate(() => __exo.autopilot.answered.slice(-2).join(' · '));
+    check(paged && ended && !a.on && !a.badge && a.stored.on === false && /The end/.test(last), `an ending: the epilogue's pages turned (Next lit first), then it stops on the end screen (${last})`);
   } catch (e) {
     check(false, `browser: ${e.message.split('\n')[0]}`);
   }
