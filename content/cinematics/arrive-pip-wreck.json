@@ -20,8 +20,8 @@
       "target": "storysite",
       "site": "scout-wreck",
       "lift": 2,
-      "dist": 50,
-      "pitch": 0.4,
+      "dist": 55,
+      "pitch": 0.75,
       "yaw": 5.7
     },
     {
@@ -29,8 +29,8 @@
       "target": "storysite",
       "site": "engram-pen",
       "lift": 2,
-      "dist": 55,
-      "pitch": 0.45,
+      "dist": 60,
+      "pitch": 0.7,
       "yaw": 0.5
     },
     {

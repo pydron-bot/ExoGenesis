@@ -39,17 +39,17 @@
       "site": "relay-mast",
       "lift": 7,
       "dist": 30,
-      "pitch": 0.0,
-      "yaw": 1.05
+      "pitch": 0.04,
+      "yaw": 0.95
     },
     {
       "at": 18,
       "target": "storysite",
       "site": "relay-mast",
-      "lift": 10,
-      "dist": 36,
-      "pitch": -0.12,
-      "yaw": 1.15
+      "lift": 9,
+      "dist": 34,
+      "pitch": -0.04,
+      "yaw": 0.9
     }
   ],
   "captions": [

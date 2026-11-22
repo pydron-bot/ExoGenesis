@@ -36,9 +36,9 @@
       "at": 21,
       "target": "storysite",
       "site": "mind-well",
-      "lift": -18,
-      "dist": 18,
-      "pitch": 1.35,
+      "lift": -8,
+      "dist": 34,
+      "pitch": 1.25,
       "yaw": 1.9
     },
     {
