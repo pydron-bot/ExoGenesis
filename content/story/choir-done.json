@@ -1,12 +1,12 @@
 {
   "title": "Expedition Complete",
-  "text": "The code wall is copied and the Choir's tower has a listener. The tenders walk their loop as if we had always been here. The Command Core can take the convoy home now or later. Whatever we build here stays.",
+  "text": "The code wall is copied and the Choir's tower has a listener. The tenders walk their loop as if we had always been here. If we leave anything standing, they will probably tend it.",
   "trigger": "never",
   "region": "choir-field",
   "choices": [
     {
       "label": "Return to Touchdown",
-      "reply": "The convoy turns for home."
+      "reply": "The convoy turns for home. Behind it the tower keeps pulsing."
     },
     {
       "label": "Stay a while",

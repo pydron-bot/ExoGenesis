@@ -1,12 +1,12 @@
 {
   "title": "Expedition Complete",
-  "text": "The hollow is mapped and the cellar is open. Its map points south-west, to a crater a long way off. The Command Core can take the convoy home now or later. Whatever we build here stays.",
+  "text": "The hollow is mapped and the cellar is open. Its map points south-west, to a crater a long way off. Whatever we build here stays, and stays out of sight.",
   "trigger": "never",
   "region": "splinter-hollow",
   "choices": [
     {
       "label": "Return to Touchdown",
-      "reply": "The convoy turns for home."
+      "reply": "The convoy goes out by the east gap, the easy way, and turns for home."
     },
     {
       "label": "Stay a while",

@@ -2,7 +2,7 @@
   "title": "Incoming",
   "style": "radio",
   "character": "archivist",
-  "text": "There. Coming in from the north, fast. Get clear of the ring!",
+  "text": "There. Coming in from the north, fast. Get clear of the ring.",
   "trigger": "timer",
   "timer": "drop",
   "region": "iot-drops",

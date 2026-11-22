@@ -18,7 +18,7 @@
   "approach": 15,
   "contactTitle": "The Choir",
   "contactText": "A dead tower, still pulsing, and machines circling it in a slow loop. They broadcast in fragments of Earth code, and part of it is directive syntax we can't parse. The archive flags it as part of our own system.",
-  "approachText": "The drone joins the loop for one circuit. The cantor turns its one dim eye toward it, and the broadcast changes key.",
+  "approachText": "The drone joins the loop for one circuit. The Cantor turns its one dim eye towards it, and the broadcast changes key.",
   "avoidText": "We leave them to their loop.",
   "driveText": "The machines break the loop and trundle away into the hills. The tower's glow keeps pulsing for no one.",
   "uneasyText": "The Choir's loop is faltering. Our buildings stand in their circuit.",
@@ -59,7 +59,7 @@
   "hunterRange": 12,
   "hunterCooldown": 1.6,
   "hunterWeapon": "arc",
-  "hunterText": "Three tenders break their loop and roll toward the colony, discharging as they come.",
+  "hunterText": "Three tenders break their loop and roll towards the colony, discharging as they come.",
   "defends": true,
   "chapter": "beyond-the-ridge"
 }

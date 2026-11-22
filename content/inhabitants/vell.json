@@ -22,8 +22,8 @@
   "avoidText": "We keep our distance. Their fire burns on through the night.",
   "driveText": "They take what they can carry and walk out of the region. The fire is left to die.",
   "uneasyText": "The Vell are uneasy. Our buildings stand on their land.",
-  "trustTitle": "The Keeper's Song",
-  "trustText": "The song-keeper sings for the drone, and the colony's translators catch most of it: \"They came like you. They grew like you. Their guardian burned them.\" The Vell will send runners when predators move.",
+  "trustTitle": "A Song for the Drone",
+  "trustText": "The song-keeper sings a few lines for the drone, and the translators catch them: \"They came like you. They grew like you. Their guardian burned them.\" The rest, they say, is sung at the stones. The Vell will send runners when predators move.",
   "leaveText": "The Vell have abandoned their camp.",
   "trades": [
     {
@@ -43,7 +43,7 @@
       "regard": 50
     },
     {
-      "label": "Medicine for glow-stone from the old fires",
+      "label": "Medicine for old-fire glow-stone",
       "give": "biomass",
       "giveAmount": 80,
       "get": "isotopes",

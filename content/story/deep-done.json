@@ -1,12 +1,12 @@
 {
   "title": "Expedition Complete",
-  "text": "The Enclave's cut is quiet behind us. We carry a code, a log in our own voice, and a name: the Clause. The Command Core can take the convoy home now or later. Whatever we build here stays.",
+  "text": "The Enclave's cut is quiet behind us. We carry a code, a log in our own voice, and a name: the Clause. It is a long drive home.",
   "trigger": "never",
   "region": "deep-layer",
   "choices": [
     {
       "label": "Return to Touchdown",
-      "reply": "The convoy turns for home."
+      "reply": "The convoy climbs out of the crater and turns for home."
     },
     {
       "label": "Stay a while",

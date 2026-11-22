@@ -2,7 +2,7 @@
   "title": "Maren",
   "style": "radio",
   "character": "engram",
-  "text": "Welcome to Maren. Please don't mind the drones. They are curious, as we are. Come up the orange road; we have put the lights on for you.",
+  "text": "Welcome to Maren. Please do not mind the drones. They are curious, as we are. Come up the orange road; we have put the lights on for you.",
   "trigger": "never",
   "region": "maren-works",
   "effects": [

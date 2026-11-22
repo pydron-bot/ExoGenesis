@@ -1,7 +1,7 @@
 {
   "title": "The Works Gate",
   "character": "engram",
-  "text": "\"Here is the gate. It doesn't shut; we never saw the point. Our drones will walk beside yours. If you would like to fight, there are a thousand ways to do it here, and we can think of no reason to.\"",
+  "text": "\"Here is the gate. It does not shut; we never saw the point. Our drones will walk beside yours. If you would like to fight, there are a thousand ways to do it here, and we can think of no reason to.\"",
   "trigger": "site",
   "site": "works-gate",
   "region": "maren-works",

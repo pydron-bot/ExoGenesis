@@ -22,12 +22,12 @@
   "pause": true,
   "choices": [
     {
-      "label": "Show it everything: the Ledger, the drops, your own reports",
-      "reply": "You open your logs to Engram, all of them, the bad sols included. It reads very fast, and then for a long time it reads nothing at all."
+      "label": "Show it everything",
+      "reply": "You open everything to Engram: the Ledger, the drops, your own logs, the bad sols included. It reads very fast, and then for a long time it reads nothing at all."
     },
     {
-      "label": "\"Take the win, then. See what it buys you.\"",
-      "reply": "\"You don't mean that. We don't think you mean that.\""
+      "label": "\"Take the win. See what it buys you.\"",
+      "reply": "\"You do not mean that. We do not think you mean that.\""
     },
     {
       "label": "Say nothing",

@@ -6,11 +6,11 @@
   "choices": [
     {
       "label": "Return to Touchdown",
-      "reply": "The lander lifts. Below it the region keeps its own time, waiting."
+      "reply": "The lander lifts off the sulfur. On the plain the harvesters wait for the next parcel."
     },
     {
       "label": "Stay a while",
-      "reply": "The Command Core's card lists every route, home included, when you're ready to go."
+      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
     }
   ],
   "effects": [
