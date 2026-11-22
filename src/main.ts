@@ -838,6 +838,12 @@ const autopilot = apAllowed ? new AutopilotView({
   setSpeed: (n) => setSpeed(n),
   speed: () => speed,
   busy: () => !!title || !!cine || travelling || menuOpen || panelOpen() || !sim.cur?.deployed || !!sim.cur?.over || !!document.getElementById('whatsnew') || !!document.getElementById('chronicle'),
+  // the game over: an ending (or the home colony lost: the campaign ends), or an expedition lost (the campaign goes home)
+  outcome: () => {
+    const c = sim.cur;
+    if (!c?.over || !!cine || travelling) return null;
+    return c.story?.epilogue || regionId === HOME_REGION || c.over === 'won' ? 'ended' : 'lost-away';
+  },
   canvas: renderer.domElement,
   tap: () => audio.play('tap'),
 }, false) : null;

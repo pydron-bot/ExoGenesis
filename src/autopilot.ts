@@ -32,6 +32,8 @@ interface Deps {
   /** Where player input arrives (drags and zooms make the director back off). */
   canvas: HTMLElement;
   tap?(): void;
+  /** The game is over: an ending (the campaign is over) or an expedition lost (it goes home). Null while it plays. */
+  outcome?(): 'ended' | 'lost-away' | null;
 }
 
 /** A shot: what the camera looks at and how close. */
@@ -111,6 +113,8 @@ export class AutopilotView {
   /** Every frame. */
   update(now: number, dt: number) {
     if (!this.prefs.on) return;
+    const end = this.d.outcome?.() ?? null;
+    if (end) { this.ending(now, end); return; }
     const busy = this.d.busy();
     const cap = now < this.say.until ? this.say.text : this.status.doing;
     if (this.capEl.textContent !== cap) this.capEl.textContent = cap;
@@ -160,6 +164,33 @@ export class AutopilotView {
     const picked = el!.querySelector<HTMLButtonElement>('.ap-pick');
     if (picked) picked.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
     this.card = { key: '', at: 0, picked: false };
+  }
+
+  // ---------- the end ----------
+  /**
+   * The game is over. An ending: the epilogue's pages are read like a card (a little longer) and turned with Next, then
+   * the autopilot stops on the end screen and leaves it there. An expedition lost: the end screen is read for a
+   * moment and "Back to Touchdown" pressed (the campaign goes on at home, the autopilot still on).
+   */
+  private ending(now: number, end: 'ended' | 'lost-away') {
+    const fast = this.d.speed() >= 3 ? 2 : this.d.speed() >= 2 ? 1.5 : 1;
+    const page = document.getElementById('epilogue');
+    const key = page ? `epi:${page.textContent ?? ''}` : `over:${end}`;
+    if (key !== this.card.key) {
+      const text = page?.textContent?.length ?? 0;
+      // a page: ~3 s + 45 ms a character, at most 14 s; the end screen: 6 s
+      this.card = { key, at: now + (page ? Math.min(14000, 3000 + 45 * text) : 6000) / fast, picked: false };
+      const cap = page ? `Reading the epilogue: ${page.querySelector('.epi-n')?.textContent ?? ''}` : end === 'ended' ? 'The end' : 'Expedition lost: going home';
+      if (this.capEl.textContent !== cap) this.capEl.textContent = cap;
+    }
+    if (now < this.card.at) return;
+    const btn = page ? document.getElementById('epi-next') : end === 'lost-away' ? document.getElementById('over-restart') : null;
+    if (page && !btn) return;
+    if (btn && !this.card.picked) { btn.classList.add('ap-pick'); this.card.picked = true; this.card.at = now + 900; return; }
+    if (btn) { btn.click(); this.card = { key: '', at: 0, picked: false }; return; }
+    // the end screen of an ending: stop here and leave it on screen
+    this.answered.push(`The end: ${document.getElementById('over-title')?.textContent ?? ''}`);
+    this.set(false);
   }
 
   // ---------- the director ----------
