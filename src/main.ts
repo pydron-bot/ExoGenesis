@@ -8,7 +8,7 @@ import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
 import { biomeOf } from './content/nature';
 import { content, contentIssues, onContentHot, type RegionDef } from './content';
-import { PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
+import { ENDINGS, PREVIEW_KEY, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
 import { buildAtmosphere, E, globeMesh, HALF, N, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
@@ -47,6 +47,8 @@ import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules,
 import { hasUnseen, openWhatsNew } from './whatsnew';
 import { registerServiceWorker } from './pwa';
 import { updateWater } from './world/water';
+import { ClimaxView, endingsReached, scrambleIn } from './climax-view';
+import type { FactionState } from './sim/types';
 import { surfaceUniforms, addSurfaceDetail, buildClouds, setSurfaceMaps, updateClouds, updateSurface, type SurfaceMaps } from './world/surface';
 
 const params = new URLSearchParams(location.search);
@@ -190,13 +192,13 @@ const bodyDef = content.bodies[bodyId];
 // (boots its module graph and a new game) and the globe/province generator.
 /** Sim events that arrive before the HUD exists wait here. */
 type At = { x: number; z: number } | undefined;
-const early: [string, 'info' | 'warn' | 'bad', At][] = [];
-let logFn: ((text: string, level: 'info' | 'warn' | 'bad', at?: At) => void) | null = null;
+const early: [string, 'info' | 'warn' | 'bad', At, ('clause' | undefined)?][] = [];
+let logFn: ((text: string, level: 'info' | 'warn' | 'bad', at?: At, style?: 'clause') => void) | null = null;
 // sound (colony only; ?sound=0 turns it off for good, the ⋯ menu for now)
 const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0', content.music);
-const sim = new SimClient((t, l, cue, at) => {
+const sim = new SimClient((t, l, cue, at, style) => {
   if (cue) audio.event(cue);
-  if (logFn) logFn(t, l, at); else early.push([t, l, at]);
+  if (logFn) logFn(t, l, at, style); else early.push([t, l, at, style]);
 }, !skirmishMode, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup);
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
@@ -365,18 +367,20 @@ const logEl = $('log');
 // the HUD's look (Rules → Interface; the editor's preview hands over an unsaved one)
 const ui_ = preview?.interface ?? content.interface;
 applyInterface(ui_);
-const heldLog: [string, 'info' | 'warn' | 'bad', At][] = [];
+const heldLog: [string, 'info' | 'warn' | 'bad', At, ('clause' | undefined)?][] = [];
 /** Pings the minimap (set once the HUD exists: early events come before it). */
 let pingFn: ((x: number, z: number, color: string) => void) | null = null;
 /** Where the latest event with a place happened (H takes the camera there). */
 let lastAt: At;
 const goTo = (at: { x: number; z: number }) => { cam.lookAtGround(at.x, at.z); if (cam.a > 0.5) cam.setView('surface'); };
-function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At) {
+function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At, style?: 'clause') {
   // a cinematic hides the log; keep events for when it ends
-  if (cine) { heldLog.push([text, level, at]); return; }
+  if (cine) { heldLog.push([text, level, at, style]); return; }
   const el = document.createElement('div');
-  el.className = `ev ${level === 'info' ? '' : level}`;
-  el.textContent = text;
+  el.className = `ev ${level === 'info' ? '' : level}${style ? ` ${style}` : ''}`;
+  // the Clause writes in our log format, wrongly: cold, monospaced, scrambled for a moment
+  if (style === 'clause') scrambleIn(el, text);
+  else el.textContent = text;
   if (at) {
     // somewhere on the map: tap the line to look there; the radar pings it
     el.classList.add('go');
@@ -392,7 +396,7 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At) {
 }
 
 logFn = log;
-for (const [t, l, at] of early.splice(0)) log(t, l, at);
+for (const [t, l, at, st] of early.splice(0)) log(t, l, at, st);
 const ui: RegionUi = { sel: null, drag: null, build: null, ghost: null };
 /** Select the first drone once the landing hands over control. */
 let selectFirstDrone = true;
@@ -495,7 +499,7 @@ function endCine() {
   document.body.classList.remove('cine', 'cine-world', 'cine-bars');
   cineEl.classList.add('gone');
   cine = null;
-  for (const [text, level, at] of heldLog.splice(0)) log(text, level, at);
+  for (const [text, level, at, st] of heldLog.splice(0)) log(text, level, at, st);
 }
 function startLanding() {
   document.body.classList.add('cine');
@@ -612,6 +616,7 @@ function restartGame() {
   hud.reset();
   storyHud.reset();
   fogView.reset();
+  climax?.reset();
   ui.sel = null; setBuild(null);
   selectFirstDrone = true;
   if (rts) { const h = rts.setup.homes![0]; cam.fx = h.x; cam.fz = h.z; }
@@ -807,6 +812,33 @@ function finishDaily(s: NonNullable<typeof sim.cur>) {
 const help = $('help');
 let helped = false;
 const army = skirmish ? null : new ArmyView(scene);
+/** A campaign faction's unit or building under a tap (an attack order's target), or null. */
+function factionAt(x: number, z: number): number | null {
+  const c = sim.cur;
+  if (!c?.factions?.length) return null;
+  let best: number | null = null, bd = Infinity;
+  for (const u of c.units) {
+    if (!u.team) continue;
+    const d = Math.hypot(u.x - x, u.z - z) - (content.units[u.unit]?.radius ?? 1) - 1.5;
+    if (d < 0 && d < bd) { bd = d; best = u.id; }
+  }
+  if (best !== null) return best;
+  for (const b of c.buildings) {
+    if (!b.team) continue;
+    const d = Math.hypot(b.x - x, b.z - z) - (content.buildings[b.kind]?.clearance ?? 8) / 2;
+    if (d < 0 && d < bd) { bd = d; best = b.id; }
+  }
+  return best;
+}
+/** Colour by team for the army view: the factions' (the Clause's team 1 among them). */
+function factionColors(F: FactionState[]) {
+  const out: string[] = ['#5ff3ff'];
+  for (const f of F) out[f.team] = f.color;
+  for (let i = 0; i < out.length; i++) out[i] ??= '#ff4d5e';
+  return out;
+}
+/** Orbital strikes, the Clause's screen tears and the epilogue (campaign only). */
+const climax = skirmish || rts ? null : new ClimaxView(scene, (id) => audio.play(id));
 // dust behind movers on dry ground (src/world/dust.ts), tinted by the body's ground; Options → Dust and heat haze
 const dust = new Dust(new THREE.Color(bodyDef?.ground?.[1]?.color ?? bodyDef?.ground?.[0]?.color ?? '#b08f6c').lerp(new THREE.Color('#d9c8b0'), 0.35), regionHeightRaw);
 dust.enabled = setting(DUST_KEY, 'dust', true);
@@ -846,7 +878,12 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
   // only your own can be picked (a skirmish's other players' are shown, not commanded)
   buildings: () => (sim.cur?.buildings ?? []).filter((b) => !b.team),
   units: () => (sim.cur?.units ?? []).filter((u) => !u.team),
-  order: (ids, x, z) => { audio.play('order'); sim.command({ type: 'order', ids, x, z }); },
+  order: (ids, x, z) => {
+    audio.play('order');
+    // a tap on a campaign faction's unit or building is an attack order (a neutral one turns hostile)
+    const t = factionAt(x, z);
+    sim.command(t !== null ? { type: 'attack', ids, target: t } : { type: 'order', ids, x, z });
+  },
   riders: (ids, t) => {
     const us = sim.cur?.units ?? [], tu = us.find((u) => u.id === t);
     if (!tu || !content.units[tu.unit]?.carries) return [];
@@ -1279,6 +1316,7 @@ function showTitle() {
     foot: `<button class="t-ver" title="What's new">v${VERSION}${hasUnseen() ? '<span class="badge">NEW</span>' : ''}</button> · M1 · <a href="https://deeek.org/">deeek.org</a>`,
     tap: () => audio.play('tap'),
     // browsers hold sound back until a tap or key (unless they allow autoplay): say so, until it runs
+    endings: (() => { const n = endingsReached().length; return n ? `ENDINGS: ${n} OF ${ENDINGS.length}` : ''; })(),
     status: () => (audio.disabled || !audio.on || audio.state === 'running' ? '' : `♪ ${matchMedia('(pointer: coarse)').matches ? 'TAP' : 'CLICK'} ANYWHERE FOR SOUND`),
   });
   const ver = title.root.querySelector<HTMLButtonElement>('.t-ver')!;
@@ -1412,10 +1450,12 @@ function frame(now: number) {
     // world animations run on game time: frozen when paused, faster at ×3
     gameT += dt * speed;
     region.update(sim.prev, sim.cur, alpha, t, ui, cam.dist, camera, gameT);
+    climax?.update(sim.cur, dt, gameT);
     // fog shows once the landing has handed over (the descent keeps its vista)
     fogView.amount = (cine && !cine.world) || title ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
     if (sim.cur.players) army?.setTeamColors(sim.cur.players.map((p) => p.color));
+    else if (sim.cur.factions) army?.setTeamColors(factionColors(sim.cur.factions));
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
     colonists?.update(sim.prev, sim.cur, alpha, ui.sel?.kind === 'colonist' ? ui.sel.id : null, gameT);
     natives?.update(sim.prev, sim.cur, alpha, gameT, cam.dist);

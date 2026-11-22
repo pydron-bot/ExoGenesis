@@ -67,6 +67,10 @@ export interface Building {
   /** Shield projector: charge (hp the dome can still soak), and whether it's collapsed (back up at 30%). */
   sh?: number;
   shDown?: boolean;
+  /** A faction outpost: the story flag set when it is destroyed. */
+  flag?: string;
+  /** A turret the Clause has turned (a glitch): faces `aim` until tick `until`, holding fire. */
+  slew?: { until: number; aim: number; was?: number };
 }
 
 export type DroneTask =
@@ -212,6 +216,18 @@ export interface Unit {
   abT?: number;
   /** An instant ability (pulse, mend) armed by a command, to go off in the next fight step. */
   abFire?: boolean;
+  /** A faction's patrol: the far end (x, z); it walks between its post and here while it has nothing to fight. */
+  patrol?: [number, number];
+  /** The map encounter it belongs to (a campaign faction's; region `encounters` id). */
+  enc?: string;
+}
+
+/** A campaign faction on the region (region `factions`; team 1 is the Clause's corrupted units). */
+export interface FactionState {
+  id: string; name: string; color: string; team: number;
+  attitude: 'neutral' | 'hostile' | 'allied';
+  /** Flags that have already turned it (its hostile / allied flag acts once). */
+  done?: string[];
 }
 
 /** One of the inhabitants at a camp (walker, or the elder who keeps to the centre). */
@@ -304,6 +320,23 @@ export interface StoryState {
   cast?: Record<string, { id: number; name: string; line: string }>;
   /** Dilemmas that can come again, and the tick they re-arm. */
   again?: { id: string; at: number }[];
+  /** Orbital strikes on their way: where, the tick they hit, damage and radius. */
+  strikes?: { x: number; z: number; at: number; amount: number; r: number }[];
+  /** The last strike that landed (`n` counts them, so the renderer draws each once). */
+  struck?: { x: number; z: number; r: number; n: number };
+  /** The last presentation glitch; `n` counts glitches, `tears` the screen tears (the renderer plays each once). */
+  glitch?: { kind: string; n: number; tears?: number };
+  /** Growth pods paused by the Clause until this tick. */
+  podPause?: number;
+  /** The game ended with an epilogue: its ending, pages and a summary of the run. */
+  epilogue?: Epilogue;
+}
+
+/** An epilogue (the epilogue effect): pages to show, then the end screen with the ending and the run in numbers. */
+export interface Epilogue {
+  ending: string;
+  pages: { title?: string; text: string }[];
+  sols: number; colonists: number; planet: number | null; allies: string[]; deaths: number;
 }
 
 /** Missions (content/missions): which are under way, done, and which objectives are met. */
@@ -341,6 +374,11 @@ export interface StorySnap {
   answered: string[];
   timers: { id: string; left: number }[];
   expired: string[];
+  /** Orbital strikes on their way (seconds left), the last that landed, the last glitch, the epilogue. */
+  strikes?: { x: number; z: number; left: number; r: number }[];
+  struck?: { x: number; z: number; r: number; n: number };
+  glitch?: { kind: string; n: number; tears?: number };
+  epilogue?: Epilogue;
 }
 
 export interface Deposit { x: number; z: number; alloys: number; max: number }
@@ -447,6 +485,8 @@ export interface SimState {
   players?: PlayerState[];
   /** Skirmish rules (absent in the campaign). */
   skirmish?: { fog: boolean; packs: boolean; unitCap?: number };
+  /** Campaign factions on this region, and the Clause's team once it turns units (absent: none). */
+  factions?: FactionState[];
 }
 
 /** How a skirmish starts (Sim.newSkirmish). */
@@ -529,6 +569,8 @@ export type Command =
   | { type: 'board'; ids: number[]; transport: number }
   | { type: 'unload'; ids: number[] }
   | { type: 'stop'; ids: number[] }
+  /** Combat units: go for one target (a campaign faction's unit or building; a neutral one turns hostile). */
+  | { type: 'attack'; ids: number[]; target: number }
   /** Combat units: use their ability (UnitDef.ability), each that has one ready. */
   | { type: 'ability'; ids: number[] }
   /** Skirmish: give up (your side loses you; the game goes on for the others). */
@@ -686,6 +728,8 @@ export interface Snapshot {
   over: SimState['over'];
   overText?: string;
   stats: SimState['stats'];
+  /** Campaign factions (absent when there are none): colour by team for the renderer. */
+  factions?: FactionState[];
 }
 
 /**
@@ -700,4 +744,4 @@ export type FromWorker =
   | Snapshot
   | { type: 'saved'; reqId: number; state: SimState }
   /** `at`: where it happened (the minimap pings it; the log line jumps the camera there). */
-  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue; at?: { x: number; z: number } };
+  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue; at?: { x: number; z: number }; style?: 'clause' };

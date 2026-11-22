@@ -46,6 +46,14 @@ export class Story {
     for (let i = st.timers.length - 1; i >= 0; i--) {
       if (sim.s.tick >= st.timers[i].at) { const id = st.timers[i].id; st.timers.splice(i, 1); this.fire(id); }
     }
+    // orbital strikes whose warning has run out
+    if (st.strikes?.length) {
+      for (const k of st.strikes.filter((x) => sim.s.tick >= x.at)) {
+        st.strikes = st.strikes.filter((x) => x !== k);
+        st.struck = { x: k.x, z: k.z, r: k.r, n: (st.struck?.n ?? 0) + 1 };
+        sim.orbitalStrike(k.x, k.z, k.r, k.amount);
+      }
+    }
     // countdowns that have run out
     if (st.countdowns?.length) {
       for (const c of [...st.countdowns]) {
@@ -231,6 +239,42 @@ export class Story {
       case 'cinematic': if (e.cinematic) this.playCine(e.cinematic); break;
       case 'win': sim.end('won', e.text ? this.fill(e.text) : ''); break;
       case 'fail': sim.end('story', e.text ? this.fill(e.text) : ''); break;
+      case 'attitude': if (e.faction && e.attitude) sim.setAttitude(e.faction, e.attitude); break;
+      case 'strike': {
+        // where: the story site, a random one of our buildings of the kind, or any of ours
+        const ours = s.buildings.filter((b) => !b.team && (!e.building || b.kind === e.building));
+        const at = site ?? (ours.length ? ours[Math.floor(sim.rnd() * ours.length)] : undefined);
+        if (!at) break;
+        const r = e.radius ?? 10, delay = e.delay ?? 6;
+        (st.strikes ??= []).push({ x: at.x, z: at.z, at: s.tick + Math.max(1, Math.round(delay * TICK_HZ)), amount: n > 0 ? n : 400, r });
+        sim.emit(`Orbital strike incoming: ${Math.round(delay)} s. Get clear of the ring.`, 'bad', 'alarm', { x: at.x, z: at.z });
+        break;
+      }
+      case 'corrupt': sim.corrupt(e.count ?? 1, e.unit); break;
+      case 'glitch': {
+        st.counters = { ...(st.counters ?? {}), clause: (st.counters?.clause ?? 0) + 1 };
+        const kind = e.glitch ?? 'log';
+        if (kind === 'log') { if (e.text) sim.emit(this.fill(e.text), 'info', 'deny', undefined, 'clause'); }
+        else if (kind === 'turret') sim.slewTurret();
+        else if (kind === 'pod') { if (s.people?.pods.length) st.podPause = Math.max(st.podPause ?? 0, s.tick + Math.round((e.seconds || 8) * TICK_HZ)); }
+        st.glitch = { kind, n: (st.glitch?.n ?? 0) + 1, tears: (st.glitch?.tears ?? 0) + (kind === 'screen' ? 1 : 0) };
+        break;
+      }
+      case 'epilogue': {
+        const allies = (s.factions ?? []).filter((f) => f.attitude === 'allied').map((f) => f.name);
+        for (const c of s.camps ?? []) if (c.trusted && !c.gone) { const g = content.inhabitants[c.group]?.name ?? c.group; if (!allies.includes(g)) allies.push(g); }
+        st.epilogue = {
+          ending: e.ending ?? 'covenant',
+          pages: (e.pages ?? []).map((p) => ({ title: p.title ? this.fill(p.title) : undefined, text: this.fill(p.text ?? '') })),
+          sols: Math.floor(sim.secs / content.colony.solSeconds) + 1,
+          colonists: s.people?.colonists.length ?? 0,
+          planet: s.planet ? Math.round(sim.planet.health()) : null,
+          allies,
+          deaths: s.people?.memorial.filter((m) => !m.cause.startsWith('left')).length ?? 0,
+        };
+        sim.end(e.ending === 'cycle' ? 'story' : 'won', e.text ? this.fill(e.text) : '');
+        break;
+      }
     }
   }
 
@@ -291,6 +335,10 @@ export class Story {
       expired: [...(st.expired ?? [])],
       who: Object.fromEntries(st.inbox.filter((id) => st.cast?.[id]).map((id) => [id, { name: st.cast![id].name, line: st.cast![id].line }])),
       boosts: (st.mods ?? []).filter((b) => b.text).map((b) => ({ text: b.text, stat: b.stat, amount: b.amount, left: b.until < 0 ? -1 : Math.max(0, (b.until - tick) / TICK_HZ) })),
+      strikes: st.strikes?.length ? st.strikes.map((k) => ({ x: k.x, z: k.z, r: k.r, left: Math.max(0, (k.at - tick) / TICK_HZ) })) : undefined,
+      struck: st.struck ? { ...st.struck } : undefined,
+      glitch: st.glitch ? { ...st.glitch } : undefined,
+      epilogue: st.epilogue,
     };
   }
 }

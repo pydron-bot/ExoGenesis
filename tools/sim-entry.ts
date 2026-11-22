@@ -10,3 +10,4 @@ export { generateSkirmishMap, mapSide } from '../src/skirmish/mapgen';
 export { placeProblem } from '../src/sim/rules';
 export { PathGrid } from '../src/sim/path';
 export * as planet from '../src/world/planet';
+export { conditionMet } from '../src/sim/conditions';

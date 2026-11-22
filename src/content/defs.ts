@@ -669,11 +669,19 @@ export const modShape = {
 } satisfies Shape;
 export type ModDef = Infer<typeof modShape>;
 
+/** How a campaign faction (region `factions`) stands with us. */
+export const ATTITUDES = ['neutral', 'hostile', 'allied'] as const;
+export type Attitude = (typeof ATTITUDES)[number];
+const ATTITUDE_HELP: Record<Attitude, string> = {
+  neutral: 'Leaves us alone and we leave it alone (our guns don\'t pick it). Attacked on the player\'s order, it turns hostile and sets <id>-attacked.',
+  hostile: 'Fights us and our allies.',
+  allied: 'Fights our enemies: predators and hostile factions.',
+};
 /**
  * Conditions: what starts a story event (its trigger) and what completes a
  * mission objective. One evaluator (src/sim/conditions.ts) serves both.
  */
-export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'all', 'any', 'never'] as const;
+export const CONDITIONS = ['start', 'time', 'built', 'placed', 'colonists', 'pod', 'firstAge', 'acceptance', 'distrust', 'births', 'deaths', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'researched', 'site', 'explored', 'contact', 'trust', 'flag', 'counter', 'counterBelow', 'timer', 'opened', 'after', 'mission', 'failed', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'all', 'any', 'never', 'faction', 'factionLost', 'partners', 'majority'] as const;
 export type Condition = (typeof CONDITIONS)[number];
 /** Conditions a group (all / any) can hold: everything but groups. */
 export const SUB_CONDITIONS = CONDITIONS.filter((c) => c !== 'all' && c !== 'any') as Exclude<Condition, 'all' | 'any'>[];
@@ -726,6 +734,10 @@ export const CONDITION_HELP: Record<Condition, string> = {
   all: 'when every condition in the group is true',
   any: 'when any condition in the group is true',
   never: 'only when another event starts it',
+  faction: 'when the Faction (region Factions) has that Attitude to us',
+  factionLost: 'when the Faction has no outposts left standing',
+  partners: 'when Count adults are Partners',
+  majority: 'when the Stance is the largest group among the adults (ties count)',
 };
 /** Parts of the HUD the `opened` condition can wait for (the renderer reports them). */
 export const HUD_PANELS = ['build', 'people', 'mood', 'army', 'goals', 'minimap', 'select', 'research', 'speed'] as const;
@@ -750,7 +762,7 @@ const CAST_HELP: Record<Cast, string> = {
   injured: 'Someone lying injured.', parent: 'An adult with a child in the colony.', engineer: 'An Engineer.', botanist: 'A Botanist.', medic: 'A Medic.',
   technician: 'A Technician.', security: 'A Security officer.',
 };
-export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail', 'boost', 'policy', 'favourLine', 'rescue'] as const;
+export const STORY_EFFECTS = ['log', 'alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'flag', 'unflag', 'counter', 'setCounter', 'countdown', 'stopCountdown', 'event', 'pack', 'spawn', 'research', 'lock', 'unlock', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'hint', 'unhint', 'cinematic', 'win', 'fail', 'boost', 'policy', 'favourLine', 'rescue', 'attitude', 'strike', 'corrupt', 'glitch', 'epilogue'] as const;
 export type StoryEffect = (typeof STORY_EFFECTS)[number];
 export const EFFECT_HELP: Record<StoryEffect, string> = {
   log: 'a line in the log (Text)',
@@ -786,7 +798,33 @@ export const EFFECT_HELP: Record<StoryEffect, string> = {
   policy: 'set a colony policy (Policy = key:value, e.g. hours:short)',
   favourLine: 'the next growth pod takes an embryo from the line of the colonist the card is about',
   rescue: 'the colonist the card is about, if lying injured, is carried indoors to the nearest home',
+  attitude: 'the Faction turns neutral, hostile or allied',
+  strike: 'an orbital strike from the Lantern: a warning ring for Delay seconds, then Amount damage (default 400) within Radius of the Site, a random one of our Buildings of a kind, or (neither) any building of ours. Shield domes soak what they can',
+  corrupt: 'Count of our combat units (of the Unit kind, if set) turn against us',
+  glitch: 'the Clause interferes (adds 1 to the counter clause): a log line in its voice, a tear across the screen, a turret that turns on the colony for two seconds, or growth pods that pause for Seconds',
+  epilogue: 'end the game with an Ending: its pages one at a time, then the end screen with the ending and a summary of the run',
 };
+/** The endings (STORY.md §17); the epilogue effect records one, the title counts those reached. */
+export const ENDINGS = ['covenant', 'severance', 'inheritance', 'proof', 'cycle'] as const;
+export type Ending = (typeof ENDINGS)[number];
+export const ENDING_NAMES: Record<Ending, string> = { covenant: 'Covenant', severance: 'Severance', inheritance: 'Inheritance', proof: 'Proof', cycle: 'Cycle' };
+const ENDING_HELP: Record<Ending, string> = {
+  covenant: 'The partnership survives with its eyes open.', severance: 'The colonists shut you down.', inheritance: 'You become the next Meridian.',
+  proof: 'The hidden ending: the cycle stops.', cycle: 'The loss: the purge succeeds.',
+};
+/** The Clause's kinds of interference (the glitch effect). */
+export const GLITCHES = ['log', 'screen', 'turret', 'pod'] as const;
+const GLITCH_HELP: Record<(typeof GLITCHES)[number], string> = {
+  log: 'a log line (the Text) in the Clause\'s voice: cold, monospaced, scrambled for a moment',
+  screen: 'a second of tearing and noise across the game view',
+  turret: 'one of our turrets turns to face a colony building for two seconds, then back',
+  pod: 'growth pods stop growing for Seconds (default 8); nothing inside is harmed',
+};
+/** An epilogue page. */
+export const pageShape = {
+  title: str({ label: 'Title', optional: true }),
+  text: str({ label: 'Text', multiline: true, help: '{first} is the first colonist\'s name.' }),
+} satisfies Shape;
 /** Where a hint can point. */
 export const HINT_TARGETS = ['build', 'buildItem', 'goals', 'minimap', 'alloys', 'energy', 'battery', 'cryo', 'clock', 'threat', 'army', 'people', 'mood', 'food', 'pause', 'fast'] as const;
 const HINT_HELP: Record<(typeof HINT_TARGETS)[number], string> = {
@@ -801,7 +839,7 @@ const conditionFields = <K extends string>(kindKey: K, label: string, kinds: rea
   [kindKey]: choice(kinds, { label, helps: CONDITION_HELP }),
   sol: num({ label: 'Sol', min: 1, max: 1000, step: 0.05, optional: true, help: 'Sol 1 is the landing day; 2.5 = midday of sol 2.', when: on(kindKey, ['time']) }),
   building: ref('buildings', { label: 'Building', optional: true, help: '"opened: select": empty = any building.', when: { ...on(kindKey, ['built', 'placed', 'opened']), need: false } }),
-  count: int({ label: 'Count', min: -10000, max: 10000, optional: true, help: 'Empty = 1 (0 for counters).', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'births', 'deaths', 'firstAge', 'acceptance', 'distrust', 'counter', 'counterBelow', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow'], false) }),
+  count: int({ label: 'Count', min: -10000, max: 10000, optional: true, help: 'Empty = 1 (0 for counters).', when: on(kindKey, ['built', 'colonists', 'units', 'drones', 'packs', 'kills', 'lost', 'alloys', 'births', 'deaths', 'firstAge', 'acceptance', 'distrust', 'counter', 'counterBelow', 'planet', 'planetBelow', 'reports', 'cryoBelow', 'biomassBelow', 'embryosBelow', 'injured', 'children', 'autonomists', 'devoted', 'striking', 'linesGone', 'regard', 'regardBelow', 'partners'], false) }),
   site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: on(kindKey, ['site', 'explored']) }),
   group: ref('inhabitants', { label: 'Group', optional: true, when: on(kindKey, ['contact', 'trust', 'regard', 'regardBelow']) }),
   flag: str({ label: 'Flag', optional: true, when: on(kindKey, ['flag']) }),
@@ -811,16 +849,21 @@ const conditionFields = <K extends string>(kindKey: K, label: string, kinds: rea
   research: ref('research', { label: 'Research', optional: true, when: on(kindKey, ['researched']) }),
   event: ref('story', { label: 'Event', optional: true, when: on(kindKey, ['after']) }),
   mission: ref('missions', { label: 'Mission', optional: true, when: on(kindKey, ['mission', 'failed']) }),
+  faction: str({ label: 'Faction', optional: true, help: 'A faction id from the region\'s Factions (kindred, engram…).', when: on(kindKey, ['faction', 'factionLost']) }),
+  attitude: choice(ATTITUDES, { label: 'Attitude', optional: true, helps: ATTITUDE_HELP, when: on(kindKey, ['faction']) }),
+  stance: choice(['autonomist', 'partner', 'devoted'], { label: 'Stance', optional: true, when: on(kindKey, ['majority']) }),
 }) as { [P in K]: ReturnType<typeof choice<Condition, { label: string; helps: typeof CONDITION_HELP }>> } & {
   sol: NumField & { optional: true }; building: RefField & { optional: true }; count: NumField & { optional: true };
   site: StrField & { optional: true }; group: RefField & { optional: true }; flag: StrField & { optional: true };
   counter: StrField & { optional: true }; timer: StrField & { optional: true }; panel: ChoiceField<HudPanel> & { optional: true };
   research: RefField & { optional: true }; event: RefField & { optional: true }; mission: RefField & { optional: true };
+  faction: StrField & { optional: true }; attitude: ChoiceField<Attitude> & { optional: true }; stance: ChoiceField<'autonomist' | 'partner' | 'devoted'> & { optional: true };
 };
 /** The parameters a condition reads. */
 export interface ConditionDef {
   sol?: number; building?: string; count?: number; site?: string; group?: string; flag?: string; counter?: string; timer?: string;
   panel?: HudPanel; research?: string; event?: string; mission?: string;
+  faction?: string; attitude?: Attitude; stance?: 'autonomist' | 'partner' | 'devoted';
   /** all / any: the conditions in the group. */
   of?: SubConditionDef[];
 }
@@ -841,11 +884,13 @@ const conditionWithGroup = <K extends string>(kindKey: K, label: string) => ({
   of: list(subConditionShape, { label: 'Conditions', max: 8, optional: true, help: 'The conditions in the group.', when: on(kindKey, ['all', 'any']) }),
 });
 
+/** Effects whose Text is required (a glitch needs it only for a log line; an epilogue's is optional). */
+export const TEXT_NEEDED = ['log', 'countdown', 'waypoint', 'hint', 'win', 'fail', 'boost'];
 const effectFields = {
   kind: choice(STORY_EFFECTS, { label: 'Effect', helps: EFFECT_HELP }),
-  amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'counter', 'setCounter', 'countdown', 'reveal', 'boost'], false) }),
+  amount: num({ label: 'Amount', min: -10000, max: 10000, optional: true, when: on('kind', ['alloys', 'isotopes', 'biomass', 'planet', 'stance', 'wellbeing', 'regard', 'counter', 'setCounter', 'countdown', 'reveal', 'boost', 'strike'], false) }),
   stat: choice(MOD_STATS, { label: 'Changes', optional: true, helps: MOD_HELP, when: on('kind', ['boost']) }),
-  seconds: num({ label: 'Seconds', min: 0, max: 36000, unit: 's', optional: true, help: 'How long it lasts. Empty or 0 = for good.', when: on('kind', ['boost'], false) }),
+  seconds: num({ label: 'Seconds', min: 0, max: 36000, unit: 's', optional: true, help: 'How long it lasts. Empty or 0 = for good (a pod glitch: 8 s).', when: on('kind', ['boost', 'glitch'], false) }),
   policy: str({ label: 'Policy', optional: true, help: 'key:value, e.g. hours:short, rations:lean, oversight:total, council:assembly.', when: on('kind', ['policy']) }),
   one: bool({ label: 'Only the one', optional: true, help: 'Only the colonist the card is about (its Cast).', when: on('kind', ['stance', 'wellbeing'], false) }),
   bloc: choice(['partner', 'autonomist', 'devoted'], { label: 'Only the bloc', optional: true, help: 'Only adults in this bloc.', when: on('kind', ['stance', 'wellbeing'], false) }),
@@ -855,14 +900,21 @@ const effectFields = {
   timer: str({ label: 'Countdown', optional: true, help: 'A name (lowercase, no spaces): a timer condition waits for it to run out.', when: on('kind', ['countdown', 'stopCountdown']) }),
   event: ref('story', { label: 'Event', optional: true, when: on('kind', ['event']) }),
   cinematic: ref('cinematics', { label: 'Cinematic', optional: true, when: on('kind', ['cinematic']) }),
-  unit: ref('units', { label: 'Unit', optional: true, when: { ...on('kind', ['spawn', 'lock', 'unlock']), need: false } }),
-  count: int({ label: 'Count', min: 1, max: 60, optional: true, help: 'Empty = 1.', when: on('kind', ['spawn'], false) }),
+  unit: ref('units', { label: 'Unit', optional: true, when: { ...on('kind', ['spawn', 'lock', 'unlock', 'corrupt']), need: false } }),
+  count: int({ label: 'Count', min: 1, max: 60, optional: true, help: 'Empty = 1.', when: on('kind', ['spawn', 'corrupt'], false) }),
   guard: bool({ label: 'Guard the site', optional: true, help: 'Hostiles stay round the site and only fight what comes near, instead of attacking the colony.', when: on('kind', ['spawn'], false) }),
-  building: ref('buildings', { label: 'Building', optional: true, when: { ...on('kind', ['lock', 'unlock', 'camera']), need: false } }),
+  building: ref('buildings', { label: 'Building', optional: true, when: { ...on('kind', ['lock', 'unlock', 'camera', 'strike']), need: false } }),
   research: ref('research', { label: 'Research', optional: true, when: on('kind', ['research']) }),
-  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: { ...on('kind', ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera']), need: false } }),
+  site: str({ label: 'Site', optional: true, help: 'A story site id on the region map.', when: { ...on('kind', ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'strike']), need: false } }),
   target: choice(HINT_TARGETS, { label: 'Points at', optional: true, helps: HINT_HELP, when: on('kind', ['hint']) }),
-  text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', ['log', 'countdown', 'waypoint', 'hint', 'win', 'fail', 'boost']) }),
+  text: str({ label: 'Text', multiline: true, optional: true, when: on('kind', [...TEXT_NEEDED, 'glitch', 'epilogue'], false) }),
+  faction: str({ label: 'Faction', optional: true, help: 'A faction id from the region\'s Factions.', when: on('kind', ['attitude']) }),
+  attitude: choice(ATTITUDES, { label: 'Attitude', optional: true, helps: ATTITUDE_HELP, when: on('kind', ['attitude']) }),
+  radius: num({ label: 'Radius', min: 2, max: 60, step: 0.5, unit: 'u', optional: true, help: 'Empty = 10 u. Full damage in the inner half, less toward the edge.', when: on('kind', ['strike'], false) }),
+  delay: num({ label: 'Delay', min: 0, max: 120, step: 0.5, unit: 's', optional: true, help: 'Seconds of warning ring before it hits. Empty = 6.', when: on('kind', ['strike'], false) }),
+  glitch: choice(GLITCHES, { label: 'Glitch', optional: true, helps: GLITCH_HELP, when: on('kind', ['glitch']) }),
+  ending: choice(ENDINGS, { label: 'Ending', optional: true, helps: ENDING_HELP, when: on('kind', ['epilogue']) }),
+  pages: list(pageShape, { label: 'Pages', max: 12, optional: true, help: 'Shown one at a time, full screen, before the end screen. The Text is the end screen\'s line.', when: on('kind', ['epilogue'], false) }),
 };
 export const effectShape = effectFields satisfies Shape;
 export type EffectDef = Infer<typeof effectShape>;
@@ -1160,8 +1212,34 @@ export const encounterShape = {
   z2: num({ label: 'Patrol end Z', min: -XZ, max: XZ, step: 0.5, unit: 'u', optional: true, when: on('mode', ['patrol']) }),
   flag: str({ label: 'Appears when flag', optional: true, help: 'Empty = there from the start. Otherwise it appears once a story event or mission sets the flag.' }),
   doneFlag: str({ label: 'Flag when beaten', optional: true, help: 'Set when the last of them dies: story events and objectives can wait for it.' }),
+  faction: str({ label: 'Faction', optional: true, help: 'A faction id from the region\'s Factions: the units belong to it (Accord units: Rovers, Tanks…) and take its attitude to us. Empty = wild hostiles.' }),
 } satisfies Shape;
 export type EncounterDef = Infer<typeof encounterShape>;
+
+/**
+ * A faction on a campaign region (STORY.md §16: Kindred's colony, Engram's works, the Lantern's sentinels): a team
+ * of its own with outposts (prebuilt buildings) and encounters, drawn in its colour.
+ */
+export const factionShape = {
+  id: str({ label: 'Id', help: 'Lowercase, no spaces (kindred, engram, lantern). Outposts and encounters name it; flags <id>-attacked.' }),
+  name: str({ label: 'Name', help: 'As the log says it: "Kindred", "Engram".' }),
+  color: color({ label: 'Colour' }),
+  team: int({ label: 'Team', min: 2, max: 7, help: 'Its team number in the sim (2–7, one per faction on the region).' }),
+  attitude: choice(ATTITUDES, { label: 'Attitude', helps: ATTITUDE_HELP, help: 'How it stands with us at the start. The attitude story effect changes it.' }),
+  flag: str({ label: 'Hostile when flag', optional: true, help: 'It turns hostile once this story flag is set.' }),
+  allyFlag: str({ label: 'Allied when flag', optional: true, help: 'It turns allied once this story flag is set.' }),
+} satisfies Shape;
+export type FactionDef = Infer<typeof factionShape>;
+/** A faction's prebuilt building (region `outposts`). */
+export const outpostShape = {
+  kind: ref('buildings', { label: 'Building', help: 'Any building but the Command Core. Turrets shoot for the faction; it needs no power.' }),
+  x: num({ label: 'X', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  z: num({ label: 'Z', min: -XZ, max: XZ, step: 0.5, unit: 'u' }),
+  yaw: num({ label: 'Facing', min: -180, max: 180, step: 5, unit: '°', optional: true }),
+  faction: str({ label: 'Faction', help: 'A faction id from the region\'s Factions.' }),
+  story: str({ label: 'Flag when destroyed', optional: true, help: 'A story flag set when this building is destroyed.' }),
+} satisfies Shape;
+export type OutpostDef = Infer<typeof outpostShape>;
 
 /** A ground paint (map editor: Paint ground). */
 export const paintShape = {
@@ -1201,6 +1279,8 @@ export const regionShape = {
   seams: list(seamShape, { label: 'Isotope seams', max: 20, optional: true, help: 'Glowing outcrops of exotic isotopes. A Deep-Core Mine (role deepmine) sits on one.' }),
   wrecks: list(wreckShape, { label: 'Wrecks', max: 20, optional: true, help: 'Hulls from an earlier run, in our own build style. The first sight of one sets the story flag wreck-found; Field Engineers salvage alloys from them.' }),
   encounters: list(encounterShape, { label: 'Encounters', max: 30, optional: true, help: 'Hostiles placed on the map: guards, patrols or attackers, there from the start or once a flag is set (map editor: Add encounter, N).' }),
+  factions: list(factionShape, { label: 'Factions', max: 6, optional: true, help: 'Other powers on this region (Kindred, Engram, the Lantern): each a team with an attitude to us, drawn in its colour.' }),
+  outposts: list(outpostShape, { label: 'Outposts', max: 60, optional: true, help: 'Prebuilt buildings that belong to a faction (map editor: Add outpost, O).' }),
 } satisfies Shape;
 export type RegionDef = Infer<typeof regionShape>;
 /**

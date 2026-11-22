@@ -80,5 +80,18 @@ export function conditionMet(sim: Sim, kind: Condition, c: ConditionDef, w: Cond
     case 'all': return !!c.of?.length && c.of.every((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'any': return !!c.of?.some((x) => conditionMet(sim, x.kind, x, w) !== !!x.not);
     case 'never': return false;
+    case 'faction': return !!c.faction && !!c.attitude && s.factions?.find((f) => f.id === c.faction)?.attitude === c.attitude;
+    case 'factionLost': {
+      const f = s.factions?.find((x) => x.id === c.faction);
+      return !!f && !sim.factionBuildings(f.team).length;
+    }
+    case 'partners': return !!s.people && s.people.colonists.filter((x) => sim.people.adult(x) && blocOf(x.stance) === 'partner').length >= n;
+    case 'majority': {
+      if (!s.people || !c.stance) return false;
+      const by: Record<string, number> = { autonomist: 0, partner: 0, devoted: 0 };
+      for (const x of s.people.colonists) if (sim.people.adult(x)) by[blocOf(x.stance)] = (by[blocOf(x.stance)] ?? 0) + 1;
+      const mine = by[c.stance];
+      return mine > 0 && Object.values(by).every((v) => v <= mine);
+    }
   }
 }

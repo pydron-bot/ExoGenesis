@@ -28,9 +28,11 @@ import { compass, depositFor, factoryMakes, gateSnap, isBarrier, linePoints, pla
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
-  type Econ, type PlayerState, type SimStats, type SkirmishSetup,
+  type Econ, type PlayerState, type SimStats, type SkirmishSetup, type FactionState,
 } from './types';
 
+/** The Clause's colour: units it has turned are drawn in it (team 1). */
+const CLAUSE_COLOR = '#c13cff';
 /** Combat units each skirmish player may have. */
 const SKIRMISH_UNITS = 40;
 /** Anything a player's guns can shoot: fauna, or another player's unit, drone or building. */
@@ -178,7 +180,7 @@ function crosses(px: number, pz: number, qx: number, qz: number, ax: number, az:
 }
 
 export type Level = 'info' | 'warn' | 'bad';
-export type EventSink = (text: string, level: Level, cue?: EventCue, at?: { x: number; z: number }) => void;
+export type EventSink = (text: string, level: Level, cue?: EventCue, at?: { x: number; z: number }, style?: 'clause') => void;
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const def = (b: Building): BuildingDef => DEFS[b.kind];
@@ -278,9 +280,9 @@ export class Sim {
   readonly missions: Missions = new Missions(this, () => ({ id: REGION_ID, sites: REGION.sites ?? [] }));
 
   /** Events for the local player (skirmish: what other players' economies do stays quiet). */
-  readonly emit: EventSink = (text, level, cue, at) => {
+  readonly emit: EventSink = (text, level, cue, at, style) => {
     if (this.team !== 0) return;
-    this.sink(text, level, cue, at);
+    this.sink(text, level, cue, at, style);
     if (this.s && !this.s.players) chronicleEvent(this.s, this.secs, text, cue);
   };
   /** The last "under attack" alert (not saved: a load just alerts again). */
@@ -319,11 +321,71 @@ export class Sim {
   private foeTick = -1;
 
   get players(): PlayerState[] | undefined { return this.s.players; }
-  /** Same side (or the campaign, where there's only one). */
+  /** Same side (or the campaign, where there's only one; with factions: us and our allies, or the hostiles together). */
   allied(a: number, b: number) {
     const P = this.s.players;
-    return !P || a === b || P[a]?.side === P[b]?.side;
+    if (P) return a === b || P[a]?.side === P[b]?.side;
+    if (a === b || !this.s.factions?.length) return true;
+    const A = this.attitude(a), B = this.attitude(b), friend = (x: string) => x === 'self' || x === 'allied';
+    return (friend(A) && friend(B)) || (A === 'hostile' && B === 'hostile');
   }
+  /** Do teams `a` and `b` fight? A skirmish: different sides. The campaign: neither is neutral and they aren't allied. */
+  private enemies(a: number, b: number) {
+    if (this.s.players) return !this.allied(a, b);
+    if (a === b || !this.s.factions?.length) return false;
+    if (this.attitude(a) === 'neutral' || this.attitude(b) === 'neutral') return false;
+    return !this.allied(a, b);
+  }
+  /** Campaign factions in play (region `factions`, or units the Clause has turned): the lists hold other teams' things. */
+  get teamsOn() { return !this.s.players && !!this.s.factions?.length; }
+  /** How team `t` stands with us (campaign): ourselves, or its faction's attitude (the Clause's team 1 is hostile). */
+  attitude(t: number): 'self' | FactionState['attitude'] {
+    if (!t) return 'self';
+    return this.s.factions?.find((f) => f.team === t)?.attitude ?? 'hostile';
+  }
+  /** What predators go for: ours and our allies' (a campaign faction that isn't allied is left alone). */
+  private prey(o: object) {
+    const t = (o as { team?: number }).team;
+    if (!t || !this.teamsOn) return true;
+    return this.attitude(t) === 'allied';
+  }
+  /** A campaign faction turns (a story effect, its flag, or our attack on a neutral one). */
+  setAttitude(id: string, att: FactionState['attitude']) {
+    const f = this.s.factions?.find((x) => x.id === id);
+    if (!f || f.attitude === att) return;
+    f.attitude = att;
+    this.foeCache.clear();
+    // everyone picks their targets again
+    for (const u of this.all?.units ?? this.units) u.target = -1;
+    this.emit(att === 'hostile' ? `${f.name}: hostile` : att === 'allied' ? `${f.name}: allied. They fight beside us.` : `${f.name}: standing down`, att === 'hostile' ? 'bad' : 'info', att === 'hostile' ? 'warning' : att === 'allied' ? 'friend' : undefined);
+  }
+  /** Region factions and their outposts (a new game, or a save from before the region had them). */
+  private initFactions() {
+    const s = this.s, F = REGION.factions ?? [];
+    if (!F.length || s.players) return;
+    s.factions = F.map((f) => ({ id: f.id, name: f.name, color: f.color, team: f.team, attitude: f.attitude }));
+    for (const o of REGION.outposts ?? []) {
+      const f = s.factions.find((x) => x.id === o.faction), dd = DEFS[o.kind];
+      if (!f || !dd || dd.role === 'core') continue;
+      s.buildings.push({ id: s.nextId++, team: f.team, kind: o.kind, x: o.x, z: o.z, yaw: ((o.yaw ?? 0) * Math.PI) / 180, progress: 1, hp: dd.hp, on: true, powered: true, flag: o.story });
+    }
+  }
+  /** Factions' flags (once a second): a faction's hostile or allied flag turns it, once. */
+  private stepFactions() {
+    const F = this.s.factions;
+    if (!F?.length || this.s.tick % TICK_HZ) return;
+    for (const f of F) {
+      const d = REGION.factions?.find((x) => x.id === f.id);
+      if (!d) continue;
+      for (const [flag, att] of [[d.flag, 'hostile'], [d.allyFlag, 'allied']] as const) {
+        if (!flag || !this.story.has(flag) || (f.done ??= []).includes(flag)) continue;
+        f.done.push(flag);
+        this.setAttitude(f.id, att);
+      }
+    }
+  }
+  /** A campaign faction's buildings (inside the colony's own view too). */
+  factionBuildings(team: number) { return (this.all?.buildings ?? this.s.buildings).filter((b) => b.team === team); }
   /** Players still in the game (all of them in order; just [0] in the campaign). */
   private liveTeams() {
     const P = this.s.players;
@@ -337,17 +399,20 @@ export class Sim {
    */
   withTeam<T>(t: number, fn: () => T): T {
     const s = this.s, P = s.players;
-    if (!P || this.all) return fn();
+    if ((!P && !this.teamsOn) || this.all) return fn();
     const all = { buildings: s.buildings, drones: s.drones, units: this.units };
     const own = <X extends { team?: number }>(a: X[]) => a.filter((o) => (o.team ?? 0) === t);
     s.buildings = own(all.buildings); s.drones = own(all.drones); s.units = own(all.units);
     this.all = all;
-    const e = t ? P[t].econ : undefined;
+    const e = t && P ? P[t].econ : undefined;
     if (e) this.swapEcon(e);
     const power = this.power, vis = this.vis, exp = this.exp;
-    this.power = this.powerOf(t);
-    const f = this.fogOf(t);
-    this.vis = f.vis; this.exp = f.exp;
+    // (campaign factions have no economy or fog: only the colony's own view is ever swapped in there)
+    if (P) {
+      this.power = this.powerOf(t);
+      const f = this.fogOf(t);
+      this.vis = f.vis; this.exp = f.exp;
+    }
     this.team = t;
     try {
       return fn();
@@ -418,13 +483,15 @@ export class Sim {
    */
   private foes(t: number): Foe[] {
     const s = this.s, P = s.players;
-    if (!P) return s.hostiles;
+    if (!P && !this.teamsOn) return s.hostiles;
     if (this.foeTick !== s.tick) { this.foeCache.clear(); this.foeTick = s.tick; }
     let f = this.foeCache.get(t);
     if (f) return f;
     const B = this.all?.buildings ?? s.buildings, D = this.all?.drones ?? s.drones, U = this.all?.units ?? this.units;
-    const enemy = (o: { team?: number }) => !this.allied(t, o.team ?? 0);
-    f = [...s.hostiles, ...U.filter(enemy), ...D.filter(enemy), ...B.filter(enemy)];
+    const enemy = (o: { team?: number }) => this.enemies(t, o.team ?? 0);
+    // campaign factions: only we and our allies fight the wildlife
+    const A = P ? 'self' : this.attitude(t);
+    f = [...(A === 'self' || A === 'allied' ? s.hostiles : []), ...U.filter(enemy), ...D.filter(enemy), ...B.filter(enemy)];
     this.foeCache.set(t, f);
     return f;
   }
@@ -455,6 +522,7 @@ export class Sim {
     s.stats = { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 };
     if (!setup.wildlife) { s.fauna = []; s.herds = []; }
     s.skirmish = { fog: setup.fog !== false, packs: !!setup.packs };
+    s.factions = undefined;
     if (this.story.s) this.story.s.locked = []; // everything buildable from the start (no tutorial gates)
     if (!setup.packs) s.waves.next = Number.MAX_SAFE_INTEGER;
     this.slotsUsed = 0;
@@ -534,6 +602,7 @@ export class Sim {
     this.initRelics();
     this.exp.fill(0);
     this.stepFog(true);
+    this.initFactions();
   }
 
   load(state: SimState) {
@@ -568,8 +637,9 @@ export class Sim {
     this.exp.fill(0);
     const ex = state.explored;
     if (ex?.length === this.exp.length) for (let i = 0; i < ex.length; i++) this.exp[i] = ex.charCodeAt(i) === 49 ? 1 : 0;
+    if (!state.factions && REGION.factions?.length) this.initFactions();
     if (state.players) for (const t of this.liveTeams()) this.withTeam(t, () => this.stepFog(true));
-    else this.stepFog(true);
+    else this.withTeam(0, () => this.stepFog(true));
   }
 
   /** The region's predator spawns (a corner if it has none). */
@@ -848,31 +918,38 @@ export class Sim {
       return;
     }
     if (this.deployed) {
-      this.stepPower();
-      this.stepDrones();
-      this.stepFab();
-      this.stepFactories();
-      this.stepResearch();
-      this.stepMining();
+      // with campaign factions on the map the colony's own steps see only its own things, and the fight is everyone's
+      // (without any, `withTeam` just runs them)
+      this.withTeam(0, () => {
+        this.stepPower();
+        this.stepDrones();
+        this.stepFab();
+        this.stepFactories();
+        this.stepResearch();
+        this.stepMining();
+      });
       this.stepTurrets();
-      this.stepRepairPads();
+      this.withTeam(0, () => this.stepRepairPads());
       this.stepUnits();
       this.stepShields();
       this.stepHostiles();
       this.stepNests();
-      this.stepRelics();
-      this.stepWaves();
-      this.frontier.step();
-      this.stepCryo();
-      this.people.step();
-      this.planet.step();
-      this.inhabitants.step();
-      this.story.step();
-      this.stepEncounters();
-      this.missions.step();
-      if (s.tick % TICK_HZ === 0 && this.deployed) recordChronicle(s, this.secs);
+      this.withTeam(0, () => {
+        this.stepRelics();
+        this.stepWaves();
+        this.frontier.step();
+        this.stepCryo();
+        this.people.step();
+        this.planet.step();
+        this.inhabitants.step();
+        this.story.step();
+        this.stepEncounters();
+        this.stepFactions();
+        this.missions.step();
+        if (s.tick % TICK_HZ === 0 && this.deployed) recordChronicle(s, this.secs);
+      });
     }
-    if (s.tick % 5 === 0) this.stepFog();
+    if (s.tick % 5 === 0) this.withTeam(0, () => this.stepFog());
     this.stepGrazers();
   }
 
@@ -1015,7 +1092,8 @@ export class Sim {
   }
   /** In sight of player `t` (outside a swap: `visible` is player 0's). */
   private visibleTo(t: number, x: number, z: number) {
-    if (!t || !this.s.players) return this.visible(x, z);
+    if (!this.s.players) return t ? true : this.visible(x, z); // (campaign factions keep no fog)
+    if (!t) return this.visible(x, z);
     if (this.s.skirmish?.fog === false) return true;
     const i = Math.floor((x + REGION_HALF) / FOG_CELL), j = Math.floor((z + REGION_HALF) / FOG_CELL);
     return i >= 0 && j >= 0 && i < FOG_N && j < FOG_N && this.fogOf(t).vis[j * FOG_N + i] === 1;
@@ -1359,6 +1437,12 @@ export class Sim {
       const d = def(b);
       if (!d.fireRange || !d.damage || !d.cooldown || b.progress < 1) continue;
       b.cd = Math.max(0, (b.cd ?? 0) - DT);
+      // turned by the Clause (a glitch): it faces the colony and holds fire, then turns back
+      if (b.slew) {
+        if (b.slew.until > s.tick) { b.aim = b.slew.aim; b.engaged = false; continue; }
+        b.aim = b.slew.was ?? b.yaw ?? 0;
+        b.slew = undefined;
+      }
       const min = d.minRange ?? 0, team = b.team ?? 0;
       let best: Foe | null = null, bs = Infinity;
       for (const h of this.foes(team)) {
@@ -1725,6 +1809,10 @@ export class Sim {
         if (!this.goTo(u, tgt.x, tgt.z, speed)) u.target = -1;
       } else if (!tgt && Math.hypot(u.gx - u.x, u.gz - u.z) > 1.5) {
         if (!this.goTo(u, u.gx, u.gz, speed)) this.arrive(u);
+      } else if (!tgt && u.patrol) {
+        // a faction's patrol: at one end, turn for the other
+        const [px, pz] = u.patrol;
+        u.patrol = [u.gx, u.gz]; u.gx = px; u.gz = pz;
       }
     }
     for (const u of boarded) us.splice(us.indexOf(u), 1);
@@ -1974,12 +2062,13 @@ export class Sim {
       // a guard: only what comes near its post (and near it), never the base beyond
       const post = (o: { x: number; z: number }, r: number) => Math.hypot(o.x - g.x, o.z - g.z) <= r;
       for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
-        if (!this.canBite(u, d)) continue;
+        if (!this.canBite(u, d) || !this.prey(d)) continue;
         const dist = Math.hypot(d.x - h.x, d.z - h.z);
         if (dist < Math.max(u.aggro, 6) && dist < bd && post(d, g.r * 1.6 + u.aggro)) { bd = dist; best = d.id; }
       }
       if (best >= 0) return best;
       for (const b of s.buildings) {
+        if (!this.prey(b)) continue;
         const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
         if (dist < bd && post(b, g.r + bodyR(b))) { bd = dist; best = b.id; }
       }
@@ -1988,7 +2077,7 @@ export class Sim {
     // underground, a burrower can't sense drones or units: it heads for the base (never a wall)
     if (!h.under) {
       for (const d of [...s.drones, ...this.units, ...this.people.outdoors()]) {
-        if (!this.canBite(u, d)) continue;
+        if (!this.canBite(u, d) || !this.prey(d)) continue;
         const dist = Math.hypot(d.x - h.x, d.z - h.z);
         if (dist < u.aggro && dist < bd && this.canReach(h, u, d.x, d.z, 1)) { bd = dist; best = d.id; }
       }
@@ -1997,14 +2086,14 @@ export class Sim {
     // nearest building it can get at (not one across the water, or inland for a sea creature); flyers go over walls
     const over = h.under || flies(u);
     for (const b of s.buildings) {
-      if (over && barrier(b)) continue;
+      if ((over && barrier(b)) || !this.prey(b)) continue;
       const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b) + (barrier(b) ? WALL_PENALTY : 0) - (def(b).lure ?? 0);
       if (dist < bd && this.canReach(h, u, b.x, b.z, bodyR(b))) { bd = dist; best = b.id; }
     }
     if (best >= 0) return best;
     // nothing it can get at: make for the nearest anyway and wait as close as it can (a sea creature off the coast)
     for (const b of s.buildings) {
-      if (over && barrier(b)) continue;
+      if ((over && barrier(b)) || !this.prey(b)) continue;
       const dist = Math.hypot(b.x - h.x, b.z - h.z) - bodyR(b);
       if (dist < bd) { bd = dist; best = b.id; }
     }
@@ -2163,7 +2252,8 @@ export class Sim {
       if (seen.includes(e.id) || (e.flag && !this.story.has(e.flag))) continue;
       seen.push(e.id);
       const route = e.mode === 'patrol' && e.x2 !== undefined && e.z2 !== undefined ? [e.x, e.z, e.x2, e.z2] : undefined;
-      this.spawnAt(e.unit, e.count, e.x, e.z, e.mode === 'attack' ? 0 : e.r ?? 14, route, e.id);
+      const team = e.faction ? this.s.factions?.find((f) => f.id === e.faction)?.team : undefined;
+      this.spawnAt(e.unit, e.count, e.x, e.z, e.mode === 'attack' ? 0 : e.r ?? 14, route, e.id, team);
       // ones that turn up mid-game are news; the ones there from the start are just the map
       if (e.flag) this.emit(`${content.units[e.unit]?.name ?? e.unit}${e.count > 1 ? ` ×${e.count}` : ''} sighted ${compass(e.x, e.z)} of the Core`, 'warn', 'warning');
     }
@@ -2186,16 +2276,21 @@ export class Sim {
    * the colony; anything else is hostile: a pack that goes for the colony, or with
    * `guardR` a guard that stays round the spot (along `route` if given).
    */
-  spawnAt(unit: string, n: number, x: number, z: number, guardR = 0, route?: number[], enc?: string) {
+  spawnAt(unit: string, n: number, x: number, z: number, guardR = 0, route?: number[], enc?: string, team?: number) {
     const s = this.s, ud = content.units[unit];
     if (!ud) return 0;
     let made = 0;
-    if (ud.faction === 'accord') {
+    if (ud.faction === 'accord' || team) {
+      // a campaign faction's: guards hold the spot, a patrol walks to the route's far end and back, attackers make for the Core
+      const core = team && !guardR ? s.buildings.find((b) => b.kind === 'core' && !b.team) ?? { x: 0, z: 0 } : null;
       for (let i = 0; i < n; i++) {
         const slot = this.freeSlot();
         if (slot < 0) break;
         const ux = clamp(x + (i % 4) * 3, -limit(), limit()), uz = clamp(z - Math.floor(i / 4) * 3, -limit(), limit());
-        this.units.push({ id: s.nextId++, unit, slot, x: ux, z: uz, heading: 0, hp: ud.hp, cd: 0, order: { kind: 'idle' }, gx: ux, gz: uz, target: -1 });
+        const u: Unit = { id: s.nextId++, team, unit, slot, x: ux, z: uz, heading: 0, hp: ud.hp, cd: 0, order: { kind: 'idle' }, gx: ux, gz: uz, target: -1, enc };
+        if (route && route.length >= 4) u.patrol = [route[2] + (u.x - x), route[3] + (u.z - z)];
+        if (core) u.order = { kind: 'move', x: core.x + (i % 4) * 3 - 4, z: core.z - 12 - Math.floor(i / 4) * 3 };
+        this.units.push(u);
         made++;
       }
       return made;
@@ -2216,6 +2311,82 @@ export class Sim {
     }
     if (pack?.alive) s.packs.push(pack);
     return made;
+  }
+
+  // ---------- the climax (story effects: strike, corrupt, glitch) ----------
+  /**
+   * An orbital strike lands at (x, z): the fullest shield dome over the point soaks what it can, then everything of ours
+   * (and any predator) within `r` takes what is left: all of it in the inner half, down to 30% at the edge.
+   */
+  orbitalStrike(x: number, z: number, r: number, amount: number) {
+    const s = this.s;
+    let left = amount, best: Dome | null = null;
+    for (const m of this.domes) if ((m.o.sh ?? 0) > 0 && Math.hypot(x - m.x, z - m.z) <= m.r && (!best || (m.o.sh ?? 0) > (best.o.sh ?? 0))) best = m;
+    if (best) {
+      const took = Math.min(best.o.sh ?? 0, left);
+      best.o.sh = (best.o.sh ?? 0) - took;
+      left -= took;
+      this.fx.push(FX.SHIELD, x, z + best.r * 0.2, best.x, best.z);
+      if (best.o.sh <= 1e-6) {
+        best.o.sh = 0; best.o.shDown = true;
+        this.domes.splice(this.domes.indexOf(best), 1);
+        this.emit(`${best.name}: shield down. It comes back at ${Math.round(SHIELD_BACK * 100)}% charge.`, 'warn', 'warning');
+      }
+    }
+    this.fx.push(FX.DIE_BIG, x, z, 0, 0);
+    for (let i = 0; i < 5; i++) { const a = i * 1.257, d = r * 0.55; this.fx.push(FX.DIE_BIG, x + Math.cos(a) * d, z + Math.sin(a) * d, 0, 0); }
+    if (left <= 0) { this.emit('Orbital strike: the shield held', 'info', 'confirm', { x, z }); return; }
+    const share = (ox: number, oz: number, body: number) => {
+      const d = Math.max(0, Math.hypot(ox - x, oz - z) - body);
+      return d > r ? 0 : d <= r / 2 ? 1 : 1 - (0.7 * (d - r / 2)) / (r / 2);
+    };
+    for (const b of [...s.buildings]) {
+      if (b.team) continue;
+      const k = share(b.x, b.z, bodyR(b));
+      if (!k) continue;
+      b.hp -= left * k * this.buildingHarm(b);
+      if (s.people) this.people.struck(b);
+      if (b.hp <= 0) this.destroyBuilding(b);
+    }
+    for (const u of [...this.units]) {
+      if (u.team) continue;
+      const k = share(u.x, u.z, content.units[u.unit].radius);
+      if (k) { u.hp -= left * k * this.armour(u); if (u.hp <= 0) this.destroyUnit(u); }
+    }
+    for (const d of [...s.drones]) { const k = share(d.x, d.z, 1); if (k && !d.team) { d.hp -= left * k; if (d.hp <= 0) this.destroyDrone(d); } }
+    for (const h of [...s.hostiles]) { const k = share(h.x, h.z, this.unitDef(h).radius); if (k && !h.under) { h.hp -= left * k * this.armour(h); if (h.hp <= 0) this.killHostile(h); } }
+  }
+
+  /** The Clause turns `n` of our combat units (of `kind`, if given) against us: they join its team and make for the Core. */
+  corrupt(n: number, kind?: string) {
+    const s = this.s;
+    const pool = this.units.filter((u) => !u.team && (!kind || u.unit === kind) && content.units[u.unit].damage > 0 && u.ride === undefined);
+    if (!pool.length || s.players) return 0;
+    if (!s.factions?.some((f) => f.team === 1)) (s.factions ??= []).push({ id: 'clause', name: 'The Clause', color: CLAUSE_COLOR, team: 1, attitude: 'hostile' });
+    this.foeCache.clear();
+    const core = s.buildings.find((b) => b.kind === 'core' && !b.team) ?? { x: 0, z: 0 };
+    let made = 0;
+    for (; made < n && pool.length; made++) {
+      const u = pool.splice(Math.floor(this.rnd() * pool.length), 1)[0];
+      u.team = 1; u.target = -1; u.abT = 0;
+      u.order = { kind: 'move', x: core.x + Math.sin(made * 2.4) * 10, z: core.z + Math.cos(made * 2.4) * 10 };
+      this.emit(`${content.units[u.unit].name} no longer answers.`, 'bad', 'alarm', { x: u.x, z: u.z }, 'clause');
+    }
+    for (const o of this.units) if (!o.team) o.target = -1;
+    return made;
+  }
+
+  /** The Clause turns one of our turrets to face a colony building for two seconds (a glitch). False if we have none. */
+  slewTurret() {
+    const s = this.s, ours = s.buildings.filter((b) => !b.team && b.progress >= 1);
+    const guns = ours.filter((b) => def(b).role === 'turret');
+    if (!guns.length) return false;
+    const b = guns[Math.floor(this.rnd() * guns.length)];
+    const homes = ours.filter((x) => def(x).role === 'civic');
+    const at = (homes.length ? homes : ours.filter((x) => x.kind === 'core')).sort((p, q) => Math.hypot(p.x - b.x, p.z - b.z) - Math.hypot(q.x - b.x, q.z - b.z))[0];
+    if (!at) return false;
+    b.slew = { until: s.tick + 2 * TICK_HZ, aim: Math.atan2(at.x - b.x, at.z - b.z), was: b.aim };
+    return true;
   }
 
   /** Clear the fog within `r` of (x, z) (a reveal effect). */
@@ -2249,6 +2420,15 @@ export class Sim {
     s.buildings.splice(i, 1);
     b.hp = Math.min(b.hp, 0);
     const t = b.team ?? 0;
+    if (t && !s.players) {
+      // a campaign faction's outpost: theirs, not ours (its story flag, if it has one)
+      this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
+      for (const u of this.units) if (u.fix === b.id) u.fix = -1;
+      const f = s.factions?.find((x) => x.team === t);
+      this.emit(`${f ? `${f.name}'s` : 'Their'} ${def(b).name} destroyed`, 'info', undefined, { x: b.x, z: b.z });
+      if (b.flag && !this.story.has(b.flag)) this.story.s.flags.push(b.flag);
+      return;
+    }
     this.statsOf(t).buildingsLost++;
     this.fx.push(FX.DIE_BIG, b.x, b.z, 0, 0);
     for (const u of this.units) if (u.fix === b.id) u.fix = -1;
@@ -2354,7 +2534,12 @@ export class Sim {
     this.units.splice(i, 1);
     u.hp = Math.min(u.hp, 0);
     const aboard = u.cargo?.length ?? 0, st = this.statsOf(u.team ?? 0);
-    st.unitsLost = (st.unitsLost ?? 0) + 1 + aboard;
+    if (!u.team || this.s.players) st.unitsLost = (st.unitsLost ?? 0) + 1 + aboard; // (a campaign faction's aren't ours)
+    // the last of a faction's map encounter: its "beaten" flag
+    if (u.enc && !this.units.some((x) => x.enc === u.enc)) {
+      const e = REGION.encounters?.find((x) => x.id === u.enc);
+      if (e?.doneFlag && !this.story.has(e.doneFlag)) this.story.s.flags.push(e.doneFlag);
+    }
     this.fx.push(dieFx(content.units[u.unit].radius), u.x, u.z, 0, 0);
     if (!u.team) this.emit(`${content.units[u.unit].name} destroyed${aboard ? ` with ${aboard} aboard` : ''}`, 'bad', 'lost');
     if (u.pax?.length) this.people.spill(u.pax, u.x, u.z);
@@ -2369,7 +2554,7 @@ export class Sim {
 
   // ---------- waves ----------
   private radarPowered() {
-    return this.s.buildings.some((b) => b.powered && def(b).role === 'radar');
+    return this.s.buildings.some((b) => b.powered && !b.team && def(b).role === 'radar');
   }
 
   private stepWaves() {
@@ -2426,7 +2611,7 @@ export class Sim {
   }
 
   private freeSlot() {
-    const used = new Set([...this.s.hostiles, ...this.units].map((h) => h.slot));
+    const used = new Set([...this.s.hostiles, ...(this.all?.units ?? this.units)].map((h) => h.slot));
     for (let i = 0; i < MAX_HOSTILES; i++) if (!used.has(i)) { this.slotsUsed = Math.max(this.slotsUsed, i + 1); return i; }
     return -1;
   }
@@ -2547,7 +2732,7 @@ export class Sim {
   /** A player's command (skirmish: `team` says whose; it acts only on that player's things and alloys). */
   command(c: Command, team = 0) {
     if (this.s.players && !this.s.players[team]?.out) return this.withTeam(team, () => this.run(c));
-    if (!this.s.players) this.run(c);
+    if (!this.s.players) this.withTeam(0, () => this.run(c)); // (campaign factions: only our own things take orders)
   }
 
   private run(c: Command) {
@@ -2773,6 +2958,24 @@ export class Sim {
         });
         return;
       }
+      case 'attack': {
+        // one target: a campaign faction's unit or building (a neutral one turns hostile), or a predator
+        const all = this.all ?? { buildings: s.buildings, units: this.units };
+        const tgt: Foe | undefined = all.units.find((u) => u.id === c.target) ?? all.buildings.find((b) => b.id === c.target) ?? s.hostiles.find((h) => h.id === c.target);
+        if (!tgt) return;
+        const t = (tgt as { team?: number }).team ?? 0;
+        if (t && !s.players) {
+          const f = s.factions?.find((x) => x.team === t);
+          if (this.attitude(t) === 'allied') { this.emit(`${f?.name ?? 'They'} are on our side`, 'warn', 'deny'); return; }
+          if (f && f.attitude === 'neutral') {
+            this.setAttitude(f.id, 'hostile');
+            if (!this.story.has(`${f.id}-attacked`)) this.story.s.flags.push(`${f.id}-attacked`);
+          }
+        }
+        this.run({ type: 'order', ids: c.ids, x: tgt.x, z: tgt.z });
+        for (const u of this.units) if (c.ids.includes(u.id)) u.target = tgt.id;
+        return;
+      }
       case 'surrender': {
         if (s.players && !s.players[this.team]?.out && !this.falling.includes(this.team)) this.falling.push(this.team);
         return;
@@ -2884,9 +3087,9 @@ export class Sim {
       army[o + F.GEN] = h.id & 0xffff; army[o + F.ALIVE] = 1;
     }
     // skirmish: what the local player can know of the others: their units and drones in sight, their buildings once seen
-    const P = s.players;
-    const known = <X extends { team?: number; x: number; z: number }>(o: X) => !P || this.allied(0, o.team ?? 0) || this.visible(o.x, o.z);
-    if (P) for (const b of s.buildings) if (!b.seen && known(b)) b.seen = true;
+    const P = s.players, multi = !!P || this.teamsOn; // (campaign factions: theirs in sight, their buildings once seen)
+    const known = <X extends { team?: number; x: number; z: number }>(o: X) => !multi || this.allied(0, o.team ?? 0) || this.visible(o.x, o.z);
+    if (multi) for (const b of s.buildings) if (!b.seen && known(b)) b.seen = true;
     const units: UnitSnap[] = this.units.filter(known).map((u) => {
       const o = u.slot * STRIDE, d = content.units[u.unit];
       army[o + F.X] = u.x; army[o + F.Z] = u.z; army[o + F.HEADING] = u.heading; army[o + F.AIM] = u.aim ?? u.heading;
@@ -2932,7 +3135,7 @@ export class Sim {
       type: 'snap', tick: s.tick, secs: this.secs, deployed: this.deployed,
       unitCap: this.unitCap(), droneCap: P ? undefined : this.maxDrones(), mods: P ? undefined : this.modsNow(),
       players: P?.map((p, i) => ({ name: p.name, color: p.color, side: p.side, ai: p.ai, out: !!p.out, home: p.home, stats: { ...this.statsOf(i) } })),
-      drones, fauna: fa, buildings: (P ? s.buildings.filter((b) => this.allied(0, b.team ?? 0) || b.seen) : s.buildings).map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
+      drones, fauna: fa, buildings: (multi ? s.buildings.filter((b) => this.allied(0, b.team ?? 0) || b.seen) : s.buildings).map((b) => ({ ...b, queue: b.queue ? [...b.queue] : undefined })), deposits: s.deposits.map((d) => ({ ...d })),
       wrecks: (s.wrecks ?? []).map((w) => ({ ...w })),
       seams: (s.seams ?? []).map((v) => ({ ...v })), isotopes: s.isotopes ?? 0,
       caches: (s.relics?.caches ?? []).map((c) => ({ ...c })),
@@ -2943,6 +3146,7 @@ export class Sim {
       stored: s.stored, storageMax: this.power.storageMax, daylight: this.power.daylight,
       radar, nextPack: radar ? Math.max(0, (s.waves.next - s.tick) / TICK_HZ) : null, packs,
       fab: { queued: s.fab.queued, progress: s.fab.progress }, frontier: P ? undefined : this.frontier.snapshot(), people: this.people.snapshot(), planet: this.planet.snapshot(), over: s.over, overText: s.overText, stats: { ...s.stats },
+      factions: s.factions?.length ? s.factions.map((f) => ({ ...f })) : undefined,
     };
   }
 }

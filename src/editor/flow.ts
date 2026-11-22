@@ -54,6 +54,11 @@ export function effectShort(e: Partial<EffectDef>): string {
     case 'win': return 'WIN';
     case 'fail': return 'LOSE';
     case 'cinematic': return `play ${e.cinematic ?? '?'}`;
+    case 'attitude': return `${e.faction ?? '?'} ${e.attitude ?? '?'}`;
+    case 'strike': return `orbital strike on ${e.site ?? e.building ?? 'a random building'} (${e.amount || 400} dmg, ${e.radius ?? 10} u, in ${e.delay ?? 6} s)`;
+    case 'corrupt': return `corrupt ${e.count ?? 1}× ${e.unit ?? 'combat unit'}`;
+    case 'glitch': return `Clause glitch: ${e.glitch ?? '?'}${e.glitch === 'pod' ? ` (${e.seconds || 8} s)` : ''}`;
+    case 'epilogue': return `EPILOGUE: ${e.ending ?? '?'} (${e.pages?.length ?? 0} page${e.pages?.length === 1 ? '' : 's'})`;
     case undefined: return '?';
     default: return EFFECT_HELP[e.kind as StoryEffect].replace('Amount', String(e.amount ?? '?')).replace(/ \(.*\)/, '').replace('the Group', e.group ?? '?').replace('the Flag', `flag ${e.flag ?? '?'}`).replace('the Event', e.event ?? '?');
   }
@@ -102,6 +107,7 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
       if (e.kind === 'countdown' && e.timer) useT(e.timer).setBy.push(at);
       if (e.kind === 'stopCountdown' && e.timer) useT(e.timer).clearedBy.push(at);
       if (e.kind === 'research' && e.research) use(`research-${e.research}`).setBy.push(at);
+      if (e.kind === 'glitch') useC('clause').setBy.push(at);
     }
   };
   for (const [id, ev] of Object.entries(story)) {
@@ -117,7 +123,7 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
     for (const f of m.fails ?? []) wants(f, f.kind, at);
   }
   // flags the game itself sets (research-<id>, wreck-found, relic-woke…) are never "missing"
-  const builtin = (f: string) => /^(research|contact|trust|relic)-/.test(f) || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed', 'inhabitants-met'].includes(f) || known.has(f);
+  const builtin = (f: string) => /^(research|contact|trust|relic)-/.test(f) || /-attacked$/.test(f) || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed', 'inhabitants-met'].includes(f) || known.has(f);
   for (const [f, u] of flags) {
     if (!u.setBy.length && !builtin(f)) for (const w of u.waits) problems.push({ at: w, msg: `waits for flag "${f}", which nothing sets` });
   }
@@ -204,6 +210,10 @@ export function condText(kind: Condition, c: ConditionDef): string {
     case 'regardBelow': return `${c.group ?? '?'} regard ≤ ${c.count ?? 0}`;
     case 'all': case 'any': return (c.of ?? []).map((x) => `${x.not ? 'not ' : ''}${condText(x.kind as Condition, x as ConditionDef)}`).join(kind === 'all' ? ' and ' : ' or ') || `(empty ${kind} group)`;
     case 'never': return 'only when started';
+    case 'faction': return `${c.faction ?? '?'} ${c.attitude ?? '?'}`;
+    case 'factionLost': return `${c.faction ?? '?'} outposts gone`;
+    case 'partners': return pl(n, 'Partner');
+    case 'majority': return `${c.stance ?? '?'}s the largest group`;
   }
 }
 
