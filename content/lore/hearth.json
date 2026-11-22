@@ -1,0 +1,8 @@
+{
+  "title": "Hearth",
+  "kind": "place",
+  "secret": false,
+  "chapter": "the-planet",
+  "tags": "home, vell",
+  "text": "The Vell's name for Home. Colonists pick it up after the Keeper's Song. The interface still says HOME."
+}

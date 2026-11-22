@@ -1,0 +1,8 @@
+{
+  "title": "The Ledger",
+  "kind": "object",
+  "secret": true,
+  "chapter": "the-proof",
+  "tags": "vess, act 2, proof",
+  "text": "Under the ice of Vess (a moon of Halcyon). Meridian's record of every run: twelve columns, one per run, each a planet-health score for the three probes. Eleven columns end with the same line in Accord's own log format: \"purge complete, run closed.\" The twelfth is open. Reading it (ledger-read) is needed for Engram to defect and for the Proof ending."
+}
