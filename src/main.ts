@@ -49,7 +49,9 @@ import { hasUnseen, openWhatsNew } from './whatsnew';
 import { registerServiceWorker } from './pwa';
 import { updateWater } from './world/water';
 import { ClimaxView, endingsReached, scrambleIn } from './climax-view';
-import type { FactionState } from './sim/types';
+import type { FactionState, LogStyle } from './sim/types';
+import { AutopilotView, loadPrefs } from './autopilot';
+import { POLICIES, type ChoicePolicy } from './sim/choices';
 import { surfaceUniforms, addSurfaceDetail, buildClouds, setSurfaceMaps, updateClouds, updateSurface, type SurfaceMaps } from './world/surface';
 
 const params = new URLSearchParams(location.search);
@@ -215,8 +217,8 @@ const bodyDef = content.bodies[bodyId];
 // (boots its module graph and a new game) and the globe/province generator.
 /** Sim events that arrive before the HUD exists wait here. */
 type At = { x: number; z: number } | undefined;
-const early: [string, 'info' | 'warn' | 'bad', At, ('clause' | undefined)?][] = [];
-let logFn: ((text: string, level: 'info' | 'warn' | 'bad', at?: At, style?: 'clause') => void) | null = null;
+const early: [string, 'info' | 'warn' | 'bad', At, (LogStyle | undefined)?][] = [];
+let logFn: ((text: string, level: 'info' | 'warn' | 'bad', at?: At, style?: LogStyle) => void) | null = null;
 // sound (colony only; ?sound=0 turns it off for good, the ⋯ menu for now)
 const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0', content.music);
 const sim = new SimClient((t, l, cue, at, style) => {
@@ -390,13 +392,13 @@ const logEl = $('log');
 // the HUD's look (Rules → Interface; the editor's preview hands over an unsaved one)
 const ui_ = preview?.interface ?? content.interface;
 applyInterface(ui_);
-const heldLog: [string, 'info' | 'warn' | 'bad', At, ('clause' | undefined)?][] = [];
+const heldLog: [string, 'info' | 'warn' | 'bad', At, (LogStyle | undefined)?][] = [];
 /** Pings the minimap (set once the HUD exists: early events come before it). */
 let pingFn: ((x: number, z: number, color: string) => void) | null = null;
 /** Where the latest event with a place happened (H takes the camera there). */
 let lastAt: At;
 const goTo = (at: { x: number; z: number }) => { cam.lookAtGround(at.x, at.z); if (cam.a > 0.5) cam.setView('surface'); };
-function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At, style?: 'clause') {
+function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At, style?: LogStyle) {
   // a cinematic hides the log; keep events for when it ends
   if (cine) { heldLog.push([text, level, at, style]); return; }
   const el = document.createElement('div');
@@ -540,6 +542,14 @@ function solTime(tick: number) {
  * The title screen comes first unless a URL asks to go straight in:
  * ?title=0 (resume or land as before), ?intro=0, ?new=1, ?view=…, skirmish.
  */
+/**
+ * Autopilot (spectator mode, TECH.md "Autopilot"): the computer plays the campaign. Started from the title's
+ * Options (Watch the computer play) or the game menu; remembered in the browser (`exo.autopilot`), so it stays on
+ * across a travel reload, a landing elsewhere or a CONTINUE in another region it started. Never in a skirmish, a
+ * play test or a scratch game.
+ */
+const apAllowed = !skirmishMode && !rts && !scratch;
+const apOnAtStart = apAllowed && loadPrefs().on && (travelIn || landHere || params.get('title') === '0');
 const useTitle = !skirmishMode && !rts && !landHere && !travelIn && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
 if (useTitle) document.body.classList.add('title');
 let title: TitleScreen | null = null;
@@ -820,6 +830,21 @@ function setSpeed(s: number, user = false) {
   userPaused = s === 0 && user;
   sim.setSpeed(s);
   for (const [k, b] of Object.entries(speedBtns)) b.classList.toggle('on', Number(k) === s);
+}
+/** The autopilot's badge, card reader and camera director (src/autopilot.ts); null where it can't run. */
+const autopilot = apAllowed ? new AutopilotView({
+  cam,
+  pilot: (cfg) => sim.pilot(cfg),
+  setSpeed: (n) => setSpeed(n),
+  speed: () => speed,
+  busy: () => !!title || !!cine || travelling || menuOpen || panelOpen() || !sim.cur?.deployed || !!sim.cur?.over || !!document.getElementById('whatsnew') || !!document.getElementById('chronicle'),
+  canvas: renderer.domElement,
+  tap: () => audio.play('tap'),
+}, false) : null;
+if (autopilot) {
+  sim.onPilot = (st) => autopilot.report(st);
+  // on when it was left on and this load carries on its game (travel, a landing or a CONTINUE it started); otherwise off
+  autopilot.set(apOnAtStart);
 }
 $('b-pause').onclick = () => setSpeed(0, true);
 $('b-play').onclick = () => setSpeed(1);
@@ -1334,6 +1359,11 @@ function openGameMenu() {
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    ...(autopilot ? [{
+      id: 'autopilot', label: autopilot.on ? 'Autopilot: on' : 'Autopilot',
+      sub: autopilot.on ? 'Stop it and take over (the computer has been playing)' : 'Watch it play: the computer plays your campaign (your colony) until you stop it',
+      run: () => autopilot.set(!autopilot.on),
+    }] : []),
     { id: 'chronicle', label: 'Chronicle', sub: 'The colony\'s story so far: moments, blocs, the family tree, the memorial', run: keep(() => void showChronicle(() => { menuOpen = false; reopen(); })) },
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
@@ -1406,15 +1436,34 @@ function showTitle() {
   // choosing a region only marks it; NEW GAME loads it and lands there (no reload just for picking)
   let landIn = expedition ? HOME_REGION : regionId;
   const newSub = () => (regions.length > 1 ? `Land in ${regionLabel(landIn)}` : 'Land the probe on a fresh world');
+  // a trip under way with nothing saved there yet: CONTINUE lands the expedition
+  const trip = !resumed && !elsewhere && !!freshShared && campaign?.current === regionId && regionId !== HOME_REGION;
+  /** Options → Autopilot: watch the computer play the campaign (it continues yours, or starts one). */
+  const watch = () => {
+    document.getElementById('options')?.remove();
+    autopilot!.set(true);
+    if (resumed) go(startResume)();
+    else if (elsewhere) goRegion(savedRegion, { title: '0' });
+    else if (trip) go(() => sim.command({ type: 'landing', stage: 'deploy' }))();
+    else if (landIn !== regionId) goRegion(landIn, { land: '1' });
+    else { if (!scratch) void wipeCampaign(); if (freshShared) sim.newGame(Date.now() % 100000); go(startLanding)(); }
+  };
+  const AP = 'Autopilot: the computer plays your campaign';
+  const pick = (id: string, label: string, help: string, get: () => boolean, set: () => void): Toggle => ({ id, section: AP, label, help, get, set, state: (on) => (on ? '●' : '') });
+  const apRows: OptionRow[] = autopilot ? [
+    { id: 'ap:watch', section: AP, label: 'Watch the computer play', help: `${resumed || elsewhere || trip ? 'Continues your campaign (your colony)' : 'Starts a new campaign'}: it builds, answers the story and travels while you watch · Stop on its badge hands it back`, get: () => false, set: watch, state: () => 'START ▸' },
+    ...(['first', 'honest', 'random', 'last'] as ChoicePolicy[]).map((p) => pick(`ap:policy:${p}`, `Answers: ${p === 'first' ? 'the first choice' : p === 'honest' ? 'the honest one' : p === 'random' ? 'at random' : 'the last choice'}`, POLICIES[p], () => autopilot.prefs.policy === p, () => { autopilot.prefs.policy = p; autopilot.save(); })),
+    { id: 'ap:assist', section: AP, label: 'Assist when stuck', help: `Finish an objective with no progress for ${autopilot.prefs.assistMinutes} min, and send away a pack about to take the Command Core (logged in violet)`, get: () => autopilot.prefs.assist, set: (v: boolean) => { autopilot.prefs.assist = v; autopilot.save(); } },
+    ...[1, 2, 3].map((n) => pick(`ap:speed:${n}`, `Speed ×${n}`, n === 1 ? 'Real time' : `${n} times as fast (also on its badge)`, () => autopilot.prefs.speed === n, () => { autopilot.prefs.speed = n; autopilot.save(); })),
+  ] : [];
   const titleOptions: OptionRow[] = [
+    ...apRows,
     ...soundToggles,
     ...(regions.length > 1 ? regions.map((id): Toggle => ({
       id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: bodyName(id),
       get: () => id === landIn, set: () => { landIn = id; title?.setSub('new', newSub()); }, state: (on) => (on ? 'HERE' : ''),
     })) : []),
   ];
-  // a trip under way with nothing saved there yet: CONTINUE lands the expedition
-  const trip = !resumed && !elsewhere && !!freshShared && campaign?.current === regionId && regionId !== HOME_REGION;
   const here = regionId === HOME_REGION ? 'Your colony' : `${regionLabel(regionId)}`;
   const choices = [
     ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `${here} · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
@@ -1627,6 +1676,7 @@ function frame(now: number) {
     });
   }
   updateHud(dt, now);
+  autopilot?.update(now, dt);
   input?.update(dt, !title && !cine && !menuOpen && !panelOpen() && !document.getElementById('whatsnew'));
   document.body.classList.toggle('paused', userPaused && speed === 0 && !menuOpen && !cine && !title);
   // dust behind movers (frozen while paused), heat over working machines, blur on fast zooms
@@ -1707,6 +1757,8 @@ const exo = {
   /** Test hook: the hour the sky shows (a cinematic's `hour` while it plays, else the game's). */
   skyHour: () => hourAt(cine?.def.hour !== undefined ? ((cine.def.hour - START_HOUR + 24) % 24 / 24) * content.colony.solSeconds : sim.cur?.secs ?? 0, content.colony.solSeconds),
   get title() { return title; },
+  /** The autopilot's view (badge, card reader, director), or null. */
+  autopilot,
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
   hud,
   ui,

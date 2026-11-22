@@ -885,3 +885,32 @@ body.expedition #r-cryo, body.expedition #r-people, body.expedition #r-mood, bod
 #travel .tv-s { color: var(--cyan, #5ff3ff); font-size: 12px; letter-spacing: 0.14em; opacity: 0.75; max-width: 560px; transition: opacity 0.3s; }
 #travel.swap .tv-t, #travel.swap .tv-s { opacity: 0; }
 body.travelling #hud { pointer-events: none; }
+
+/* ---------- Autopilot (spectator mode, src/autopilot.ts) ---------- */
+#autopilot {
+  position: fixed; z-index: 30; top: calc(78px + var(--safe-top)); right: 12px; display: none;
+  max-width: min(340px, calc(100vw - 24px)); text-align: right; pointer-events: none; zoom: var(--ui-scale);
+}
+#autopilot.on { display: block; }
+body.title #autopilot, body.cine #autopilot, body.travelling #autopilot { display: none; }
+#autopilot .ap-row {
+  display: inline-flex; align-items: center; gap: 4px; pointer-events: auto; padding: 3px 4px 3px 8px;
+  background: var(--panel); border: 1px solid #c58cff; border-radius: 3px; box-shadow: 0 0 12px color-mix(in srgb, #c58cff 35%, transparent);
+}
+#autopilot .ap-name { color: #e2c8ff; font-weight: 700; letter-spacing: 0.2em; font-size: 11px; margin-right: 4px; animation: ap-pulse 2.4s ease-in-out infinite; }
+@keyframes ap-pulse { 50% { opacity: 0.55; } }
+#autopilot button {
+  font: inherit; font-size: 11px; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 2px;
+  padding: 2px 6px; cursor: pointer;
+}
+#autopilot button.sel { color: #05080d; background: #c58cff; border-color: #c58cff; }
+#autopilot .ap-stop { color: #ffc3c9; border-color: color-mix(in srgb, var(--crimson) 60%, transparent); }
+#autopilot .ap-cap {
+  margin-top: 4px; display: inline-block; font-size: 11.5px; color: #e2c8ff; background: var(--panel);
+  border-left: 2px solid #c58cff; padding: 2px 8px; text-align: left;
+}
+#autopilot .ap-cap:empty { display: none; }
+.ev.assist { border-color: #c58cff; color: #e2c8ff; }
+/* the card's choice the autopilot is about to press */
+#contact button.ap-pick, #contact button.ap-pick:hover { background: #c58cff; color: #05080d; border-color: #c58cff; box-shadow: 0 0 14px #c58cff; }
+@media (max-width: 640px) { #autopilot { top: calc(118px + var(--safe-top)); } }
