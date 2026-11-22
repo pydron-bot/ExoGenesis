@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import type { ZoomCamera } from './camera';
 import type { CameraKeyDef, CinematicDef } from './content/defs';
 import { pchip } from './world/curve';
-import { regionDir, regionToWorld } from './world/planet';
+import { E, U, regionDir, regionToWorld } from './world/planet';
 
 /** Something a cinematic animates besides the camera (the landing's probe). */
 export interface SetPiece {
@@ -40,6 +40,8 @@ export interface CineHooks {
   sound(asset: string, volume: number, music: boolean): ((fade: number) => void) | null;
   /** Where a building / story site / camp key looks, on the ground (region x, z); null = not there. */
   target(k: CameraKeyDef): { x: number; z: number } | null;
+  /** Where a body in the sky is (world space), for `body` keys; null = not in the sky here. */
+  bodyPos?(id: string): THREE.Vector3 | null;
   /** A character's name and colour; {first} filled in. */
   speaker(character?: string, speaker?: string): { name: string; role?: string; color?: string };
   fillText(text: string): string;
@@ -116,18 +118,44 @@ export class Cinematic {
     return regionToWorld(x, z, k.lift);
   }
 
+  /**
+   * A `body` key: the camera stands at X, Z (Lift up) and looks toward the body, so the focus is Distance along
+   * that line and the pitch and yaw are what put the camera back at the standpoint (as camera.ts frames a view:
+   * from the focus out along up·sin(pitch) − forward(yaw)·cos(pitch)). Null when the body isn't in the sky.
+   */
+  private skyLook(k: CameraKeyDef, prevYaw: number): { f: THREE.Vector3; pitch: number; yaw: number } | null {
+    const at = k.body ? this.hooks.bodyPos?.(k.body) : null;
+    if (!at) return null;
+    const stand = regionToWorld(k.x ?? 0, k.z ?? 0, Math.max(2, k.lift));
+    const d = at.clone().sub(stand).normalize();
+    const up = U, ef = E.clone().addScaledVector(up, -E.dot(up)).normalize(), nf = new THREE.Vector3().crossVectors(up, ef);
+    const pitch = Math.asin(Math.max(-1, Math.min(1, -d.dot(up))));
+    let yaw = Math.atan2(d.dot(ef), d.dot(nf));
+    // the nearest turn to the key before, so the camera doesn't spin the long way round
+    while (yaw - prevYaw > Math.PI) yaw -= Math.PI * 2;
+    while (yaw - prevYaw < -Math.PI) yaw += Math.PI * 2;
+    return { f: stand.addScaledVector(d, Math.min(k.dist, 2000)), pitch, yaw };
+  }
+
   private direct(t: number) {
     const keys = this.keys, X = keys.map((k) => k.at);
     const F = keys.map((k) => this.focus(k));
+    const P = keys.map((k) => k.pitch), Y = keys.map((k) => k.yaw), D = keys.map((k) => k.dist);
+    keys.forEach((k, i) => {
+      if (k.target !== 'body') return;
+      const s = this.skyLook(k, i ? Y[i - 1] : this.saved.yaw);
+      if (!s) return;
+      F[i] = s.f; P[i] = s.pitch; Y[i] = s.yaw; D[i] = Math.min(k.dist, 2000);
+    });
     const f = new THREE.Vector3(pchip(X, F.map((v) => v.x), t), pchip(X, F.map((v) => v.y), t), pchip(X, F.map((v) => v.z), t));
     const alt = this.piece?.alt ?? 0;
-    const ld = pchip(X, keys.map((k) => Math.log(k.dist + (k.target === 'probe' ? (k.follow ?? 0) * alt : 0))), t);
+    const ld = pchip(X, keys.map((k, i) => Math.log(D[i] + (k.target === 'probe' ? (k.follow ?? 0) * alt : 0))), t);
     const c = this.cam;
     c.focusOverride.copy(f);
     c.overrideW = 1;
     c.dist = c.targetDist = Math.exp(ld);
-    c.pitch = c.targetPitch = pchip(X, keys.map((k) => k.pitch), t);
-    c.yaw = pchip(X, keys.map((k) => k.yaw), t);
+    c.pitch = c.targetPitch = pchip(X, P, t);
+    c.yaw = pchip(X, Y, t);
   }
 
   private captions(t: number) {

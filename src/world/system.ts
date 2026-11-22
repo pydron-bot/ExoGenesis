@@ -335,6 +335,12 @@ export class SolarSystem {
    * the xz-plane. Near the surface the sun and light follow it (so day/night
    * matches the sim's clock); in the system view the star sits at its orbit.
    */
+  /** Where a body is drawn now (world space; null for the one being played or one not in the system). Cinematics look up at it. */
+  bodyPos(id: string): THREE.Vector3 | null {
+    const b = this.bodies.find((x) => x.id === id);
+    return b && b !== this.here ? b.pos : null;
+  }
+
   /** Bodies worth a close look (the title screen's tour): planets and the bigger moons. */
   tourStops(): { name: string; sub: string; radius: number; pos: THREE.Vector3 }[] {
     return this.bodies.filter((b) => b !== this.here && b.kind !== 'comet' && b.radius >= 600);

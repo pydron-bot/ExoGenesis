@@ -12,7 +12,7 @@
  * fires, and missions that follow it start.
  */
 import { content } from '../content';
-import type { MissionDef } from '../content/defs';
+import { conditionsIn, type MissionDef } from '../content/defs';
 import { conditionMet } from './conditions';
 import type { Sim } from './core';
 import { TICK_HZ, type MissionSnap, type MissionState } from './types';
@@ -84,6 +84,24 @@ export class Missions {
     if (def.failEnds) this.sim.end('story', why || `Mission failed: ${def.title}`);
   }
 
+  /**
+   * The Command Core has just fallen: a mission under way in this region with a fail condition that names coreLost
+   * (alone or in a group) and holds now fails, with its event, instead of the generic defeat. True if one did.
+   */
+  coreLost(): boolean {
+    let caught = false;
+    for (const id of [...this.s.active]) {
+      const def = content.missions[id];
+      if (!def || !this.sim.story.here(def.region)) continue;
+      const w = this.sim.story.world(def.region);
+      const fail = (def.fails ?? []).find((f) => conditionsIn(f.kind, f).some((x) => x.kind === 'coreLost') && conditionMet(this.sim, f.kind, f, w));
+      if (!fail) continue;
+      this.fail(id, fail.text);
+      caught = true;
+    }
+    return caught;
+  }
+
   /** Inspector: tick off one objective now. */
   mark(id: string, index: number) {
     const marks = (this.s.marks[id] ??= []);
@@ -99,13 +117,21 @@ export class Missions {
 
   private ready(id: string, def: MissionDef) {
     if (!this.sim.deployed) return false;
-    if (def.region && !this.sim.story.here(def.region)) {
-      // elsewhere: only once the campaign can get there
+    // elsewhere: only once the campaign can get there (a playthrough's "everywhere" counts for maps, not for this,
+    // unless it asks: `everywhereStarts`)
+    if (def.region && def.region !== this.sim.story.region().id && !(this.sim.everywhere && this.sim.everywhereStarts)) {
       const c = this.sim.s.campaign;
       if (!c || !(c.routes.includes(def.region) || c.visited.includes(def.region))) return false;
     }
     if (this.s.failed?.includes(id)) return false;
     return !def.after || this.s.done.includes(def.after);
+  }
+
+  /** The `mission` effect: start it now (whatever it follows) unless it is under way or done. */
+  begin(id: string) {
+    const m = this.s;
+    if (!content.missions[id] || m.active.includes(id) || m.done.includes(id)) return;
+    this.start(id);
   }
 
   /** Start a mission (its turn came, or debug / play test). */

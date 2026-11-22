@@ -69,6 +69,8 @@ export interface Building {
   shDown?: boolean;
   /** A faction outpost: the story flag set when it is destroyed. */
   flag?: string;
+  /** A faction outpost the story disabled (the outpost effect): it stands, but doesn't shoot or work. */
+  off?: boolean;
   /** A turret the Clause has turned (a glitch): faces `aim` until tick `until`, holding fire. */
   slew?: { until: number; aim: number; was?: number };
 }
@@ -352,6 +354,27 @@ export interface CampaignInfo {
   routes: string[];
   /** The first pod-born colonist (the Firstborn), for {first} away from home. */
   first?: { id: number; name: string };
+  /** The home colony as it last stood (refreshed while Touchdown is played): what expeditions read for its people. */
+  home?: HomeStats;
+}
+
+/** A snapshot of the home colony for the rest of the campaign (`CampaignInfo.home`, TECH.md "Story engine, round three"). */
+export interface HomeStats {
+  /** Planet health 0..100. */
+  planet: number;
+  /** Adults' average acceptance of the AI (null with no adults). */
+  acceptance: number | null;
+  /** Adults by stance. */
+  autonomists: number;
+  partners: number;
+  devoted: number;
+  /** Colonists alive (children too), and the dead (not those who left). */
+  colonists: number;
+  deaths: number;
+  /** Sols played at home (sol 1 = the landing day). */
+  sols: number;
+  /** Inhabitant groups at home: their best regard (camps still there), the lowest among those met, met, trusted. */
+  groups: Record<string, { regard: number; low: number; met: boolean; trusted: boolean }>;
 }
 
 /** Missions (content/missions): which are under way, done, and which objectives are met. */

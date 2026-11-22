@@ -13,7 +13,7 @@
  * renderer's job: the queue is in the snapshot, and it says when one is done.
  */
 import { content } from '../content';
-import type { EffectDef, StoryDef } from '../content/defs';
+import { choiceShown, shownChoices, type EffectDef, type StoryDef } from '../content/defs';
 import type { StorySnap } from './types';
 import { conditionMet } from './conditions';
 import type { Sim } from './core';
@@ -170,8 +170,9 @@ export class Story {
     if (!ev || at < 0) return;
     st.inbox.splice(at, 1);
     const ch = ev.choices?.[choice];
-    if (ev.choices?.length) {
-      if (!ch) return;
+    // (choices can be offered only with or without a flag; with none on offer it's a Continue)
+    if (shownChoices(ev, st.flags).length) {
+      if (!ch || !choiceShown(ch, st.flags)) { st.inbox.splice(at, 0, id); return; }
       if (ch.reply) this.sim.emit(this.fill(ch.reply, id), 'info', 'message');
       this.apply(ev, choice + 1, id);
     }
@@ -270,6 +271,10 @@ export class Story {
       case 'win': sim.end('won', e.text ? this.fill(e.text) : ''); break;
       case 'fail': sim.end('story', e.text ? this.fill(e.text) : ''); break;
       case 'attitude': if (e.faction && e.attitude) sim.setAttitude(e.faction, e.attitude); break;
+      case 'mission': if (e.mission) sim.missions.begin(e.mission); break;
+      case 'outpost':
+        if (e.outcome) sim.outposts({ faction: e.faction, story: e.story, outcome: e.outcome, at: site ? { x: site.x, z: site.z, r: e.radius ?? site.r } : undefined });
+        break;
       case 'strike': {
         // where: the story site, a random one of our buildings of the kind, or any of ours
         const ours = s.buildings.filter((b) => !b.team && (!e.building || b.kind === e.building));
@@ -292,15 +297,19 @@ export class Story {
       }
       case 'epilogue': {
         const allies = (s.factions ?? []).filter((f) => f.attitude === 'allied').map((f) => f.name);
-        for (const c of s.camps ?? []) if (c.trusted && !c.gone) { const g = content.inhabitants[c.group]?.name ?? c.group; if (!allies.includes(g)) allies.push(g); }
+        const ally = (group: string) => { const g = content.inhabitants[group]?.name ?? group; if (!allies.includes(g)) allies.push(g); };
+        for (const c of s.camps ?? []) if (c.trusted && !c.gone) ally(c.group);
+        // played away from home: the colony, its planet and its friends are at home (the campaign's snapshot)
+        const home = !sim.atHome ? s.campaign?.home : undefined;
+        if (home) for (const [g, v] of Object.entries(home.groups)) if (v.trusted) ally(g);
         st.epilogue = {
           ending: e.ending ?? 'covenant',
           pages: (e.pages ?? []).map((p) => ({ title: p.title ? this.fill(p.title) : undefined, text: this.fill(p.text ?? '') })),
-          sols: Math.floor(sim.secs / content.colony.solSeconds) + 1,
-          colonists: s.people?.colonists.length ?? 0,
-          planet: s.planet ? Math.round(sim.planet.health()) : null,
+          sols: home?.sols ?? Math.floor(sim.secs / content.colony.solSeconds) + 1,
+          colonists: home?.colonists ?? s.people?.colonists.length ?? 0,
+          planet: home ? Math.round(home.planet) : s.planet ? Math.round(sim.planet.health()) : null,
           allies,
-          deaths: s.people?.memorial.filter((m) => !m.cause.startsWith('left')).length ?? 0,
+          deaths: home?.deaths ?? s.people?.memorial.filter((m) => !m.cause.startsWith('left')).length ?? 0,
         };
         sim.end(e.ending === 'cycle' ? 'story' : 'won', e.text ? this.fill(e.text) : '');
         break;

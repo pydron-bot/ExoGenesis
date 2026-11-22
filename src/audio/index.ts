@@ -81,6 +81,8 @@ export class GameAudio {
   private musicOut!: GainNode;
   /** The music playing now: which use and mood, and how to stop it. */
   private music: { use: MusicUse; mood: string; stop: (fade: number) => void; played?: AmbientMusic['played'] } | null = null;
+  /** A cinematic's music, held until it ends (`holdMusic`). */
+  private held: string | null = null;
   /** In play: music comes in stretches with quiet spells between (s left in this one). */
   private stretch: { play: boolean; left: number } | null = null;
   private night = false;
@@ -382,6 +384,8 @@ export class GameAudio {
    * Nothing starts before the context runs (the first tap).
    */
   musicFor(where: 'title' | 'play' | null, daylight: number, dt: number) {
+    // a cinematic's own music: the director waits until it's handed back
+    if (this.held) { if (!this.music && this.live() && this.musicVolume > 0) this.startHeld(this.held); return; }
     const r = this.rules, now = performance.now() / 1000;
     let want: MusicUse | null = null;
     if (where === 'title') want = 'title';
@@ -402,6 +406,26 @@ export class GameAudio {
     const fade = want === 'tension' ? 2.5 : this.music?.use === 'tension' ? 8 : 6;
     this.stopMusic(fade);
     if (want) this.startMusic(want, want === 'title' ? 6 : fade);
+  }
+
+  /**
+   * A cinematic's music (its `music`): a piece from content/music by id, or a use (day, night, tension, title)
+   * for one of those, played until `releaseMusic`; the director stands aside meanwhile.
+   */
+  holdMusic(id: string) {
+    this.held = id;
+    this.stopMusic(1.5);
+    if (this.live() && this.musicVolume > 0) this.startHeld(id);
+  }
+  /** The cinematic is over: its music fades and the director picks up again. */
+  releaseMusic(fade = 3) {
+    if (!this.held) return;
+    this.held = null;
+    this.stopMusic(fade);
+  }
+  private startHeld(id: string) {
+    if (this.moods[id]) { this.playMood(id, () => this.moods[id], 2); return; }
+    if ((['day', 'night', 'tension', 'title'] as string[]).includes(id)) this.startMusic(id as MusicUse, 2);
   }
 
   /** Play a mood now, whatever the director wants (the editor's ▶ Listen). Stops whatever was playing. */
@@ -444,7 +468,7 @@ export class GameAudio {
   /** Test hook. */
   stats() {
     return { state: this.state, autoplayed: this.autoplayed, beds: { surf: this.loops.surf?.gain.gain.value ?? 0, camp: this.loops.camp?.gain.gain.value ?? 0 }, on: this.on, volume: this.volume, muted: this.muted, quiet: this.quiet, counts: { ...this.counts }, dropped: this.dropped, voices: this.voices, wind: !!this.wind, musicVolume: this.musicVolume,
-      music: this.music ? { use: this.music.use, mood: this.music.mood, ...(this.music.played ?? {}) } : null,
+      music: this.music ? { use: this.music.use, mood: this.music.mood, ...(this.music.played ?? {}) } : null, held: this.held,
       stretch: this.stretch ? { ...this.stretch } : null, tense: performance.now() / 1000 < this.tenseUntil };
   }
 

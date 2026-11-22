@@ -257,7 +257,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
   const effectIssues = (path: string, field: string, e: Record<string, unknown> | undefined, region?: string) => {
     if (!e) return;
     const k = e.kind as string;
-    if (typeof e.site === 'string' && e.site && ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'strike'].includes(k)) { const miss = siteMissing(e.site, region); if (miss) out.push({ path, field: `${field}.site`, msg: miss }); }
+    if (typeof e.site === 'string' && e.site && ['spawn', 'reveal', 'waypoint', 'clearWaypoint', 'camera', 'strike', 'outpost'].includes(k)) { const miss = siteMissing(e.site, region); if (miss) out.push({ path, field: `${field}.site`, msg: miss }); }
     if ((k === 'spawn' || k === 'reveal' || k === 'waypoint') && !e.site) out.push({ path, field: `${field}.site`, msg: `a ${k} needs a story site` });
     if (k === 'spawn' && !e.unit) out.push({ path, field: `${field}.unit`, msg: 'a spawn needs a unit' });
     if ((k === 'lock' || k === 'unlock') && !e.building && !e.unit) out.push({ path, field: `${field}.building`, msg: `${k}: pick a building or a unit` });
@@ -275,6 +275,15 @@ function crossIssues(db: ContentDb): FileIssue[] {
     if (k === 'strike' && e.site && e.building) out.push({ path, field: `${field}.building`, msg: 'a strike hits the Site or a Building of a kind, not both' });
     if (k === 'strike' && typeof e.building === 'string' && db.buildings[e.building]?.role === 'wall') out.push({ path, field: `${field}.building`, msg: 'aim it at something worth hitting (not a wall)' });
     if (k === 'epilogue' && !e.ending) out.push({ path, field: `${field}.ending`, msg: 'an epilogue needs its Ending' });
+    if (k === 'mission' && !e.mission) out.push({ path, field: `${field}.mission`, msg: 'pick the mission to start' });
+    if (k === 'outpost') {
+      if (!e.faction && !e.site && !e.story) out.push({ path, field: `${field}.faction`, msg: 'name the outposts: a Faction, a Site, or one outpost\'s story flag' });
+      if (typeof e.faction === 'string' && e.faction) { const miss = factionMissing(e.faction, region); if (miss) out.push({ path, field: `${field}.faction`, msg: miss }); }
+      if (typeof e.story === 'string' && e.story) {
+        const maps = region ? [db.regions[region]] : Object.values(db.regions);
+        if (!maps.some((r) => r?.outposts?.some((o) => o?.story === e.story))) out.push({ path, field: `${field}.story`, msg: `no region${region ? ` "${region}"` : ''} has an outpost with the story flag "${e.story}"` });
+      }
+    }
     ((e.pages as { text?: string }[] | undefined) ?? []).forEach((p, n) => { if (!p?.text?.trim()) out.push({ path, field: `${field}.pages[${n}].text`, msg: 'a page needs some text' }); });
   };
   for (const [id, m] of Object.entries(db.missions ?? {})) {
@@ -295,6 +304,9 @@ function crossIssues(db: ContentDb): FileIssue[] {
       effectIssues(P, `effects[${n}]`, e as unknown as Record<string, unknown>, ev.region);
     });
     if (ev.trigger === 'after' && ev.event === id) out.push({ path: P, field: 'event', msg: 'an event can\'t follow itself' });
+    (ev.choices ?? []).forEach((c, n) => {
+      if (c?.ifFlag && c.ifFlag === c.unlessFlag) out.push({ path: P, field: `choices[${n}].unlessFlag`, msg: 'the same flag as Only if flag: it would never be offered' });
+    });
     if (ev.style === 'radio' && ev.choices?.length) out.push({ path: P, field: 'choices', msg: 'a radio message can\'t have choices (make it a card)' });
     if (ev.style === 'radio' && ev.lines?.length) out.push({ path: P, field: 'lines', msg: 'a radio message is one line (make it a card for a conversation)' });
     // a card about one colonist: effects on "the one", and {who}, need a cast
@@ -334,6 +346,7 @@ function crossIssues(db: ContentDb): FileIssue[] {
       const miss = k?.target === 'storysite' && k.site ? siteMissing(k.site, cd.region) : null;
       if (miss) out.push({ path: P, field: `camera[${n}].site`, msg: miss });
     });
+    if (typeof cd.music === 'string' && cd.music && !db.music?.[cd.music] && !['day', 'night', 'tension', 'title'].includes(cd.music)) out.push({ path: P, field: 'music', msg: `"${cd.music}" is neither a piece in Rules → Music nor day, night, tension or title` });
     (cd.sounds ?? []).forEach((x, n) => {
       const a = x?.sound ? db.assets[x.sound] : undefined;
       if (a && a.kind !== 'audio') out.push({ path: P, field: `sounds[${n}].sound`, msg: `"${x.sound}" isn't audio` });

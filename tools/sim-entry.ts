@@ -13,3 +13,5 @@ export * as planet from '../src/world/planet';
 export { conditionMet } from '../src/sim/conditions';
 export { sharedOf, applyShared, HOME_REGION } from '../src/sim/campaign';
 export { runPlaythrough } from '../src/sim/playthrough';
+export { forgetRegion } from '../src/sim/campaign';
+export { shownChoices } from '../src/content/defs';

@@ -582,6 +582,7 @@ function cineHooks(done: () => void): CineHooks {
       return { name: fillFirst(ch?.name ?? speaker ?? ''), role: ch?.role ? fillFirst(ch.role) : undefined, color: ch?.color };
     },
     fillText: fillFirst,
+    bodyPos: (id) => system.bodyPos(id),
     done,
   };
 }
@@ -594,6 +595,8 @@ function endCine() {
   cineEl.classList.add('gone');
   cine = null;
   for (const [text, level, at, st] of heldLog.splice(0)) log(text, level, at, st);
+  // a cinematic's own music hands back to the director (its hour goes with it: the frame reads `cine`)
+  audio.releaseMusic();
 }
 function startLanding() {
   document.body.classList.add('cine');
@@ -601,6 +604,7 @@ function startLanding() {
   if (def.letterbox) document.body.classList.add('cine-bars');
   const piece = new Landing(scene, region, cam, { stage: (s) => sim.command({ type: 'landing', stage: s }) }, def);
   cine = new Cinematic('landing', def, cam, cineHooks(() => { selectFirstDrone = true; endCine(); }), piece);
+  if (def.music) audio.holdMusic(def.music);
   // ?cine=<seconds>: start part-way in (the editor's "play from the playhead")
   const from = Number(params.get('cine'));
   if (from > 0) cine.seek(from);
@@ -620,6 +624,7 @@ function playCinematic(id: string, def: CinematicDef, from = 0) {
     sim.command({ type: 'cinematic', id, done: true });
     setSpeed(cineResume);
   }));
+  if (def.music) audio.holdMusic(def.music);
   if (from > 0) cine.seek(from);
 }
 if (rts) {
@@ -1506,7 +1511,10 @@ function frame(now: number) {
   const simSecs = sim.cur && !skirmish ? sim.cur.secs + sim.alpha(now) * (speed / TICK_HZ) : undefined;
   // skirmish holds a fixed day or night (its ☀/☾ button): the sim clock at that hour
   const sol = content.colony.solSeconds;
-  const sunSecs = skirmish ? ((skirmish.hour - START_HOUR) / 24) * sol : simSecs;
+  // a cinematic with an hour: the sky at that time of day on this sol while it plays (the game's own after)
+  const cineHour = cine?.def.hour;
+  const sunSecs = skirmish ? ((skirmish.hour - START_HOUR) / 24) * sol
+    : cineHour !== undefined && simSecs !== undefined ? Math.floor(simSecs / sol) * sol + ((((cineHour - START_HOUR) % 24) + 24) % 24 / 24) * sol : simSecs;
   {
     // how bright the sky is round the camera (hides the Milky Way and most stars by day)
     const up = system.sunPos.clone().normalize().dot(U);
@@ -1695,6 +1703,8 @@ const exo = {
   get landing() { return cine && !cine.world ? cine : null; },
   /** Any cinematic while it plays. */
   get cinematic() { return cine; },
+  /** Test hook: the hour the sky shows (a cinematic's `hour` while it plays, else the game's). */
+  skyHour: () => hourAt(cine?.def.hour !== undefined ? ((cine.def.hour - START_HOUR + 24) % 24 / 24) * content.colony.solSeconds : sim.cur?.secs ?? 0, content.colony.solSeconds),
   get title() { return title; },
   setView: (v: ViewName, instant = true) => { if (v in VIEWS) cam.setView(v, instant); },
   hud,
