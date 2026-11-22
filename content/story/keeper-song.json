@@ -1,7 +1,7 @@
 {
   "title": "The Keeper's Song",
   "character": "keeper",
-  "text": "\"You came back to the stones. Sit. I will sing it properly, once, and you will carry it home.\"",
+  "text": "\"Come to the stones. Sit. I will sing it properly, once, and you will carry it home.\"",
   "trigger": "trust",
   "group": "vell",
   "delay": 6,
