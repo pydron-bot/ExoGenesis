@@ -837,7 +837,7 @@ function parts(root: THREE.Object3D, name: string): THREE.Object3D[] {
 interface Lod { near: THREE.Object3D; far: THREE.Object3D }
 
 export class RegionView {
-  readonly patch: THREE.Mesh;
+  patch: THREE.Mesh;
   readonly details = new THREE.Group();
   /** Shield domes (projectors) and bubbles (Aegis units). */
   private shields = new ShieldDomes((o, x, z) => orient(o, x, z, 0, 0));
@@ -1070,6 +1070,24 @@ export class RegionView {
       if (dist < r && dist < bd) { bd = dist; best = b.id; }
     }
     return best;
+  }
+
+  /**
+   * Switch the terrain look in place (Options → Terrain look): a new ground mesh, the flora's shading. The
+   * building pads are levelled into the new mesh, and fog of war carries over (lights patch it on first draw).
+   */
+  setLook(look: Look) {
+    const old = this.patch, parent = old.parent;
+    const next = buildPatch(look);
+    parent?.add(next);
+    parent?.remove(old);
+    old.geometry.dispose();
+    // the smooth look's ground textures are shared: only the material goes
+    (old.material as THREE.Material).dispose();
+    this.patch = next;
+    if (this.fog) addFog(next.material as THREE.Material);
+    this.relevel([...this.pads.values()]);
+    this.flora?.setFlat(look === 'flat');
   }
 
   /** Fog of war: the ground, flora, grazers and deposits darken where the colony can't see. */
@@ -1478,6 +1496,11 @@ export class RegionView {
       changed.push(p);
     }
     setGroundPads([...this.pads.values()]);
+    this.relevel(changed);
+  }
+
+  /** Move the patch vertices near these pads to the padded ground (and fix their normals). */
+  private relevel(changed: GroundPad[]) {
     if (!changed.length) return;
     const verts = this.patch.userData.verts as { x: Float32Array; z: Float32Array; drop: Float32Array } | undefined;
     if (!verts) return;

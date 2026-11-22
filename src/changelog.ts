@@ -15,6 +15,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.70.0',
+    date: '2026-11-22',
+    title: 'Settings without reloading',
+    notes: [
+      'Switching the terrain look between Flat and Smooth now happens straight away, in the same game: no more reloading the page. The game remembers your choice',
+      'Picking a region in the title screen\'s Options no longer reloads the page; NEW GAME then takes you there and lands',
+      'Fixed: with a colony saved somewhere else, choosing Touchdown as your landing site kept taking you back to the saved colony\'s region',
+    ],
+  },
+  {
     version: '0.69.1',
     date: '2026-11-22',
     title: 'Smaller swarms, smoother phones',

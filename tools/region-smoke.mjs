@@ -145,9 +145,23 @@ try {
   await page.waitForSelector('#options');
   const op = await page.evaluate(() => document.getElementById('options').innerText);
   check(/Region/i.test(op) && /Sound/.test(op) && /Smoke Test Basin\s*(\S+\s*)?HERE/i.test(op), 'Options lists the regions (this one HERE) and the sound');
+  // picking a region only marks it (no reload); NEW GAME then loads it and lands there
+  await page.evaluate(() => { window.__samePage = true; });
   await page.click('#options [data-id="region:touchdown"]');
-  await page.waitForURL((u) => !u.searchParams.get('region'), { timeout: 20000 });
-  check(true, 'picking a region in Options goes there (back to Touchdown)');
+  await page.waitForTimeout(800);
+  const op2 = await page.evaluate(() => document.getElementById('options').innerText);
+  check(await page.evaluate(() => window.__samePage === true) && new URL(page.url()).searchParams.get('region') === 'zz-smoke', 'picking a region in Options doesn\'t reload the page');
+  check(/Touchdown\s*(\S+\s*)?HERE/i.test(op2) && !/Smoke Test Basin\s*(\S+\s*)?HERE/i.test(op2), 'Options marks the region picked');
+  await page.keyboard.press('Escape');
+  const t2 = await page.evaluate(() => document.body.innerText);
+  check(/Land in Touchdown/i.test(t2), 'NEW GAME now names the picked region');
+  // the colony saved in Touchdown: NEW GAME asks first, then starts fresh there (it used to reopen the save's region)
+  await page.click('[data-id="new"]');
+  await page.click('[data-id="new"]');
+  await page.waitForURL((u) => u.searchParams.get('region') === 'touchdown', { timeout: 30000 });
+  await page.waitForFunction(() => document.body.classList.contains('cine') && window.__exo?.sim, null, { timeout: 120000 });
+  check(!new URL(page.url()).searchParams.has('land'), 'NEW GAME lands in the picked region (Touchdown), and the address forgets the fresh start');
+  check(await page.evaluate(() => !document.body.classList.contains('title')), 'it lands straight away, no title screen');
 } finally {
   fs.rmSync(tmp, { force: true });
 }

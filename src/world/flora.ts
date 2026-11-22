@@ -613,6 +613,7 @@ export class Flora {
     this.group.name = 'flora';
     const r = mulberry(opts.seed * 7919 + 17);
     const mat = floraMaterial(opts.flat);
+    this.mat = mat;
     const biome = opts.biome ?? HOME_FLORA;
     const density = (opts.density ?? 1) * (biome.density ?? 1);
     const sizeK = biome.size ?? 1;
@@ -633,13 +634,15 @@ export class Flora {
       const habitat = { ...arch.habitat };
       // shift each species' niche a little so repeats don't overlap exactly
       const nicheSeed = Math.floor(r() * 1e6);
-      const geos = [0, 1].map((v) => {
+      /** Variant v's geometry, smooth-shaded (with normals) or flat; rebuilt when the terrain look changes. */
+      const make = (v: number, smooth: boolean) => {
         const m = new Mesher();
         arch.build(mulberry(opts.seed * 131 + si * 977 + v * 31), pal, m);
-        return m.build(!opts.flat);
-      });
+        return m.build(smooth);
+      };
+      const geos = [0, 1].map((v) => make(v, !opts.flat));
       this.speciesNames.push(arch.name);
-      return { arch, habitat, nicheSeed, geos, si, amount: row.amount ?? 1, model: row.model, pal };
+      return { arch, habitat, nicheSeed, geos, make, si, amount: row.amount ?? 1, model: row.model, pal };
     });
     // the same ground cover however many species share it (Home's mix was 3 big, 5 small)
     const share = (big: boolean) => {
@@ -739,6 +742,7 @@ export class Flora {
         mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
         mesh.frustumCulled = false; // culled per instance in update()
         this.group.add(mesh);
+        this.remakes.push({ mesh, geo: sp.geos[v], make: (smooth) => sp.make(v, smooth) });
         this.variants.push({
           arch: sp.arch, species: si, mesh, xz, hidden: new Uint8Array(list.length),
           base: (mesh.instanceMatrix.array as Float32Array).slice(),
@@ -750,6 +754,25 @@ export class Flora {
       }
       if (sp.model) this.modelled.push({ model: sp.model, pal: sp.pal, variants: this.variants.filter((v) => v.species === si) });
     });
+  }
+
+  /** The shared plant material, and how to rebuild each instanced mesh's geometry for the other look. */
+  private mat: THREE.MeshStandardMaterial;
+  private remakes: { mesh: THREE.InstancedMesh; geo: THREE.BufferGeometry; make: (smooth: boolean) => THREE.BufferGeometry }[] = [];
+
+  /** Flat (faceted) or smooth shading, switched in place (Options → Terrain look). */
+  setFlat(flat: boolean) {
+    if (this.mat.flatShading === flat) return;
+    this.mat.flatShading = flat;
+    this.mat.needsUpdate = true;
+    for (const r of this.remakes) {
+      // a species drawn with a model has its own geometry by now: leave it
+      if (r.mesh.geometry !== r.geo) continue;
+      const g = r.make(!flat);
+      r.mesh.geometry = g;
+      r.geo.dispose();
+      r.geo = g;
+    }
   }
 
   /** Species drawn with a model (biome plant row `model`), waiting for it to load. */

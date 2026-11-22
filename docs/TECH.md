@@ -2157,3 +2157,27 @@ Options rows, no shader errors) and renders of each effect.
   same reach), heat shimmer carries at most 3 sources instead of 8 (`HEAT_MAX`, `post.ts`), the dust pool is
   260 puffs instead of 700 with at most 9 puffs/s per mover and 25% smaller puffs (overdraw), and weather
   draws 900 of its 2400 streaks. Everywhere: dust skips its buffer uploads while no puff is alive.
+
+### Settings without reloading (v0.70.0)
+
+- **Terrain look in place:** Options → Terrain look no longer reloads. `RegionView.setLook(look)` builds a new
+  ground mesh (`buildPatch`), swaps it in, disposes the old one (the smooth look's ground textures are shared and
+  kept), adds fog of war to it if it's on, and re-levels every building pad into it (`relevel()`, split out of
+  `syncPads`). Lights patch the new material on first draw as before. `Flora.setFlat(flat)` flips the shared
+  plant material's `flatShading` and rebuilds each instanced mesh's geometry with or without normals (each
+  species keeps a `make(v, smooth)`; a species already drawn with a model keeps its model). `globeLook()` in
+  main.ts sets the globe's shading and colour. The look is remembered in `exo.look` (`?look=flat|smooth` still
+  wins, and is kept in step in the address).
+- **Region choice:** the title's Options region rows only mark where NEW GAME lands (`landIn`), relabelling
+  NEW GAME ("Land in …"). NEW GAME in the region already loaded lands as before; in another, it loads
+  `?region=<id>&land=1`. `land=1` deletes the autosave (NEW GAME's confirm already warned), skips the title and
+  lands. It's taken out of the address at once (`history.replaceState`), so a reload later doesn't wipe the
+  new colony. `goRegion` now always names the region: it used to drop `region` for Touchdown, and with no region
+  in the address the game opens the saved colony's region, so with a save elsewhere Touchdown couldn't be
+  picked.
+- The only reloads left are loading a different world (NEW GAME elsewhere, CONTINUE into another region's
+  colony) and leaving for the title screen from a game.
+- Tests: `tools/look-smoke.mjs` (14 checks: no reload, ground rebuilt smooth and textured, plants shaded with
+  normals, one ground mesh, fog carried over, a building pad still level, the ground still picks, back to
+  flat, remembered on the next visit). `tools/region-smoke.mjs` now checks that picking a region doesn't
+  reload and that NEW GAME lands in Touchdown with a save in another region.

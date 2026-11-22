@@ -65,6 +65,7 @@ npm run dev        # http://localhost:5176 (on hive1: systemd user unit exo-dev.
 npm run build
 node tools/qol-smoke.mjs   # controls: held-key pan, F, idle drones, right-click, groups, speed keys, PAUSED, Controls, Recycle, zoom to cursor
 node tools/smoke.mjs   # colony end-to-end: orders, build menu, placement, power switch, a fight, save/load, game over
+node tools/look-smoke.mjs  # Options → Terrain look switches in place (no reload), pads stay level, remembered
 node tools/balance.mjs # headless 20-minute runs with scripted strategies (balance numbers)
 node tools/opening.mjs # headless: the campaign's first 20 minutes at a human pace (first build, fight, colonist, waiting)
 node tools/unit-duel.mjs --check # headless: every combat unit against every other at equal cost, and against a gun line

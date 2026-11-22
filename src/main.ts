@@ -154,9 +154,15 @@ function readPreview(): { id: string; def: RegionDef; story?: { id: string; def:
     return p?.id && p.def ? p : null;
   } catch { return null; }
 }
+/**
+ * ?land=1: NEW GAME in another region (chosen in the title's Options) loads that region and lands at once,
+ * a fresh colony. Taken out of the address straight away, so reloading later doesn't wipe the new save.
+ */
+const landHere = params.get('land') === '1';
+if (landHere) { const u = new URL(location.href); u.searchParams.delete('land'); history.replaceState(history.state, '', u); }
 let autosaved: AutoSave | undefined;
 if (!skirmishMode && !scratch) {
-  if (params.get('new') === '1') await delSave(AUTOSAVE).catch(() => {});
+  if (params.get('new') === '1' || landHere) await delSave(AUTOSAVE).catch(() => {});
   else {
     const a = await getSave<AutoSave>(AUTOSAVE).catch(() => undefined);
     if (a?.version === 2 && a.sim && !a.sim.over && a.sim.phase === 'deployed') autosaved = a;
@@ -169,7 +175,13 @@ const regionId = rts ? 'skirmish' : preview ? preview.id : askedRegion && conten
 const biomeParam = params.get('biome');
 const biomeTest = !!biomeParam && !!content.biomes[biomeParam];
 const regionDef: RegionDef = rts ? rts.map.region : biomeTest ? { ...(preview?.def ?? content.regions[regionId]), biome: biomeParam! } : preview?.def ?? content.regions[regionId];
-const look = params.get('look') === 'smooth' ? 'smooth' : 'flat';
+/** Terrain look: ?look=flat|smooth, else what the player chose last (Options → Terrain look), else flat. */
+const LOOK_KEY = 'exo.look';
+let look: 'flat' | 'smooth' = (() => {
+  const q = params.get('look');
+  if (q === 'smooth' || q === 'flat') return q;
+  try { return localStorage.getItem(LOOK_KEY) === 'smooth' ? 'smooth' : 'flat'; } catch { return 'flat'; }
+})();
 /** The region's terrain with its body (a planet, moon, asteroid or comet) looked up: every worker gets this. */
 const terrain = regionTerrain(regionDef, content.bodies);
 const bodyId = regionDef.body && content.bodies[regionDef.body] ? regionDef.body : 'home';
@@ -307,11 +319,15 @@ const cam = new ZoomCamera(camera);
 await loadStep('Forming the planet…');
 const generated = await gen;
 const globe = globeMesh(generated.globe, look);
-if (look === 'smooth') {
-  // match the globe to the textured landing patch as seen from a distance
-  const m = groundTextures().mean;
-  (globe.material as THREE.MeshStandardMaterial).color.setRGB(m, m * 0.98, m * 0.96);
+/** The globe's shading for a look: faceted, or smooth and matched to the textured landing patch seen from a distance. */
+function globeLook() {
+  const mat = globe.material as THREE.MeshStandardMaterial;
+  mat.flatShading = look === 'flat';
+  const m = look === 'smooth' ? groundTextures().mean : 1;
+  mat.color.setRGB(m, m * (look === 'smooth' ? 0.98 : 1), m * (look === 'smooth' ? 0.96 : 1));
+  mat.needsUpdate = true;
 }
+if (look === 'smooth') globeLook();
 scene.add(globe);
 // detail from orbit: baked surface maps (after startup, see startSurfaceBake), relief, oceans, night glow, clouds
 const surfaceOn = params.get('surface') !== '0';
@@ -407,10 +423,11 @@ function restoreCamera() {
 const resumed: AutoSave | null = autosaved && savedRegion === regionId ? autosaved : null;
 const elsewhere: AutoSave | null = autosaved && !resumed ? autosaved : null;
 const regionLabel = (id: string) => content.regions[id]?.name ?? id;
-/** Reload into another region, keeping the other URL options. */
+/** Load another region, keeping the other URL options. */
 function goRegion(id: string, extra: Record<string, string> = {}) {
   const u = new URL(location.href);
-  if (id === 'touchdown') u.searchParams.delete('region'); else u.searchParams.set('region', id);
+  // always named: with no region in the address the game opens the saved colony's region
+  u.searchParams.set('region', id);
   for (const [k, v] of Object.entries(extra)) u.searchParams.set(k, v);
   location.href = u.href;
 }
@@ -425,7 +442,7 @@ function solTime(tick: number) {
  * The title screen comes first unless a URL asks to go straight in:
  * ?title=0 (resume or land as before), ?intro=0, ?new=1, ?view=…, skirmish.
  */
-const useTitle = !skirmishMode && !rts && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
+const useTitle = !skirmishMode && !rts && !landHere && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
 if (useTitle) document.body.classList.add('title');
 let title: TitleScreen | null = null;
 
@@ -722,12 +739,14 @@ async function loadGame() {
     log(`Load failed: ${(err as Error).message}`, 'bad');
   }
 }
-/** Terrain style: reloads (the game autosaves first). */
+/** Terrain style, switched in place: the ground, the plants' shading and the globe (remembered). */
 function switchLook() {
-  sim.flush();
-  const u = new URL(location.href);
-  u.searchParams.set('look', look === 'smooth' ? 'flat' : 'smooth');
-  location.href = u.toString();
+  look = look === 'smooth' ? 'flat' : 'smooth';
+  region.setLook(look);
+  globeLook();
+  try { localStorage.setItem(LOOK_KEY, look); } catch { /* private mode */ }
+  // a ?look= in the address would win on the next visit: keep it in step
+  if (params.has('look')) { params.set('look', look); const u = new URL(location.href); u.searchParams.set('look', look); history.replaceState(history.state, '', u); }
 }
 
 if (previewModels || builtinModels) for (const d of UNIT_DEFS) {
@@ -1067,7 +1086,7 @@ document.body.classList.toggle('stats', statsOn);
 const urlLock = (param: string) => () => (params.has(param) ? 'Set in URL' : null);
 const graphicsToggles: Toggle[] = [
   {
-    id: 'look', label: 'Terrain look', help: 'Flat: crisp low-poly facets. Smooth: soft shading with ground textures. Switching reloads the game (it saves first).',
+    id: 'look', label: 'Terrain look', help: 'Flat: crisp low-poly facets. Smooth: soft shading with ground textures.',
     get: () => look === 'smooth', set: () => switchLook(), state: () => (look === 'smooth' ? 'SMOOTH' : 'FLAT'),
   },
   {
@@ -1231,20 +1250,23 @@ function showTitle() {
   const regions = Object.keys(content.regions).sort((a, b) => (a === 'touchdown' ? -1 : b === 'touchdown' ? 1 : bodyRank(a).localeCompare(bodyRank(b)) || regionLabel(a).localeCompare(regionLabel(b))));
   const go = (fn: () => void) => () => { void title?.hide().then(() => { title = null; }); fn(); };
   // the title screen's Options also holds where to land and the sound
+  // choosing a region only marks it; NEW GAME loads it and lands there (no reload just for picking)
+  let landIn = regionId;
+  const newSub = () => (regions.length > 1 ? `Land in ${regionLabel(landIn)}` : 'Land the probe on a fresh world');
   const titleOptions: OptionRow[] = [
     ...soundToggles,
     ...(regions.length > 1 ? regions.map((id): Toggle => ({
       id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: bodyName(id),
-      get: () => id === regionId, set: () => { if (id !== regionId) goRegion(id); }, state: (on) => (on ? 'HERE' : ''),
+      get: () => id === landIn, set: () => { landIn = id; title?.setSub('new', newSub()); }, state: (on) => (on ? 'HERE' : ''),
     })) : []),
   ];
   const choices = [
     ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
     ...(elsewhere ? [{ id: 'continue', label: 'CONTINUE', sub: `Your colony in ${regionLabel(savedRegion)} · ${solTime(elsewhere.sim.tick)}`, run: () => goRegion(savedRegion) }] : []),
     {
-      id: 'new', label: 'NEW GAME', sub: regions.length > 1 ? `Land in ${regionDef.name}` : 'Land the probe on a fresh world',
+      id: 'new', label: 'NEW GAME', sub: newSub(),
       ...(autosaved && !scratch ? { confirm: `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` } : {}),
-      run: go(startLanding),
+      run: () => (landIn === regionId ? go(startLanding)() : goRegion(landIn, { land: '1' })),
     },
     dailyChoice(),
     { id: 'skirmish', label: 'SKIRMISH', sub: 'You against the computer: pick a map and players', run: () => showSkirmishSetup() },
