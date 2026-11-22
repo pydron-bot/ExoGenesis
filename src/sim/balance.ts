@@ -8,7 +8,8 @@
 import { content } from '../content';
 import { Sim, useRegion } from './core';
 import { placeProblem } from './rules';
-import type { SimState } from './types';
+import type { Command, SimState } from './types';
+import type { RegionDef } from '../content/defs';
 
 const TICK_HZ = 10;
 
@@ -55,50 +56,72 @@ export interface BalanceResult {
 
 type S = SimState & Record<string, unknown>;
 
-export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult {
-  const minutes = o.minutes ?? 20, seed = o.seed ?? 1337;
-  const REGION = useRegion(o.region ?? 'touchdown');
-  const DEFS = content.buildings, RULES = content.colony;
-  const spawns = content.regions[REGION].spawns;
-  const VENTS = content.regions[REGION].vents ?? [];
+/**
+ * The balance bot's brain, one tick at a time: its build plan (a strategy, src/sim/strategies.ts), the people
+ * plan, the growth pods and the army. `runBalance` steps it headless; the autopilot (src/sim/autopilot.ts) steps
+ * it on the live sim in the worker.
+ */
+export class BalanceBot {
+  readonly plan: Step[];
+  /** Seconds when each kind was first placed or produced. */
+  readonly firsts: Record<string, number> = {};
+  private spawnIdx = 0;
+  private readonly spawns: { x: number; z: number }[];
+  private readonly vents: NonNullable<RegionDef['vents']>;
+  /** How it gives orders (the autopilot listens in to say what it is doing). */
+  command: (c: Command) => void;
+
+  constructor(readonly sim: Sim, readonly name: string, region: string, readonly o: { pace?: number; imprint?: string } = {}) {
+    const strat = STRATEGIES[name];
+    if (!strat) throw new Error(`no strategy "${name}"`);
+    this.plan = strat.plan();
+    this.spawns = content.regions[region]?.spawns ?? [];
+    this.vents = content.regions[region]?.vents ?? [];
+    this.command = (c) => sim.command(c);
+  }
+
   /** Valid spot for `kind` nearest to (px, pz), searching outward. */
-  const spot = (s: S, kind: string, px: number, pz: number) => {
+  private spot(s: S, kind: string, px: number, pz: number) {
+    const DEFS = content.buildings, RULES = content.colony;
     for (let r = 0; r < 70; r += 2) {
       const n = Math.max(1, Math.round(r * 1.2));
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2;
         const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
-        if (!placeProblem({ ...s, vents: VENTS } as never, DEFS, RULES, kind, x, z)) return { x, z };
+        if (!placeProblem({ ...s, vents: this.vents } as never, DEFS, RULES, kind, x, z)) return { x, z };
       }
     }
     return null;
-  };
-  const count = (s: S, kind: string) => s.buildings.filter((b) => b.kind === kind).length;
+  }
 
-  const events: BalanceResult['events'] = [];
-  const sim = new Sim((text: string, level: string) => events.push({ t: sim.secs, text, level }), seed);
-  sim.command({ type: 'landing', stage: 'deploy' });
-  if (o.peaceful) sim.s.waves.next = 1e12;
-  for (const [key, value] of Object.entries(o.policy ?? {})) sim.command({ type: 'policy', key, value } as never);
-  const strat = STRATEGIES[name];
-  if (!strat) throw new Error(`no strategy "${name}"`);
-  const plan = strat.plan();
-  let spawnIdx = 0;
-  const rows: BalanceRow[] = [];
-  const firsts: Record<string, number> = {};
-  const imprint = o.imprint ?? 'charter';
-  for (let tick = 0; tick < minutes * 60 * TICK_HZ; tick++) {
+  /**
+   * A colony already under way (the autopilot taking over a save): drop the steps of the plan it already has
+   * (the n-th Solar Array in the plan goes if there are n), so it carries on rather than starting over.
+   */
+  prune() {
+    const s = this.sim.s, seen: Record<string, number> = {};
+    const have = (k: string) => (content.units[k] ? (s.units ?? []).filter((u) => u.unit === k && !u.team).length : k === 'fab' ? s.drones.length - 1 : s.buildings.filter((b) => b.kind === k && !b.team).length);
+    const keep = this.plan.filter(([k]) => (seen[k] = (seen[k] ?? 0) + 1) > have(k));
+    this.plan.splice(0, this.plan.length, ...keep);
+  }
+
+  /** One tick of the bot (before the sim steps). */
+  step(tick: number) {
+    const sim = this.sim, o = this.o, plan = this.plan, name = this.name;
+    const DEFS = content.buildings, RULES = content.colony;
+    const spawns = this.spawns, VENTS = this.vents;
+    const count = (s: S, kind: string) => s.buildings.filter((b) => b.kind === kind).length;
+    const firsts = this.firsts, imprint = o.imprint ?? 'charter';
     const s = sim.s as S;
-    if (s.over) break;
     // the bot: every second, try the next item in its plan
     if (tick % Math.round(TICK_HZ * (o.pace ?? 1)) === 0 && plan.length) {
       const [kind, where] = plan[0];
       if (kind === 'fab') {
-        if (s.alloys >= RULES.droneCost) { sim.command({ type: 'fab' } as never); plan.shift(); }
+        if (s.alloys >= RULES.droneCost) { this.command({ type: 'fab' } as never); plan.shift(); }
       } else if (content.units[kind]) {
         const bay = s.buildings.find((b) => b.kind === 'bay' && b.progress >= 1);
         if (!s.buildings.some((b) => b.kind === 'bay')) plan.unshift(['bay']); // lost it: rebuild first
-        else if (bay && s.alloys >= (content.units[kind].cost ?? Infinity)) { sim.command({ type: 'produce', id: bay.id, unit: kind }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
+        else if (bay && s.alloys >= (content.units[kind].cost ?? Infinity)) { this.command({ type: 'produce', id: bay.id, unit: kind }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
       } else if (DEFS[kind] && s.alloys >= DEFS[kind].cost) {
         let target = { x: 0, z: -10 };
         if (where === 'near') {
@@ -119,16 +142,16 @@ export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult 
             .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
           if (free.length) target = free[0];
         } else if (where === 'spawn' && spawns.length) {
-          const sp = spawns[spawnIdx++ % spawns.length];
+          const sp = spawns[this.spawnIdx++ % spawns.length];
           const k = 34 / Math.hypot(sp.x, sp.z);
           target = { x: sp.x * k, z: sp.z * k };
         }
-        const p = spot(s, kind, target.x, target.z);
-        if (p) { sim.command({ type: 'build', kind, ...p }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
+        const p = this.spot(s, kind, target.x, target.z);
+        if (p) { this.command({ type: 'build', kind, ...p }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
         else if (where === 'vent' && s.alloys >= DEFS.solar.cost + DEFS[kind].cost) {
           // the vent is outside the build area: reach toward it with a solar array first
-          const b = spot(s, 'solar', target.x * 0.55, target.z * 0.55);
-          if (b) sim.command({ type: 'build', kind: 'solar', ...b });
+          const b = this.spot(s, 'solar', target.x * 0.55, target.z * 0.55);
+          if (b) this.command({ type: 'build', kind: 'solar', ...b });
         }
       } else if (!DEFS[kind]) plan.shift(); // a kind this content doesn't have: skip it
     }
@@ -150,7 +173,7 @@ export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult 
         if (ppl.colonists.length + ppl.pods.length >= housing - 1) continue; // leave room for children
         const have = (k: string) => ppl.colonists.filter((c) => c.specialty === k).length + ppl.pods.filter((p) => p.specialty === k).length;
         const sp = [...want].sort((a, b) => have(a) - have(b))[0];
-        sim.command({ type: 'grow', id: b.id, specialty: sp, curriculum: ({ guardian: 'unity' } as Record<string, string>)[imprint] ?? imprint } as never);
+        this.command({ type: 'grow', id: b.id, specialty: sp, curriculum: ({ guardian: 'unity' } as Record<string, string>)[imprint] ?? imprint } as never);
       }
     }
     // the army: idle units go after any hostile near the base, then come home
@@ -160,13 +183,34 @@ export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult 
       const idle = units.filter((u) => u.order.kind === 'idle' && u.target < 0);
       if (near.length && idle.length) {
         const cx = near.reduce((m, h) => m + h.x, 0) / near.length, cz = near.reduce((m, h) => m + h.z, 0) / near.length;
-        sim.command({ type: 'order', ids: idle.map((u) => u.id), x: cx, z: cz } as never);
+        this.command({ type: 'order', ids: idle.map((u) => u.id), x: cx, z: cz } as never);
       } else if (!s.hostiles.some((h) => h.nest === undefined) && idle.length) {
         const bay = s.buildings.find((b) => b.kind === 'bay');
         const far = idle.filter((u) => bay && Math.hypot(u.x - bay.x, u.z - bay.z) > 30);
-        if (far.length && bay) sim.command({ type: 'order', ids: far.map((u) => u.id), x: bay.x, z: bay.z - 14 } as never);
+        if (far.length && bay) this.command({ type: 'order', ids: far.map((u) => u.id), x: bay.x, z: bay.z - 14 } as never);
       }
     }
+  }
+}
+
+export function runBalance(name: string, o: BalanceOptions = {}): BalanceResult {
+  const minutes = o.minutes ?? 20, seed = o.seed ?? 1337;
+  const REGION = useRegion(o.region ?? 'touchdown');
+
+  const events: BalanceResult['events'] = [];
+  const sim = new Sim((text: string, level: string) => events.push({ t: sim.secs, text, level }), seed);
+  sim.command({ type: 'landing', stage: 'deploy' });
+  if (o.peaceful) sim.s.waves.next = 1e12;
+  for (const [key, value] of Object.entries(o.policy ?? {})) sim.command({ type: 'policy', key, value } as never);
+  const bot = new BalanceBot(sim, name, REGION, { pace: o.pace, imprint: o.imprint });
+  const plan = bot.plan;
+  const rows: BalanceRow[] = [];
+  const firsts = bot.firsts;
+  for (let tick = 0; tick < minutes * 60 * TICK_HZ; tick++) {
+    const s = sim.s as S;
+    if (s.over) break;
+    bot.step(tick);
+    const units = s.units ?? [], ppl = s.people;
     o.hook?.(sim, tick, plan);
     sim.step();
     if (o.trace && tick % (10 * TICK_HZ) === 0 && s.hostiles.length) {

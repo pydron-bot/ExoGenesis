@@ -21,16 +21,37 @@ import { conditionsIn, shownChoices, type Condition, type ConditionDef } from '.
 import { runBalance } from './balance';
 import type { Sim } from './core';
 import type { Step } from './strategies';
+import type { Command } from './types';
 
 const TICK_HZ = 10;
 
 /** How the bot answers a card with choices. */
-export type ChoicePolicy = 'first' | 'last' | 'random';
+export type ChoicePolicy = 'first' | 'last' | 'random' | 'honest';
 export const POLICIES: Record<ChoicePolicy, string> = {
   first: 'always the first choice',
   last: 'always the last choice',
   random: 'a random choice (seeded)',
+  honest: 'the honest-sounding choice (truth, tell, honest…), else the first',
 };
+/** Words that make a choice "honest" for that policy (whole words, any case). */
+export const HONEST_WORDS = ['truth', 'true', 'tell', 'honest', 'honestly', 'admit', 'confess', 'explain', 'open', 'share', 'answer'];
+
+/**
+ * Which choice a policy takes: `offered` are the indices on offer (`shownChoices`), `labels` the full list's
+ * labels, `rnd` a 0..1 random for `random`. Returns an index into the full list.
+ */
+export function pickChoice(policy: ChoicePolicy, offered: number[], labels: string[], rnd: () => number, words = HONEST_WORDS): number {
+  const n = offered.length;
+  if (!n) return 0;
+  if (policy === 'last') return offered[n - 1];
+  if (policy === 'random') return offered[Math.floor(rnd() * n)];
+  if (policy === 'honest') {
+    const re = new RegExp(`\\b(${words.join('|')})\\b`, 'i');
+    const k = offered.find((i) => re.test(labels[i] ?? ''));
+    if (k !== undefined) return k;
+  }
+  return offered[0];
+}
 
 export interface PlaythroughOptions {
   strategy?: string;
@@ -91,7 +112,7 @@ function rng(seed: number) {
  * build plan, fabricates drones, starts research, sends a unit or drone to a
  * site or a camp). Conditions it can't act on (time, packs…) it just waits for.
  */
-function chase(sim: Sim, plan: Step[], tick: number) {
+export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) => void = (c) => sim.command(c)) {
   const s = sim.s, m = s.missions;
   if (!m) return;
   const front = (step: Step) => { if (!plan.slice(0, 3).some((p) => p[0] === step[0])) plan.unshift(step); };
@@ -104,9 +125,9 @@ function chase(sim: Sim, plan: Step[], tick: number) {
     // a combat unit if there is one, else an idle drone (once every 20 s)
     if (tick % (20 * TICK_HZ)) return;
     const u = (s.units ?? []).find((x) => x.order.kind === 'idle');
-    if (u) { sim.command({ type: 'order', ids: [u.id], x, z }); return; }
+    if (u) { cmd({ type: 'order', ids: [u.id], x, z }); return; }
     const d = s.drones.find((x) => x.task.kind === 'idle') ?? s.drones[s.drones.length - 1];
-    if (d) sim.command({ type: 'move', drone: d.id, x, z });
+    if (d) cmd({ type: 'move', drone: d.id, x, z });
   };
   let sites = sim.story.region().sites;
   const want = (kind: Condition, c: ConditionDef) => {
@@ -139,7 +160,7 @@ function chase(sim: Sim, plan: Step[], tick: number) {
         // a building the project needs goes to the front of the plan
         const nb = content.research[r]?.building;
         if (nb && !have(nb)) front([nb]);
-        if (!s.research?.active && tick % (5 * TICK_HZ) === 0) sim.command({ type: 'research', id: r });
+        if (!s.research?.active && tick % (5 * TICK_HZ) === 0) cmd({ type: 'research', id: r });
         return;
       }
       case 'site': case 'explored': {
@@ -157,7 +178,7 @@ function chase(sim: Sim, plan: Step[], tick: number) {
         return;
       case 'opened':
         // the bot "opens" what a tutorial waits for
-        if (c.panel) sim.command({ type: 'ui', what: c.panel === 'select' && c.building ? `select:${c.building}` : c.panel });
+        if (c.panel) cmd({ type: 'ui', what: c.panel === 'select' && c.building ? `select:${c.building}` : c.panel });
         return;
       default: return;
     }
@@ -232,7 +253,7 @@ export function runPlaythrough(o: PlaythroughOptions = {}): PlaythroughResult {
       let k = 0;
       if (n) {
         const fixed = o.answers?.[id];
-        k = fixed !== undefined && offered.includes(fixed) ? fixed : offered[policy === 'last' ? n - 1 : policy === 'random' ? Math.floor(pick() * n) : 0];
+        k = fixed !== undefined && offered.includes(fixed) ? fixed : pickChoice(policy, offered, ev.choices!.map((c) => c.label), pick);
         choices[id] = k;
         add(t, 'choice', id, `${ev.title}: “${ev.choices![k].label}”`);
       }
