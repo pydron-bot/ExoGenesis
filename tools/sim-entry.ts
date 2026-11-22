@@ -17,3 +17,6 @@ export { forgetRegion } from '../src/sim/campaign';
 export { shownChoices } from '../src/content/defs';
 export { campaignOver } from '../src/sim/campaign';
 export { runBalance, STRATEGIES } from '../src/sim/balance';
+export { Autopilot } from '../src/sim/autopilot';
+export { pickChoice } from '../src/sim/choices';
+export { BalanceBot } from '../src/sim/balance';
