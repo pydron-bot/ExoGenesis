@@ -20,7 +20,7 @@
     {
       "after": 0,
       "kind": "spawn",
-      "site": "east-stone",
+      "site": "core-yard",
       "unit": "lancer",
       "count": 3
     },
@@ -34,5 +34,5 @@
   "chapter": "the-lantern",
   "tags": "climax, fight, kindred, ally",
   "status": "draft",
-  "notes": "Kindred marines join us at home (as our units). Spawn site: Touchdown has only east-stone; a site nearer the Core would be better."
+  "notes": "Kindred marines join us at home (as our units), at the Core yard."
 }

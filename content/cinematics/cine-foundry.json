@@ -4,6 +4,7 @@
   "letterbox": true,
   "fadeIn": 1.5,
   "fadeOut": 2,
+  "music": "tension-citadel",
   "camera": [
     {
       "at": 0,

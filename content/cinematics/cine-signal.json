@@ -4,6 +4,8 @@
   "length": 48,
   "fadeIn": 2,
   "fadeOut": 2.5,
+  "hour": 22.5,
+  "music": "night-transmission",
   "region": "signal-heights",
   "trigger": "never",
   "camera": [

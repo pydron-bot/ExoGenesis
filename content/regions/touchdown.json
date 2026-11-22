@@ -98,6 +98,13 @@
       "x": 90,
       "z": 30,
       "r": 10
+    },
+    {
+      "id": "core-yard",
+      "label": "Core yard (climax arrivals)",
+      "x": 12,
+      "z": 10,
+      "r": 6
     }
   ],
   "relics": [

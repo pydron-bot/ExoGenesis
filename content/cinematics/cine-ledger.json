@@ -4,6 +4,7 @@
   "letterbox": true,
   "fadeIn": 2,
   "fadeOut": 2,
+  "music": "night-deep-watch",
   "camera": [
     {
       "at": 0,

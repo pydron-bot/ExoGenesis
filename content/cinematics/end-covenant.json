@@ -4,6 +4,8 @@
   "letterbox": true,
   "fadeIn": 2,
   "fadeOut": 2,
+  "hour": 6.5,
+  "music": "day-wide-sky",
   "camera": [
     {
       "at": 0,

@@ -4,6 +4,7 @@
   "letterbox": true,
   "fadeIn": 1.5,
   "fadeOut": 1.5,
+  "music": "night-other-voices",
   "camera": [
     {
       "at": 0,

@@ -4,6 +4,8 @@
   "letterbox": true,
   "fadeIn": 2,
   "fadeOut": 2,
+  "hour": 23,
+  "music": "night-lantern",
   "camera": [
     {
       "at": 0,
@@ -43,12 +45,14 @@
     },
     {
       "at": 47,
-      "target": "building",
-      "building": "core",
-      "lift": 30,
-      "dist": 40,
-      "pitch": -0.25,
-      "yaw": 2.9
+      "target": "body",
+      "body": "sela",
+      "x": 6,
+      "z": 10,
+      "lift": 4,
+      "dist": 60,
+      "pitch": 0,
+      "yaw": 0
     },
     {
       "at": 56,

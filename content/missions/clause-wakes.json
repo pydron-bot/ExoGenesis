@@ -30,6 +30,19 @@
           "count": 10
         }
       ]
+    },
+    {
+      "text": "The Command Core has fallen.",
+      "kind": "all",
+      "of": [
+        {
+          "kind": "after",
+          "event": "meridian-speaks"
+        },
+        {
+          "kind": "coreLost"
+        }
+      ]
     }
   ],
   "onFail": "cycle",

@@ -4,6 +4,8 @@
   "letterbox": true,
   "fadeIn": 2,
   "fadeOut": 3,
+  "hour": 7,
+  "music": "title-accord",
   "camera": [
     {
       "at": 0,
