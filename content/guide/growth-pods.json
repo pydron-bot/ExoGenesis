@@ -1,0 +1,12 @@
+{
+  "title": "Growth pods and imprints",
+  "section": "people",
+  "order": 1,
+  "summary": "The Civilian Center grows embryos into young adults. You choose their skill and what you teach them.",
+  "text": "The **Civilian Center** has two **growth pods**. Select it and tap **+ Grow colonist** to start one. You pick two things:\n\n- A **specialty**: Engineer, Botanist, Medic, Technician or Security. Each works best in its own kind of building\n- An **imprint**: what you teach them while they grow, since a pod can't give a childhood\n\nThe imprints:\n\n- **Charter**: humans and the AI as partners, and an honest history of Earth\n- **Heritage**: human history, art and self-reliance. Skilled and proud, wary of you\n- **Guardian**: the AI as guardian and future. Tireless, and little interest in families\n\nThe imprint sets how far they trust you when they step out. A pod takes a sol (the first one half that) and needs **power and biomass the whole time**: about a minute without either and the child inside is lost.",
+  "points": "people",
+  "trigger": "built",
+  "building": "civic",
+  "see": "biomass, acceptance-and-blocs, family-lines",
+  "since": "0.73.0"
+}

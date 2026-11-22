@@ -1,0 +1,9 @@
+{
+  "title": "Friend or foe",
+  "section": "factions",
+  "order": 4,
+  "summary": "What you do and what you say decides whose side another colony takes.",
+  "text": "Another colony's attitude isn't fixed. It moves with how you deal with them.\n\n- **Attacking** them makes enemies. With units selected, tapping a neutral colony's unit or building orders an attack, and that turns them hostile. Your units won't attack an ally\n- **Story choices** matter most: what you tell them, what you do for them, and what you do to them\n- What you do in one place can be remembered in another\n\nAn ally can turn the hardest fight. An enemy you made in a hurry may be one you needed later. When in doubt, hold your fire and talk.",
+  "see": "other-colonies, story-cards, groups-and-guarding",
+  "since": "0.73.0"
+}

@@ -1,0 +1,10 @@
+{
+  "title": "The radar map",
+  "section": "interface",
+  "order": 2,
+  "summary": "The minimap shows the whole region, the fog, and every predator, while a Radar has power.",
+  "text": "With a powered **Radar**, the radar map in the corner shows the whole region: your buildings, units and drones, other colonies in their own colours, predators as blips, and the fog of war (black where nothing has looked yet, dim where you've been).\n\nTap or drag across it to move the camera there. Alerts ping it at the spot, and markers the story places show on it too.\n\nIf the radar loses power, the map dims and reads RADAR OFFLINE until the power is back.",
+  "points": "minimap",
+  "see": "radar-and-sensors, alerts-and-the-log",
+  "since": "0.73.0"
+}

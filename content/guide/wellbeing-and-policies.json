@@ -1,0 +1,12 @@
+{
+  "title": "Wellbeing and policies",
+  "section": "people",
+  "order": 5,
+  "summary": "Wellbeing (☺) is how life is going. Colony policies trade output against happiness.",
+  "text": "Each colonist has a **wellbeing** score (☺ in the top bar shows the colony's average). It drifts toward how their life is going: food and rations, a powered home, work hours, safety, grief, a partner, medical care, and whether the colony's policies suit them.\n\nTap ☺ ⚖ for the Colony panel, where you set four **policies**:\n\n- **Work hours**: longer shifts, more output, less happiness\n- **Rations**: lean saves food, generous makes people happier\n- **Oversight**: how closely you watch the colony\n- **Council**: who decides, you or them, or both\n\nEach group in the colony wants different answers, so no setting pleases everyone. The panel's In force list shows anything else lifting or lowering the mood for a while.",
+  "points": "mood",
+  "trigger": "opened",
+  "panel": "mood",
+  "see": "acceptance-and-blocs, strikes-and-walkouts",
+  "since": "0.73.0"
+}

@@ -1,0 +1,11 @@
+{
+  "title": "The research tree",
+  "section": "research",
+  "order": 2,
+  "summary": "Four branches. Each project shows what it needs: an earlier project, a building, a specialist or a find.",
+  "text": "The tree has four branches, each a tab: **Economy**, **Defence**, **People** and **Precursor**. Projects sit under the ones they follow, with what they do in green.\n\nA project can wait on more than one thing, and the tree ticks each:\n\n- an **earlier project** finished\n- a **building** standing (Refined Drills needs a Mining Depot)\n- a **specialist** living in the colony (Fire Control needs a Security officer)\n- a **discovery** out in the world: a wreck, a carved stone, a relic grid, a nest destroyed, a camp met\n\nSo exploring, growing the right people and building widely all open the tree up. Some projects wait on the story itself: **Orbital Launch**, the way off this world, can't start until Act 1 is over.",
+  "trigger": "opened",
+  "panel": "research",
+  "see": "tech-lab, launch-gantry, homes-and-work",
+  "since": "0.73.0"
+}

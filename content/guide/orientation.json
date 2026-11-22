@@ -3,21 +3,57 @@
   "section": "basics",
   "order": 0,
   "summary": "A look around the screen: what each part of the HUD tells you and where to start.",
-  "text": "You are the colony's caretaker AI. The probe has landed: the **Command Core** is your base, the worker drones build for you, and the **cryo bank** inside the Core holds the embryos of everyone who will ever live here.\n\nYour first job is simple: keep the cryo bank powered, mine alloys and build. The GOALS panel always says what to do next.\n\n- **Build** opens the build menu: start with a Solar Array, then a Mining Depot on an alloy deposit\n- Tap a drone, a unit or a building to see what it is doing\n- Packs of predators come later: build defences before they do\n\nTap **Show me around** at the top of the Field Guide to see this tour again.",
+  "text": "You are the colony's caretaker AI. The probe has landed: the **Command Core** is your base, the worker drones build for you, and the **cryo bank** inside the Core holds the embryos of everyone who will ever live here.\n\nYour first job is simple: keep the cryo bank powered, mine alloys and build. The GOALS panel always says what to do next.\n\n- **Build** opens the build menu: start with a Solar Array, then Mining Depots by the glowing alloy deposits\n- Tap a drone, a unit or a building to see what it is doing\n- Packs of predators come before long, mostly from the edges: have a turret ready\n\nTap **Show me around** at the top of the Field Guide to see this tour again.",
   "points": "goals",
   "since": "0.73.0",
   "tour": [
-    { "target": "goals", "text": "GOALS: what to do next. Each goal ticks off as you do it, and new ones follow." },
-    { "target": "build", "text": "Build: open the build menu, pick a building and place it near the Command Core. Your drones fly out and build it." },
-    { "target": "alloys", "text": "Alloys (◆) pay for everything you build. Mining Depots on alloy deposits bring them in." },
-    { "target": "energy", "text": "Power (⚡): what your buildings make, and what they draw. Solar works by day only." },
-    { "target": "battery", "text": "The battery (🔋) carries you through the night. When it runs dry, the colony browns out." },
-    { "target": "cryo", "text": "The cryo bank (❄) holds the embryos. It needs power above all else: if its integrity falls, embryos die." },
-    { "target": "clock", "text": "The clock: day and night come round every few minutes. Nights are dark, and the packs come bigger." },
-    { "target": "threat", "text": "The threat counter (⚠): when the next pack of predators is due." },
-    { "target": "minimap", "text": "The radar map: tap or drag it to look somewhere. Red marks are hostiles." },
-    { "target": "log", "text": "The log: what just happened. Tap a line with ◎ to look at it." },
-    { "target": "pause", "text": "Pause and fast forward. Space pauses too. Take your time: nothing happens while paused." },
-    { "target": "menu", "text": "The menu: save, options, Controls and the Field Guide, with a page on every part of the game. That's it: good luck, caretaker." }
+    {
+      "target": "goals",
+      "text": "GOALS: what to do next. Each objective ticks off as you do it, and the next mission follows."
+    },
+    {
+      "target": "build",
+      "text": "Build: pick a building and place it near the Command Core. Your drones fly out and build it."
+    },
+    {
+      "target": "alloys",
+      "text": "Alloys (◆) pay for everything. Mining Depots by the glowing deposits bring them in."
+    },
+    {
+      "target": "energy",
+      "text": "Power (⚡): what you make against what you want. Solar works by day only."
+    },
+    {
+      "target": "battery",
+      "text": "The battery (🔋) carries the colony through the night. Build one before dark."
+    },
+    {
+      "target": "cryo",
+      "text": "The cryo bank (❄): the embryos. It needs power above all: if its integrity falls below half, embryos die."
+    },
+    {
+      "target": "clock",
+      "text": "The clock: a sol lasts six minutes, half of it night. Nights are dark, and the packs come bigger."
+    },
+    {
+      "target": "threat",
+      "text": "Threat (⚠): predators on the map. With a Radar, it also counts down to the next pack."
+    },
+    {
+      "target": "minimap",
+      "text": "The radar map: tap or drag it to look somewhere. It needs a powered Radar."
+    },
+    {
+      "target": "log",
+      "text": "The log: what just happened. Tap a line with ◎ to look at it."
+    },
+    {
+      "target": "pause",
+      "text": "Pause and fast forward. Space pauses too, and you can still give orders while paused."
+    },
+    {
+      "target": "menu",
+      "text": "The menu: save, options, Controls and this Field Guide. That's it: good luck, caretaker."
+    }
   ]
 }

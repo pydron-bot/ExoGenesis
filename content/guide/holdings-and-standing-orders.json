@@ -1,0 +1,11 @@
+{
+  "title": "Holdings and standing orders",
+  "section": "defence",
+  "order": 9,
+  "summary": "Buildings far from the Core form holdings. They come under warned threats; standing orders help them hold.",
+  "text": "Buildings well out from the Command Core make up **holdings** (\"the east holding\"). Once the colony is established, holdings come under threats of their own: a migration of predators from the edge, relics breaking the surface, or a raid by neighbours with a grudge.\n\nEach one is **warned**: a log line, a marker on the holding and a countdown under GOALS, so you have time to get there. Each threat is bigger than the last.\n\nSelect any building in a holding to set its **standing order**:\n\n- **Hold**: nothing extra\n- **Muster**: idle combat units head out when the warning comes\n- **Fortify**: buildings there take less damage and turrets hit harder (research Garrison Doctrine)\n- **Evacuate**: nobody works there, and the people who live there go to the Core",
+  "trigger": "time",
+  "sol": 5,
+  "see": "defence, turrets, neighbours",
+  "since": "0.73.0"
+}

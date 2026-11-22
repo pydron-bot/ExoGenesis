@@ -1,0 +1,11 @@
+{
+  "title": "Turrets",
+  "section": "defence",
+  "order": 2,
+  "summary": "Turrets shoot any predator in range while powered. Pick the right gun for the job.",
+  "text": "A **Defense Turret** shoots any hostile in range while it has power. Put them where packs come in, and beside anything out on its own.\n\nOther guns cover what the turret can't:\n\n- **Point Defense**: rapid fire at close range, shreds swarms and hits flyers\n- **Siege Cannon**: long range, heavy shells that burst over an area, can't hit what's right under it, outranges spitters\n- **Flak Tower**: only shoots flyers, but catches whole flocks\n- **Sea Turret**: out on the water, out of reach of anything that walks\n\nGuns are first in line for power, and draw little while idle. A Security officer working at a turret makes it hit harder. The research Fire Control and Hardened Plating make the whole line tougher.",
+  "trigger": "built",
+  "building": "turret",
+  "see": "defence, predators, walls-and-gates",
+  "since": "0.73.0"
+}

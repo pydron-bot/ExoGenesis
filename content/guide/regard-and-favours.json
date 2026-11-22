@@ -1,0 +1,20 @@
+{
+  "title": "Regard, trade and favours",
+  "section": "factions",
+  "order": 2,
+  "summary": "Each camp has a regard for you. Earn its trust and it trades, warns and fights beside you.",
+  "text": "Each camp has a **regard** for the colony, from 0 to 100, shown in the Neighbours tab with what's wearing it down.\n\n- Your buildings on their land cost regard each sol; mining their deposits costs more, and a loud Deep-Core Mine most of all\n- Clearing nests on their land, good trades and kind answers to their requests earn it back\n\nAt high regard they **trust** you: they warn you of packs, share what they see of their land and defend it alongside you. Trusted neighbours (or ones you can speak with, after the research Translation Matrix) **trade**, and you can ask them for **favours**: guides, lookouts, or hunters to help with a pack. Each favour costs a little regard.\n\nLet regard fall too far and they grow uneasy, may raid an outlying holding, and at worst abandon their camp.",
+  "trigger": "any",
+  "of": [
+    {
+      "kind": "trust",
+      "group": "vell"
+    },
+    {
+      "kind": "trust",
+      "group": "choir"
+    }
+  ],
+  "see": "neighbours, holdings-and-standing-orders",
+  "since": "0.73.0"
+}

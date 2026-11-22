@@ -1,0 +1,9 @@
+{
+  "title": "A lost expedition",
+  "section": "travel",
+  "order": 4,
+  "summary": "Lose an expedition and you go home. You can try it again.",
+  "text": "If an expedition's Command Core falls, the expedition is **lost**. Its base is gone, and the end screen offers the way back to your home colony.\n\nIt isn't the end of the campaign: your home colony is untouched, and the region's mission can be tried again from the start. Go back with a fresh kit and what you learned the first time.\n\nLosing your **home** colony is different: that ends the campaign.",
+  "see": "expeditions, what-you-are",
+  "since": "0.73.0"
+}

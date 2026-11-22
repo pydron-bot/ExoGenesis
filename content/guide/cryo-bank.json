@@ -1,0 +1,12 @@
+{
+  "title": "The cryo bank",
+  "section": "power",
+  "order": 5,
+  "summary": "The embryos need steady power. In a brownout the bank loses integrity, and below half, embryos die.",
+  "text": "The **cryo bank** (❄) inside the Command Core holds the colony's future: frozen embryos from many family lines. The readout shows how many embryos are left and the bank's **integrity**.\n\nIntegrity is the bank's cold reserve. While the bank has all the power it needs, integrity holds or recovers. When it goes short in a brownout, integrity drains. **Below 50%, embryos start to die**, faster the lower it goes, and each one lost is a person who will never be.\n\n- Make sure night power covers the bank: batteries, or steady power\n- Growth pods share the bank's place in the power queue\n- The Colony panel's Cryo bank tab lists the family lines and how many embryos each has left\n\nIf the cryo bank alarm sounds, act fast: switch off what you can, and build power.",
+  "points": "cryo",
+  "trigger": "cryoBelow",
+  "count": 90,
+  "see": "power-priority, batteries, family-lines",
+  "since": "0.73.0"
+}

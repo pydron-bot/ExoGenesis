@@ -1,0 +1,12 @@
+{
+  "title": "Fusion Cells",
+  "section": "power",
+  "order": 7,
+  "summary": "Heavy power day and night, burning exotic isotopes. With none left it goes dark.",
+  "text": "The research **Isotope Cells** unlocks the **Fusion Cell**: by far the most power of any building, day and night, wherever you like.\n\nThe catch is fuel. A Fusion Cell burns exotic isotopes (◇) all the time it runs. With none in store it goes dark, and so does everything leaning on it. Keep a Deep-Core Mine working, and an eye on the ◇ count.\n\nThe same research unlocks the **Matter Printer**, which turns spare power into alloys: fusion is the usual way to feed one.",
+  "points": "isotopes",
+  "trigger": "researched",
+  "research": "isotope-cells",
+  "see": "isotopes-and-deep-mines, matter-printer, geothermal",
+  "since": "0.73.0"
+}

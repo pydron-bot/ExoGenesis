@@ -1,0 +1,9 @@
+{
+  "title": "Boats and flyers",
+  "section": "army",
+  "order": 7,
+  "summary": "The Shipyard builds boats and hover craft; the Airpad builds Gunships.",
+  "text": "On a coast, the **Shipyard** stands across the waterline and launches:\n\n- **Gunboat**: holds the water and shells the shore; open water only\n- **Hover Skiff** and **Scout Skimmer**: cross water and land alike\n- **Transport Barge**: unarmed, carries four ground units. Select them and tap the barge to load, then send the barge to a spot on land and it puts them ashore. Anyone aboard is lost if it sinks\n\nThe **Airpad** builds only flyers: the **Gunship** flies straight over walls, water and buildings and strafes packs from above, out of reach of bites. Spitters and Skimmerwings can still hit it, and it can't shoot at flyers.\n\nWater-borne predators (Lurkers) and flyers come for these too.",
+  "see": "unit-roster, predators",
+  "since": "0.73.0"
+}

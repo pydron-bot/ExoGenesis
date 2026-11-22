@@ -1,0 +1,11 @@
+{
+  "title": "Colony dilemmas",
+  "section": "story",
+  "order": 2,
+  "summary": "Small choices that come out of colony life, each leaving something behind.",
+  "text": "Once the colony has people, it starts to have problems only you can settle. A **colony dilemma** is a story card about what the colony is going through right now: a brownout, lean months, a quarrel, who wakes from the cryo bank next, someone hurt. Many are about a colonist by name.\n\nThere's rarely a right answer. Each choice moves something: someone's mood, the colony's trust in you, the food store, a policy, a family line, a neighbour's regard. Some lead to a follow-up later on.\n\nDilemmas don't come all at once: there's a gap after each one, and some can come again if the same trouble returns.",
+  "trigger": "time",
+  "sol": 3.6,
+  "see": "story-cards, wellbeing-and-policies, acceptance-and-blocs",
+  "since": "0.73.0"
+}

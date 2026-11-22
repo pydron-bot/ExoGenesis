@@ -1,0 +1,12 @@
+{
+  "title": "Planet health",
+  "section": "economy",
+  "order": 8,
+  "summary": "How well you are treating this world (🌍). A Biosphere Report sends it home every sol.",
+  "text": "**Planet health** (🌍 in the top bar, out of 100) is how well the colony is treating the world it landed on. At the end of every sol, a **Biosphere Report** sends the number home.\n\nWhat lowers it:\n\n- Strip-mined deposits and seams, burnt-out buildings and cleared nest sites scar the land\n- Wiping out nests, or driving the inhabitants off their land, harms it for good\n\nWhat raises it: a **Seed Bank** heals scarred land around it with spare biomass (never your food reserve), and with nothing left to heal it slowly rewilds. The research Low-Scar Extraction makes mining scar less.\n\nYou can't build a colony without leaving marks. How many you leave is up to you, and the planet is not the only one keeping count.",
+  "points": "planet",
+  "trigger": "reports",
+  "count": 1,
+  "see": "deposits-and-depots, nests",
+  "since": "0.73.0"
+}

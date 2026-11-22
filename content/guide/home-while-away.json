@@ -1,0 +1,9 @@
+{
+  "title": "Home while you are away",
+  "section": "travel",
+  "order": 3,
+  "summary": "Your home colony waits for you exactly as you left it.",
+  "text": "Your first landing site is your **home colony**, and it is always yours. When you set out on an expedition, the game saves home and time there stops: nothing grows, nothing ages, nothing attacks it until you come back.\n\nSo you don't have to rush home. Do leave it in good order before you go, though, because when you return the clock picks up exactly where it was, the next pack included.\n\nWhat does carry between regions is the story: missions, story choices, research done and what you've found. Alloys, buildings, units and people stay in the region they belong to.",
+  "see": "expeditions, saving",
+  "since": "0.73.0"
+}

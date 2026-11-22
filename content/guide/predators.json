@@ -1,0 +1,11 @@
+{
+  "title": "Know your predators",
+  "section": "defence",
+  "order": 6,
+  "summary": "Later packs bring spitters, burrowers, flyers and waders. Each needs a different answer.",
+  "text": "The first packs are **Swarmers** and the odd heavy **Brute**. Later packs bring stranger things:\n\n- **Spitter**: hangs back and spits acid from just beyond a turret's reach. A Siege Cannon, Artillery or a dug-in Tank outranges it\n- **Burrower**: tunnels under walls and surfaces at its target. Radar shows it underground\n- **Skimmerwing**: flies straight over walls and water. Only anti-air hits it: Point Defense, the Arc Caster, the Flak Tower and the Core's own gun\n- **Strider**: wades through water that turns the rest aside, and arrives from the side you weren't watching\n- **Lurker**: lives in the sea and strikes at anything on the shore, a pier or the water\n\nMix your defences: no single gun answers everything.",
+  "trigger": "kills",
+  "count": 40,
+  "see": "turrets, counters, radar-and-sensors",
+  "since": "0.73.0"
+}

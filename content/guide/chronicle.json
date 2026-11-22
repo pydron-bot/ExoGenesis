@@ -1,0 +1,12 @@
+{
+  "title": "The Chronicle",
+  "section": "story",
+  "order": 4,
+  "summary": "Your colony's story so far: key moments, the blocs over time, the family tree and the memorial.",
+  "text": "The **Chronicle** is your colony's history, kept as you play. Open it from the menu (the game stays paused) or from the end screen.\n\n- **The numbers**: everyone who lived, grown and born, who died, who walked out, how many family lines are left\n- **The blocs**: how Autonomists, Partners and the Devoted rose and fell, sol by sol\n- **The family tree**: every colonist, a row per generation, with their parents and partners\n- **Key moments**: births, deaths, finds, missions, turning points\n- **The memorial**: the names of everyone lost\n\n**Save image** makes a picture of it to keep or share.",
+  "points": "menu",
+  "trigger": "colonists",
+  "count": 6,
+  "see": "families-and-children, deaths-and-the-memorial",
+  "since": "0.73.0"
+}

@@ -1,0 +1,10 @@
+{
+  "title": "The Colony panel",
+  "section": "interface",
+  "order": 3,
+  "summary": "Tap 👤 or ☺ ⚖ to see your people, policies, the cryo bank and the memorial.",
+  "text": "Tap the **👤** or **☺ ⚖** readout to open the Colony panel. Its tabs:\n\n- **Colony**: mood and acceptance, the blocs and which one leads, the policies, and anything **In force** for a while\n- **People**: everyone by name; tap one to find them\n- **Cryo bank**: embryos and integrity, line by line\n- **Memorial**: everyone lost, how and when, and who mourned them\n- **Neighbours**: once you've met the inhabitants, their regard, trades and favours\n\nThe last few things your colonists have said are here too, under Voices.",
+  "points": "people",
+  "see": "wellbeing-and-policies, acceptance-and-blocs, regard-and-favours",
+  "since": "0.73.0"
+}

@@ -1,0 +1,12 @@
+{
+  "title": "Acceptance and the blocs",
+  "section": "people",
+  "order": 6,
+  "summary": "Acceptance (⚖) is how far your colonists trust you. It splits them into three blocs.",
+  "text": "Each adult has an **acceptance** of you, the AI, from 0 to 100 (⚖ in the top bar shows the average). It starts from the imprint they were grown with and then drifts: with the policies, with how life is going (misery gets blamed on you), with the people they live with, and with what happens. Preventable deaths cost trust; beating a pack earns some.\n\nAcceptance sorts the adults into three **blocs**:\n\n- **Autonomists** (low): want humans to run their own lives\n- **Partners** (middle): want you and them working together\n- **Devoted** (high): trust you with everything\n\nWhen one bloc holds half the adults (with at least four), it **leads** and gives a boost: Autonomists defend their buildings (Wardens), Partners make staff count for more (Symbiosis), the Devoted speed up drones and save power (Vigil).\n\nWhat they think of you matters more than any boost. It decides how the story ends.",
+  "points": "mood",
+  "trigger": "colonists",
+  "count": 4,
+  "see": "wellbeing-and-policies, growth-pods, endings",
+  "since": "0.73.0"
+}

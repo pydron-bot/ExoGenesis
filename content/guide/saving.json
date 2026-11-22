@@ -1,0 +1,10 @@
+{
+  "title": "Saving your game",
+  "section": "basics",
+  "order": 6,
+  "summary": "The game saves itself every few seconds. Save in the menu keeps a copy of your own.",
+  "text": "Your colony **autosaves** to this browser every few seconds and whenever you leave the page, so you can close the tab and pick up again with CONTINUE on the title screen.\n\nThe menu's **Save** (or Ctrl+S) also keeps a copy of your own, and **Load** brings back that copy.\n\n- Each region you play keeps its own save, so your home colony and an expedition never overwrite each other\n- Saves live in this browser only: another browser or device starts fresh\n- NEW GAME starts the whole campaign over and clears the autosaves (your own Save copy stays)",
+  "points": "menu",
+  "see": "home-while-away",
+  "since": "0.73.0"
+}

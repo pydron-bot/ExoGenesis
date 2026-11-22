@@ -1,0 +1,11 @@
+{
+  "title": "Deaths and the Memorial",
+  "section": "people",
+  "order": 10,
+  "summary": "Every loss is remembered. The people who loved them grieve.",
+  "text": "Colonists die: of old age in the end, but also to predators, to hunger, to a building falling on them, or to a cold cryo bank before they were ever born.\n\nWhen someone dies, the people closest to them **grieve**: a partner most, then parents, children and housemates. Grief weighs on their wellbeing for a couple of sols, and a preventable death costs you some of the colony's trust.\n\nThe **Memorial** is a ring of stones carved with every name, round a flame that never goes out. Homes near it take comfort, and grief fades faster while it stands. Select it to read the names. The Colony panel's Memorial tab keeps the full list, and who mourned each one.",
+  "trigger": "deaths",
+  "count": 1,
+  "see": "injuries-and-care, heroes-and-voices, chronicle",
+  "since": "0.73.0"
+}

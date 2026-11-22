@@ -1,0 +1,12 @@
+{
+  "title": "Batteries",
+  "section": "power",
+  "order": 3,
+  "summary": "Battery Banks store spare daytime power and carry the colony through the night.",
+  "text": "A **Battery Bank** soaks up any power you aren't using by day and pays it out when you're short, at night most of all. The 🔋 readout shows how full your batteries are.\n\nTwo rules worth knowing:\n\n- Batteries cover everything **except** Mining Depots and Matter Printers, which only ever run on power being made right now\n- Batteries only fill if you make more than you use: a colony that's short by day goes into the night empty\n\nIf the battery runs dry at night, the colony browns out: the least important buildings go dark first, and in a bad brownout the cryo bank goes short.\n\nMore batteries hold more. The research Deep-Cycle Cells makes every battery hold half as much again.",
+  "points": "battery",
+  "trigger": "built",
+  "building": "battery",
+  "see": "day-and-night, power-priority, cryo-bank",
+  "since": "0.73.0"
+}

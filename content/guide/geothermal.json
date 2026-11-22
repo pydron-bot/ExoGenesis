@@ -1,0 +1,12 @@
+{
+  "title": "Steady power",
+  "section": "power",
+  "order": 6,
+  "summary": "Geothermal Taps on vents and Tidal Generators offshore give power day and night.",
+  "text": "Solar and batteries will carry a small colony, but steady power that ignores the sun makes nights much easier: the depots keep mining in the dark.\n\n- **Geothermal Tap**: strong, steady power, but only built on top of a **geothermal vent** (look for the steaming vents in the ground). A Relay Tower helps you reach one outside your build area\n- **Tidal Generator**: a little steady power from turbines in the current. It's built out on the water, so only on coasts\n- **Fusion Cell**: the heaviest of all, after research, as long as it has isotopes to burn\n\nSpare steady power is also what a Matter Printer runs on.",
+  "points": "energy",
+  "trigger": "time",
+  "sol": 2.3,
+  "see": "fusion, building, matter-printer",
+  "since": "0.73.0"
+}

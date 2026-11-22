@@ -1,0 +1,10 @@
+{
+  "title": "Who gets power first",
+  "section": "power",
+  "order": 4,
+  "summary": "When power is short, guns and the cryo bank are served first, mining last.",
+  "text": "When there isn't enough power for everything, the colony shares out what there is in a fixed order, most protected first:\n\n- Turrets, other guns and Shield Projectors\n- The cryo bank and drones, then homes (with their growth pods) and Med Bays\n- The Radar, factories, Hydroponics, Repair Pads, relays and sensors\n- Everything else: Mining Depots, Tech Labs, Deep-Core Mines and the rest\n- Matter Printers, last of all\n\nMining Depots and Matter Printers never draw on the batteries: they only run on power being made right now. Turrets draw only a little while there's nothing to shoot, and full power while they fire.\n\nA **brownout** is when even the top of the list goes short. Watch the ⚡ readout: red means the cryo bank is short right now. To get out of one, build more power, or **Switch off** buildings you can do without for a while (select one; its card has the switch).",
+  "points": "energy",
+  "see": "cryo-bank, batteries, power",
+  "since": "0.73.0"
+}

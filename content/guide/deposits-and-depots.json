@@ -1,0 +1,12 @@
+{
+  "title": "Deposits and Mining Depots",
+  "section": "economy",
+  "order": 2,
+  "summary": "A Mining Depot mines the nearest deposit in range, but only on live power.",
+  "text": "Alloy **deposits** are the glowing patches in the ground. A **Mining Depot** placed near one mines it: the depot works the nearest deposit within its reach (you can't build on the deposit itself). Each deposit holds a fixed amount and runs dry in time, and the log tells you when one does.\n\nDepots are the first thing to stop when power is short. They run only on power that is being made right now, never on the batteries, so **mining pauses at night** unless you make more power than everything else needs.\n\n- Build two or more depots early: they are your income\n- Engineers working at a depot make it mine faster\n- Mining scars the land round it, which lowers planet health\n- A depot out on its own is the first thing a pack finds: put a turret beside it",
+  "points": "alloys",
+  "trigger": "built",
+  "building": "depot",
+  "see": "day-and-night, power-priority, planet-health",
+  "since": "0.73.0"
+}

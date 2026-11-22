@@ -1,0 +1,12 @@
+{
+  "title": "Colonists",
+  "section": "people",
+  "order": 3,
+  "summary": "Your colonists are people: they live, work, have opinions of you, and can be lost.",
+  "text": "Each colonist has a name, a family line, a specialty, a few traits and a story. Tap one walking about (or find them in the Colony panel) to see their card: how they feel, what they think of you, where they live and work, who they love.\n\nThey look after themselves: they find a home, take a job (specialists go to matching buildings first), walk to work during shift hours and home after. When predators come near, everyone runs for the nearest building.\n\nThe **👤** readout counts colonists (+ any growing in pods). Tap it for the **Colony panel**: the colony's mood, its policies, everyone by name, the cryo bank and the memorial.\n\nUnlike drones and turrets, people can't be rebuilt.",
+  "points": "people",
+  "trigger": "colonists",
+  "count": 1,
+  "see": "homes-and-work, wellbeing-and-policies, acceptance-and-blocs",
+  "since": "0.73.0"
+}

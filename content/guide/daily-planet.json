@@ -1,0 +1,9 @@
+{
+  "title": "Daily Planet",
+  "section": "interface",
+  "order": 6,
+  "summary": "The same world for everyone each day, with one scored try and a result to share.",
+  "text": "**DAILY PLANET** on the title screen is a new skirmish every day: the same world, rivals and starting alloys for everyone who plays it that day. Rivals play harder at weekends.\n\nYou get **one scored try** a day. A win scores more the faster it is; a loss scores for how long you held on; kills and mining add to it, and losses take away. Reloading or playing again is practice.\n\nWhen you're done, **Share** copies a little timeline of your game (quiet, fighting, heavy losses) without giving the map away. A new planet comes at midnight UTC.",
+  "see": "skirmish",
+  "since": "0.73.0"
+}

@@ -1,0 +1,23 @@
+{
+  "title": "Other colonies",
+  "section": "factions",
+  "order": 3,
+  "summary": "Some regions hold other colonies, in their own colours. Each can be neutral, hostile or allied.",
+  "text": "Out across the system, you'll find you aren't the only newcomers. Some regions hold **other colonies**: their buildings, drones and units drawn in their own colour, on the ground and on the radar map.\n\nEach stands with you in one of three ways:\n\n- **Neutral**: they don't fight you, and your guns leave them alone\n- **Hostile**: they fight, and so do you\n- **Allied**: they fight beside you (you can't command them)\n\nThe log says whenever one changes its mind about you.",
+  "points": "minimap",
+  "trigger": "any",
+  "of": [
+    {
+      "kind": "faction",
+      "faction": "kindred",
+      "attitude": "neutral"
+    },
+    {
+      "kind": "faction",
+      "faction": "engram",
+      "attitude": "neutral"
+    }
+  ],
+  "see": "friend-or-foe, expeditions",
+  "since": "0.73.0"
+}

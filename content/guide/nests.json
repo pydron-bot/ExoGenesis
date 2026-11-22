@@ -1,0 +1,11 @@
+{
+  "title": "Nests",
+  "section": "defence",
+  "order": 3,
+  "summary": "Packs only come from spawns whose nest stands. Destroy one and that side goes quiet for a while.",
+  "text": "Every spawn the packs come from has a **nest**: a mound of chewed rock and resin where they breed. A spawn whose nest is gone sends no packs until the nest grows back, about ten minutes later.\n\nTo clear one, send a real army: nests are tough, and a hurt nest lets out swarmers to guard it. Scout Skimmers can find them first.\n\n- Clearing a nest buys breathing room on that side\n- Destroying a nest unlocks a line of research in the Precursor branch\n- Nest sites scar the land, and wiping nests out harms planet health for good\n- Some neighbours are grateful when you clear a nest on their land",
+  "trigger": "packs",
+  "count": 3,
+  "see": "defence, unit-roster, planet-health",
+  "since": "0.73.0"
+}

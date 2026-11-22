@@ -1,0 +1,11 @@
+{
+  "title": "Wrecks and salvage",
+  "section": "economy",
+  "order": 5,
+  "summary": "Old wrecks lie out in the world. A Field Engineer next to one strips it for alloys.",
+  "text": "Here and there lie the broken hulls of landers that came down long ago. Once one has been seen (Scout Skimmers are good at finding them), it's a store of alloys waiting to be taken.\n\nPark a **Field Engineer** (from the Vehicle Bay) beside a wreck. With nothing to repair, it strips the hull and the alloys come straight in until the wreck is empty.\n\n- Wrecks are usually out past your defences: send a few guns with the engineer\n- Research in the Precursor branch makes engineers strip them faster\n\nTake a close look at them while you're there. They are built a lot like you.",
+  "trigger": "flag",
+  "flag": "wreck-found",
+  "see": "alloys, unit-roster, relics",
+  "since": "0.73.0"
+}

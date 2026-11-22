@@ -1,0 +1,9 @@
+{
+  "title": "Your units",
+  "section": "army",
+  "order": 2,
+  "summary": "What each combat unit is for.",
+  "text": "From the **Vehicle Bay**:\n\n- **Rover**: fast and cheap; catches Artillery and Lancers before they line up\n- **Scout Skimmer**: very fast, sees far, barely armed; skims over water; finds nests and wrecks\n- **Tank**: slow and tough, splash damage, the front line\n- **Arc Caster**: short range, jumps between targets; shreds swarms and hits flyers\n- **Lancer**: slow rail lance that hits one big target very hard from far away\n- **Artillery**: heavy shells from long range, hard on buildings; can't hit anything close\n- **Field Engineer**: unarmed; repairs units and buildings near it (for alloys) and strips wrecks\n- **Medevac**: a fast ambulance for the injured\n- **Hover Skiff**: a light gun platform that crosses water\n- **Aegis Crawler**: an unarmed shield bubble (after research)\n\nThe **Shipyard** adds the Gunboat and the Transport Barge, and the **Airpad** the Gunship.",
+  "see": "counters, abilities, sea-and-air",
+  "since": "0.73.0"
+}

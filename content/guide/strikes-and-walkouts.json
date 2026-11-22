@@ -1,0 +1,12 @@
+{
+  "title": "Strikes, sabotage and walkouts",
+  "section": "people",
+  "order": 7,
+  "summary": "Unhappy colonists stop working. Angry ones sabotage. A miserable majority may leave.",
+  "text": "When things go badly, people let you know:\n\n- A colonist whose wellbeing falls very low goes **on strike** and stops working\n- Angry Autonomists may **sabotage** buildings. The Oversight policy catches some of it (Total stops it, and they hate it)\n- If Autonomists are the majority and miserable for long enough, a third of them **walk out** to found a settlement of their own\n\nThe other way: when most of the colony are Partners and happy for a whole sol, they have a **Breakthrough**, a burst of extra output for a while.\n\nTo end a strike, fix what's wrong: food, homes with power, shorter hours, policies that suit them. Small story choices can help or hurt too.",
+  "points": "mood",
+  "trigger": "striking",
+  "count": 1,
+  "see": "wellbeing-and-policies, acceptance-and-blocs",
+  "since": "0.73.0"
+}

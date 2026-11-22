@@ -1,0 +1,12 @@
+{
+  "title": "Exotic isotopes",
+  "section": "economy",
+  "order": 6,
+  "summary": "Isotopes (◇) come from violet seams, mined by a Deep-Core Mine. Advanced buildings need them.",
+  "text": "**Exotic isotopes** (◇ in the top bar) are a second resource for advanced work: Fusion Cells burn them, and Shield Projectors, Matter Printers, the Launch Gantry and some research cost them.\n\nResearch **Deep Survey** at a Tech Lab, then build a **Deep-Core Mine** on one of the glowing violet isotope seams. Seams are often out past your build area, so a Relay Tower helps.\n\n- The drill is loud: predator packs go for a Deep-Core Mine first, so guard it well\n- Deep mines draw a lot of power\n- Isotope mining scars the land more than alloys do\n- Relic caches can hold isotopes too",
+  "points": "isotopes",
+  "trigger": "researched",
+  "research": "deep-survey",
+  "see": "fusion, matter-printer, building",
+  "since": "0.73.0"
+}

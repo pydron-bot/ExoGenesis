@@ -1,0 +1,10 @@
+{
+  "title": "Alloys",
+  "section": "economy",
+  "order": 1,
+  "summary": "Alloys (◆) pay for every building, drone and unit. Mining Depots bring them in.",
+  "text": "**Alloys** (◆ in the top bar) are what you build with. Every building, worker drone and combat unit costs them, paid when you place the building or queue the unit.\n\nThe Command Core trickles in a few alloys on its own, far too slowly to grow on. Real income comes from **Mining Depots** on the glowing alloy deposits. Finishing a mission often pays alloys too.\n\n- Repairs cost alloys, a little at a time\n- Cancel a building that isn't finished for most of its cost back\n- Recycle a finished one for about half its cost (less if it's damaged)\n\nDeposits run out in the end. Later, a Matter Printer can make alloys from spare power, and wrecks and relic caches out in the world hold more.",
+  "points": "alloys",
+  "see": "deposits-and-depots, matter-printer, wrecks-and-salvage",
+  "since": "0.73.0"
+}

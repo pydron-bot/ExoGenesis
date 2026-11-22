@@ -1,0 +1,11 @@
+{
+  "title": "Day and night",
+  "section": "power",
+  "order": 2,
+  "summary": "A sol is six minutes. At night solar fails, mining stops, and packs come bigger.",
+  "text": "A day here, a **sol**, lasts about six minutes, and roughly half of it is dark. The clock shows the sol and the hour, with ☀ or ☾.\n\nWhen the sun goes down:\n\n- Solar Arrays drop to almost nothing\n- Batteries take over, for everything except the Mining Depots and Matter Printers, so **mining stops** unless you make spare power some other way\n- Predator packs that come at night are bigger\n\nSo each day, build up enough battery charge to last until dawn, and enough guns to hold the dark. Steady power (geothermal, tidal, fusion) keeps the depots running all night.\n\nOne sol is also one year for your colonists: they age a year every six minutes.",
+  "points": "clock",
+  "trigger": "night",
+  "see": "batteries, power-priority, geothermal",
+  "since": "0.73.0"
+}

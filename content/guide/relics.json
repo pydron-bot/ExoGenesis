@@ -1,0 +1,11 @@
+{
+  "title": "Relics",
+  "section": "defence",
+  "order": 8,
+  "summary": "Old towers sleep in rings of carved stone. Wake them and they fire on you, unless they know you.",
+  "text": "Some places hold **relic grids**: rings of carved stone left by whoever was here before. Their **sentinels** sleep until something of yours comes close, then scan it. Some stand down. The rest wake and fire on anything of yours in reach.\n\nA grid runs on its **Grid Nodes**. Destroy every node and the grid powers down and opens its **cache** of alloys and isotopes.\n\n- Lancers and Artillery outrange the sentinels\n- With the research Relic Studies, a Field Engineer parked by a node re-tunes it instead: no fight\n- Waking a grid, and shutting one down, each open up research in the Precursor branch",
+  "trigger": "flag",
+  "flag": "relic-woke",
+  "see": "counters, research-tree, wrecks-and-salvage",
+  "since": "0.73.0"
+}

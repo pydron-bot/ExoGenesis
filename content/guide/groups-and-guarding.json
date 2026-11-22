@@ -1,0 +1,9 @@
+{
+  "title": "Groups and guarding",
+  "section": "army",
+  "order": 5,
+  "summary": "Save units as a group with a number key. Units guard wherever you leave them.",
+  "text": "**Control groups** (keyboard): select some units and press Ctrl or Shift with a number from 4 to 9 to make them a group. Press the number to select them again, and twice to look at them. Ctrl+A selects every combat unit. On touch, the ⚔ chip does the same.\n\n**Guarding:** units you leave somewhere guard that spot. They go after anything that comes within reach or attacks a building nearby, then come back. X makes the selection stop and guard where it is.\n\n**Units going far** spread out round the spot you send them to, and find their own way round buildings, walls and water.\n\n**Attacking** another colony's units or buildings is an order of its own: tap them with units selected. Think before you do it.",
+  "see": "selecting-and-orders, other-colonies, holdings-and-standing-orders",
+  "since": "0.73.0"
+}

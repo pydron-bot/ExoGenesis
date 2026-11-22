@@ -1,0 +1,9 @@
+{
+  "title": "Matter Printers",
+  "section": "economy",
+  "order": 7,
+  "summary": "Turns spare power into alloys, slowly. No deposit, no scars.",
+  "text": "The **Matter Printer** (after the research Isotope Cells) makes alloys out of power: no deposit, no mining, no scars on the land.\n\nIt is fussy about its power. It only takes power nothing else wants, and never draws on the batteries, so it runs on a surplus: geothermal, fusion or a sunny afternoon. When the colony is short, the printer is the first thing to wait.\n\n- It works slowly, so think of it as a steady top-up, and the answer when the deposits run dry\n- It costs isotopes to build\n- Research Matter Compiler for more alloys from the same power",
+  "see": "alloys, fusion, power-priority",
+  "since": "0.73.0"
+}

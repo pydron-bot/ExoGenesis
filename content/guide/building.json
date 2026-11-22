@@ -1,0 +1,10 @@
+{
+  "title": "Building and the build area",
+  "section": "economy",
+  "order": 4,
+  "summary": "Open Build, pick a building and place it inside your build area. Drones do the rest.",
+  "text": "Tap **Build** (or press B), pick a building and tap the ground to place it. If it can't go there, the reason shows right by the cursor: too steep, in the water, overlapping, too far out.\n\nYou can build inside the **build area**: round the Command Core, and a short way round every finished building, so the colony grows outward step by step. Walls don't widen it.\n\n- R or ⟳ Rotate turns the building while placing\n- Shift-click places several in a row\n- Select a building to **Switch off** (saves its power), **Repair** or **Recycle** it\n- Buildings print up from the ground while a drone works on them\n\nTo reach a far deposit or vent without a long chain of buildings, use a **Relay Tower** (or a **Pier** across water): you can build anywhere within its range.",
+  "points": "build",
+  "see": "worker-drones, alloys, power-priority",
+  "since": "0.73.0"
+}

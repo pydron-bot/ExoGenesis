@@ -1,0 +1,12 @@
+{
+  "title": "Radar and sensors",
+  "section": "defence",
+  "order": 4,
+  "summary": "The Radar warns of packs, shows them on the minimap and gives you the next-pack timer.",
+  "text": "The **Radar** is your early warning. While it has power:\n\n- The radar map (the minimap) shows the region, the fog you haven't explored, and every predator as a blip\n- The ⚠ counter shows when the next pack is due, then how many predators are on the map\n- Burrowers moving underground show up\n\nWithout power, the map reads RADAR OFFLINE and you're back to seeing only what your buildings and units can see.\n\nThe **Sensor Mast** is a cheap way to push back the fog: a tripod of cameras that sees a long way round itself, but gives no minimap and no warning. Put them along mining lines and at gaps in your walls.\n\nThe research Seismic Listening hears packs gather before they even set out.",
+  "points": "minimap",
+  "trigger": "built",
+  "building": "radar",
+  "see": "minimap, defence",
+  "since": "0.73.0"
+}

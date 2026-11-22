@@ -1,0 +1,12 @@
+{
+  "title": "Worker drones",
+  "section": "economy",
+  "order": 3,
+  "summary": "Drones build and repair. The Command Core makes more.",
+  "text": "Your **worker drones** do all the building. Place a building and an idle drone flies out to build it; with nothing left to build, idle drones repair damaged buildings (repairs cost alloys).\n\nMore drones build faster. Select the Command Core and tap **+ Drone** to fabricate one. The Core can run four at a time to begin with (research raises that).\n\n- The ⛭ chip shows how many are idle: tap it, or press the full stop, to jump to the next one\n- Drag from a drone to send it somewhere yourself\n- Drones back away from predators unless you order them in\n- If every drone is lost, the Core makes you a free one\n\nDrones draw a little power, more when they're busy.",
+  "points": "drones",
+  "trigger": "drones",
+  "count": 3,
+  "see": "building, research-tree",
+  "since": "0.73.0"
+}

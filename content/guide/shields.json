@@ -1,0 +1,11 @@
+{
+  "title": "Shields",
+  "section": "defence",
+  "order": 7,
+  "summary": "A Shield Projector throws a dome over everything near it, until the dome has soaked its fill.",
+  "text": "The research **Shield Lattice** unlocks two kinds of shield:\n\n- **Shield Projector**: a dome over everything near it. Bites, spit and claws from outside the dome are stopped until it has soaked its fill; then it collapses and comes back once it has recharged to 30%\n- **Aegis Crawler**: a slow, unarmed vehicle with a smaller bubble of the same kind, to park among your guns or over a mining line\n\nA shield only stops what comes from outside it. Anything that gets in under the dome is in there with you.\n\nShields draw heavy power all the time and cost isotopes to build. The research Lattice Tuning makes them recharge faster.",
+  "trigger": "researched",
+  "research": "shield-lattice",
+  "see": "turrets, power-priority",
+  "since": "0.73.0"
+}

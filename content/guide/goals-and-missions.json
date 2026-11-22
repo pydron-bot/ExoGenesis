@@ -1,0 +1,10 @@
+{
+  "title": "GOALS and missions",
+  "section": "basics",
+  "order": 5,
+  "summary": "The GOALS panel lists what the current mission asks for. Tick them off to move the story on.",
+  "text": "The **GOALS** panel at the top of the screen shows the mission under way and its objectives. The one to do next is lit; done ones are ticked. Finish them all and the mission pays out (often alloys, sometimes a hint about what to do next) and the next mission starts.\n\nThe first few missions are a tutorial: power, mining, the first night, your first colonist and exploring. After that the story opens up and missions take you further afield.\n\n- A mission in another region shows that region's name, its objectives greyed until you go there\n- Countdowns the story starts show under the goals with a ⏱\n- Some missions can fail, so keep an eye on what they ask you to protect",
+  "points": "goals",
+  "see": "story-cards, routes-and-travel",
+  "since": "0.73.0"
+}

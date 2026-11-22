@@ -1,0 +1,28 @@
+{
+  "title": "Expeditions",
+  "section": "travel",
+  "order": 2,
+  "summary": "Away from home you play an expedition: a fresh base with its own kit and its own job.",
+  "text": "Every region except your home colony is an **expedition**. You land with a kit of your own for the trip (alloys, worker drones, a few combat units, sometimes isotopes), and build a forward base from there. It doesn't take anything from home.\n\nExpeditions carry no cryo bank and no colonists, so the top bar drops the cryo, food and people readouts. What you do have is the same as at home: build power and depots, defend the Command Core, and get the job done.\n\nWhen you're finished, select the Command Core and choose **Return** home (or another route). Each region keeps its own save, so you can go back to an expedition later and find it as you left it.\n\nThe story carries everywhere: what you learn, research and decide on an expedition counts at home too.",
+  "trigger": "any",
+  "of": [
+    {
+      "kind": "here",
+      "place": "hearthsmoke"
+    },
+    {
+      "kind": "here",
+      "place": "choir-field"
+    },
+    {
+      "kind": "here",
+      "place": "burrow-reach"
+    },
+    {
+      "kind": "here",
+      "place": "splinter-hollow"
+    }
+  ],
+  "see": "routes-and-travel, home-while-away, lost-expedition",
+  "since": "0.73.0"
+}

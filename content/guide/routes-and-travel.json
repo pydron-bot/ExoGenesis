@@ -1,0 +1,11 @@
+{
+  "title": "Routes and travel",
+  "section": "travel",
+  "order": 1,
+  "summary": "The story opens routes to other regions. Travel overland from the Command Core.",
+  "text": "Your landing site is one region of a whole planet. Zoom out (or press 2) to see the globe, carved into regions.\n\nAs the story goes on, it opens **routes** to other regions (the log says \"New route\"). To go, select the **Command Core**: its **TRAVEL** list shows every route on this world. Tap one, then tap again to be sure. The game saves where you are and takes you there.\n\n- A region you haven't been to is a **new expedition**\n- A region you've played before is just as you left it\n- Routes to other worlds need a Launch Gantry: the Core's list says how many are waiting\n\nMissions set in another region show its name under GOALS until you go there.",
+  "trigger": "mission",
+  "mission": "beyond-the-ridge",
+  "see": "expeditions, home-while-away, launch-gantry",
+  "since": "0.73.0"
+}

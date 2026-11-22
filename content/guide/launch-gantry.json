@@ -1,0 +1,11 @@
+{
+  "title": "The Launch Gantry",
+  "section": "travel",
+  "order": 5,
+  "summary": "Routes to other worlds need a Launch Gantry, unlocked by the research Orbital Launch.",
+  "text": "Travel on your own world goes overland from the Command Core. Reaching **other worlds** of the star system takes a shuttle.\n\nThe research **Orbital Launch** (in Economy, after Isotope Cells) unlocks the **Launch Gantry**: a lattice tower with a shuttle on its rail. It can't be researched until the end of Act 1. The gantry is big, takes a while to build and costs isotopes as well as alloys.\n\nOnce it stands, select it: its **LAUNCH** list shows every route to another world. Tap one, then tap again to be sure, and the camera pulls out to the star system as you go.\n\nOff-world regions are expeditions like any other: each keeps its own save, and you can always come home.",
+  "trigger": "researched",
+  "research": "orbital-launch",
+  "see": "routes-and-travel, expeditions, research-tree",
+  "since": "0.73.0"
+}

@@ -1,0 +1,12 @@
+{
+  "title": "Families and children",
+  "section": "people",
+  "order": 8,
+  "summary": "Couples form, settle and have children. Children grow up with their own minds.",
+  "text": "Colonists living together fall in love. Couples from different family lines pair up, and settled, happy couples with room to spare have **children**. One sol is a year, so children grow up while you play; they come of age at 16 and take up whatever specialty the colony needs most.\n\nChildren born in the colony are raised by their parents, not by you. They lean further toward running their own lives than their pod-grown parents did, so as the generations turn, the colony's view of you shifts.\n\n- Families need homes with room: build Habitat Blocks\n- The Devoted have few children\n- The Chronicle draws the family tree",
+  "points": "people",
+  "trigger": "births",
+  "count": 1,
+  "see": "acceptance-and-blocs, homes-and-work, chronicle",
+  "since": "0.73.0"
+}

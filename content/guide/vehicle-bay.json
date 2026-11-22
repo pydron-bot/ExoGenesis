@@ -1,0 +1,12 @@
+{
+  "title": "The Vehicle Bay",
+  "section": "army",
+  "order": 1,
+  "summary": "The Vehicle Bay builds combat units while powered. Select it to queue them.",
+  "text": "Turrets stay where you put them. **Combat units** go where the fight is. Build a **Vehicle Bay**, select it and tap a unit to queue it: alloys are paid when you queue, and **Cancel last** gives them back in full. The bay builds one at a time while it has power, and the finished unit rolls out of its door.\n\n- The ⚔ readout counts your combat units. Tap it to select them all\n- The colony can field twelve units to begin with (counting the queue); research raises that\n- An Engineer working at the bay makes it build faster\n- Idle units guard where they stand: they chase anything that comes close, or attacks a building nearby, then come back\n\nThe Shipyard builds boats and hover craft, and the Airpad builds flyers.",
+  "points": "army",
+  "trigger": "units",
+  "count": 1,
+  "see": "unit-roster, counters, abilities",
+  "since": "0.73.0"
+}

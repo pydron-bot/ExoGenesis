@@ -1,0 +1,9 @@
+{
+  "title": "The top bar",
+  "section": "interface",
+  "order": 1,
+  "summary": "What every readout at the top of the screen means.",
+  "text": "- **◆ Alloys**: what you build with\n- **◇ Isotopes**: for advanced buildings and research (dim until you have a use for them)\n- **⚡ Power**: made / wanted, in MW. Amber: on the batteries. Red: the cryo bank is short\n- **🔋 Battery**: how full the batteries are\n- **❄ Cryo bank**: embryos left and integrity. Red below 50%\n- **🌱 Biomass**: food held, and the change per minute\n- **👤 Colonists**: people, + any in pods (tap for the Colony panel)\n- **☺ ⚖**: average wellbeing and acceptance of you\n- **🌍 Planet health**: out of 100\n- **Clock**: the sol, the hour, ☀ or ☾\n- **⚠ Threat**: predators on the map, or (with a Radar) when the next pack is due\n- **⚔ Army**: combat units (tap to select them all)\n- **⛭ Drones**: worker drones, and how many are idle\n\nA readout that doesn't apply yet shows a dim —. On a computer, hover over one for more.",
+  "see": "orientation, minimap, colony-panel",
+  "since": "0.73.0"
+}

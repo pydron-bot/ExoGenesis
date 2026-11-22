@@ -1,0 +1,20 @@
+{
+  "title": "Neighbours",
+  "section": "factions",
+  "order": 1,
+  "summary": "You aren't alone on this world. How you meet the people living here matters.",
+  "text": "Out past the base live **inhabitants**: people with camps of their own, who were here long before you. Predators leave them be, they never fight you, and nothing can be built on their camp.\n\nWhen one of your drones or units first sees a camp, a card asks how to meet them:\n\n- **Approach**: a careful greeting. They warm to you, and in time may trust you\n- **Keep away**: no harm done, but their opinion of you won't grow past where it started\n- **Drive them off**: they leave their land for good\n\n**Later** puts the choice off. Once you've met a camp, the Colony panel gets a **Neighbours** tab.",
+  "trigger": "any",
+  "of": [
+    {
+      "kind": "contact",
+      "group": "vell"
+    },
+    {
+      "kind": "contact",
+      "group": "choir"
+    }
+  ],
+  "see": "regard-and-favours, planet-health",
+  "since": "0.73.0"
+}

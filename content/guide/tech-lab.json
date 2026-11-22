@@ -1,0 +1,11 @@
+{
+  "title": "The Tech Lab",
+  "section": "research",
+  "order": 1,
+  "summary": "Research one project at a time. Select the Tech Lab to pick one.",
+  "text": "The **Tech Lab** runs research, one project at a time. Select it to see the project under way, then tap **Research tree** to pick the next.\n\nEach project costs alloys (some isotopes too) and takes a while. Technicians working at the lab speed it up. You can cancel a project and get its cost back.\n\nResearch does three kinds of thing:\n\n- **Unlocks** new buildings and units (the Fusion Cell, the Shield Projector, the Launch Gantry)\n- **Improves** what you have: more mining, bigger batteries, tougher buildings, more drones and units\n- **Learns**: some projects end with a discovery of their own\n\nThe lab draws a fair amount of power: keep it in your night budget.",
+  "trigger": "built",
+  "building": "lab",
+  "see": "research-tree, isotopes-and-deep-mines",
+  "since": "0.73.0"
+}

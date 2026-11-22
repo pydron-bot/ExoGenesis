@@ -1,0 +1,10 @@
+{
+  "title": "Pause and speed",
+  "section": "basics",
+  "order": 4,
+  "summary": "Pause any time to think. Fast forward through the quiet stretches.",
+  "text": "The ❚❚ button (or Space) pauses the game. Nothing moves while you're paused, but you can still look around, select things, place buildings and give orders: they happen as soon as you carry on.\n\n▶ plays at normal speed and ⏩ runs the game three times as fast. On a keyboard, [ and ] go slower and faster. The clock shows PAUSED or ×3 while either is on.\n\nThe game also pauses by itself when you switch to another tab or app (Options can turn that off), and while the menu is open.\n\nPause is your friend when a pack arrives at a bad moment: stop, set up your units and turrets, then let it play.",
+  "points": "pause",
+  "see": "day-and-night",
+  "since": "0.73.0"
+}

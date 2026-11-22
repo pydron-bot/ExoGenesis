@@ -1,0 +1,9 @@
+{
+  "title": "Selecting and giving orders",
+  "section": "basics",
+  "order": 3,
+  "summary": "Tap something to select it, then tap the ground to send it there.",
+  "text": "Tap (or click) a drone, a combat unit, a colonist or a building to select it. A card shows what it is and what it is doing, with its buttons.\n\nTo send drones or units somewhere, tap the ground with them selected, or drag from a drone to the spot. Right-click also sends the selection.\n\n- Hold or double-tap a unit: every unit of that type on screen\n- Shift-click adds or removes a unit; on a computer, drag a box\n- The ⚔ chip selects every combat unit (tap again to look at them)\n- X makes the selected units stop and guard where they are\n- Esc closes the build menu, stops placing, then deselects\n\nYou don't need to order units to shoot: they fire at the nearest enemy in range by themselves, even on the move.",
+  "see": "camera-and-views, groups-and-guarding, worker-drones",
+  "since": "0.73.0"
+}

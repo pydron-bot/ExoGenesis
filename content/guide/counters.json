@@ -1,0 +1,11 @@
+{
+  "title": "Which unit beats which",
+  "section": "army",
+  "order": 3,
+  "summary": "Every unit has something it beats and something that beats it. Mix your army.",
+  "text": "No unit wins everything, so a mixed army does best.\n\n- **Tanks** beat Rovers and hold a front line\n- **Lancers** beat Tanks, Brutes and anything big, and are wasted on swarms\n- **Rovers** beat Lancers and Artillery by getting close fast\n- **Arc Casters** tear through swarms and hit flyers, and struggle against one big beast\n- **Artillery** breaks a line of guns from beyond their range, but needs others in front of it\n- **Scouts** find things; they don't fight\n\nAgainst flyers, only anti-air hits: the Arc Caster, Point Defense, the Flak Tower and the Core's gun. The Gunship can't shoot back at other flyers.\n\nKeep a Field Engineer or a Repair Pad behind the line and the same units last much longer.",
+  "trigger": "units",
+  "count": 4,
+  "see": "unit-roster, abilities, predators",
+  "since": "0.73.0"
+}

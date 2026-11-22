@@ -1,0 +1,9 @@
+{
+  "title": "Cinematics",
+  "section": "story",
+  "order": 3,
+  "summary": "Big moments play as short scenes. The game waits while they do.",
+  "text": "Some moments play as a **cinematic**: the camera moves over the world, with titles, voices and music, while the game waits for you. Arriving in a new region usually opens with one.\n\nPress Esc or tap **Skip** to skip one. Nothing in your colony moves while it plays, so you never lose time to watching.",
+  "see": "story-cards, routes-and-travel",
+  "since": "0.73.0"
+}

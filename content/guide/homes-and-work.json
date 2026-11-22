@@ -1,0 +1,11 @@
+{
+  "title": "Homes and work",
+  "section": "people",
+  "order": 4,
+  "summary": "Colonists need a home with room, and they make buildings work better.",
+  "text": "**Homes:** the Civilian Center houses six. Past that, build a **Habitat Block**: six more each, no pods. People in an unpowered home are unhappier.\n\n**Work:** colonists staff the buildings that have room for workers. Each worker present makes the building work better: depots mine more, Hydroponics grows more, turrets hit harder, the bay and the lab go faster. A specialist in the right building adds more:\n\n- **Engineers**: depots, deep mines, factories\n- **Botanists**: Hydroponics, the Seed Bank\n- **Medics**: the Civilian Center, the Med Bay\n- **Technicians**: the Tech Lab, solar, shields\n- **Security**: turrets\n\nOutput follows the shift: buildings work best while their people are there. Some research also needs a specialist living in the colony.",
+  "trigger": "colonists",
+  "count": 3,
+  "see": "colonists, wellbeing-and-policies, research-tree",
+  "since": "0.73.0"
+}

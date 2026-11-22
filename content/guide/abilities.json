@@ -1,0 +1,12 @@
+{
+  "title": "Unit abilities",
+  "section": "army",
+  "order": 4,
+  "summary": "Every combat unit has one ability on a cooldown: the ⚡ button on its card, or G.",
+  "text": "Each armed unit has one special move. Select units and tap the **⚡** button on the unit card (one per kind of unit selected), or press **G**, to use it. The button shows when it's running and how long until it's ready again.\n\n- **Rover**, Overdrive: twice the fire rate for a few seconds\n- **Scout**, Afterburner: nearly twice as fast\n- **Tank**, Dig in: stops, takes less damage and outranges a turret; a move order ends it\n- **Arc Caster**, Discharge: hits everything close at once\n- **Lancer**, Overcharge: the next slug hits three times as hard\n- **Artillery**, Barrage: three times the fire rate\n- **Field Engineer**, Patch up: a burst of free repairs on everything near\n- **Aegis Crawler**, Hardlight: units near it take half damage for a moment\n\nUse them at the right moment, not the first one.",
+  "points": "army",
+  "trigger": "units",
+  "count": 2,
+  "see": "counters, unit-roster",
+  "since": "0.73.0"
+}

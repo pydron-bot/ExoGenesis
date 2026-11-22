@@ -1,0 +1,10 @@
+{
+  "title": "The Field Guide",
+  "section": "interface",
+  "order": 9,
+  "summary": "A page on every part of the game. Tips pop up as you meet each thing.",
+  "text": "You're reading it. The **Field Guide** (in the menu) has a page on each part of the game, in sections from the basics to travel between worlds.\n\nAs you play, a page is offered as a small **tip** the first time its subject turns up: your first night, your first colonist, your first contact. Read it there and then, or let it go and come back later. Each tip comes only once.\n\n- **Show me** points at the part of the screen a page is about\n- **See also** links lead to related pages\n- New and updated pages are marked after each update\n- The first page's tour walks round the screen again whenever you like",
+  "points": "menu",
+  "see": "orientation, whats-new",
+  "since": "0.73.0"
+}

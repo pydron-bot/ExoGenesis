@@ -1,0 +1,12 @@
+{
+  "title": "Biomass and food",
+  "section": "people",
+  "order": 2,
+  "summary": "Hydroponics grows biomass (🌱): food for colonists and the growth pods.",
+  "text": "**Biomass** (🌱 in the top bar) is food. Colonists eat it all the time, and growing pods eat it too. The readout shows what you hold and whether it's going up or down each minute.\n\n**Hydroponics** grows it. It runs on battery power at night, and Botanists working there grow more.\n\n- Build more Hydroponics as the colony grows: one won't feed many\n- Storage is limited: Hydroponics and the Civilian Center each add room\n- If the food runs out, people go hungry, unhappy, and before long start to die\n- The Rations policy trades food against happiness\n\nThe research Vertical Farms and Nutrition Science stretch your food further.",
+  "points": "food",
+  "trigger": "built",
+  "building": "hydroponics",
+  "see": "growth-pods, wellbeing-and-policies",
+  "since": "0.73.0"
+}

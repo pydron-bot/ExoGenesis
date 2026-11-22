@@ -1,12 +1,12 @@
 {
-  "title": "Power and the night",
+  "title": "Power",
   "section": "power",
-  "order": 0,
-  "summary": "Solar works by day; batteries carry you through the night. The cryo bank comes first.",
-  "text": "Every building draws power, and the **cryo bank** draws it before anything else. The ⚡ readout shows what you make against what you use.\n\n**Solar Arrays** make power by day only: at night they give a trickle. Store the day's spare power in **Batteries** (🔋) to get through the dark.\n\n- Build a Battery before your first night\n- Geothermal Plants on a vent give steady power, day and night\n- When the batteries run dry, buildings brown out: guns stop and the cryo bank loses integrity",
+  "order": 1,
+  "summary": "Every building draws power. The ⚡ readout shows what you make against what you want.",
+  "text": "Nearly everything in the colony runs on power. The **⚡** readout shows the power being made against the power wanted, in MW. It turns amber when you're drawing on the batteries and red when the cryo bank itself is going short.\n\nThe Command Core makes a little power, not even enough for the cryo bank. Your first **Solar Array** fixes that by day.\n\nWays to make power:\n\n- **Solar Array**: cheap, strong at noon, almost nothing at night\n- **Battery Bank**: stores spare power by day for the night\n- **Geothermal Tap**: steady, day and night, but only on a vent\n- **Tidal Generator**: a little steady power, out on the water\n- **Fusion Cell**: heavy, steady power that burns isotopes\n\nStaff help too: Technicians working at a solar array make it give more.",
   "points": "energy",
-  "trigger": "time",
-  "sol": 1.6,
-  "see": "orientation, defence",
+  "trigger": "built",
+  "building": "solar",
+  "see": "day-and-night, batteries, power-priority",
   "since": "0.73.0"
 }

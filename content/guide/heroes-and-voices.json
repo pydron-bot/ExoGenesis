@@ -1,0 +1,9 @@
+{
+  "title": "Voices and heroes",
+  "section": "people",
+  "order": 11,
+  "summary": "Colonists speak up when things happen. Sometimes one of them holds the line.",
+  "text": "Your colonists talk. When something happens (a birth, a death, a pack beaten, a brownout, a strike, research done, a quiet day) one of them says what they think. Their words show in the log, on their card for a while, and the last few in the Colony panel under **Voices**.\n\nSometimes one of them does more. When predators tear into a building with people inside, someone may stand and **hold it**: the building takes half damage while they do. If it stands, the deed is theirs for good (★ on their card) and the whole colony is lifted by it. If it falls, that is remembered too.\n\nTap a name in the log or the panel to find that person.",
+  "see": "colonists, deaths-and-the-memorial",
+  "since": "0.73.0"
+}

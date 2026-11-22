@@ -1,0 +1,9 @@
+{
+  "title": "Walls and gates",
+  "section": "defence",
+  "order": 5,
+  "summary": "Cheap walls slow predators down. Gates let your units through.",
+  "text": "A **Wall** is cheap armoured segments laid in a line: tap where it starts, then where it ends (on touch, tap the end again to confirm). The next line chains on from the end until you tap ✓ Done.\n\nPredators can't cross a wall: they have to chew through it, which takes time while your guns work on them. Your units drive round walls, so leave a gap, or drop a **Gate** onto the line: your units pass through it and predators can't.\n\n- Walls don't widen your build area\n- Walls hold up a pack, they don't stop it: put guns behind them\n- Burrowers tunnel under walls, and flyers and Striders don't care about them",
+  "see": "turrets, predators",
+  "since": "0.73.0"
+}

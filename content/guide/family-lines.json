@@ -1,0 +1,12 @@
+{
+  "title": "Family lines",
+  "section": "people",
+  "order": 12,
+  "summary": "The cryo bank holds 24 family lines. Keep as many alive as you can.",
+  "text": "The embryos in the cryo bank come from **24 family lines**. Each colonist's card says which line they're from, and the Colony panel's Cryo bank tab shows how many embryos each line has left.\n\nA growth pod always takes an embryo from the rarest line still in the bank, to keep the colony's genes varied. When too few lines are left alive, new colonists may be born **frail**.\n\nA line with no embryos left and no one living is **gone**, and the log marks it. The cryo bank's integrity, and keeping colonists alive long enough to have families, are what keep the lines going.",
+  "points": "cryo",
+  "trigger": "embryosBelow",
+  "count": 110,
+  "see": "cryo-bank, growth-pods, families-and-children",
+  "since": "0.73.0"
+}
