@@ -2477,13 +2477,17 @@ each with its epilogue, its end cinematic and `campaignOver` = `ended`. It print
 forced step: tutorial buildings by the play-test setup, first-night and firstborn finished by the inspector, 12
 colonists decanted and aged; home waves held off; units teleported to story sites on most expeditions (Ash,
 Cinder, Teth and the Lantern are walked by orders), objective buildings set up, the Vell's regard, the Choir
-wall's flag, a guard for Dunmore's escort, the Launch Gantry; the colony's stance before Trust decides; for the
-fight an army, two shield domes and power rebuilt every 20 s; Cycle's Cores destroyed by the inspector.
+wall's flag, a guard for Dunmore's escort, the Launch Gantry; the colony's stance before Trust decides; the fight
+itself is played with real rebuild orders and no forced army or domes; Cycle's Cores destroyed by the inspector.
 
 **Known limitations.**
-- The fight at home is lethal to a colony that only sits there: without the army, the domes and rebuilt power,
-  the test's compact colony (everything within ~25 u of the Core) loses its power, food and cryo bank (< 10) in
-  about eight minutes. Worth a balance pass with a real colony.
+- **Climax balance** (`tools/climax-balance.mjs`, headless: a Sol ~11 colony from the balance bot's `opening`
+  strategy at a human pace, a simple defender that rebuilds and dodges strike rings; `--allies`, `--shield`,
+  `--waves`, `--no-defender`, `--lantern`): the fight at home holds in 5 of 5 seeds in every setup, losing about a
+  third of the buildings (19 strikes of 350 with 12 s warning, radius 7 on power and 8 elsewhere; 6 units turned). It
+  is on the safe side (cryo rarely below 60): strike damage ~400 or radius 9 is the next notch. The Lantern is won
+  with its expedition package by the Enclave's code (core in ~80 s; the gunships fly straight in) or by breaking the
+  locks (~150–280 s), with or without allies, inside the 1,500 s countdown.
 - The playthrough bot (`tools/playthrough.mjs --peaceful --minutes 40`) plays one map: it gets through the
   tutorials, Beyond the Ridge (34–38 min) and The Hollow, starts four Act 1 expeditions it can't finish there,
   and never travels, so nothing from Signal onwards starts (routes need the regions visited).
