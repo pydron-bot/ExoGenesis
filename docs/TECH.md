@@ -2662,3 +2662,83 @@ The computer plays the campaign in the real game while you watch, for testing th
   Civilian Center or its power is lost), so the climax is mostly decided by Trust (Inheritance). The policy tuning
   is sensitive: moving guns ahead of the plan or letting cheap steps jump an expensive one made every seed worse.
   It doesn't pick among several expeditions by any order but the missions' (and optional ones last).
+
+### Field Guide (v0.73.0)
+
+New players get lost, so the game carries its own manual: a page on each of its ideas, a first-game look round the
+screen, and tips the first time something comes up. And it stays current: **every release updates it**, and the
+build fails if it doesn't.
+
+- **Content** (`content/guide/<id>.json`, the `guide` collection in `src/content/defs.ts`, editor: Story → Field
+  Guide): `title`; `section` (`GUIDE_SECTIONS`: basics, economy, power, defence, army, people, research, story,
+  travel, factions, interface, shown in that order as Basics, Alloys & building, Power & night, Defence, Units &
+  fighting, Colonists, Research, Story & choices, Travel & other worlds, Factions, Interface); `order` within the
+  section; `summary` (one line: the list and the tip); `text` (paragraphs at blank lines; `**bold**` and lines
+  starting `- ` as bullets, nothing else: `renderText` escapes everything first); `points` (a hint target: Show me,
+  and Read from a tip, point at it; not `buildItem`); `trigger` with the story's condition fields (optional, `all` /
+  `any` groups too; the content check reads them like a story trigger's); `see` (comma-separated page ids, See also;
+  each must exist and not be the page itself); `since` (the release that added it, x.y.z) and `updated` (the release
+  it last changed meaningfully in; empty = `since`); `tour` (at most 14 `{ target, text }`, only on `orientation`).
+  `orientation` is required (the code plays its tour).
+- **Hint targets** gained five (`HINT_TARGETS`, `src/story-hud.ts` `TARGETS`, usable by story hints too): `menu`
+  (`#b-menu`), `log` (`#log`), `drones` (`#r-drones`), `planet` (`#r-planet`), `isotopes` (`#r-iso`).
+- **The panel** (`src/guide.ts` `openGuide`; the `#guide` overlay above the other panels, z 62): from the game menu
+  (Field Guide), the title screen (FIELD GUIDE), the Controls panel (a button at the top) and What's new (under each
+  release, a link to each page its `guide` field lists; the guide opens over the panel). Sections with headings,
+  pages by `order`; a search box (every word in the title, summary, text or section); a page with its section,
+  See also links and Back (Esc goes back a page, then closes). NEW / UPDATED badges: a page whose `updated ?? since`
+  is newer than the version the guide was last opened at (`exo.guide.seen`; none on a first look, so the first visit
+  isn't a wall of badges). In a game, Show me around (the tour) and Show me (`points`): the guide closes and the
+  element pulses with the hint bubble for 9 s. From the menu it goes back to the menu, unless it closed to show
+  something or tour (then the game carries on); from a tip's Read it holds the game paused while open. `panelOpen()`
+  counts it, so Esc, the autopilot and camera keys leave it alone.
+- **The orientation** (`GuideTour`): on a player's very first game (no campaign or region save at boot, never toured:
+  `exo.guide.toured`, home region, not a skirmish, play test or scratch game, the autopilot off), once the colony is
+  deployed, 4 s in and no story card waiting or on screen (Touchdown's briefing comes first), a note offers
+  "First time? A two-minute look around." [Show me around] [Skip]. The tour pauses the game (`hold`), and shows each
+  step of `orientation.json`'s `tour` with the story hint bubble on its element (`StoryHud.point`: a hint of the
+  renderer's own that takes the bubble while set, with Back / Next / Skip buttons; the story's own hint waits
+  underneath and comes back after, so Touchdown's Build hint shows once the tour is done). Steps whose element isn't
+  on screen yet (the battery, threat and radar chips at landing) are skipped. Enter / → next, ← back, Esc skips.
+  At the end the game runs at the speed it had. Replayable from the guide.
+- **Tips** (`GuideTips`): the renderer sends the sim the pages to watch (`{ type: 'guide', watch }`: pages with a
+  trigger not yet tipped, only while tips are on, the autopilot off and a colony deployed); `Story.step` checks
+  their conditions once a second with `conditionMet` (read-only) and lists the pages that held in the story
+  snapshot's `tips`. The watch list and hits live on the `Story` object, not in the saved state, and nothing else
+  reads them: a headless run never sends the command, so `tools/balance.mjs` output is byte-identical and the
+  playthrough / autopilot timings unchanged (checked against v0.72.0). Each tip shows once per player
+  (`exo.guide.tipped`, marked when shown): "Field Guide · title · summary" [Read] [×] under the top bar, 12 s.
+  One at a time, queued: only while the screen is free (no story card on screen or waiting, cinematic, panel, menu,
+  tour, hint of the guide's or the tour offer), 4 s after it last wasn't (`TIP_CALM`: a card closing doesn't throw a
+  tip straight up), and at least 60 s of play after the last one (`TIP_GAP`); a tip still waiting 180 s of play
+  after its trigger held is dropped unmarked (`TIP_STALE`: a later game offers it). Options → Interface → Field
+  Guide tips (`exo.guide.tips`, on; off by default in the editor's play tests). Automated browsers (smoke tests) get
+  neither the offer nor tips unless the test sets `exo.guide.auto` = `on` in localStorage (no URL option).
+- **Keeping it current** (`tools/guide-check.mjs`, in `npm run build` after the version check; `npm run
+  guide:check`): `Release.guide` in `src/changelog.ts` lists the pages a release added or changed. Rules: every id a
+  release lists exists; every page's `since` / `updated` is a release in the changelog, not before 0.73.0, and
+  `updated` is not older than `since`; every release from 0.73.0 on has a `guide` field, and a minor or major
+  release lists at least one page (a patch may say `guide: []`, but must say it); a page listed in release V has
+  `updated ?? since` === V, and every page whose `updated ?? since` is V is listed in V. The launch (0.73.0) is the
+  one exception to that last direction: it lists `orientation`, and every page added in it counts as listed. Each
+  error says what to add where. **To add or change a page**: write or edit `content/guide/<id>.json` (a new page:
+  `"since": "<new version>"`; a meaningful change: `"updated": "<new version>"`), add its id to the new release's
+  `guide` list, and run `npm run build`. A typo fix needn't bump `updated`.
+- **Tests**: `tools/guide-smoke.mjs` (`--headless` for the first half). Headless: the check's rules on good and bad
+  fixtures (missing field, a feature with none, a patch with `[]`, missing page, either direction, versions that
+  aren't releases or predate the guide); the shipped changelog passes; `renderText` escapes HTML and does bold,
+  bullets and paragraphs; sections in order; search; badges; a tip trigger fires once and the game state with and
+  without watching is identical; the opening's tips (below); no faction tip at Touchdown (`faction` conditions are
+  false with no factions). Browser (dev server :5176): the guide from the title (sections, search, a page with
+  bold and bullets and nothing else, See also and Back, Esc), a fresh first game (no offer over the briefing card;
+  the offer; the tour paused, ← back, each step pulsing its element, the game running after, remembered), the menu's
+  guide and Esc back to the menu, Controls' button, Show me around from the menu, Esc skipping the tour, a tip
+  (alone, Read opens its page with the game held, Show me pulses its element), remembered and not watched again,
+  the next not straight after, and a 375 px phone with no horizontal scroll in the list or a page.
+- **The opening, measured** (the smoke, Touchdown, the autopilot as a quick player, cards answered at once): 44 of
+  the 76 pages have tips; 18 triggers hold in the first 10 minutes of game time (power 29 s, deposits-and-depots
+  39 s, batteries 45 s, turrets 74 s, worker-drones 100 s, vehicle-bay 140 s, abilities 157 s, day-and-night 160 s,
+  story-cards 181 s, defence 216 s, biomass 280 s, cryo-bank 327 s, planet-health 360 s, wrecks-and-salvage 413 s,
+  growth-pods 433 s, geothermal 468 s, radar-and-sensors 502 s, nests 534 s). Spaced 60 s apart, 10 show in those
+  10 minutes (at 33, 93, 153 … 573 s); 45 s apart it was 13. The rest wait their turn or, gone stale, a later game.
+  A human playing slower meets fewer triggers per minute.

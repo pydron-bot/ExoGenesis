@@ -74,6 +74,8 @@ node tools/shot.mjs    # headless screenshots of each zoom level → shots/
 node tools/music-render.mjs <mood> [--seconds 90] [--seed N]  # render a music mood to music-drafts/<mood>.wav (needs the dev server; --seed: the same notes every time)
 node tools/music-gen.mjs [--only title] [--dry-run]  # reference tracks from ElevenLabs Music (tools/music-prompts.json; key in ~/.config/elevenlabs/api_key) → music-drafts/
 npm run content:check  # validate content/ against src/content/defs.ts
+npm run guide:check    # every release updates the Field Guide (content/guide; part of npm run build)
+node tools/guide-smoke.mjs   # Field Guide: the check's rules, tips (headless, and the opening's tip count); panel, tour, tips, phone (--headless)
 node tools/editor-smoke.mjs  # editor end-to-end (restores content/ afterwards)
 node tools/editor-checks-smoke.mjs  # undo, content checks, Problems, Rename, Compare, Text, Since last release
 node tools/import-smoke.mjs        # editor: Import a music mood from JSON and Copy JSON (removes its test mood afterwards)
