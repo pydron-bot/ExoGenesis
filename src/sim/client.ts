@@ -1,6 +1,7 @@
 import type { CinematicDef, MissionDef, RegionDef, StoryDef } from '../content/defs';
 import type { SharedState } from './campaign';
-import { TICK_MS, type Command, type EventCue, type FromWorker, type SimState, type SkirmishSetup, type Snapshot } from './types';
+import type { PilotConfig, PilotStatus } from './autopilot';
+import { TICK_MS, type Command, type EventCue, type FromWorker, type LogStyle, type SimState, type SkirmishSetup, type Snapshot } from './types';
 
 /** Most effect floats carried over between unseen snapshots (5 per effect). */
 const MAX_FX = 5 * 600;
@@ -17,7 +18,7 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue, at?: { x: number; z: number }, style?: 'clause') => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup, shared?: SharedState) {
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue, at?: { x: number; z: number }, style?: LogStyle) => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup, shared?: SharedState) {
     // disabled (skirmish mode): a stub that never produces snapshots
     this.worker = enabled
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
@@ -46,6 +47,8 @@ export class SimClient {
       } else if (m.type === 'travelled') {
         this.onTravelled?.(m.ok);
         this.onTravelled = null;
+      } else if (m.type === 'pilot') {
+        this.onPilot?.(m.status);
       } else if (m.type === 'event') {
         this.onEvent(m.text, m.level, m.cue, m.at, m.style);
       }
@@ -77,6 +80,11 @@ export class SimClient {
       this.worker.postMessage({ type: 'travel', to });
     });
   }
+
+  /** The autopilot's status as the worker reports it (about once a second while it is on). */
+  onPilot: ((s: PilotStatus) => void) | null = null;
+  /** Autopilot on or off (src/sim/autopilot.ts). */
+  pilot(cfg: PilotConfig) { this.worker.postMessage({ type: 'pilot', cfg }); }
 
   save(): Promise<SimState> {
     const reqId = ++this.reqId;

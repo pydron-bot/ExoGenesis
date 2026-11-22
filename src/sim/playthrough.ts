@@ -25,33 +25,8 @@ import type { Command } from './types';
 
 const TICK_HZ = 10;
 
-/** How the bot answers a card with choices. */
-export type ChoicePolicy = 'first' | 'last' | 'random' | 'honest';
-export const POLICIES: Record<ChoicePolicy, string> = {
-  first: 'always the first choice',
-  last: 'always the last choice',
-  random: 'a random choice (seeded)',
-  honest: 'the honest-sounding choice (truth, tell, honest…), else the first',
-};
-/** Words that make a choice "honest" for that policy (whole words, any case). */
-export const HONEST_WORDS = ['truth', 'true', 'tell', 'honest', 'honestly', 'admit', 'confess', 'explain', 'open', 'share', 'answer'];
-
-/**
- * Which choice a policy takes: `offered` are the indices on offer (`shownChoices`), `labels` the full list's
- * labels, `rnd` a 0..1 random for `random`. Returns an index into the full list.
- */
-export function pickChoice(policy: ChoicePolicy, offered: number[], labels: string[], rnd: () => number, words = HONEST_WORDS): number {
-  const n = offered.length;
-  if (!n) return 0;
-  if (policy === 'last') return offered[n - 1];
-  if (policy === 'random') return offered[Math.floor(rnd() * n)];
-  if (policy === 'honest') {
-    const re = new RegExp(`\\b(${words.join('|')})\\b`, 'i');
-    const k = offered.find((i) => re.test(labels[i] ?? ''));
-    if (k !== undefined) return k;
-  }
-  return offered[0];
-}
+export { POLICIES, HONEST_WORDS, pickChoice, type ChoicePolicy } from './choices';
+import { pickChoice, type ChoicePolicy } from './choices';
 
 export interface PlaythroughOptions {
   strategy?: string;
@@ -119,7 +94,7 @@ export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) =>
   const have = (kind: string) => s.buildings.filter((b) => b.kind === kind).length;
   const where = (kind: string): Step => {
     const role = content.buildings[kind]?.role;
-    return role === 'depot' ? [kind, 'near'] : role === 'geothermal' ? [kind, 'vent'] : [kind];
+    return role === 'depot' ? [kind, 'near'] : role === 'geothermal' ? [kind, 'vent'] : role === 'deepmine' ? [kind, 'seam'] : [kind];
   };
   const go = (x: number, z: number) => {
     // a combat unit if there is one, else an idle drone (once every 20 s)
@@ -130,12 +105,18 @@ export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) =>
     if (d) cmd({ type: 'move', drone: d.id, x, z });
   };
   let sites = sim.story.region().sites;
-  const want = (kind: Condition, c: ConditionDef) => {
+  let depth = 0;
+  const want = (kind: Condition, c: ConditionDef): void => {
     const n = c.count ?? 1;
     switch (kind) {
-      case 'built': case 'placed':
-        if (c.building && have(c.building) < n && !sim.story.locked(c.building)) front(where(c.building));
+      case 'built': case 'placed': {
+        if (!c.building || have(c.building) >= n || sim.story.locked(c.building)) return;
+        // a building that needs research: research first (the way to it)
+        const need = content.buildings[c.building]?.research;
+        if (need && !s.research?.done.includes(need)) { want('researched', { research: need } as ConditionDef); return; }
+        front(where(c.building));
         return;
+      }
       case 'drones': if (s.drones.length + s.fab.queued < n) front(['fab']); return;
       case 'units': {
         if ((s.units?.length ?? 0) >= n) return;
@@ -160,6 +141,9 @@ export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) =>
         // a building the project needs goes to the front of the plan
         const nb = content.research[r]?.building;
         if (nb && !have(nb)) front([nb]);
+        // isotopes it costs: a Deep-Core Mine on a seam (once researched)
+        const deep = Object.entries(content.buildings).find(([, d]) => d.role === 'deepmine');
+        if ((content.research[r]?.isotopes ?? 0) > (s.isotopes ?? 0) && deep && !have(deep[0]) && sim.researched(deep[1].research)) front(where(deep[0]));
         if (!s.research?.active && tick % (5 * TICK_HZ) === 0) cmd({ type: 'research', id: r });
         return;
       }
@@ -176,6 +160,15 @@ export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) =>
       case 'planet':
         if (!have('seedbank')) front(['seedbank']);
         return;
+      case 'after': {
+        // a card answered: go after what fires it (its trigger: a site, a camp, a building…), one level deep
+        const ev = c.event ? content.story[c.event] : undefined;
+        if (!ev || depth > 0 || s.story?.fired.includes(c.event!)) return;
+        depth++;
+        for (const x of conditionsIn(ev.trigger, ev as unknown as ConditionDef)) want(x.kind, x.c);
+        depth--;
+        return;
+      }
       case 'opened':
         // the bot "opens" what a tutorial waits for
         if (c.panel) cmd({ type: 'ui', what: c.panel === 'select' && c.building ? `select:${c.building}` : c.panel });
@@ -185,6 +178,8 @@ export function chase(sim: Sim, plan: Step[], tick: number, cmd: (c: Command) =>
   };
   for (const id of m.active) {
     const def = content.missions[id];
+    // (the live game: a mission set in another region waits until we go there; headless, everywhere is here)
+    if (!sim.story.here(def?.region)) continue;
     sites = sim.story.world(def?.region).sites;
     def?.objectives.forEach((o, i) => {
       if (m.marks[id]?.includes(i)) return;

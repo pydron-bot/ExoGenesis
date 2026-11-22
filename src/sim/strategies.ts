@@ -2,8 +2,8 @@
  * The balance bot's strategies (src/sim/balance.ts): build orders, as plain
  * data so the editor can list them without loading the sim.
  */
-/** Build orders: [kind] or [kind, where]. A unit kind is produced at a Vehicle Bay; 'fab' fabricates a drone. */
-export type Step = [string] | [string, 'near' | 'guard' | 'vent' | 'spawn'];
+/** Build orders: [kind] or [kind, where] ('seam': a Deep-Core Mine on the nearest free isotope seam). A unit kind is produced at a Vehicle Bay; 'fab' fabricates a drone. */
+export type Step = [string] | [string, 'near' | 'guard' | 'vent' | 'spawn' | 'seam'];
 export const STRATEGIES: Record<string, { help: string; plan: () => Step[] }> = {
   idle: { help: 'Builds nothing: how long the Core lasts alone', plan: () => [] },
   greedy: { help: 'Economy only, no defense', plan: () => [['solar'], ['solar'], ['depot', 'near'], ['solar'], ['depot', 'near'], ['battery'], ['solar'], ['depot', 'near'], ['solar'], ['battery'], ['fab']] },

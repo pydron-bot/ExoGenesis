@@ -141,6 +141,10 @@ export class BalanceBot {
           const free = VENTS.filter((v) => !s.buildings.some((b) => b.kind === 'geothermal' && Math.hypot(b.x - v.x, b.z - v.z) < 6))
             .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
           if (free.length) target = free[0];
+        } else if (where === 'seam') {
+          const free = (s.seams ?? []).filter((v) => v.isotopes > 0 && !s.buildings.some((b) => DEFS[b.kind]?.role === 'deepmine' && Math.hypot(b.x - v.x, b.z - v.z) < 6))
+            .sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
+          if (free.length) target = free[0];
         } else if (where === 'spawn' && spawns.length) {
           const sp = spawns[this.spawnIdx++ % spawns.length];
           const k = 34 / Math.hypot(sp.x, sp.z);
@@ -148,8 +152,8 @@ export class BalanceBot {
         }
         const p = this.spot(s, kind, target.x, target.z);
         if (p) { this.command({ type: 'build', kind, ...p }); plan.shift(); firsts[kind] ??= Math.round(sim.secs); }
-        else if (where === 'vent' && s.alloys >= DEFS.solar.cost + DEFS[kind].cost) {
-          // the vent is outside the build area: reach toward it with a solar array first
+        else if ((where === 'vent' || where === 'seam') && s.alloys >= DEFS.solar.cost + DEFS[kind].cost) {
+          // the vent (or seam) is outside the build area: reach toward it with a solar array first
           const b = this.spot(s, 'solar', target.x * 0.55, target.z * 0.55);
           if (b) this.command({ type: 'build', kind: 'solar', ...b });
         }

@@ -19,7 +19,7 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (No
 };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-const POLICY_HELP: Record<ChoicePolicy, string> = { first: 'always the first choice', last: 'always the last choice', random: 'a random choice' };
+const POLICY_HELP: Record<ChoicePolicy, string> = { first: 'always the first choice', last: 'always the last choice', random: 'a random choice', honest: 'the honest-sounding choice (truth, tell…), else the first' };
 const state = {
   policies: new Set<ChoicePolicy>(['first', 'last', 'random']),
   strategy: 'people', minutes: 40, seed: 1337, region: 'touchdown', peaceful: false,

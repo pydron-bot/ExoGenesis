@@ -452,6 +452,8 @@ export interface PlanetSnap {
 export interface Pack { id: number; size: number; announced: boolean; alive: number; from: string }
 
 import type { Chronicle } from './chronicle';
+/** A log line's look: the Clause's cold monospace, the autopilot's assists. */
+export type LogStyle = 'clause' | 'assist';
 export interface SimState {
   /** Region id (content/regions/<id>.json); older saves are Touchdown. */
   region?: string;
@@ -661,7 +663,9 @@ export type ToWorker =
   | { type: 'autosave'; on: boolean }
   | { type: 'flush' }
   /** Campaign travel: save this region and make `to` the campaign's current region; answered with 'travelled'. */
-  | { type: 'travel'; to: string };
+  | { type: 'travel'; to: string }
+  /** The autopilot on or off, and how it plays (src/sim/autopilot.ts). */
+  | { type: 'pilot'; cfg: import('./autopilot').PilotConfig };
 
 export interface DroneSnap {
   id: number; x: number; z: number; heading: number; tx: number; tz: number;
@@ -796,4 +800,6 @@ export type FromWorker =
   | { type: 'saved'; reqId: number; state: SimState }
   | { type: 'travelled'; to: string; ok: boolean }
   /** `at`: where it happened (the minimap pings it; the log line jumps the camera there). */
-  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue; at?: { x: number; z: number }; style?: 'clause' };
+  | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue; at?: { x: number; z: number }; style?: LogStyle }
+  /** The autopilot: what it is doing and where to look (src/sim/autopilot.ts). */
+  | { type: 'pilot'; status: import('./autopilot').PilotStatus };

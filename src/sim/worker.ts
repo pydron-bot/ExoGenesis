@@ -6,6 +6,7 @@ import { CAMPAIGN, delSave, putSave, regionKey, wipeCampaign, type AutoSave, typ
 import { applyShared, campaignOver, forgetRegion, HOME_REGION, sharedOf } from './campaign';
 import { content } from '../content';
 import { Sim, useRegion } from './core';
+import { Autopilot, type PilotConfig } from './autopilot';
 import { TICK_MS, type FromWorker, type ToWorker } from './types';
 
 const ctx = self as unknown as Worker;
@@ -19,6 +20,13 @@ let autosave = false;
 let skirmish: import('./types').SkirmishSetup | null = null;
 let saving = false;
 let lastSavedTick = -1;
+/** The autopilot (spectator mode): plays the colony each tick while on (never in a skirmish). */
+let pilot: Autopilot | null = null;
+let pilotCfg: PilotConfig = { on: false };
+const newPilot = () => {
+  pilot = new Autopilot(sim, (text) => post({ type: 'event', text, level: 'warn', style: 'assist' }));
+  pilot.configure(pilotCfg);
+};
 
 /**
  * Write the game to this region's save and the campaign record (or clear the region's save once its colony is
@@ -87,6 +95,7 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
     skirmish = msg.skirmish ?? null;
     if (skirmish) sim.newSkirmish(skirmish);
     else if (msg.shared) { applyShared(sim.s, msg.shared, region); sim.arrived(); }
+    newPilot();
     snapshot();
     last = performance.now();
     setInterval(tick, TICK_MS / 2);
@@ -109,12 +118,14 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       if (msg.state?.version !== 2) { post({ type: 'event', text: 'That save is from an older version of the game and can’t be loaded', level: 'bad', cue: 'deny' }); return; }
       if ((msg.state.region ?? 'touchdown') !== region) { post({ type: 'event', text: 'That save is from another region and can’t be loaded here', level: 'bad', cue: 'deny' }); return; }
       sim.load(msg.state);
+      newPilot();
       snapshot();
       post({ type: 'event', text: 'Save restored', level: 'info', cue: 'confirm' });
       return;
     case 'new':
       if (skirmish) sim.newSkirmish(skirmish); else sim.newGame(msg.seed);
       lastSavedTick = -1;
+      newPilot();
       snapshot();
       return;
     case 'content': {
@@ -137,6 +148,12 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
     case 'travel':
       void travel(msg.to);
       return;
+    case 'pilot':
+      // never in a skirmish
+      pilotCfg = skirmish ? { on: false } : msg.cfg;
+      pilot?.configure(pilotCfg);
+      if (pilot?.on) post({ type: 'pilot', status: pilot.status() });
+      return;
   }
 };
 
@@ -149,7 +166,10 @@ function tick() {
   let stepped = false;
   while (acc >= TICK_MS) {
     acc -= TICK_MS;
-    for (let i = 0; i < speed; i++) { sim.step(); stepped = true; }
+    for (let i = 0; i < speed; i++) { pilot?.tick(); sim.step(); stepped = true; }
   }
-  if (stepped) snapshot();
+  if (stepped) {
+    snapshot();
+    if (pilot?.on && sim.s.tick % 5 === 0) post({ type: 'pilot', status: pilot.status() });
+  }
 }
