@@ -2575,5 +2575,5 @@ The computer plays the campaign in the real game while you watch, for testing th
   packs while it is away, and nothing earns alloys. Expedition missions are quick (often under a minute).
 - **Not yet.** The bot never fights for a mission (the Choir wall's spitters, Dunmore's escort and the climax's
   fight are its army's idle defence, or the assist); it doesn't expand to new deposits beyond its plan or keep
-  power for the growth pods at night (pods fail from Sol 2); it answers the epilogue's pages and end screen only
-  as a player would (it stops there); it doesn't pick among several expeditions by any order but the missions'.
+  power for the growth pods at night (pods fail from Sol 2); it doesn't turn the epilogue's pages or leave the
+  end screen (a game over is where it stops); it doesn't pick among several expeditions by any order but the missions'.
