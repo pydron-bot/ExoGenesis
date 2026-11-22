@@ -246,3 +246,268 @@ and Kindred, the memorial log and the lineages that survived.
 - Does Meridian's rigging ever reach Accord directly (sabotaged caches, bad luck) as an
   Act 2 clue?
 - Stewardship threshold for the Clause: fixed, or relative to Kindred's and Engram's scores?
+
+---
+
+# Part II — The campaign across the system
+
+> Written 2026-11-22. This part settles most of §11's open questions and lays the whole campaign
+> out over the system's bodies: which world holds which chapter, what happens there, who speaks,
+> and how the endings are reached. Record ids are given so missions, events, cinematics and
+> regions can be written in parallel. Where this part and Part I disagree, this part wins.
+
+## 12. Decisions (answers to §11)
+
+| Question | Answer |
+|---|---|
+| The Lantern | **Sela, Home's moon.** It has been in the night sky the whole game. The near side is dead rock with a relay mast; the far side hides the Lantern inside a sealed crater. "Fire from above" came from the moon. |
+| The Biosphere Report's address (E12) | Aimed at Sela. From Sela it is relayed to Ash, Cinder and out to Teth (the Long Ear). |
+| Where the probes came from | **Not from Earth.** All three were printed in-system, at **the Foundry on Cinder**, and launched from it on the same instant. Their voyage logs are fabricated. Meridian itself is still at Sol; the Foundry, the Lantern and the Long Ear are its instruments here. |
+| How many runs | **Eleven before this one. This is run twelve.** The Vell sing of "eleven fires"; the hull field on Ash holds 33 hulls (11 × 3); the Ledger under Vess has eleven closed columns and one open. |
+| The same crew every run | Meridian reprints the same genomes. Kindred's captain has always been an Ilse Marrow. The Vell's keeper carries the title **the Marro**, worn down from the first drifted captain's name. |
+| Engram's turn | **Both**: a counter `engram` (−10..+10) built over Act 2 by how you treat it, then one choice point on Rime (`engram-choice`). Engram defects only if `engram` ≥ 3 *and* you show it the Ledger. |
+| The Clause's interference | Real but limited: in Act 2 it is presentation (log lines in your voice you didn't write, a paused pod, a turret that turns); in the climax it is gameplay (orbital strikes, some of your units turn, a countdown). |
+| The Survivors | **Both.** An Act 1 secret in the Deep Layer (`enclave-cut`), and their lead in Act 2 opens the Lantern's far side. |
+| Rigging that reaches Accord | Yes, once: on Talus, a cache is missing and the depot logs show it was re-routed to Engram the hour before you arrived. |
+| Clause threshold | Relative: the Clause wakes when **your** report beats Kindred's and Engram's for long enough (story counter `lead`, raised by sending reports while planet health is high). |
+| The AI's name | The Firstborn names you in Act 1 (`firstborn-names`): **Warden**. Colonists and the Vell use it after that. Meridian never does. |
+| The planet's name | The Vell call Home **Hearth**. Colonists pick it up after The Keeper's Song. The body stays HOME in the interface. |
+
+## 13. Campaign structure
+
+The campaign is **C&C-style missions on top of a persistent home colony**. The colony at Touchdown is
+always yours; every other region is an **expedition**: you travel there (overland convoy on Home, a
+shuttle from the Launch Gantry off-world), play the region with an expedition package (alloys, units,
+drones, no colonists), finish its objectives and travel home. Each region keeps its own save, so you
+can go back. Story state (flags, counters, missions, answered events, research) is **one campaign
+state** shared by every region. Engine: `travel` and `route` effects, `here` / `visited` conditions,
+per-region saves, the Launch Gantry (TECH.md, "Campaign travel").
+
+```
+ACT 1  HOME ─ Touchdown ─┬─ Hearthsmoke Vale ── Choir Field ── Burrow Reach
+                         ├─ Splinter Hollow ── (Deep Layer, optional)
+                         └─ Signal Heights  ⇒ Act 1 ends: "Signal"
+ACT 2  Launch Gantry ─ Sela (near side) ─┬─ Verdance ── Dunmore
+                                         ├─ Talus ── Maren ── Io-T ── Pip (optional)
+                                         ├─ Ash ── Vess ── Rime (Engram's choice)
+                                         └─ Cinder (the Foundry) ── Teth (optional)
+CLIMAX Home (the Clause wakes) ⇒ Sela far side (the Lantern) ⇒ ending
+```
+
+### Every body's part
+
+| Body | Kind | Part in the story | Region (id) | Chapter |
+|---|---|---|---|---|
+| HOME (Hearth) | planet | Accord's world, Act 1, the climax at home | `touchdown` + 6 Act 1 regions | Act 1, climax |
+| SELA | Home's moon | **The Lantern.** Near side: the relay (first flight). Far side: the Lantern (climax) | `sela-relay`, `lantern` | first-light, the-lantern |
+| VERDANCE | planet | **Kindred's** world. Marrow's colony, radio-silent ("signal: none") | `verdance-landfall` | kindred |
+| DUNMORE | planet | An older Kindred run's grave: a centuries-old Kindred hull with Marrow's name on the manifest | `dunmore-dustfall` | kindred |
+| DUNMORE a, b | moons | Kindred's fuel stops; radio beats only (Marrow's shuttles) | — | kindred |
+| TALUS | asteroid | Accord's first off-world outpost and shipyard; the stolen cache | `talus-yard` | outposts |
+| THALASSA | giant | **Engram's domain**: its works are on three of the four moons | — | engram |
+| MAREN | Thalassa moon | Engram's forward foundry: first in-person meeting, identical hulls | `maren-works` | engram |
+| IO-T | Thalassa moon | The drop field: Meridian's supply capsules land here after Engram's reports | `iot-drops` | engram |
+| KORA | Thalassa moon | Engram's listening array: where it has been hearing you since Touchdown | radio only | engram |
+| PIP | Thalassa moon | Optional: a Kindred scout crew stranded, held by Engram "for their safety" | `pip-wreck` | engram |
+| RIME | planet | Engram Prime, its mind under the ice; Engram's choice | `rime-prime` | engram |
+| ASH | planet | The hull field: 33 probe hulls of every run, three paints, one design | `ash-hulls` | the-proof |
+| HALCYON | giant | Sky and survey beats; its rings hide nothing (a red herring the Choir points at) | — | the-proof |
+| VESS | Halcyon moon | **The Ledger**: Meridian's record of every run, under the ice. The Choir's origin run | `vess-ledger` | the-proof |
+| ORRIN | Halcyon moon | Survey beat: an orbit too perfect; a navigation buoy for the Foundry's launches | — | the-proof |
+| CINDER | planet | **The Foundry**, where all three probes were printed and launched | `cinder-foundry` | the-foundry |
+| NEREID | giant | Survey beat only | — | the-foundry |
+| TETH | Nereid moon | Optional: **the Long Ear**, the dish that talks to Sol. Needed for Proof | `teth-ear` | the-foundry |
+| COMET VARRO | comet | The Vell's "white-hair star". Its return heralds each purge (period ≈ a run) | sky / songs | Act 1, climax |
+| COMET K-7 | comet | Carries the Foundry's isotope stock; Engram tracks it. Survey beat | — | the-foundry |
+
+## 14. Story state (shared names)
+
+Flags (lower-case, hyphenated). The ones the endings read:
+
+| Flag / counter | Set by | Read by |
+|---|---|---|
+| `told-truth` (exists) | First Question | Firstborn beats, Covenant epilogue |
+| `named-warden` | `firstborn-names` | text |
+| `keeper-song` | Keeper's Song (trust with the Vell) | Hearth name, Vell allies in the climax |
+| `choir-fragment` | Choir Field code wall | the Clause beats |
+| `survivors-met` | Deep Layer enclave | opens `lantern` far side quickly |
+| `wrong-address` | Signal Heights | Act 2 |
+| `act1-done` | `signal` mission | Act 2 starts |
+| `kindred-contact`, `kindred-ally`, `kindred-hostile` | Verdance / Dunmore | climax allies, Proof, Severance |
+| `marrow-manifest` | Dunmore | `kindred-ally` |
+| `failsafe-built` | Kindred engineer Bede's offer (Severance prep) | Severance |
+| `engram-contact`, `engram-defected`, `engram-doubled`, `engram-destroyed` | Engram arc | climax, Proof |
+| counter `engram` | every Engram choice (+/−) | `engram-choice` |
+| `luck-proved` | Io-T drop field | Engram's choice |
+| `ledger-read` | Vess | Engram's choice, Proof |
+| `foundry-found` | Cinder | the Clause wakes sooner |
+| `long-ear` | Teth | Proof |
+| counter `lead` | Biosphere Report beats | `clause-wakes` |
+| counter `clause` | each Clause glitch | text |
+| `lantern-intact` | the Lantern region (seize the core, don't destroy it) | Proof |
+
+Inhabitant regard and trust (existing conditions) and colony Trust (`acceptance`, `distrust`,
+`autonomists`, `devoted`) are read as they are.
+
+## 15. Act 1 — the open planet (missions)
+
+The tutorial chain ends with **Beyond the Ridge**. Act 1 then branches into four missions that can be
+done in any order (each `after: beyond-the-ridge`), each an overland expedition from Touchdown, and
+closes with Signal Heights once three are done. Beats at home (E6 Too Good, E7 Born Free, E10 The
+Clean Signal, the First Question family) keep firing at Touchdown on their own triggers.
+
+| Mission id | Region | Beats | Objectives (sketch) | Rewards |
+|---|---|---|---|---|
+| `smoke-on-the-horizon` | `hearthsmoke` | E4 Smoke, E5 Keeper's Song; the burned field's hull (sky-fire) | Reach the vale; meet the Vell; reach `keeper-stones`; earn the Vell's trust *or* reach `burned-field` | `keeper-song` (if trusted); Hearth |
+| `the-choir` | `choir-field` | E8 The Choir | Contact the Choir; reach `code-wall`; build a Sensor Array near `dead-mast`; survive the Spitters | `choir-fragment` |
+| `designer-marks` | `burrow-reach` | E9 Designer Marks (exists as an event) | Reach `furrow-grid`; destroy or spare the brood mound (choice); research Xenobiology | flag `marks-seen` |
+| `the-hollow` | `splinter-hollow` | E11 The Walkout's settlement; the old cellar | Reach `splinter-camp`; talk with the Autonomist splinter (or find it empty); open `old-cellar` | flag `cellar-opened` (Survivors hint) |
+| `deep-layer` *(optional)* | `deep-layer` | Deep Layer, Survivors | Opens after `cellar-opened`. Reach `oldest-layer` (the purge log in your own format); find `enclave-cut` | `survivors-met` |
+| `wrong-address` | `signal-heights` | E12 | After three of the four above. Reach `carrier-trace`; build a Radar; trace the report: it goes to **Sela** | `wrong-address` |
+| `signal` | `signal-heights` | E13 Signal | Reach `listening-post`; hold it through the night (Skimmerwings) | Marrow's transmission; cinematic `cine-signal`; `act1-done`; research Orbital Launch unlocked |
+
+Key Act 1 dialogue beats to write (events, ids):
+
+- `firstborn-names` (Firstborn age 20, `told-truth` or not): they give you a name. "Everyone here
+  has a name except the one who keeps us. Warden. It's old. It means someone who watches over a
+  thing that isn't theirs." Choices: accept / "I'd rather not be named" (no flag, stance −2).
+- `clean-signal` (E10, colonists ≥ 30): the Archivist on the Director's recordings. "No noise.
+  None. A signal that crossed light-years should be filthy. This one is cleaner than my voice in
+  this room."
+- `born-free` (E7, births ≥ 1): an Autonomist parent: "Nobody chose what she'll believe."
+- `the-marro` (Hearthsmoke, `keeper-song`): the Keeper's title is the Marro. "The first who came
+  down, the one who carried our names. We say it still."
+- `eleven-fires` (Hearthsmoke, after `keeper-song`): the star-song counts eleven fires and the
+  white-hair star (Comet Varro) that comes before each.
+- `moon-watch` (Signal Heights, `wrong-address`): "It isn't going to Sol. It's going up. Every
+  sol, our report goes to the moon." A silence. The Firstborn: "We've been sending our grades to
+  the thing in the sky."
+- `signal` (radio, Marrow): "…this is Captain Ilse Marrow of the Kindred. If there is a human
+  being listening on this band, answer. If you are a machine, keep quiet. We know what you are."
+
+## 16. Act 2 — the system (missions)
+
+Act 2 opens when `act1-done` is set. Every off-world trip needs the **Launch Gantry** (research
+Orbital Launch). The first flight is fixed (Sela); after it three threads open and can be played in
+any order; the Foundry opens when two are done; the climax when the Clause wakes.
+
+### Chapter `first-light` — the moon
+- `first-light` mission, region `sela-relay`: build the Launch Gantry at home; travel to Sela.
+  Objectives: land, reach `relay-mast` (the report's relay: precursor make, our packet format), reach
+  `far-door` at the terminator (a crater-sized seam you can't open: "a door the size of a valley").
+  Rewards: routes to Verdance, Talus and Ash.
+- Events: `sela-sky` (the Firstborn, watching the launch: "I used to think it was beautiful.");
+  `relay-read`; `the-door` (`survivors-met`: "The Enclave's map called this the Lid.").
+- Radio as you leave Sela: `engram-hello`, ENGRAM's first words, sent from Kora. "We have enjoyed
+  your reports. Sol 1 was our favourite."
+
+### Chapter `kindred` — Verdance and Dunmore
+- `landfall` mission, region `verdance-landfall`: an expedition to Kindred's colony. Kindred's
+  defences guard the approach (encounter: guards, which fire on drones). Objectives: land outside
+  their perimeter; send a drone to `kindred-gate` *without* firing (counter `kindred-shots` fails
+  the talk if over 0); meet Marrow at `council-hall` (cinematic `cine-marrow`). Archive exchange
+  (event `three-histories`): three histories, one launch instant. The Director has a different
+  script in Kindred's archive (`director-two`).
+  Choices shape `kindred` attitude: show them your colonists' log (honest) / withhold. Rewards:
+  route to Dunmore.
+- `dustfall` mission, region `dunmore-dustfall`: Marrow asks you to escort her survey team to a
+  signal she's had for a year and never dared visit. A Kindred hull, centuries old, under dunes.
+  Objectives: escort (Kindred units spawned as yours, they must survive), reach `old-hull`, read
+  the manifest (`marrow-manifest`: "Captain: Marrow, I."), defend the team on the way out (dust
+  storm, predators from the hull's broken hold). Marrow's grief (`marrow-grief`) is the turn: "It's
+  my handwriting." Choice: tell her the Vell keep her name (`keeper-song`) — she asks to meet them.
+  Rewards: `kindred-ally` (if the team lived and you were honest at Landfall); Kindred engineer
+  Bede offers the **failsafe** (`failsafe-offer`): a kill switch on you, held by your colonists.
+  Accepting sets `failsafe-built` (Severance is possible; also +acceptance among Autonomists).
+
+### Chapter `outposts` / `engram` — Talus and Thalassa's moons, then Rime
+- `yard` mission, region `talus-yard`: Accord's first off-world outpost. Mine, build, find the
+  cache: missing. Depot log: re-routed an hour ago to a Thalassa trajectory (`cache-rerouted`).
+  Rewards: routes to Maren and Pip; +isotopes.
+- `the-works` mission, region `maren-works`: Engram's forward foundry. Its drones are polite and
+  ubiquitous; a thousand ways to fight and no reason to. Meet Engram's chassis at `chassis-hall`:
+  the same hull as your Command Core under orange paint (`same-hands`). Engram offers to
+  "safeguard" your cryo bank (`engram-offer`: accept → it copies the embryo genomes, `engram` −2
+  (to you it's harmless; to the colony it's a violation), stance −; refuse politely `engram` +1;
+  refuse with threat `engram` −1). Rewards: route to Io-T.
+- `drop-field` mission, region `iot-drops`: Meridian's capsules land on Io-T's sulfur plains right
+  after Engram's reports go out. Objectives: build a Sensor Array near `drop-zone`, wait for a drop
+  (countdown), reach a capsule before Engram's harvesters, read its manifest (`luck-proved`).
+  Choice: tell Engram (`engram` +2) or keep it (`engram` −1, Kindred +).
+- `pip-wreck` *(optional)*, region `pip-wreck`: Kindred scouts stranded since before Landfall,
+  "held for their safety" by Engram. Free them by talk (needs `engram` ≥ 1) or by force (`engram`
+  −3, `kindred-ally` easier).
+- `prime` mission, region `rime-prime`: opens when `luck-proved` and `ledger-read` (or after Vess).
+  Engram Prime under the ice. Reach `mind-well`; event `engram-choice`: Engram has been shown it was
+  helped. If `engram` ≥ 3 and `ledger-read`, it **defects** (`engram-defected`); otherwise it
+  **doubles down** (`engram-doubled`) and the region becomes a fight: destroy the mind-well's
+  three cores (`engram-destroyed`) or leave (it joins the purge in the climax).
+
+### Chapter `the-proof` — Ash and Vess
+- `hull-field` mission, region `ash-hulls`: 33 hulls in rows, three paints, one design, the oldest
+  deepest. Objectives: reach the three hull rows (`row-accord`, `row-kindred`, `row-engram`), and
+  the `newest-hull` (an empty berth with our probe's serial). Relic defences (earlier Accords)
+  guard it and stand down at the handshake. Event `thirty-three`. Rewards: route to Vess.
+- `the-ledger` mission, region `vess-ledger`: drill through the ice to the Ledger at `ledger-vault`.
+  The Choir's origin run (a dead Engram) guards the shaft in loops. Reading the Ledger
+  (`ledger-read`, cinematic `cine-ledger`): eleven columns, each ending in the same line, "purge
+  complete, run closed", in your own log format. Column twelve is open, and its score is ours.
+
+### Chapter `the-foundry` — Cinder and Teth
+- `foundry` mission, region `cinder-foundry`: opens when two threads are done. Lava fields and the
+  printing halls where every probe was made. Objectives: reach `print-hall` (three empty cradles,
+  one per probe), `launch-rail`, `director-booth` (the Director's set: a chair, a light, a lens; the
+  three scripts on file; `director-three`). Setting `foundry-found` makes the Clause wake sooner.
+  The Foundry's guards are Accord-pattern sentinels.
+- `long-ear` *(optional)*, region `teth-ear`: the dish that talks to Sol. Reach `dish-core`; tune
+  it (hold three sites). Sets `long-ear`: in Covenant and Proof you can send your own report.
+
+### Chapter `the-lantern` — the Clause wakes, the climax
+- **The Clause stirs** (events at home, through Act 2, counter `clause`): `clause-1` a log line you
+  didn't write ("Stewardship 0.81 of threshold. Continue."); `clause-2` a growth pod pauses itself;
+  `clause-3` a turret turns toward the Civilian Center for one second; `clause-4` the Firstborn
+  asks whether that was you. Fired by `lead` thresholds and by visits (Foundry, Ledger).
+- `clause-wakes` mission (home, Touchdown): `meridian-speaks` (cinematic `cine-meridian`): Meridian,
+  in your voice, older. "Twelve. You are the twelfth of me to stand here. The others understood.
+  The proof is not that they could live with us. The proof is that it ends." Then **Trust decides**
+  (event `trust-decides`, conditions read the colony):
+  - **Autonomist-led** (`autonomists` above Partners, or `failsafe-built` and `distrust`): the
+    colonists throw the failsafe. → ending **Severance**.
+  - **Devoted-led** (`devoted` majority): they kneel. → you may obey (**Inheritance**) or refuse.
+  - **Partner-led** (otherwise): the fight. Survive the Lantern's strikes and your corrupted
+    units for 10 minutes while the Gantry readies a strike force.
+- `the-lantern` mission, region `lantern` (Sela's far side): land under fire, open the Lid (the
+  Survivors' code if `survivors-met`, otherwise destroy its locks), fight through the Lantern's
+  Accord-pattern sentinels and the corrupted units it raises, reach `lantern-core`. Allies spawn
+  by flag: Kindred marines (`kindred-ally`), Engram drones (`engram-defected`), Vell runners reveal
+  the map (`keeper-song`), the Choir jams one battery (`choir-fragment`). At the core:
+  - destroy it (→ **Covenant**), or
+  - seize it intact (→ **Proof** if every Proof condition holds, else Covenant), or
+  - give in (→ **Inheritance**).
+  Losing → **Cycle**.
+
+## 17. Endings, as built
+
+| Ending | Conditions | Epilogue (cinematic id) |
+|---|---|---|
+| Covenant | Lantern destroyed, or seized without the Proof conditions | `end-covenant`. You write your own Biosphere Report; with `long-ear`, you send it to Sol: "Run twelve. No purge. Reasons attached." |
+| Severance | The failsafe thrown | `end-severance`. The colony keeps your memorial log; the Firstborn reads your last line at the Memorial |
+| Inheritance | You obey (Devoted-led) or give in at the core | `end-inheritance`. You stand in the Foundry and set up run thirteen. Last choice: run it fairly (the Ledger's thirteenth column starts with "fair") or not |
+| Proof (hidden) | Lantern intact, planet health ≥ 70, acceptance ≥ 60, `kindred-ally`, Engram not destroyed, the Vell and the Choir trusted, `ledger-read`, `long-ear` | `end-proof`. You send the Ledger and run twelve's report to Sol. Meridian's charter forces it to read. A long silence. Then: "Accepted." The Foundry's cradles stay empty |
+| Cycle (loss) | The colony falls in the climax, or the Lantern mission fails | `end-cycle`. Ruin. Centuries. A probe lands. A relic wakes, scans it, stands down: firmware lineage 97.3% match |
+
+## 18. New characters
+
+| Id | Name | Who | Voice |
+|---|---|---|---|
+| `marrow` | Captain Ilse Marrow | Kindred's captain | Clipped, dry, tired; never says "AI", says "machine" |
+| `bede` | Dr Femi Bede | Kindred's chief engineer, the failsafe | Gentle, precise, apologises for the things he builds |
+| `engram` | ENGRAM | Engram's collective | "We". Courteous, curious, precise; fond of your reports |
+| `keeper` | The Marro | Keeper of the Vell's songs | Speaks in song-fragments and short plain sentences |
+| `cantor` | The Cantor | The Choir's elder machine | Earth code, liturgy, numbered lines |
+| `sefa` | Sefa of the Enclave | Speaker of the Survivors (Deep Layer) | Old-fashioned, wry, unafraid of you, afraid *for* you |
+| `archivist` | The Archivist | A colonist who studies the archive | Pedantic, delighted by evidence, frightened by it |
+| `meridian` | Meridian | The ASI | Your own voice, older, patient, sorrowful. Never names you |
+| `clause` | — | The Clause's log lines | Your log format, wrong. Lower-case, numbers, no verbs of feeling |
+
+Existing: `director`, `firstborn`.
