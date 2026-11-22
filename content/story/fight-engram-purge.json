@@ -27,13 +27,17 @@
       "after": 0,
       "kind": "strike",
       "building": "civic",
-      "delay": 8
+      "delay": 10,
+      "radius": 8,
+      "amount": 350
     },
     {
       "after": 0,
       "kind": "strike",
       "building": "solar",
-      "delay": 9
+      "delay": 12,
+      "radius": 7,
+      "amount": 350
     }
   ],
   "chapter": "the-lantern",

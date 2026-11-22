@@ -386,23 +386,28 @@ function climax(fork, stance, name) {
 function fight(g, { coreAt } = {}) {
   run(g, 20, { until: () => has(g, 'the-fight') });
   check(has(g, 'the-fight') && g.seen.includes('trust-partners'), `${g.name}: the Partners fight`);
-  // the army and the domes a colony would have by now (the bot has built neither)
-  g.sim.command({ type: 'debug', setup: { research: ['shield-lattice'], isotopes: 200, buildings: ['shield', 'shield', 'turret', 'turret'] } });
-  g.sim.command({ type: 'debug', units: { unit: 'tank', x: 0, z: -18, n: 8 } });
-  g.sim.command({ type: 'debug', units: { unit: 'lancer', x: 10, z: -18, n: 6 } });
-  force(`${g.name}: an army (8 tanks, 6 lancers), two shield domes and two turrets for the fight`);
+  // no forced army, domes or buildings: the colony as it stands, the allies by flag, and a defender who rebuilds what
+  // the strikes take with the build command (alloys and drones, as a player) and keeps the units by the Core
   const b0 = g.s.stats.buildingsLost;
   let rebuilt = 0;
+  const sites = g.s.buildings.filter((b) => !b.team && ['solar', 'battery', 'hydroponics'].includes(b.kind)).map((b) => ({ kind: b.kind, x: b.x, z: b.z }));
+  const core = g.s.buildings.find((b) => b.kind === 'core' && !b.team);
   run(g, 700, { until: () => !!g.s.travel, every: (t) => {
-    // a player rebuilds the power the strikes knock out (the bot puts it back by the play-test setup)
-    if (t % 20 === 0 && !g.s.missions.failed?.includes('clause-wakes')) {
-      const n = (k) => g.s.buildings.filter((b) => b.kind === k && !b.team).length;
-      const want = [...Array(Math.max(0, 6 - n('solar'))).fill('solar'), ...Array(Math.max(0, 2 - n('battery'))).fill('battery'), ...Array(Math.max(0, 2 - n('hydroponics'))).fill('hydroponics')];
-      if (want.length) { g.sim.command({ type: 'debug', setup: { buildings: want } }); rebuilt += want.length; }
+    if (t % 5 === 0 && !g.s.missions.failed?.includes('clause-wakes')) {
+      const have = g.s.buildings.filter((b) => !b.team);
+      const p = sites.find((q) => !have.some((b) => b.kind === q.kind && Math.hypot(b.x - q.x, b.z - q.z) < 3));
+      if (p && have.filter((b) => b.progress < 1).length < 3 && g.s.alloys >= C.buildings[p.kind].cost) {
+        const n = g.s.buildings.length;
+        g.sim.command({ type: 'build', kind: p.kind, x: p.x, z: p.z });
+        if (g.s.buildings.length > n) rebuilt++;
+      }
+    }
+    if (t % 4 === 0) {
+      const far = ours(g).filter((u) => u.target < 0 && u.order.kind === 'idle' && Math.hypot(u.x - core.x, u.z - core.z) > 16);
+      if (far.length) g.sim.command({ type: 'order', ids: far.map((u) => u.id), x: core.x, z: core.z - 12 });
     }
     if (coreAt !== undefined && t === coreAt) { const core = g.s.buildings.find((b) => b.kind === 'core' && !b.team); g.sim.command({ type: 'debug', hurt: { id: core.id, hp: 1e9 } }); force(`${g.name}: the Core destroyed by the inspector`); }
   } });
-  if (rebuilt) force(`${g.name}: ${rebuilt} power buildings rebuilt during the fight`);
   note(`${g.name}: strikes landed ${g.st.struck?.n ?? 0}, rebuilt ${rebuilt}, buildings lost ${g.s.stats.buildingsLost - b0}, cryo ${Math.round(g.s.cryo)}, colonists ${g.s.people.colonists.length} (lost: ${[...new Set(g.s.people.memorial.map((m) => m.cause))].join('; ')}), planet ${Math.round(g.sim.planet.health())}, acceptance ${Math.round(g.sim.people.acceptance())}`);
   return g;
 }

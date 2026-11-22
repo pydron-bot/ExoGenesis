@@ -11,13 +11,15 @@
     {
       "after": 0,
       "kind": "corrupt",
-      "count": 3
+      "count": 1
     },
     {
       "after": 0,
       "kind": "strike",
       "building": "habitat",
-      "delay": 10
+      "delay": 12,
+      "radius": 8,
+      "amount": 350
     }
   ],
   "chapter": "the-lantern",

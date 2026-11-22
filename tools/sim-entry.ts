@@ -16,3 +16,4 @@ export { runPlaythrough } from '../src/sim/playthrough';
 export { forgetRegion } from '../src/sim/campaign';
 export { shownChoices } from '../src/content/defs';
 export { campaignOver } from '../src/sim/campaign';
+export { runBalance, STRATEGIES } from '../src/sim/balance';

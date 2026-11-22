@@ -12,13 +12,17 @@
       "after": 0,
       "kind": "strike",
       "building": "habitat",
-      "delay": 8
+      "delay": 10,
+      "radius": 8,
+      "amount": 350
     },
     {
       "after": 0,
       "kind": "strike",
       "building": "hydroponics",
-      "delay": 10
+      "delay": 12,
+      "radius": 8,
+      "amount": 350
     }
   ],
   "chapter": "the-lantern",

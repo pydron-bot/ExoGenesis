@@ -11,7 +11,8 @@
     {
       "after": 0,
       "kind": "corrupt",
-      "count": 2
+      "count": 2,
+      "unit": "rover"
     }
   ],
   "chapter": "the-lantern",

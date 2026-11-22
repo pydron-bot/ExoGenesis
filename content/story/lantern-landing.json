@@ -1,6 +1,6 @@
 {
   "title": "Far Side",
-  "text": "Sela's far side. No sun here for another four days; the only light is the Lid's rim, faintly violet where the locks draw power. The landers are down at the drop zone. Over the horizon, small and blue, Hearth.",
+  "text": "Sela's far side. No sun here for another four days; the only light is the Lid's rim, faintly violet where the locks draw power. The landers are down at the drop zone. Over the horizon, small and blue, home.",
   "lines": [
     {
       "character": "firstborn",
@@ -26,7 +26,7 @@
       "kind": "countdown",
       "timer": "lantern-fires",
       "amount": 1500,
-      "text": "The Lantern fires on Hearth"
+      "text": "The Lantern fires on Touchdown"
     },
     {
       "after": 0,

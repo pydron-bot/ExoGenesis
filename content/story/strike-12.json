@@ -12,19 +12,17 @@
       "after": 0,
       "kind": "strike",
       "building": "civic",
-      "delay": 9
+      "delay": 10,
+      "radius": 8,
+      "amount": 350
     },
     {
       "after": 0,
       "kind": "strike",
       "building": "depot",
-      "delay": 10
-    },
-    {
-      "after": 0,
-      "kind": "strike",
-      "building": "solar",
-      "delay": 11
+      "delay": 12,
+      "radius": 8,
+      "amount": 350
     },
     {
       "after": 0,

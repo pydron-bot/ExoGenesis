@@ -1,6 +1,6 @@
 {
   "title": "Ten Minutes",
-  "text": "The Gantry needs ten minutes to fuel the strike force. The Lantern has found its range: the first ring is already burning on the ground by the Civilian Center. Some of your units have stopped answering. You can feel the Clause in the build queue, quietly taking things out.",
+  "text": "The Gantry needs ten minutes to fuel the strike force. The Lantern has found its range: the first ring is already burning on the ground by the Civilian Center. Some of your units have stopped answering. You can feel the directive Meridian spoke of in the build queue, quietly taking things out.",
   "lines": [
     {
       "character": "clause",
@@ -30,7 +30,8 @@
       "kind": "strike",
       "building": "civic",
       "delay": 12,
-      "radius": 9
+      "radius": 8,
+      "amount": 350
     },
     {
       "after": 0,
@@ -51,6 +52,13 @@
       "after": 1,
       "kind": "wellbeing",
       "amount": -4
+    },
+    {
+      "after": 1,
+      "kind": "hint",
+      "target": "build",
+      "building": "shield",
+      "text": "Orbital strikes: a charged Shield Projector's dome soaks them, so put one over your power and the Core. Spread Solar Arrays and Battery Banks apart so one ring can't take them all, rebuild what falls, and keep your units out of the rings."
     }
   ],
   "chapter": "the-lantern",

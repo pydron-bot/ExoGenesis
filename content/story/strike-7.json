@@ -12,7 +12,9 @@
       "after": 0,
       "kind": "strike",
       "building": "battery",
-      "delay": 8
+      "delay": 10,
+      "radius": 7,
+      "amount": 350
     },
     {
       "after": 0,
