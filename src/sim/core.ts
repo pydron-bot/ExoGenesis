@@ -2987,7 +2987,12 @@ export class Sim {
         if (c.setup) this.playSetup(c.setup);
         if (c.story) this.story.fire(c.story);
         if (c.cinematic) this.story.playCine(c.cinematic);
-        if (c.mission) this.missions.jump(c.mission);
+        if (c.mission) {
+          this.missions.jump(c.mission);
+          // a mission on another region (?mission=, the inspector): go there to play it
+          const r = content.missions[c.mission]?.region;
+          if (r && r !== REGION_ID && content.regions[r] && !this.everywhere && !s.players) { this.story.effect({ kind: 'route', region: r }); s.travel = r; }
+        }
         if (c.regard) this.inhabitants.setRegard(c.regard.camp, c.regard.value);
         if (c.alloys) s.alloys += c.alloys;
         if (c.wave) s.waves.next = s.tick;
