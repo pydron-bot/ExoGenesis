@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.74.1',
+    date: '2026-11-23',
+    title: 'Music editor',
+    notes: [
+      'Editor: written music scores can be edited visually in Rules → Music. Arrange the sections by dragging them, write chords, bass, bells and melody on a piano roll, loop a section while you work, and follow the playhead as it plays',
+      'Editor: a step sequencer for every mood\'s drum tracks and bassline, and ✎ Write a score to turn a drifting mood into a written one',
+    ],
+    guide: [],
+  },
+  {
     version: '0.74.0',
     date: '2026-11-23',
     title: 'A tidier title screen',

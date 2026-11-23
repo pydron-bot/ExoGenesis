@@ -125,7 +125,9 @@ Shipped scores to learn from: `title-landfall.json` (piano, builds to drums, the
 4. Listen: start the dev server (`npx vite --port 5176`), then
    `node tools/music-render.mjs <id> --seconds 90 --seed 1` writes `music-drafts/<id>.wav`. The render prints
    its peak and a count of what played (chords, bells, hits, arps, leads); a part that plays 0 times is switched
-   off somewhere. Or use the editor (`editor.html`, Rules → Music, ▶ Listen; Import takes pasted JSON).
+   off somewhere. Or use the editor (`editor.html`, Rules → Music, ▶ Listen; Import takes pasted JSON). Its
+   visual editor arranges the form, writes chords, bass, bells and melody on a piano roll, loops a section, and
+   has a step grid for the drums and bassline; ✎ Write a score turns a free mood into a score to start from.
 5. **Match loudness** to other moods with the same use: render both with the same seed and length, then
    `ffmpeg -nostats -i file.wav -af ebur128 -f null - 2>&1 | grep "I:"`. Scale `level` by the difference
    (+2 dB ≈ ×1.26). Keep peaks under about 0.8.

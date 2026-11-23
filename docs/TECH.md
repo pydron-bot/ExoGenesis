@@ -902,6 +902,37 @@ First playtest build (2026-11-15).
     keeps the name (no "copy"). **Copy JSON** in a mood's actions copies the draft as `serialize()` writes it
     (clipboard, or a selected-textarea fallback). Both are on for the collections in `IMPORTABLE` (music only so
     far). Tests: `tools/import-smoke.mjs` (10 checks).
+  - **Visual score editor (v0.74.1, editor):** under ▶ Listen in Rules → Music (`src/editor/score-editor.ts`, hosted by
+    `music-panel.ts`). It edits the draft in the mood's own notation and rewrites only the bars it touches, so the
+    form below and the file stay in step (a drag edits a snapshot of the section's bars and commits on release, one
+    undo step).
+    - *Arrangement:* the `form` as a strip of section blocks, widths by bar count, colour per section, the one playing
+      lit. Drag to reorder (or drag a section tab onto it), × takes one out, + add appends; an empty form is written
+      out in full on the first edit. Double-click plays from there. Shows total bars, length and repeat/drift.
+    - *Sections:* tabs; name (renaming updates the form), layer chips (no list = all, dashed; a click writes the
+      list out), bars ±, Duplicate, Delete (and out of the form), 🔁 Loop it.
+    - *Piano roll* (canvas, C1–C7, 16th columns, zoom): chord blocks run from their bar to the next chord or the
+      section's end, with the bass under them (faint when it's the default); bells (with a ring tail) and melody
+      notes on top, placed in `bellStep` / `leadStep` tokens. The lane picked (Melody, Bells, Chord, Bass) is
+      editable, the rest faint. Rows of the chord sounding are tinted in every octave. Melody: click to write (new
+      notes 1–8 steps), drag the right edge to hold, drag to move; a line plays one note at a time, so a note cuts
+      short or replaces what it lands on. Chord: click toggles a note in the chord you see there (the bar that
+      owns it), drag moves one, Shift+click starts a new chord in that bar from the one held. Bass: click sets it.
+      Right-click removes; with a note selected, Delete, arrows (Shift: octave). Every note is auditioned (a plain
+      triangle/sine, not the mood's voice). The header names each chord (`chordName`: triads, sevenths, sus, add9,
+      slash bass) and opens a bar's popover: chord, bass, bells and melody as text, insert, duplicate, clear, delete.
+      Notes are written in flats if the piece has more flats than sharps.
+    - *Step sequencer* (any mood): each drum track (drum, level, cells cycling hit → soft → rest, length ±1 and ×2,
+      remove) and the bassline (root → octave → fifth → rest); patterns written back in groups of four. A drum is
+      heard when its cell is set.
+    - *Following:* the engine exposes `played.at` (when the bar sounding started) and `stepAt(t)` (the drum step
+      at a time; a log of the last 48 queued). The playhead runs across the roll and scrolls it, the section tab and
+      arrangement block follow (off with the follow box, or by picking a tab while playing), and drum cells light on
+      their step, each row on its own length. Play from / loop hand the engine a view of the draft with the form
+      rotated or cut to one section (`scoreThen` repeat while looping). Space plays and stops.
+    - Tests: driven by hand in Playwright (every lane, popover, undo, form edits, loop, write-a-score on a free mood);
+      `music-smoke` still passes. (`import-smoke` fails one check, from before: it expects `homePull` filled in, which
+      stopped being required in v0.66.0.)
   - **Director** (`GameAudio.musicFor`, every frame): the title mood on the title screen; nothing in cinematics
     and the landing (the stretch clock waits); in play, quiet for `firstMusic` s (45), then day or night music
     (daylight < 0.3 night, > 0.5 day) in stretches of `playMin`–`playMax` min (3–6) with `restMin`–`restMax` min
