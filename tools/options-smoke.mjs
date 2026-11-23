@@ -30,7 +30,8 @@ async function run(viewport, name, mobile = false) {
   const all = await state();
   const ids = Object.keys(all), regionIds = ids.filter((k) => k.startsWith('region:'));
   check(ids.slice(-9).join() === 'glow,flare,dust,zoomblur,weather,shadows,print,water,lights', `${name}: nine graphics toggles (${ids.slice(-9).join()})`);
-  check(ids[0] === 'sound' && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, sound and the regions first (${regionIds.length} regions, Touchdown picked)`);
+  const first = ids.filter((k) => !k.startsWith('ap:'));
+  check(first[0] === 'sound' && ids.slice(0, ids.indexOf('sound')).every((k) => k.startsWith('ap:')) && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, the autopilot rows, then sound and the regions (${regionIds.length} regions, Touchdown picked)`);
   // the graphics toggles flip and are remembered (sound and the region list have their own checks)
   const G = ['glow', 'flare', 'dust', 'zoomblur', 'weather', 'shadows', 'print', 'water', 'lights'];
   const pick = (o) => Object.fromEntries(G.map((k) => [k, o[k]]));

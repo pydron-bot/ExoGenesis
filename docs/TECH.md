@@ -2710,7 +2710,9 @@ build fails if it doesn't.
   (`exo.guide.tipped`, marked when shown): "Field Guide · title · summary" [Read] [×] under the top bar, 12 s.
   One at a time, queued: only while the screen is free (no story card on screen or waiting, cinematic, panel, menu,
   tour, hint of the guide's or the tour offer), 4 s after it last wasn't (`TIP_CALM`: a card closing doesn't throw a
-  tip straight up), and at least 60 s of play after the last one (`TIP_GAP`); a tip still waiting 180 s of play
+  tip straight up), and at least 45 s of play after the last one (`TIP_GAP`). When several wait, the most urgent
+  section goes first (`pickTip`: power, defence, colonists, alloys, units, research, story, travel, factions, then
+  basics and interface), then the one waiting longest; a tip still waiting 180 s of play
   after its trigger held is dropped unmarked (`TIP_STALE`: a later game offers it). Options → Interface → Field
   Guide tips (`exo.guide.tips`, on; off by default in the editor's play tests). Automated browsers (smoke tests) get
   neither the offer nor tips unless the test sets `exo.guide.auto` = `on` in localStorage (no URL option).
@@ -2737,8 +2739,12 @@ build fails if it doesn't.
   the next not straight after, and a 375 px phone with no horizontal scroll in the list or a page.
 - **The opening, measured** (the smoke, Touchdown, the autopilot as a quick player, cards answered at once): 44 of
   the 76 pages have tips; 18 triggers hold in the first 10 minutes of game time (power 29 s, deposits-and-depots
-  39 s, batteries 45 s, turrets 74 s, worker-drones 100 s, vehicle-bay 140 s, abilities 157 s, day-and-night 160 s,
-  story-cards 181 s, defence 216 s, biomass 280 s, cryo-bank 327 s, planet-health 360 s, wrecks-and-salvage 413 s,
-  growth-pods 433 s, geothermal 468 s, radar-and-sensors 502 s, nests 534 s). Spaced 60 s apart, 10 show in those
-  10 minutes (at 33, 93, 153 … 573 s); 45 s apart it was 13. The rest wait their turn or, gone stale, a later game.
+  39 s, batteries 45 s, turrets 74 s, worker-drones 100 s, defence 126 s, vehicle-bay 140 s, abilities 157 s,
+  day-and-night 160 s, story-cards 181 s, biomass 280 s, cryo-bank 327 s, planet-health 360 s, wrecks-and-salvage
+  413 s, growth-pods 433 s, geothermal 468 s, radar-and-sensors 502 s, nests 534 s). Shown 45 s apart, most urgent
+  first: 13 in those 10 minutes (power 33 s, batteries 78, turrets 123, day-and-night 168, defence 213, worker-drones
+  258, biomass 303, cryo-bank 348, planet-health 393, growth-pods 438, geothermal 483, radar-and-sensors 528, nests
+  573). First in, first out at 60 s (the first version) put the packs page at 393 s, after the first pack (240 s),
+  and dropped day-and-night as stale; the packs page's trigger is now sol 1.35 (was 1.6). The rest wait their turn
+  or, gone stale (deposits-and-depots, which Groundwork teaches anyway), a later game.
   A human playing slower meets fewer triggers per minute.

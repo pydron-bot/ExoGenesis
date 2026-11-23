@@ -274,7 +274,7 @@ export const toured = () => !!get(TOURED_KEY);
 
 // ---------- tips ----------
 /** A tip stays this long (s), comes at least TIP_GAP s after the last one, and only once the screen has been free (no card, cinematic or panel) for TIP_CALM s. */
-export const TIP_SECS = 12, TIP_GAP = 60, TIP_CALM = 4;
+export const TIP_SECS = 12, TIP_GAP = 45, TIP_CALM = 4;
 /** A tip still waiting this long (s) after its trigger held is dropped, not marked: a later game offers it again. */
 export const TIP_STALE = 180;
 /**
@@ -282,15 +282,33 @@ export const TIP_STALE = 180;
  * (with the screen free the whole time): for measuring how many land in a stretch of play.
  */
 export function tipSchedule(hits: { id: string; t: number }[]) {
-  let next = -Infinity;
   const out: { id: string; t: number }[] = [];
-  for (const h of hits) {
-    const t = Math.max(h.t + TIP_CALM, next);
-    if (t - h.t > TIP_STALE) continue;
-    out.push({ id: h.id, t });
-    next = t + TIP_GAP;
+  const end = Math.max(0, ...hits.map((h) => h.t)) + TIP_STALE + TIP_GAP;
+  let since = TIP_GAP, waiting: { id: string; age: number; t: number }[] = [];
+  const left = [...hits].sort((a, b) => a.t - b.t);
+  for (let t = 0; t <= end; t++) {
+    while (left.length && left[0].t <= t) { const h = left.shift()!; waiting.push({ id: h.id, age: t - h.t, t: h.t }); }
+    waiting = waiting.filter((q) => q.age <= TIP_STALE);
+    if (since >= TIP_GAP && waiting.some((q) => t - q.t >= TIP_CALM)) {
+      const ready = waiting.filter((q) => t - q.t >= TIP_CALM);
+      const q = ready[pickTip(ready)];
+      waiting.splice(waiting.indexOf(q), 1);
+      out.push({ id: q.id, t });
+      since = 0;
+    }
+    since++;
+    for (const q of waiting) q.age++;
   }
   return out;
+}
+/** Sections whose lessons can't wait (the colony dies without them) come first when tips queue up. */
+const TIP_URGENCY: Record<string, number> = { power: 0, defence: 1, people: 2, economy: 3, army: 4, research: 5, story: 6, travel: 7, factions: 8 };
+/** Which waiting tip shows next: the most urgent section, then the one that has waited longest. */
+export function pickTip(queue: { id: string; age: number }[]) {
+  const rank = (id: string) => TIP_URGENCY[content.guide?.[id]?.section ?? ''] ?? 9;
+  let best = 0;
+  queue.forEach((q, i) => { const b = queue[best]; if (rank(q.id) < rank(b.id) || (rank(q.id) === rank(b.id) && q.age > b.age)) best = i; });
+  return best;
 }
 export function tippedPages(): string[] {
   try { const v = JSON.parse(get(TIPPED_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch { return []; }
@@ -340,8 +358,9 @@ export class GuideTips {
     if (this.shown) { if ((this.left -= dt) <= 0) this.hide(); return; }
     // one at a time: a few seconds after a card or panel closes, and well apart
     if (this.calm < TIP_CALM || this.since < TIP_GAP) return;
-    const next = this.queue.shift();
-    if (next) this.show(next.id);
+    if (!this.queue.length) return;
+    const [next] = this.queue.splice(pickTip(this.queue), 1);
+    this.show(next.id);
   }
   private show(id: string) {
     const g = content.guide[id];

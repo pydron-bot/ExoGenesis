@@ -6,7 +6,7 @@
   "text": "A while after landing, the planet's predators start coming for the colony in **packs**. They set out from their spawns at the edges of the region, every couple of minutes, and each pack is a little bigger than the last. Packs that come at night are bigger still.\n\nA pack goes for the nearest thing of yours it can find: often an outlying depot or a drone, before the base itself.\n\n- **Defense Turrets** where the packs come in are your first answer\n- Combat units from a **Vehicle Bay** can meet a pack, or go after where it came from\n- A **Radar** gives warning: the ⚠ counter shows when the next pack is due, and how many predators are on the map\n\nFighting is noisy: the log and the radar map tell you where.",
   "points": "threat",
   "trigger": "time",
-  "sol": 1.6,
+  "sol": 1.35,
   "see": "turrets, nests, radar-and-sensors",
   "since": "0.73.0"
 }
