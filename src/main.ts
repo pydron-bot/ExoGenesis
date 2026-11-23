@@ -1584,6 +1584,20 @@ function showTitle() {
 // ground shadows (in the light map): each building kind's body radius and a rough height
 const shadowSun = new THREE.Vector3();
 const shaftSun = new THREE.Vector3(), shaftDir = new THREE.Vector3(), shaftUv = new THREE.Vector2();
+const sightTo = new THREE.Vector3(), sightOc = new THREE.Vector3();
+/** 1 when nothing big and round stands between the camera and the sun, 0 when a planet or moon hides it. */
+function sunInSight(): number {
+  const cp = camera.position;
+  const dist = sightTo.subVectors(system.sunPos, cp).length();
+  sightTo.divideScalar(dist);
+  for (const o of system.occluders(R)) {
+    sightOc.subVectors(o.pos, cp);
+    const along = sightOc.dot(sightTo);
+    if (along <= 0 || along > dist) continue;
+    if (sightOc.lengthSq() - along * along < o.radius * o.radius) return 0;
+  }
+  return 1;
+}
 const movers: Mover[] = [];
 const heat: THREE.Vector3[] = [], heatW = new THREE.Vector3();
 /** Buildings that run hot: the air shimmers above them while they're powered. */
@@ -1805,7 +1819,10 @@ function frame(now: number) {
     const sp = shaftSun.copy(system.sunPos).project(camera);
     const ahead = sp.z < 1 && system.sunPos.clone().sub(camera.position).dot(camera.getWorldDirection(shaftDir)) > 0;
     const onScreen = ahead ? 1 - smoothstep(1.0, 1.6, Math.max(Math.abs(sp.x), Math.abs(sp.y))) : 0;
-    const shafts = onScreen * (0.25 + 0.75 * air) * (0.7 + 0.6 * system.golden) * (1 - system.overcast * 0.85);
+    // only while the sun is really in view: above the horizon down here, not behind a planet up there (at night the sun
+    // under the ground still projected "ahead" of a downward camera, and every glowing building threw a shaft at it)
+    const sunShows = THREE.MathUtils.lerp(sunInSight(), smoothstep(-0.02, 0.08, sunUp), air);
+    const shafts = sunShows * onScreen * (0.25 + 0.75 * air) * (0.7 + 0.6 * system.golden) * (1 - system.overcast * 0.85);
     post?.update({
       night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air, sun: shaftUv.set((sp.x + 1) / 2, (sp.y + 1) / 2), shafts,
       zoom: zoomBlur && !cine && !title ? smoothstep(1.2, 5, zoomRate) * 0.035 : 0,

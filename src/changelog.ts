@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.75.1',
+    date: '2026-11-23',
+    title: 'No light shafts at night',
+    notes: [
+      'With Glow on, glowing buildings no longer throw long shafts of light across the screen at night. The sun\'s rays now only show while the sun is up and in view (not behind a planet), and they come from the sun, not from bright things elsewhere on screen',
+    ],
+    guide: [],
+  },
+  {
     version: '0.75.0',
     date: '2026-11-23',
     title: 'Tour the system',

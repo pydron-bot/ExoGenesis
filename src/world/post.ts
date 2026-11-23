@@ -22,8 +22,9 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 /**
  * Sun shafts (with Glow on): light streaming from the sun past whatever stands in front of it. The
  * bright sky and sun round the sun's place on screen are smeared toward it in 40 steps (16 on phones) that fade as they
- * go (GPU Gems 3, ch. 13), so flora, hills and buildings against the sun cut dark gaps in the rays. Off
- * (and skipped) when the sun is far off screen or the strength is 0.
+ * go (GPU Gems 3, ch. 13), so flora, hills and buildings against the sun cut dark gaps in the rays. Only bright
+ * pixels near the sun count (each sample is weighted by its distance from it), and main.ts turns the pass off
+ * while the sun is down or behind a planet. Off (and skipped) when the sun is far off screen or the strength is 0.
  */
 /**
  * Heat shimmer and zoom blur in one pass (with Glow on). Shimmer: up to 8 sources (3 on phones) (the screen position
@@ -96,7 +97,9 @@ const ShaftShader = {
         uv -= delta;
         vec3 c = texture2D(tDiffuse, clamp(uv, 0.0, 1.0)).rgb;
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-        sum += smoothstep(0.5, 1.3, l) * decay;
+        // only light near the sun feeds the rays: a glowing building elsewhere mustn't throw a shaft across the screen (v0.75.1)
+        vec2 so = (uv - uSun) * vec2(uAspect, 1.0);
+        sum += smoothstep(0.5, 1.3, l) * decay / (1.0 + dot(so, so) * 10.0);
         decay *= ${(0.955 ** (40 / SHAFT_TAPS)).toFixed(4)};
       }
       vec2 off = (vUv - uSun) * vec2(uAspect, 1.0);

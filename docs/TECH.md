@@ -1401,6 +1401,20 @@ row (HERE on the current one) that reloads into it (`goRegion`). The in-game ⋯
   (title → Tour → trip to Verdance → tap returns the menu, no page errors). The options, guide and region smokes
   pass.
 
+### Sun shafts only from a visible sun (v0.75.1)
+
+The shaft pass smeared *any* bright pixel toward the sun's screen point, and `main.ts` only checked that the sun
+projected in front of the camera. At night the sun under the ground still did that for a downward-looking camera,
+so every glowing building (Core, tanks, reactors) threw a long ray up the screen (`look.shafts` was 0.55 at
+midnight). The fixes:
+- `main.ts`: the strength is multiplied by `lerp(sunInSight(), smoothstep(-0.02, 0.08, sunUp), air)`.
+  `sunInSight()` is a ray test from the camera to the sun against `system.occluders(R)`.
+- `ShaftShader`: each sample is weighted by `1 / (1 + 10·d²)`, where d is the sample's aspect-corrected distance
+  from the sun, so only light near the sun feeds the rays.
+
+Measured with a 390×844 night colony: shafts at 0, 4 and 12 o'clock are 0 (was 0.548 at 0). A low camera swept
+round at 7:36 still finds them at 0.70.
+
 ### Biomes and wildlife (v0.41.0)
 
 Two content collections, editable under **Nature** in the editor, with a 3D preview (`src/editor/nature-preview.ts`:
