@@ -402,7 +402,8 @@ export function cloudShell(radius: number, seed: number): THREE.Mesh {
       .replace('#include <common>', `#include <common>\n varying vec3 vBodyDir; uniform float uSeed, uBodyTime;\n${GLSL}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec3 d = normalize(vBodyDir);
-        float a = uBodyTime * 0.004 * (1.0 + 0.4 * d.y);
+        // bounded sway between latitudes (a per-latitude speed sheared the clouds into streaks over a long game)
+        float a = mod(uBodyTime * 0.004, 6.2831853) + 0.35 * d.y * sin(uBodyTime * 0.0023);
         vec3 p = vec3(d.x * cos(a) - d.z * sin(a), d.y, d.x * sin(a) + d.z * cos(a));
         vec3 q = p * 3.0 + (vec3(bNoise(p * 4.0 + uSeed), bNoise(p * 4.0 + 7.1), bNoise(p * 4.0 + 13.7)) - 0.5) * 1.8;
         float n = bFbm(q * 2.0);

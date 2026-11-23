@@ -1743,6 +1743,33 @@ Quality of life in the colony (and the skirmish built on it; the old `?mode=skir
   the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
 - **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.
 
+### Selecting several units (v0.77.0)
+
+`src/input.ts`. Before this, several units could be selected only by Shift-click, double-tap/hold (all of a type on
+screen), the ⚔ chip, Ctrl+A or a control group. Both gestures come from the skirmish prototype (`src/skirmish/input.ts`).
+
+- **Box** (desktop): Ctrl/Cmd + left-drag on the surface, checked before Shift-drag (which turns the camera), so a plain
+  left-drag still pans. On release, every combat unit whose screen point (`unitScreen`) is inside the box is selected;
+  Shift held adds to the selection. A Ctrl-click without a drag goes on as a normal click.
+- **Paint** (touch and mouse): a press on empty ground (no drone or unit under it, not placing, zoomed in to where units
+  can be picked, at least one combat unit) starts a `HOLD_MS` (420 ms) timer. If the pointer hasn't moved more than
+  `TAP_PX` by then, it buzzes and the drag paints: units within `BRUSH_PX` (30 px) of each new stroke segment join the
+  selection as they are crossed (Shift at the start adds to the old selection). Moving first pans, as before. As with
+  hold on a unit, a move whose event time is before the hold time (delivered late by a slow frame) turns it back into a
+  pan. A second finger cancels it, back to the selection before.
+- The box and the stroke are drawn on `#sk-overlay` (the skirmish's overlay canvas, otherwise unused in the colony).
+- Shown in Controls (`showControls` in `main.ts`), the unit card's Select row and the Field Guide's *Selecting and giving
+  orders*.
+- **Test:** `tools/select-smoke.mjs`: paint with the mouse and with touch (6 of 6), painting doesn't pan, a quick drag
+  pans and keeps the selection, a Ctrl-drag box (6 of 6) doesn't pan, Ctrl+Shift adds. `units-smoke` and `qol-smoke`
+  still pass.
+- **Fix in the same release: cloud streaks from orbit.** The cloud shells (`buildClouds` in `world/surface.ts`, and
+  `cloudShell` in `world/body-surface.ts` for other bodies) turned at a speed that depended on latitude
+  (`t · 0.004 · (1 + 0.4 y)`). That difference built up without limit, and `t` is seconds since the page loaded, so after
+  half an hour or so the clouds were sheared into thin white streaks along the lines of latitude. Now the shell turns as
+  one (`mod(t · 0.004, 2π)`, which also keeps it precise in a long session) plus a bounded sway between latitudes
+  (`0.35 · y · sin(t · 0.0023)`). Checked by pinning `uSurfTime` at 0, 4,000, 5,400, 7,200 and 36,000 s.
+
 ### Research tree (v0.58.0)
 
 DESIGN §5.9's compact Act 1 tree: 4 projects became 32, in four branches, gated C&C-style and by the colony's people and

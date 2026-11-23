@@ -5,6 +5,9 @@
  *   - combat units: tap one to select it (shift adds), double-tap or hold one to
  *     select every unit of that type on screen; tap ground to send the
  *     selection, or drag from one of them to aim the order
+ *   - several at once: Ctrl/Cmd + drag draws a box (desktop); or hold empty ground
+ *     until it buzzes, then paint over units with the finger or mouse (shift adds to
+ *     the selection either way)
  *   - placing a building: on desktop the ghost follows the mouse and a click
  *     places it; on touch the first tap shows the ghost, a second tap on it places;
  *     R (or the ⟳ button) rotates it
@@ -68,13 +71,15 @@ interface Handlers {
   placeHint?(text: string | null, x: number, y: number): void;
 }
 
-type Mode = 'none' | 'pan' | 'orbit' | 'order' | 'pinch' | 'unit' | 'uorder';
+type Mode = 'none' | 'pan' | 'orbit' | 'order' | 'pinch' | 'unit' | 'uorder' | 'box' | 'paint';
 
 const TAP_PX = 9;
 const DRONE_PICK_PX = 42;
 const UNIT_PICK_PX = 30;
 const HOLD_MS = 420;
 const DOUBLE_MS = 320;
+/** Paint selection: units within this many px of the stroke are collected. */
+const BRUSH_PX = 30;
 
 export class Input {
   private pts = new Map<number, { x: number; y: number; sx: number; sy: number; t: number }>();
@@ -100,6 +105,13 @@ export class Input {
   /** Control groups 4–9 (1–3 are the views): unit ids, and the last recall (double-press centres). */
   private groups = new Map<number, number[]>();
   private lastGroup = { n: -1, t: 0 };
+  /** Box select (Ctrl/Cmd + drag) and paint select (hold ground, then drag): screen px. */
+  private box: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  private stroke: { x: number; y: number }[] = [];
+  /** Paint: the selection it adds to (Shift held at the start keeps the old one), and what it has collected. */
+  private paintBase: number[] = [];
+  private painted = new Set<number>();
+  private overlay = document.getElementById('sk-overlay') as HTMLCanvasElement | null;
 
   constructor(
     private el: HTMLElement,
@@ -260,13 +272,21 @@ export class Input {
     this.h.interacted();
     if (this.pts.size === 2) {
       clearTimeout(this.holdTimer);
+      if (this.mode === 'paint' && this.painted.size) this.selectUnits(this.downSel);
       this.mode = 'pinch';
       this.ui.drag = null;
+      this.clearMarks();
       this.pinch = this.pinchState();
       return;
     }
     if (this.pts.size > 2) return;
     const surface = this.cam.a < 0.5;
+    // Ctrl/Cmd + left-drag: a selection box (before Shift, which otherwise turns the camera; Shift + Ctrl adds)
+    if (surface && e.button === 0 && (e.ctrlKey || e.metaKey) && !this.ui.build) {
+      this.mode = 'box';
+      this.box = null;
+      return;
+    }
     // mouse rotate (right-drag, shift-drag) is reversed from a touch drag; a touch drag keeps its direction
     if (e.button === 2 || e.shiftKey || !surface) { this.mode = 'orbit'; this.orbitSign = e.pointerType === 'mouse' && (e.button === 2 || e.shiftKey) ? -1 : 1; return; }
     const drone = this.ui.build ? -1 : this.droneAt(e.clientX, e.clientY);
@@ -282,7 +302,87 @@ export class Input {
       this.holdTimer = window.setTimeout(() => {
         if (this.mode === 'unit') { this.held = true; this.selectType(unit); }
       }, HOLD_MS);
-    } else this.mode = 'pan';
+    } else {
+      this.mode = 'pan';
+      // holding still on empty ground starts a paint selection (when there are combat units to collect)
+      if (!this.ui.build && this.cam.dist <= 400 && this.h.units().length) {
+        this.downStamp = e.timeStamp;
+        this.downSel = [...this.selIds()];
+        const x = e.clientX, y = e.clientY, keep = e.shiftKey;
+        this.holdTimer = window.setTimeout(() => {
+          if (this.mode !== 'pan' || this.pts.size !== 1) return;
+          const q = this.pts.values().next().value;
+          if (!q || Math.hypot(q.x - q.sx, q.y - q.sy) > TAP_PX) return;
+          this.mode = 'paint';
+          this.paintBase = keep ? [...this.downSel] : [];
+          this.painted.clear();
+          this.stroke = [{ x, y }];
+          this.paintAt(x, y);
+          this.drawMarks();
+          if (navigator.vibrate) navigator.vibrate(15);
+        }, HOLD_MS);
+      }
+    }
+  }
+
+  /** Paint: collect the units within BRUSH_PX of the latest stroke segment. */
+  private paintAt(x: number, y: number) {
+    const prev = this.stroke[this.stroke.length - 2] ?? { x, y };
+    const dx = x - prev.x, dy = y - prev.y, l2 = dx * dx + dy * dy;
+    let added = false;
+    for (const u of this.h.units()) {
+      if (this.painted.has(u.id)) continue;
+      const p = this.unitScreen(u);
+      if (!p) continue;
+      const t = l2 ? Math.max(0, Math.min(1, ((p.x - prev.x) * dx + (p.y - prev.y) * dy) / l2)) : 0;
+      if (Math.hypot(p.x - (prev.x + dx * t), p.y - (prev.y + dy * t)) < BRUSH_PX) { this.painted.add(u.id); added = true; }
+    }
+    if (added) this.selectUnits([...this.paintBase, ...this.painted]);
+  }
+
+  /** Units whose screen position is inside the box. */
+  private inBox(b: { x0: number; y0: number; x1: number; y1: number }) {
+    const x0 = Math.min(b.x0, b.x1), x1 = Math.max(b.x0, b.x1), y0 = Math.min(b.y0, b.y1), y1 = Math.max(b.y0, b.y1);
+    return this.h.units().filter((u) => { const p = this.unitScreen(u); return p && p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1; }).map((u) => u.id);
+  }
+
+  private clearMarks() {
+    this.box = null;
+    this.stroke = [];
+    this.drawMarks();
+  }
+
+  /** The selection box or the paint stroke, on the overlay canvas over the game. */
+  private drawMarks() {
+    const c = this.overlay;
+    const g = c?.getContext('2d');
+    if (!c || !g) return;
+    const dpr = Math.min(2, devicePixelRatio), w = c.clientWidth, hgt = c.clientHeight;
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(hgt * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(hgt * dpr); }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, hgt);
+    const r = c.getBoundingClientRect();
+    g.translate(-r.left, -r.top);
+    if (this.stroke.length) {
+      g.lineCap = g.lineJoin = 'round';
+      g.beginPath();
+      this.stroke.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)));
+      if (this.stroke.length === 1) g.lineTo(this.stroke[0].x + 0.1, this.stroke[0].y);
+      g.strokeStyle = 'rgba(255,210,122,0.18)';
+      g.lineWidth = BRUSH_PX * 2;
+      g.stroke();
+      g.strokeStyle = 'rgba(255,210,122,0.8)';
+      g.lineWidth = 2;
+      g.stroke();
+    }
+    if (this.box) {
+      const { x0, y0, x1, y1 } = this.box;
+      g.fillStyle = 'rgba(255,210,122,0.08)';
+      g.strokeStyle = 'rgba(255,210,122,0.85)';
+      g.lineWidth = 1.5;
+      g.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+      g.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+    }
   }
 
   private pinchState() {
@@ -310,8 +410,28 @@ export class Input {
       this.pinch = s;
       return;
     }
+    if (this.mode === 'paint' && this.stroke.length === 1 && e.timeStamp - this.downStamp < HOLD_MS
+      && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_PX) {
+      // the pointer was already moving before the hold time was up (a slow frame delivered the move late):
+      // it's a pan, not a paint
+      this.mode = 'pan';
+      this.clearMarks();
+      if (this.painted.size) this.selectUnits(this.downSel);
+    }
+    if (this.mode === 'paint') {
+      this.stroke.push({ x: e.clientX, y: e.clientY });
+      this.paintAt(e.clientX, e.clientY);
+      this.drawMarks();
+      return;
+    }
     const moved = Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_PX;
     if (!moved) return;
+    if (this.mode === 'box') {
+      this.box = { x0: p.sx, y0: p.sy, x1: e.clientX, y1: e.clientY };
+      this.drawMarks();
+      return;
+    }
+    if (this.mode === 'pan') clearTimeout(this.holdTimer);
     if (this.mode === 'unit' && this.held && e.timeStamp - this.downStamp < HOLD_MS) {
       // the finger was already moving before the hold time was up; a slow frame just delivered the move late.
       // It's a drag, not a hold: undo the select-all-of-type
@@ -351,6 +471,10 @@ export class Input {
       this.h.move(this.orderDrone, this.ui.drag.x, this.ui.drag.z);
     } else if (this.mode === 'uorder' && this.ui.drag) {
       this.orderUnits(this.ui.drag.x, this.ui.drag.z);
+    } else if (this.mode === 'box' && this.box) {
+      this.selectUnits(this.inBox(this.box), e.shiftKey);
+    } else if (this.mode === 'paint') {
+      // the selection already follows the stroke
     } else if (this.mode === 'unit') {
       if (!this.held && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) <= TAP_PX) {
         // event timestamps: a slow frame mustn't break a double-tap
@@ -377,6 +501,7 @@ export class Input {
     }
     this.ui.drag = null;
     this.ui.dragFrom = null;
+    this.clearMarks();
     this.mode = 'none';
   }
 
@@ -392,6 +517,7 @@ export class Input {
     clearTimeout(this.holdTimer);
     this.ui.drag = null;
     this.ui.dragFrom = null;
+    this.clearMarks();
     this.mode = 'none';
   }
 

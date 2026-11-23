@@ -48,6 +48,7 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 | Jump | Surface / Planet / System buttons | 1 / 2 / 3 |
 | Build solar | Solar, then tap ground | B, then click |
 | Pause / speed | ❚❚ ▶ ⏩ | Space · [ ] |
+| Select several units | hold empty ground until it buzzes, then paint over them · hold or double-tap a unit: all of its type | Ctrl-drag a box (Shift too: add) · hold the button on the ground, then paint · double-click: all of a type |
 | Send the selection | tap the ground | click or right-click the ground |
 | Look at the selection | | F / Home (nothing selected: the Core) |
 | Next idle drone | | . or the ⛭ chip |
@@ -63,6 +64,7 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 npm install
 npm run dev        # http://localhost:5176 (on hive1: systemd user unit exo-dev.service)
 npm run build
+node tools/select-smoke.mjs  # selecting several units: paint (mouse and touch), Ctrl-drag box, Ctrl+Shift adds, a quick drag still pans
 node tools/qol-smoke.mjs   # controls: held-key pan, F, idle drones, right-click, groups, speed keys, PAUSED, Controls, Recycle, zoom to cursor
 node tools/smoke.mjs   # colony end-to-end: orders, build menu, placement, power switch, a fight, save/load, game over
 node tools/look-smoke.mjs  # Options → Terrain look switches in place (no reload), pads stay level, remembered

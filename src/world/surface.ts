@@ -224,8 +224,10 @@ export function buildClouds(): THREE.Mesh {
       void main() {
         #include <logdepthbuf_fragment>
         vec3 d = normalize(vDir);
-        // slow drift: rotate about the poles, bands move at different speeds
-        float a = uSurfTime * 0.004 * (1.0 + 0.4 * d.y);
+        // slow drift about the poles, with the latitudes swaying a little against each other. The sway is bounded:
+        // a speed that differed by latitude kept shearing the clouds, until after half an hour or so they were
+        // thin streaks along the lines of latitude. The turn is wrapped so it stays precise in a long game.
+        float a = mod(uSurfTime * 0.004, 6.2831853) + 0.35 * d.y * sin(uSurfTime * 0.0023);
         vec3 p = vec3(d.x * cos(a) - d.z * sin(a), d.y, d.x * sin(a) + d.z * cos(a));
         vec3 q = p * 3.0 + vec3(sNoise(p * 4.0), sNoise(p * 4.0 + 7.1), sNoise(p * 4.0 + 13.7)) * 0.9; // swirl
         float n = sNoise(q * 2.0) * 0.5 + sNoise(q * 4.1) * 0.25 + sNoise(q * 8.3) * 0.15 + sNoise(q * 17.0) * 0.1;

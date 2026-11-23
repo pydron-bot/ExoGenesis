@@ -340,7 +340,7 @@ export class ColonyHud {
       const transport = us.length === 1 && this.d.units[us[0].unit].carries;
       if (transport) rows.push(['Load', `select ground units, then ${this.coarse() ? 'tap' : 'click'} it · order it onto land to unload there`]);
       if (us.some((u) => u.boarding)) rows.push(['Boarding', `${us.filter((u) => u.boarding).length} on the way to a transport`]);
-      rows.push(['Select', this.coarse() ? 'hold or double-tap: all of a type' : 'double-click: all of a type']);
+      rows.push(['Select', this.coarse() ? 'hold or double-tap: all of a type · hold ground, then drag: paint' : 'double-click: all of a type · Ctrl-drag: a box']);
       html = `<div class="t">${esc(title)}</div><div class="s ${fighting ? 'warn' : ''}">${st}</div>
         <div class="hp"><i style="width:${(hp * 100).toFixed(0)}%;background:${hp > 0.6 ? '#5bff9a' : hp > 0.3 ? '#ffb547' : '#ff5a4a'}"></i></div>
         ${rows.map(([k, v]) => `<div class="row ${k === 'Move' || k === 'Select' || k === 'Load' ? 'tip' : ''}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
