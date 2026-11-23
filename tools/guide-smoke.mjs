@@ -280,10 +280,27 @@ try {
       check(alone, 'tip: one at a time, never over a story card');
       await page.waitForSelector('#guide .gd-page');
       check(await page.$eval('#guide .gd-page', (e) => e.dataset.id) === tipPage2 && await page.evaluate(() => __exo.speed === 0), 'tip: Read opens its page, the game held');
-      if (g.points) {
+      const showBtn = await page.$('#guide .gd-show:not(.gd-tour2)');
+      if (g.points && !showBtn) {
+        // its element isn't on screen yet (the threat counter before a Radar): no Show me pointing at nothing
+        const hidden = await page.evaluate((t) => { const el = document.querySelector('.hinted'); return !el; }, g.points);
+        check(hidden, `Show me: not offered while ${g.points} isn't on screen (${tipPage2})`);
+        for (let i = 0; i < 3 && (await page.$('#guide')); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
+        // and one whose element is on screen (power → ⚡), from the menu's guide
+        await page.waitForTimeout(500);
+        await page.click('#b-menu');
+        await page.click('#options [data-id="guide"]');
+        await page.click('#guide [data-page="power"]');
+        await page.click('#guide .gd-show:not(.gd-tour2)');
+        await page.waitForSelector('#hint.on.act');
+        const dbg = await page.evaluate(() => ({ guide: !!document.querySelector('#guide'), menu: !!document.querySelector('#options'), speed: __exo.speed, hinted: document.querySelector('.hinted')?.id ?? null }));
+        check(!dbg.guide && !dbg.menu && dbg.speed === 1 && !!dbg.hinted, `Show me: the guide closes, the HUD element pulses, the game runs (power → energy: ${JSON.stringify(dbg)})`);
+        await page.click('#hint .acts button');
+      } else if (g.points) {
         await page.click('#guide .gd-show');
         await page.waitForSelector('#hint.on.act');
-        check(!(await page.$('#guide')) && await page.evaluate(() => __exo.speed === 1 && !!document.querySelector('.hinted')), 'Show me: the guide closes, the HUD element pulses, the game runs');
+        const dbg = await page.evaluate(() => ({ guide: !!document.querySelector('#guide'), speed: __exo.speed, hinted: document.querySelector('.hinted')?.id ?? null }));
+        check(!dbg.guide && dbg.speed === 1 && !!dbg.hinted, `Show me: the guide closes, the HUD element pulses, the game runs (${tipPage2} → ${g.points}: ${JSON.stringify(dbg)})`);
         await page.click('#hint .acts button');
       } else {
         await page.keyboard.press('Escape');

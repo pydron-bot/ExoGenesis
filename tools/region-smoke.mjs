@@ -136,12 +136,12 @@ fs.writeFileSync(tmp, JSON.stringify({ ...moved, name: 'Smoke Test Basin' }, nul
 try {
   await page.waitForTimeout(2500);
   await page.goto(`${url}?region=zz-smoke`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  await page.waitForFunction(() => document.body.innerText.includes('OPTIONS'), null, { timeout: 120000 });
+  await page.waitForFunction(() => document.querySelector('#title [data-id="options"]'), null, { timeout: 120000 });
   const t = await page.evaluate(() => document.body.innerText);
   check(/Your colony in Touchdown/i.test(t), 'title offers CONTINUE into the other region\'s colony');
   check(/Land in Smoke Test Basin/i.test(t), 'NEW GAME names the region it lands in');
   check(!/\bREGION\b|\bSOUND\b/.test(t.replace(/ANYWHERE FOR SOUND/g, '')), 'region and sound are not on the title screen itself (the tap-for-sound hint aside)');
-  await page.getByText('OPTIONS', { exact: true }).click();
+  await page.click('#title [data-id="options"]');
   await page.waitForSelector('#options');
   const op = await page.evaluate(() => document.getElementById('options').innerText);
   check(/Region/i.test(op) && /Sound/.test(op) && /Smoke Test Basin\s*(\S+\s*)?HERE/i.test(op), 'Options lists the regions (this one HERE) and the sound');

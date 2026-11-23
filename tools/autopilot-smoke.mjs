@@ -222,9 +222,10 @@ if (!process.argv.includes('--headless-only')) {
     await page.evaluate(() => __exo.sim.flush());
     await page.waitForTimeout(1500);
     await page.goto(`${url}?sw=0`);
-    await page.waitForFunction(() => window.__exo?.title && document.body.innerText.includes('OPTIONS'), null, { timeout: 120000 });
+    await page.waitForFunction(() => window.__exo?.title && document.querySelector('#title [data-id="watch"]'), null, { timeout: 120000 });
     check(!(await ap()).badge, 'the title: no badge');
-    await page.getByText('OPTIONS', { exact: true }).click();
+    check(!!(await page.$('#title [data-id="watch"]')), 'the title has a Watch button');
+    await page.click('#title [data-id="options"]');
     await page.waitForSelector('#options [data-id="ap:watch"]');
     check(true, 'Options has "Watch the computer play"');
     await page.click('#options [data-id="ap:speed:3"]');

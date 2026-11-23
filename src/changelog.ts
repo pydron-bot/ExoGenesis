@@ -30,6 +30,7 @@ export const CHANGELOG: Release[] = [
       'Watch the computer play is now a button of its own (👁 Watch); its settings stay in Options',
       'What\'s new carries the NEW badge when there\'s an update you haven\'t seen',
       'On phones and tablets the Editor (which needs a computer) is no longer offered',
+      'Field Guide: Show me only appears when the part of the screen it points at is there (the ⚠ threat counter waits for a Radar)',
     ],
     guide: ['title-screen', 'watch-the-computer-play', 'field-guide', 'whats-new', 'options'],
   },

@@ -162,7 +162,7 @@ export function openGuide(o: OpenGuide = {}) {
         <div class="gd-where">${esc(GUIDE_SECTION_NAMES[g.section] ?? '')}${tag(g)}</div>
         <h2>${esc(g.title)}</h2>
         <div class="gd-text">${renderText(g.text)}</div>
-        ${inGame && g.points ? '<button class="gd-show">◎ Show me</button>' : ''}
+        ${inGame && g.points && hintElement(g.points) ? '<button class="gd-show">◎ Show me</button>' : ''}
         ${id === 'orientation' && inGame && g.tour?.length ? '<button class="gd-show gd-tour2">▸ Show me around</button>' : ''}
         ${see.length ? `<div class="gd-see"><span>See also</span>${see.map((x) => `<button data-page="${esc(x)}">${esc(content.guide[x].title)}</button>`).join('')}</div>` : ''}
       </div>`;
