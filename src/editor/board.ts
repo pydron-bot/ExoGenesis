@@ -79,6 +79,19 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
   const addCh = h('button', '', '＋ Chapter');
   addCh.onclick = () => host.newChapter();
   const cols = h('div', 'board-cols');
+  // a second horizontal scrollbar above the columns, pinned to the top while the page scrolls, kept in step with the
+  // board's own (which sits below the longest column)
+  const topBar = h('div', 'board-topscroll');
+  const topInner = h('div', '');
+  topBar.append(topInner);
+  topBar.onscroll = () => { if (cols.scrollLeft !== topBar.scrollLeft) cols.scrollLeft = topBar.scrollLeft; };
+  cols.onscroll = () => { if (topBar.scrollLeft !== cols.scrollLeft) topBar.scrollLeft = cols.scrollLeft; };
+  const sizeTop = () => {
+    topInner.style.width = `${cols.scrollWidth}px`;
+    topBar.style.display = cols.scrollWidth > cols.clientWidth + 1 ? '' : 'none';
+  };
+  const ro = new ResizeObserver(sizeTop);
+  ro.observe(cols);
   const moved = () => items.filter((x) => (x.chapter ?? null) !== orig.get(`${x.coll}/${x.id}`));
 
   // filters
@@ -189,6 +202,7 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
     const m = moved();
     save.disabled = undo.disabled = !m.length;
     save.textContent = m.length ? `Save ${m.length} move${m.length > 1 ? 's' : ''}` : 'Save moves';
+    sizeTop();
   };
   save.onclick = async () => {
     save.disabled = true;
@@ -202,6 +216,7 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
   main.replaceChildren(
     h('div', 'head', h('div', '', h('h1', '', 'Story board'), h('div', 'path', 'Every story record by chapter. Drag a card to move it; click to open it.')), h('div', 'actions', addCh, undo, save)),
     h('div', 'board-filters', kinds, tagSel, whoSel, stSel, search, count),
+    topBar,
     cols,
   );
   main.classList.add('board-mode');
@@ -233,5 +248,5 @@ export function renderBoard(main: HTMLElement, aside: HTMLElement, host: BoardHo
     h('div', 'help-block', 'Each mission, event, cinematic, character, inhabitant group and story bible entry has Chapter, Tags and Writer\'s notes fields at the bottom of its form. Tags are comma-separated; click one on a card to filter by it. Anyone shows the records a character speaks in. The sidebar lists story records under their chapters too. Story flow shows how missions and events trigger each other.'),
   );
   draw();
-  return { dispose() { main.classList.remove('board-mode'); } };
+  return { dispose() { ro.disconnect(); main.classList.remove('board-mode'); } };
 }

@@ -550,6 +550,8 @@ button.panel-toggle:hover { color: var(--accent); }
 .board-kinds .chip { font-size: 12px; padding: 3px 9px; border-radius: 12px; opacity: 0.5; border-left: 3px solid var(--k); }
 .board-kinds .chip.on { opacity: 1; }
 .board-q { min-width: 160px; }
+.board-topscroll { position: sticky; top: -20px; z-index: 5; overflow-x: auto; overflow-y: hidden; height: 16px; margin: 0 0 6px; background: var(--bg, #05090e); }
+.board-topscroll > div { height: 1px; }
 .board-cols { display: flex; gap: 10px; overflow-x: auto; align-items: flex-start; padding-bottom: 12px; }
 .board-col { flex: 0 0 250px; background: #0a121b; border: 1px solid var(--line); border-top: 3px solid var(--c, #5d7a96); border-radius: 8px; padding: 8px; }
 .board-col.over { border-color: var(--accent); background: #0d1c28; }

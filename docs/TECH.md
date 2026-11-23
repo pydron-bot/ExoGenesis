@@ -190,7 +190,9 @@ How content is stored and edited in general (one JSON record per file, schemas i
   chapter in order (act headings above), then "No chapter"; each card shows its kind, a one-line summary (the same
   summaries as the forms), tags and problems; missions run in campaign order. Filter by kind, tag (click a tag on a
   card), character (records they speak in) or text; drag a card to another column and Save writes the chapters;
-  ＋ in a column starts a record already in that chapter. The sidebar lists story records under their chapters
+  ＋ in a column starts a record already in that chapter. A second sideways scrollbar sits above the columns
+  (`.board-topscroll`, sticky at the top of `#main`, kept in step with `.board-cols` both ways and sized to its
+  `scrollWidth` on every draw and resize; v0.76.1). The sidebar lists story records under their chapters
   once any have one. Seeded with Act 1's four chapters, Act 2 and the endings, and eight bible entries from
   STORY.md.
 - **Cinematic editing tools** (v0.27.0): fly the preview (drag orbits, Shift / right drag pans the focus over the

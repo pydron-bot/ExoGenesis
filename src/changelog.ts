@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.76.1',
+    date: '2026-11-23',
+    title: 'Story board scrolling',
+    notes: [
+      'Editor: the Story board has a second sideways scrollbar above the chapters that stays at the top while you scroll down, so you can move between chapters without scrolling to the bottom first',
+    ],
+    guide: [],
+  },
+  {
     version: '0.76.0',
     date: '2026-11-23',
     title: 'Anti-aliasing choices',
