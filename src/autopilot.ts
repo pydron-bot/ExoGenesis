@@ -34,6 +34,8 @@ interface Deps {
   tap?(): void;
   /** The game is over: an ending (the campaign is over) or an expedition lost (it goes home). Null while it plays. */
   outcome?(): 'ended' | 'lost-away' | null;
+  /** Clear the player's selection (its card would sit over the game while you watch). */
+  deselect?(): void;
 }
 
 /** A shot: what the camera looks at and how close. */
@@ -91,7 +93,7 @@ export class AutopilotView {
   set(on: boolean, opts: Partial<Pick<AutopilotPrefs, 'policy' | 'assist' | 'speed'>> = {}) {
     Object.assign(this.prefs, opts, { on });
     if (!on) { this.card = { key: '', at: 0, picked: false }; this.shot = null; this.d.setSpeed(this.d.speed() > 1 ? 1 : this.d.speed()); document.querySelectorAll('.ap-pick').forEach((b) => b.classList.remove('ap-pick')); }
-    else this.d.setSpeed(this.prefs.speed);
+    else { this.d.setSpeed(this.prefs.speed); this.d.deselect?.(); }
     this.sync();
   }
 
@@ -118,9 +120,23 @@ export class AutopilotView {
     const busy = this.d.busy();
     const cap = now < this.say.until ? this.say.text : this.status.doing;
     if (this.capEl.textContent !== cap) this.capEl.textContent = cap;
+    this.clearCard();
     if (busy) return;
     this.answer(now);
     this.direct(now, dt);
+  }
+
+  /** A story card up where the badge sits (narrower screens): the badge moves just under it, so the card reads clear and Stop stays in reach. */
+  private clearCard() {
+    const card = document.getElementById('contact');
+    let top = '';
+    if (card?.classList.contains('on')) {
+      const r = card.getBoundingClientRect(), a = this.el.getBoundingClientRect();
+      const zoom = parseFloat(getComputedStyle(this.el).zoom) || 1;
+      if (r.height && r.right > innerWidth - a.width - 24) top = `${Math.round((r.bottom + 8) / zoom)}px`;
+    }
+    if (this.el.style.top !== top) this.el.style.top = top;
+    this.el.classList.toggle('below-card', !!top);
   }
 
   // ---------- story cards ----------

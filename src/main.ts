@@ -847,6 +847,7 @@ const autopilot = apAllowed ? new AutopilotView({
   },
   canvas: renderer.domElement,
   tap: () => audio.play('tap'),
+  deselect: () => { if (ui.sel) { ui.sel = null; hud.selected(); } },
 }, false) : null;
 if (autopilot) {
   sim.onPilot = (st) => autopilot.report(st);
@@ -1693,8 +1694,11 @@ function frame(now: number) {
     region.flora?.update(t, 1 - smoothstep(-0.2, 0.15, sunUp), camera);
     if (selectFirstDrone && !cine && sim.cur.deployed && sim.cur.drones.length) {
       selectFirstDrone = false;
+      // (not while the computer plays: nothing of yours to select)
+      if (!autopilot?.on) {
       ui.sel = { kind: 'drone', id: sim.cur.drones[0].id };
       hud.selected();
+      }
     }
     if (title) title.update(dt, cam.altitude(), solTime(sim.cur.tick).toUpperCase());
     const alpha = sim.alpha(now);

@@ -239,7 +239,7 @@ body.placing #card { display: none !important; }
 /* inhabitants: first contact and trust story (src/contact-card.ts) */
 #contact {
   position: absolute; left: 50%; top: calc(var(--safe-top) + 64px); transform: translateX(-50%); width: min(380px, calc(100vw - 32px));
-  background: color-mix(in srgb, var(--panel-base) min(100%, calc(90% * var(--panel-k))), transparent); border: 1px solid color-mix(in srgb, var(--amber) 55%, transparent); border-radius: 6px; padding: 12px 14px; display: none; pointer-events: auto;
+  background: color-mix(in srgb, var(--panel-base) min(100%, calc(100% * var(--panel-k) + 40%)), transparent); border: 1px solid color-mix(in srgb, var(--amber) 55%, transparent); border-radius: 6px; padding: 12px 14px; display: none; pointer-events: auto;
 }
 #contact.on { display: block; }
 #contact .who { color: var(--cyan-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 2px; }
@@ -940,6 +940,10 @@ body.title #autopilot, body.cine #autopilot, body.travelling #autopilot { displa
 /* the card's choice the autopilot is about to press */
 #contact button.ap-pick, #contact button.ap-pick:hover { background: #c58cff; color: #05080d; border-color: #c58cff; box-shadow: 0 0 14px #c58cff; }
 @media (max-width: 640px) { #autopilot { top: calc(118px + var(--safe-top)); } }
+/* a story card up where the badge sits: src/autopilot.ts moves the badge just under it (its caption hidden) */
+#autopilot.below-card .ap-cap { display: none; }
+/* the tutorial's pointers are for a player's hands: none while the computer plays (the Field Guide's tour still shows) */
+body.autopilot #hint:not(.act) { display: none !important; }
 
 /* ---------- the Field Guide (src/guide.ts) ---------- */
 #guide {
