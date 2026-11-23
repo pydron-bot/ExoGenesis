@@ -21,13 +21,23 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: '0.74.1',
+    version: '0.74.2',
     date: '2026-11-23',
     title: 'Watching on a phone',
     notes: [
       'Watch the computer play: on a phone, the AUTOPILOT badge no longer sits on top of a story card; it moves just under the card, with Stop still in reach',
       'Story cards are solid, so the goals and the log no longer show through the text',
       'The tutorial\'s pointers (like the one at Build) stay hidden while the computer plays, and starting it clears whatever you had selected',
+    ],
+    guide: [],
+  },
+  {
+    version: '0.74.1',
+    date: '2026-11-23',
+    title: 'Music editor',
+    notes: [
+      'Editor: written music scores can be edited visually in Rules → Music. Arrange the sections by dragging them, write chords, bass, bells and melody on a piano roll, loop a section while you work, and follow the playhead as it plays',
+      'Editor: a step sequencer for every mood\'s drum tracks and bassline, and ✎ Write a score to turn a drifting mood into a written one',
     ],
     guide: [],
   },

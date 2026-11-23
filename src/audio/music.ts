@@ -203,7 +203,9 @@ export class AmbientMusic {
   /** Panned drum tracks, one panner each (made on first use; let go with everything else on stop). */
   private drumPans: StereoPannerNode[] = [];
   /** Test and editor hook: what has been queued, and the chord now sounding (index into the mood's chords). */
-  played = { chords: 0, bells: 0, pulses: 0, hits: 0, arps: 0, leads: 0, calls: 0, chord: -1, section: -1, drift: false };
+  played = { chords: 0, bells: 0, pulses: 0, hits: 0, arps: 0, leads: 0, calls: 0, chord: -1, section: -1, drift: false, at: 0 };
+  /** Editor hook: the last drum steps queued, [step number, audio time], so a step grid can follow along. */
+  private stepLog: [number, number][] = [];
   /** A written score: a seeded random source for each part (null for a free-running mood). */
   private rngs: Record<string, () => number> | null = null;
   /** A written score set to drift afterwards: played through once, now drifting at random over its chords. */
@@ -445,7 +447,7 @@ export class AmbientMusic {
     while (this.nextCall < ahead) this.nextCall += this.run('call', () => this.call(this.nextCall));
     while (this.queue.length > 2 && this.queue[1].t < now) this.queue.shift();
     const q = [...this.queue].reverse().find((x) => x.t <= now);
-    if (q) { this.played.chord = q.i; this.played.section = q.section; }
+    if (q) { this.played.chord = q.i; this.played.section = q.section; this.played.at = q.t; }
   }
 
   /** The queued chord sounding at `t`. */
@@ -528,6 +530,12 @@ export class AmbientMusic {
   }
 
   /** One bar's length at the mood's tempo and time signature. */
+  /** Editor hook: the drum step sounding at audio time `t` (counted from the start), or -1 before the first. */
+  stepAt(t: number): number {
+    for (let i = this.stepLog.length - 1; i >= 0; i--) if (this.stepLog[i][1] <= t) return this.stepLog[i][0];
+    return -1;
+  }
+
   private barLen(m: MusicDef): number {
     return clamp(Math.round(fin(m.barSteps, 16)), 4, 32) / 4 * 60 / Math.max(20, fin(m.pulseRate, 70));
   }
@@ -842,6 +850,8 @@ export class AmbientMusic {
   private drumStep(t: number): number {
     const m = this.mood(), dur = 60 / Math.max(20, fin(m.pulseRate, 70)) / 4;
     const n = this.step++;
+    this.stepLog.push([n, t]);
+    if (this.stepLog.length > 48) this.stepLog.shift();
     if (m.bassline && fin(m.basslineLevel, 0.7) > 0 && this.on('bassline', t)) this.basslineStep(t, n, dur, m);
     const level = fin(m.drums, 0);
     if (!(level > 0) || !m.drumTracks?.length || this.played.chords <= fin(m.drumsIn, 0) || !this.on('drums', t)) return dur;

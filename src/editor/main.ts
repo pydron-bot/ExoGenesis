@@ -851,7 +851,10 @@ function renderForm() {
   if (cur.coll !== 'music' || musicPvFor !== cur) { musicPv?.dispose(); musicPv = null; musicPvFor = null; }
   if (cur.coll === 'music') {
     const at = cur;
-    musicPv ??= new MusicPanel(() => at.draft as unknown as MusicDef, () => files.get(pathOf('sound', 'sound'))?.data as SoundRules | undefined);
+    musicPv ??= new MusicPanel(() => at.draft as unknown as MusicDef, () => files.get(pathOf('sound', 'sound'))?.data as SoundRules | undefined, {
+      changed: () => { if (cur === at) changed(); },
+      rerender: () => { if (cur === at) renderForm(); },
+    });
     musicPvFor = cur;
     panel = musicPv.el;
   }
@@ -893,6 +896,7 @@ function changed() {
     row.querySelector('.was')!.textContent = was ? `was ${fmt(cur.saved[k])}` : '';
   }
   record();
+  musicPv?.sync();
   const ub = document.getElementById('undo') as HTMLButtonElement | null;
   if (ub && hist) { ub.disabled = hist.at === 0; ($('redo') as HTMLButtonElement).disabled = hist.at >= hist.stack.length - 1; }
   const isDirty = dirty();
@@ -1722,6 +1726,7 @@ addEventListener('keydown', (e) => {
   }
   const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
   if (e.key === '/' && !typing && !isMap()) { e.preventDefault(); sideSearch().focus(); }
+  if (e.key === ' ' && !typing && cur?.coll === 'music' && musicPv && !(t?.tagName === 'BUTTON')) { e.preventDefault(); musicPv.toggle(); }
   if (e.key === ' ' && !typing && cur?.coll === 'cinematics' && !(t?.tagName === 'BUTTON')) { e.preventDefault(); document.querySelector<HTMLButtonElement>('.tl-bar button.primary')?.click(); }
   if ((e.key === '[' || e.key === ']') && !typing && !isMap() && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); togglePanel(e.key === '[' ? 'side' : 'aside'); }
 });
