@@ -351,6 +351,18 @@ body.title #hud, body.title #labels, body.title #cine, body.title #help { displa
   transition: opacity 0.7s ease;
 }
 #title.out { opacity: 0; pointer-events: none; }
+/* the tour (title.ts): menu, wordmark and scanlines away, only the readout; a hint that fades */
+#title .t-col, #title .t-foot, #title .t-scan { transition: opacity 0.8s ease; }
+#title.touring .t-col, #title.touring .t-foot, #title.touring .t-scan { opacity: 0; pointer-events: none; }
+#title.touring { cursor: none; }
+#title.touring .t-foot { visibility: hidden; } /* its entry animation holds its opacity */
+#title.touring .t-vignette { background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.5) 100%); }
+#title .t-hint {
+  position: absolute; left: 0; right: 0; bottom: calc(22px + env(safe-area-inset-bottom)); text-align: center;
+  font-size: 11px; letter-spacing: 0.3em; color: var(--cyan-dim); opacity: 0; pointer-events: none;
+}
+#title.touring .t-hint.show { animation: t-hint 4.5s ease both; }
+@keyframes t-hint { 0% { opacity: 0; } 15% { opacity: 0.9; } 70% { opacity: 0.9; } 100% { opacity: 0; } }
 #title .t-vignette {
   position: absolute; inset: 0; pointer-events: none;
   background:

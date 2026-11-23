@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.75.0',
+    date: '2026-11-23',
+    title: 'Tour the system',
+    notes: [
+      'Title screen: 🪐 Tour puts the menu away and flies round the solar system on its own, planet to moon and back home, with nothing on screen but the readout. On a phone the screen stays on while it plays. Tap anywhere to bring the menu back',
+      'Steam over Deep-Core Mines, Geothermal Taps and open vents thins out as it rises, so from above it no longer reads as a bright column of light',
+      'The heat haze over working machines is fainter and lower, so it no longer draws long wavy stripes up the screen',
+    ],
+    guide: ['title-screen'],
+  },
+  {
     version: '0.74.3',
     date: '2026-11-23',
     title: 'Cinematics play once',
@@ -62,7 +73,7 @@ export const CHANGELOG: Release[] = [
       'On phones and tablets the Editor (which needs a computer) is no longer offered',
       'Field Guide: Show me only appears when the part of the screen it points at is there (the ⚠ threat counter waits for a Radar)',
     ],
-    guide: ['title-screen', 'watch-the-computer-play', 'field-guide', 'whats-new', 'options'],
+    guide: ['watch-the-computer-play', 'field-guide', 'whats-new', 'options'],
   },
   {
     version: '0.73.0',

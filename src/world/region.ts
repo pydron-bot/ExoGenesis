@@ -40,6 +40,29 @@ const metal = (c: string, extra: Partial<THREE.MeshStandardMaterialParameters> =
 const glow = (c: THREE.ColorRepresentation, i = 2.2) =>
   new THREE.MeshStandardMaterial({ color: '#000000', emissive: c, emissiveIntensity: i, flatShading: true });
 
+/**
+ * A wisp of steam or exhaust: an open cone, narrow end down at the source, that thins out as it rises.
+ * Its alpha fades from `opacity` near the source to nothing at the wide top, so from the usual
+ * high camera it reads as a haze over the stack rather than a solid beam of light.
+ */
+function steamCone(radius: number, height: number, color: string, opacity: number): THREE.Mesh {
+  const geo = new THREE.ConeGeometry(radius, height, 8, 4, true);
+  const pos = geo.attributes.position;
+  const rgba = new Float32Array(pos.count * 4);
+  const c = new THREE.Color(color);
+  for (let i = 0; i < pos.count; i++) {
+    const t = 0.5 - pos.getY(i) / height; // 0 at the apex (the source, once flipped), 1 at the wide top
+    const a = Math.min(1, t * 6) * (1 - t) ** 1.6;
+    rgba.set([c.r, c.g, c.b, a], i * 4);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(rgba, 4));
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  m.rotation.x = Math.PI;
+  return m;
+}
+
 export type Look = 'flat' | 'smooth';
 
 const ROCK = new THREE.Color('#6a5a50');
@@ -549,10 +572,7 @@ export function buildGeothermal(): THREE.Group {
     pipe.rotation.y = -a;
     g.add(pipe);
   }
-  const plume = new THREE.Mesh(new THREE.ConeGeometry(1.4, 5, 8, 1, true), new THREE.MeshBasicMaterial({
-    color: '#dfe8ee', transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide,
-  }));
-  plume.rotation.x = Math.PI;
+  const plume = steamCone(1.4, 5, '#dfe8ee', 0.2);
   plume.position.y = 9.2;
   plume.name = 'plume';
   g.add(plume);
@@ -613,10 +633,7 @@ export function buildVent(seed: number): THREE.Group {
     crack.rotation.y = yaw;
     g.add(crack);
   }
-  const steam = new THREE.Mesh(new THREE.ConeGeometry(1.6, 8, 8, 1, true), new THREE.MeshBasicMaterial({
-    color: '#e8eff4', transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide,
-  }));
-  steam.rotation.x = Math.PI;
+  const steam = steamCone(1.6, 8, '#e8eff4', 0.18);
   steam.position.y = 4.2;
   steam.name = 'steam';
   g.add(steam);

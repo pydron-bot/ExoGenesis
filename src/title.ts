@@ -7,6 +7,9 @@
  * planet or big moon, settles into a sunlit orbit there, and later moves on
  * (sometimes back home).
  *
+ * Tour (the 🪐 button, or `?tour=1`): the same trips with the wordmark and menu put away, a screensaver
+ * of the system. It leaves sooner, keeps the screen awake, and any tap or key brings the menu back.
+ *
  * The world keeps rendering behind it; main.ts decides what each choice does
  * and hides the HUD while `body.title` is set.
  */
@@ -74,6 +77,8 @@ export class TitleScreen {
   private at: Stop = null;
   private trip: Trip | null = null;
   private dwell = HOME_DWELL;
+  private touring = false;
+  private wake: { release(): Promise<void> } | null = null;
   active = true;
 
   constructor(private cam: ZoomCamera, private camera: THREE.PerspectiveCamera, private opts: TitleOptions) {
@@ -92,7 +97,8 @@ export class TitleScreen {
         <div class="endings"></div>
       </div>
       <div class="t-foot">${opts.foot}</div>
-      <div class="t-tele"></div>`;
+      <div class="t-tele"></div>
+      <div class="t-hint">${matchMedia('(pointer: coarse)').matches ? 'TAP' : 'CLICK OR PRESS A KEY'} TO RETURN</div>`;
     this.tagEl = root.querySelector('.t-typed')!;
     this.tele = root.querySelector('.t-tele')!;
     this.statusEl = root.querySelector('.t-status')!;
@@ -147,6 +153,9 @@ export class TitleScreen {
       }
       if (e.key === 'Escape') this.disarm();
     });
+    // touring: the first tap or key anywhere brings the menu back (pointerdown, so the tap that started it can't)
+    root.addEventListener('pointerdown', () => { if (this.touring) this.tour(false); });
+    addEventListener('keydown', this.tourKey);
     document.body.appendChild(root);
     document.body.classList.add('title');
     this.refresh();
@@ -183,6 +192,29 @@ export class TitleScreen {
       mark.style.fontSize = `${Math.floor(fs * avail / natural * 0.98)}px`;
     }
   };
+
+  private tourKey = () => { if (this.touring) this.tour(false); };
+
+  /** Put the menu away and tour the system (a screensaver), or bring the menu back. */
+  tour(on: boolean) {
+    if (!this.active || on === this.touring) return;
+    this.touring = on;
+    this.disarm();
+    this.root.classList.toggle('touring', on);
+    if (on) {
+      // off somewhere soon, rather than after the full dwell over home
+      this.dwell = Math.min(this.dwell, 2.5);
+      const hint = this.root.querySelector('.t-hint')!;
+      hint.classList.remove('show'); void (hint as HTMLElement).offsetWidth; hint.classList.add('show');
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      // keep a phone's screen on while it plays (where the browser allows it)
+      const wl = (navigator as Navigator & { wakeLock?: { request(t: 'screen'): Promise<{ release(): Promise<void> }> } }).wakeLock;
+      wl?.request('screen').then((l) => { if (this.touring) this.wake = l; else void l.release(); }).catch(() => {});
+    } else {
+      void this.wake?.release().catch(() => {});
+      this.wake = null;
+    }
+  }
 
   private disarm() {
     if (!this.armed) return;
@@ -226,6 +258,7 @@ export class TitleScreen {
     cam.targetPitch = 0.38 + 0.22 * Math.sin(t * 0.037 + 1);
     const sys = this.opts.system;
     if (sys && !this.trip && (this.dwell -= dt) <= 0) this.depart(sys, orbitDist);
+    if (this.touring && !this.trip && !this.at && this.dwell > 12) this.dwell = 12; // a shorter stay at home on the tour
     if (this.trip) {
       const tr = this.trip;
       tr.u = Math.min(1, tr.u + dt / tr.dur);
@@ -253,7 +286,8 @@ export class TitleScreen {
     }
     // landscape: shift the planet right, clear of the menu column; portrait: lift it
     // into the gap between the wordmark and the menu
-    if (aspect > 1.1) this.camera.setViewOffset(w, h, -Math.min(w * 0.2, w / 2 - 360), 0, w, h);
+    if (this.touring) { if (this.camera.view) this.camera.clearViewOffset(); } // nothing to keep clear of: centred
+    else if (aspect > 1.1) this.camera.setViewOffset(w, h, -Math.min(w * 0.2, w / 2 - 360), 0, w, h);
     else if (aspect < 1) this.camera.setViewOffset(w, h, 0, h * 0.1, w, h);
     else if (this.camera.view) this.camera.clearViewOffset();
 
@@ -292,8 +326,10 @@ export class TitleScreen {
   /** Fade out and hand the camera back. Resolves when the screen is gone. */
   hide(): Promise<void> {
     if (!this.active) return Promise.resolve();
+    this.tour(false);
     this.active = false;
     removeEventListener('resize', this.fitMark);
+    removeEventListener('keydown', this.tourKey);
     // back home if the tour had wandered off: the game picks up from orbit over home
     if (this.at || this.trip) {
       this.at = this.trip = null;

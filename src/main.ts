@@ -1562,6 +1562,7 @@ function showTitle() {
     { id: 'skirmish', kind: 'tile', label: 'SKIRMISH', sub: 'You against the computer', run: () => showSkirmishSetup() },
     { id: 'guide', kind: 'icon', icon: '📖', label: 'Guide', sub: 'Field Guide: how to play, page by page', run: () => openGuide() },
     { id: 'options', kind: 'icon', icon: '⚙', label: 'Options', sub: regions.length > 1 ? 'Region, sound, graphics and the autopilot' : 'Sound, graphics and the autopilot', run: () => showOptions(undefined, titleOptions) },
+    { id: 'tour', kind: 'icon', icon: '🪐', label: 'Tour', sub: 'Fly round the system with the menu put away · tap to come back', run: () => title?.tour(true) },
     ...(autopilot ? [{ id: 'watch', kind: 'icon' as const, icon: '👁', label: 'Watch', sub: `Watch the computer play${saved ? ' your campaign' : ''} (settings in Options)`, run: watch }] : []),
     { id: 'news', kind: 'icon', icon: '✦', label: "What's new", sub: `Version ${VERSION}`, badge: hasUnseen(), run: () => openWhatsNew(() => title?.root.querySelectorAll('.badge').forEach((b) => b.remove())) },
     ...(!coarse ? [{ id: 'editor', kind: 'icon' as const, icon: '✎', label: 'Editor', sub: 'Units, buildings, maps and models', href: `${import.meta.env.BASE_URL}editor.html` }] : []),
@@ -1575,6 +1576,7 @@ function showTitle() {
     endings: (() => { const n = endingsReached().length; return n ? `ENDINGS: ${n} OF ${ENDINGS.length}` : ''; })(),
     status: () => (audio.disabled || !audio.on || audio.state === 'running' ? '' : `♪ ${matchMedia('(pointer: coarse)').matches ? 'TAP' : 'CLICK'} ANYWHERE FOR SOUND`),
   });
+  if (params.get('tour') === '1') title.tour(true);
   const ver = title.root.querySelector<HTMLButtonElement>('.t-ver')!;
   ver.onclick = () => { audio.play('tap'); openWhatsNew(() => title?.root.querySelectorAll('.badge').forEach((b) => b.remove())); };
 }

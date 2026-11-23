@@ -59,10 +59,11 @@ const DistortShader = {
         vec2 d = (vUv - h.xy) * vec2(uAspect, 1.0);
         // a column: narrow at the source, rising and spreading above it
         float w = h.z * (0.55 + 0.6 * clamp(d.y / h.z, 0.0, 2.0));
-        float col = exp(-pow(d.x / w, 2.0)) * smoothstep(-0.2 * h.z, 0.3 * h.z, d.y) * (1.0 - smoothstep(1.2 * h.z, 3.2 * h.z, d.y));
+        // (kept short and faint: from the high camera a tall column reads as a stripe of light, v0.74.3)
+        float col = exp(-pow(d.x / w, 2.0)) * smoothstep(-0.2 * h.z, 0.3 * h.z, d.y) * (1.0 - smoothstep(0.7 * h.z, 1.8 * h.z, d.y));
         float fi = float(i) * 1.7;
         vec2 wob = vec2(sin(vUv.y * 220.0 - uTime * 7.0 + fi) + 0.5 * sin(vUv.y * 470.0 - uTime * 11.0), cos(vUv.x * 160.0 + uTime * 5.0 + fi));
-        uv += wob * 0.0016 * col * uHeatK;
+        uv += wob * 0.0009 * col * uHeatK;
       }
       vec4 c = texture2D(tDiffuse, uv);
       if (uZoom > 0.0005) {

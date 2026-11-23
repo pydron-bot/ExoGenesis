@@ -1382,6 +1382,25 @@ row (HERE on the current one) that reloads into it (`goRegion`). The in-game ⋯
 `tools/region-smoke.mjs` (pick a region in Options), `tools/options-smoke.mjs` (sound and regions first, graphics last).
 
 
+### Title tour and softer columns (v0.75.0)
+
+- **Tour** (title icon 🪐, or `?tour=1`): `TitleScreen.tour(on)` toggles `#title.touring`. CSS fades out the
+  column, foot and scanlines (the foot gets `visibility: hidden`, because its entry animation holds its opacity),
+  keeps only the radial vignette, and centres the planet (no view offset). The camera runs the same trip and dwell
+  logic, but the first departure comes after 2.5 s and the stay at home is capped at 12 s. A Screen Wake Lock is
+  requested where the browser has one. A `pointerdown` on the root, or any keydown, ends the tour. `pointerdown`
+  is used so the click that started the tour can't end it. `hide()` ends the tour too.
+- **Steam and exhaust** (`steamCone` in `src/world/region.ts`): the Deep-Core Mine plume and the vent/Geothermal
+  steam are open cones with an RGBA vertex-colour alpha. Alpha ramps in over the first 1/6, then falls as
+  (1-t)^1.6 to nothing at the wide top. Opacity is 0.2 / 0.18 (it was a flat 0.22 / 0.2). From the high camera
+  the flat cones read as solid beams.
+- **Heat shimmer** (`DistortShader` in `src/world/post.ts`): amplitude 0.0016 → 0.0009 uv, and the column ends
+  at 0.7–1.8× source size instead of 1.2–3.2×. From the top-down phone camera, the tall column showed as a long
+  wavy stripe.
+- Checked with `tools/lights-shot.mjs` at a phone size (before and after) and a Playwright run of the tour
+  (title → Tour → trip to Verdance → tap returns the menu, no page errors). The options, guide and region smokes
+  pass.
+
 ### Biomes and wildlife (v0.41.0)
 
 Two content collections, editable under **Nature** in the editor, with a 3D preview (`src/editor/nature-preview.ts`:
