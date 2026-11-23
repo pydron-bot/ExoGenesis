@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.76.0',
+    date: '2026-11-23',
+    title: 'Anti-aliasing choices',
+    notes: [
+      'Options → Graphics has a new Anti-aliasing setting to smooth jagged edges: Auto (as before, picked for your device), Off, FXAA (cheapest, a little soft), SMAA (sharp, a little more work) or MSAA (smoothest, the most work). Tap it to step through them',
+      'Phones with Glow on had no edge smoothing at all; pick SMAA or FXAA there to get it back',
+    ],
+    guide: ['options'],
+  },
+  {
     version: '0.75.1',
     date: '2026-11-23',
     title: 'No light shafts at night',
@@ -82,7 +92,7 @@ export const CHANGELOG: Release[] = [
       'On phones and tablets the Editor (which needs a computer) is no longer offered',
       'Field Guide: Show me only appears when the part of the screen it points at is there (the ⚠ threat counter waits for a Radar)',
     ],
-    guide: ['watch-the-computer-play', 'field-guide', 'whats-new', 'options'],
+    guide: ['watch-the-computer-play', 'field-guide', 'whats-new'], // options: revised again in 0.76.0
   },
   {
     version: '0.73.0',

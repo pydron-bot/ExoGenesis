@@ -8,6 +8,18 @@
  * renderer would otherwise do itself. While it's off the renderer draws straight to
  * the screen, exactly as before, so turning it off costs nothing.
  *
+ * Anti-aliasing (⚙ Options → Anti-aliasing, remembered; `?aa=auto|off|fxaa|smaa|msaa` overrides):
+ *  - auto: as it always was. Glow off: the canvas's own MSAA. Glow on: 4× MSAA on the HDR target on
+ *    desktop, none on phones.
+ *  - off / fxaa / smaa / msaa: the same whether Glow is on or off. FXAA and SMAA are passes after
+ *    OutputPass; MSAA is the canvas's own when Glow is off (if the page started with it), else 4× on the
+ *    target. With Glow off and FXAA/SMAA (or MSAA on a canvas without its own) the composer runs with
+ *    bloom and the other effects skipped.
+ *  The canvas's MSAA is fixed when the page loads (main.ts asks for it only for auto/msaa), so switching
+ *  to Off with Glow off applies after a restart (the options row says so).
+ * Cost (tools/aa-bench.mjs, llvmpipe, glow on, phone size): FXAA +10%, SMAA +14%, MSAA +42%. A CPU
+ * renderer overstates MSAA; on phone GPUs it's much cheaper, so measure there before changing `auto`.
+ *
  * The threshold follows the light: low at night, so glow strips, pods, floodlight
  * pools and gunfire bloom; high by day, so only the hottest things (flashes,
  * explosions, the sun) do and sunlit ground never washes out.
@@ -18,6 +30,11 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+
+export type AAMode = 'auto' | 'off' | 'fxaa' | 'smaa' | 'msaa';
+export const AA_MODES: AAMode[] = ['auto', 'off', 'fxaa', 'smaa', 'msaa'];
 
 /**
  * Sun shafts (with Glow on): light streaming from the sun past whatever stands in front of it. The
@@ -134,26 +151,67 @@ export class Post {
   private shafts: ShaderPass | null = null;
   private distort: ShaderPass | null = null;
   private on = false;
+  private aaMode: AAMode = 'auto';
+  private aaPass: FXAAPass | SMAAPass | null = null;
+  /** Whether the canvas itself was made with MSAA (fixed for the page's life). */
+  private readonly nativeAA: boolean;
   /** Bloom strength, threshold and radius in use (test hook). */
   readonly look = { strength: 0, threshold: 0, radius: 0, shafts: 0, zoom: 0, heat: 0 };
 
-  constructor(private renderer: THREE.WebGLRenderer, private scene: THREE.Scene, private camera: THREE.Camera) {}
+  constructor(private renderer: THREE.WebGLRenderer, private scene: THREE.Scene, private camera: THREE.Camera) {
+    this.nativeAA = !!renderer.getContext().getContextAttributes()?.antialias;
+  }
 
   get enabled() { return this.on; }
   set enabled(v: boolean) {
     this.on = v;
-    if (v && !this.composer) this.build();
+    if (this.needsComposer() && !this.composer) this.build();
+  }
+
+  get aa() { return this.aaMode; }
+  set aa(m: AAMode) {
+    if (m === this.aaMode) return;
+    this.aaMode = m;
+    this.dispose(); // the target's sample count and the AA pass are fixed at build
+    if (this.needsComposer()) this.build();
+  }
+
+  /** What actually smooths edges right now (for the options row and tests). */
+  get aaInUse(): 'off' | 'fxaa' | 'smaa' | 'msaa' {
+    if (this.composer && this.needsComposer()) {
+      if (this.aaPass) return this.aaMode as 'fxaa' | 'smaa';
+      return this.samples() > 0 ? 'msaa' : 'off';
+    }
+    return this.nativeAA ? 'msaa' : 'off';
+  }
+
+  private samples() {
+    const q = new URLSearchParams(location.search).get('glowaa');
+    if (q !== null) return Number(q) || 0;
+    // the renderer's own antialias doesn't apply to render targets, so desktop multisamples the HDR target;
+    // auto skips that on phones (dense screens hide the jaggies, and on SwiftShader 4× MSAA more than doubled the frame)
+    if (this.aaMode === 'auto') return PHONE ? 0 : 4;
+    return this.aaMode === 'msaa' ? 4 : 0;
+  }
+
+  /** Glow needs it; so do FXAA/SMAA, and MSAA on a canvas that wasn't made with its own. */
+  private needsComposer() {
+    const m = this.aaMode;
+    return this.on || m === 'fxaa' || m === 'smaa' || (m === 'msaa' && !this.nativeAA);
+  }
+
+  private dispose() {
+    if (!this.composer) return;
+    for (const p of this.composer.passes) p.dispose?.();
+    this.composer.dispose();
+    this.composer = this.bloom = this.shafts = this.distort = this.aaPass = null;
   }
 
   private build() {
     const r = this.renderer;
     const size = r.getSize(new THREE.Vector2());
     const pr = r.getPixelRatio();
-    // HDR. The renderer's own antialias doesn't apply to render targets, so desktop multisamples it; phones
-    // skip that (dense screens hide the jaggies, and on SwiftShader 4× MSAA more than doubled the frame:
-    // phone size, dpr 1: ~190 ms with it, ~80 ms without, vs ~100 ms with glow off). ?glowaa=N overrides.
-    const aa = Number(new URLSearchParams(location.search).get('glowaa') ?? (matchMedia('(pointer: coarse)').matches ? 0 : 4));
-    const target = new THREE.WebGLRenderTarget(size.x * pr, size.y * pr, { type: THREE.HalfFloatType, samples: aa });
+    const target = new THREE.WebGLRenderTarget(size.x * pr, size.y * pr, { type: THREE.HalfFloatType, samples: this.samples() });
     const c = new EffectComposer(r, target);
     c.addPass(new RenderPass(this.scene, this.camera));
     const sh = new ShaderPass(ShaftShader);
@@ -170,6 +228,9 @@ export class Post {
     b.setSize = (w: number, h: number) => setSize(Math.max(1, Math.round(w * BLOOM_SCALE)), Math.max(1, Math.round(h * BLOOM_SCALE)));
     c.addPass(b);
     c.addPass(new OutputPass());
+    // FXAA/SMAA work on the final (tone-mapped, sRGB) picture, so they go last
+    this.aaPass = this.aaMode === 'fxaa' ? new FXAAPass() : this.aaMode === 'smaa' ? new SMAAPass() : null;
+    if (this.aaPass) c.addPass(this.aaPass);
     this.composer = c;
     this.bloom = b;
     this.resize();
@@ -228,7 +289,11 @@ export class Post {
   }
 
   render(dt: number) {
-    if (this.on && this.composer) this.composer.render(dt);
-    else this.renderer.render(this.scene, this.camera);
+    if (this.composer && this.needsComposer()) {
+      // with Glow off the composer is only here for anti-aliasing: skip bloom and the glow-only effects
+      if (!this.on) this.bloom!.enabled = this.shafts!.enabled = this.distort!.enabled = false;
+      else this.bloom!.enabled = true;
+      this.composer.render(dt);
+    } else this.renderer.render(this.scene, this.camera);
   }
 }

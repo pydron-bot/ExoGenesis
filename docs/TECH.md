@@ -429,9 +429,20 @@ How content is stored and edited in general (one JSON record per file, schemas i
     bloom; sunlit ground never does), 0.72 at night (glow strips, pods, light pools, gunfire, the flora's tips), 0.85
     in orbit. Default: on for desktop, off on phones (`pointer: coarse`) and in automated browsers (it halves
     SwiftShader frame rates, and tests like the turret-aim check count frames). Desktop multisamples the target 4×;
-    phones don't (`?glowaa=N`). Phone size, dpr 1, SwiftShader: ~100 ms/frame glow off, ~190 with 4× MSAA, ~80 with
+    phones don't (`?glowaa=N` sets the sample count; since 0.76.0 the ⚙ Anti-aliasing option below decides). Phone size, dpr 1, SwiftShader: ~100 ms/frame glow off, ~190 with 4× MSAA, ~80 with
     none (cheaper than off, since the canvas's own MSAA then only draws a quad). Needs a real-phone check before
     defaulting it on there.
+  - **Anti-aliasing (v0.76.0)** (`src/world/post.ts`, ⚙ Options → Anti-aliasing, `exo.aa`, `?aa=auto|off|fxaa|smaa|msaa`):
+    a cycling row. `auto` is the old behaviour (canvas MSAA with Glow off; with Glow on 4× MSAA on the HDR target on
+    desktop, none on phones). FXAA/SMAA are `FXAAPass`/`SMAAPass` after `OutputPass`; MSAA is the canvas's own with
+    Glow off, else 4× on the target. Glow off + FXAA/SMAA (or MSAA on a canvas made without it) runs the composer
+    with bloom, shafts and shimmer skipped. The canvas's `antialias` is fixed at load (asked for only for auto/msaa),
+    so Off with Glow off applies after a restart; the row then reads `OFF · RESTART`. `post.aaInUse` says what is
+    actually smoothing. Cost, `tools/aa-bench.mjs phone` (llvmpipe, 682×1162, p50 ms; no GPU browser on hive1):
+    glow off: off 43, canvas MSAA 100, FXAA 85, SMAA 88; glow on: off 84, FXAA 94, SMAA 101, MSAA 137. A CPU
+    renderer overstates MSAA (phone GPUs resolve on chip), so check a real phone before changing `auto`. Quality:
+    SMAA ≈ MSAA on building/drone edges, FXAA visibly softens small detail, MSAA best on thin flora stems.
+    `tools/options-smoke.mjs` checks the cycle, that each mode takes effect, and that it's remembered.
   - **Ground shadows** (`src/world/lights.ts`): drawn into the light map's alpha channel (the blob pass now blends
     ONE/ONE on all four channels and clears alpha to 0). Buildings get a contact patch plus a sun shadow pushed
     away from the sun, `h / tan(elevation)` long (capped at 4h), fading out as the sun sets. Drones and units get

@@ -30,7 +30,7 @@ import { StoryHud } from './story-hud';
 import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
-import { HEAT_MAX, Post } from './world/post';
+import { AA_MODES, HEAT_MAX, Post, type AAMode } from './world/post';
 import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
@@ -246,7 +246,14 @@ setRegionTerrain(terrain);
 
 // ---------- renderer / scene ----------
 const coarse = matchMedia('(pointer: coarse)').matches;
-const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
+// anti-aliasing (⚙ Options, src/world/post.ts): the URL (?aa=auto|off|fxaa|smaa|msaa) wins, then what the player chose.
+// Read before the canvas is made: its own MSAA is fixed then, so ask for it only when the mode might use it.
+const AA_KEY = 'exo.aa';
+const aaFromUrl = AA_MODES.includes(params.get('aa') as AAMode) ? (params.get('aa') as AAMode) : null;
+let aaStart: AAMode = 'auto';
+try { const v = localStorage.getItem(AA_KEY) as AAMode | null; if (v && AA_MODES.includes(v)) aaStart = v; } catch { /* private mode */ }
+aaStart = aaFromUrl ?? aaStart;
+const renderer = new THREE.WebGLRenderer({ antialias: aaStart === 'auto' || aaStart === 'msaa', logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 // Render scale: starts at the device's (capped) pixel ratio and steps down while
 // frames are slow, back up when there's headroom. Phones are fill-bound, so this
 // is the big lever. ?dpr=N pins it.
@@ -304,6 +311,7 @@ let bgPause = setting(BGPAUSE_KEY, 'bgpause', true);
 let zoomToCursor = setting(CURSOR_KEY, 'zoomcursor', true);
 let edgeScroll = setting(EDGE_KEY, 'edgescroll', false);
 const post = new Post(renderer, scene, camera);
+post.aa = aaStart;
 post.enabled = setting(GLOW_KEY, 'bloom', !coarse && !navigator.webdriver);
 if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
 // lens flare from the sun (src/world/flare.ts): Options → Lens flare, remembered; ?flare=0|1 overrides
@@ -1334,6 +1342,15 @@ const graphicsToggles: Toggle[] = [
   {
     id: 'glow', label: 'Glow', help: 'Lights, glow strips and gunfire spill soft light. Costs some speed on phones.',
     get: () => post.enabled, set: (v) => { post.enabled = v; remember(GLOW_KEY, v); }, locked: urlLock('bloom'),
+  },
+  {
+    id: 'aa', label: 'Anti-aliasing',
+    help: 'Smooths jagged edges. Auto: picks for the device. FXAA: cheapest, a little soft. SMAA: sharp, a little more. '
+      + 'MSAA: the smoothest, the most work for the graphics chip. Off (with Glow off) applies after a restart.',
+    get: () => post.aa !== 'off',
+    set: () => { const m = AA_MODES[(AA_MODES.indexOf(post.aa) + 1) % AA_MODES.length]; post.aa = m; try { localStorage.setItem(AA_KEY, m); } catch { /* private mode */ } },
+    state: () => (post.aa === 'auto' ? `AUTO · ${post.aaInUse.toUpperCase()}` : post.aaInUse !== post.aa ? `${post.aa.toUpperCase()} · RESTART` : post.aa.toUpperCase()),
+    locked: () => (aaFromUrl ? 'Set in URL' : null),
   },
   {
     id: 'flare', label: 'Lens flare', help: 'The sun flares across the camera lens when it is in view, fading as a planet or the horizon hides it.',

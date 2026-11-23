@@ -29,7 +29,7 @@ async function run(viewport, name, mobile = false) {
   const live = () => page.evaluate(() => ({ glow: __exo.post.enabled, flare: __exo.flare.enabled, dust: __exo.dust.enabled, weather: __exo.weather.enabled, print: __exo.region.printing, water: __exo.region.waterDetail }));
   const all = await state();
   const ids = Object.keys(all), regionIds = ids.filter((k) => k.startsWith('region:'));
-  check(ids.slice(-9).join() === 'glow,flare,dust,zoomblur,weather,shadows,print,water,lights', `${name}: nine graphics toggles (${ids.slice(-9).join()})`);
+  check(ids.slice(-10).join() === 'glow,aa,flare,dust,zoomblur,weather,shadows,print,water,lights', `${name}: ten graphics rows (${ids.slice(-10).join()})`);
   const first = ids.filter((k) => !k.startsWith('ap:'));
   check(first[0] === 'sound' && ids.slice(0, ids.indexOf('sound')).every((k) => k.startsWith('ap:')) && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, the autopilot rows, then sound and the regions (${regionIds.length} regions, Touchdown picked)`);
   // the graphics toggles flip and are remembered (sound and the region list have their own checks)
@@ -51,6 +51,21 @@ async function run(viewport, name, mobile = false) {
   check(JSON.stringify(s2) === JSON.stringify(s1), `${name}: remembered after a reload`);
   // put them back
   for (const id of Object.keys(s0)) if (s2[id] !== s0[id]) await page.click(`#options [data-id="${id}"]`);
+  // anti-aliasing cycles auto → off → fxaa → smaa → msaa → auto, says what is in use, and is remembered
+  const aa = () => page.evaluate(() => ({ mode: __exo.post.aa, used: __exo.post.aaInUse, label: document.querySelector('#options [data-id="aa"] .op-state').textContent }));
+  const a0 = await aa();
+  check(a0.mode === 'auto' && a0.label === `AUTO · ${a0.used.toUpperCase()}`, `${name}: anti-aliasing starts on auto (${a0.label})`);
+  const seen = [];
+  for (let i = 0; i < 5; i++) { await page.click('#options [data-id="aa"]'); await page.waitForTimeout(150); seen.push(await aa()); }
+  check(seen.map((a) => a.mode).join() === 'off,fxaa,smaa,msaa,auto', `${name}: anti-aliasing cycles (${seen.map((a) => a.label).join(' → ')})`);
+  check(seen[1].used === 'fxaa' && seen[2].used === 'smaa' && seen[3].used === 'msaa', `${name}: FXAA, SMAA and MSAA each take effect at once`);
+  await page.click('#options [data-id="aa"]'); await page.click('#options [data-id="aa"]'); await page.click('#options [data-id="aa"]'); // smaa
+  await open();
+  check((await page.evaluate(() => [__exo.post.aa, __exo.post.aaInUse].join())) === 'smaa,smaa', `${name}: anti-aliasing remembered after a reload`);
+  await page.evaluate(() => localStorage.removeItem('exo.aa'));
+  await open();
+  await page.click('#title [data-id="options"]');
+  await page.waitForSelector('#options .op-row');
   await page.click('#options .op-x');
   await ctx.close();
 }
