@@ -620,6 +620,12 @@ function startLanding() {
   const from = Number(params.get('cine'));
   if (from > 0) cine.seek(from);
 }
+/**
+ * Cinematics this page has finished but the sim's queue still lists: a cinematic ends mid-frame and the worker hears
+ * of it after, so the queue read later that frame is stale (it used to start the cinematic again). Dropped once the
+ * queue no longer has them.
+ */
+const cineFinished = new Set<string>();
 /** Play a world cinematic over the game, paused; tell the sim when it's over. */
 function playCinematic(id: string, def: CinematicDef, from = 0) {
   if (cine) return;
@@ -632,6 +638,7 @@ function playCinematic(id: string, def: CinematicDef, from = 0) {
   setBuild(null);
   cine = new Cinematic(id, def, cam, cineHooks(() => {
     endCine();
+    cineFinished.add(id);
     sim.command({ type: 'cinematic', id, done: true });
     setSpeed(cineResume);
   }));
@@ -1684,7 +1691,9 @@ function frame(now: number) {
     const day = smoothstep(-0.15, 0.25, sunUp);
     cine?.update(dt, day);
     // story cinematics the sim has queued: one at a time, once the landing and title are done
-    const queued = sim.cur.story.cine?.[0];
+    const cq = sim.cur.story.cine ?? [];
+    for (const id of cineFinished) if (!cq.includes(id)) cineFinished.delete(id);
+    const queued = cq.find((id) => !cineFinished.has(id));
     if (queued && !cine && !title && sim.cur.deployed) {
       const def = preview?.cinematic?.id === queued ? preview.cinematic.def : content.cinematics[queued];
       // automated tests don't sit through cinematics unless they asked for one

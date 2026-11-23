@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.74.3',
+    date: '2026-11-23',
+    title: 'Cinematics play once',
+    notes: [
+      'A cinematic that ran to its end (rather than being skipped) started again straight away. Now each plays once',
+    ],
+    guide: [],
+  },
+  {
     version: '0.74.2',
     date: '2026-11-23',
     title: 'Watching on a phone',
