@@ -41,7 +41,7 @@ import { campSites } from './sim/inhabitants';
 import { START_HOUR, hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
-import { TitleScreen } from './title';
+import { TitleScreen, type TitleChoice } from './title';
 import { VERSION } from './changelog';
 import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
@@ -1475,9 +1475,9 @@ function dailyChoice() {
   const d = dailyRules(dailyDate(), oceanWorld), rec = dailyRecord(d.date);
   const base = import.meta.env.BASE_URL;
   const what = `${worldName(d.world)} · ${d.players - 1} rival${d.players > 2 ? 's' : ''}${d.ai === 'hard' ? ' · Hard' : ''}`;
-  const sub = rec?.result ? `Today: ${rec.result.won ? 'victory' : 'fell'} · ${rec.result.score.toLocaleString('en')} pts · tap to share`
-    : rec ? `Today's try was left unfinished · ${what} · practice`
-    : `#${d.day} · ${what} · one scored try a day`;
+  const sub = rec?.result ? `Today: ${rec.result.won ? 'victory' : 'fell'} · ${rec.result.score.toLocaleString('en')} pts · share`
+    : rec ? `Today's try left unfinished · practice`
+    : `#${d.day} · ${what} · one try a day`;
   return {
     id: 'daily', label: 'DAILY PLANET', sub,
     run: () => {
@@ -1531,12 +1531,15 @@ function showTitle() {
     })) : []),
   ];
   const here = regionId === HOME_REGION ? 'Your colony' : `${regionLabel(regionId)}`;
-  const choices = [
-    ...(resumed ? [{ id: 'continue', label: 'CONTINUE', sub: `${here} · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
-    ...(elsewhere ? [{ id: 'continue', label: 'CONTINUE', sub: `${savedRegion === HOME_REGION ? 'Your colony in ' : ''}${regionLabel(savedRegion)} · ${solTime(elsewhere.sim.tick)}`, run: () => goRegion(savedRegion) }] : []),
-    ...(trip ? [{ id: 'continue', label: 'CONTINUE', sub: `Your expedition to ${regionLabel(regionId)}`, run: go(() => sim.command({ type: 'landing', stage: 'deploy' })) }] : []),
+  const saved = !!(resumed || elsewhere || trip);
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const choices: TitleChoice[] = [
+    ...(resumed ? [{ id: 'continue', kind: 'hero' as const, label: 'CONTINUE', sub: `${here} · ${solTime(resumed.sim.tick)}`, run: go(startResume) }] : []),
+    ...(elsewhere ? [{ id: 'continue', kind: 'hero' as const, label: 'CONTINUE', sub: `${savedRegion === HOME_REGION ? 'Your colony in ' : ''}${regionLabel(savedRegion)} · ${solTime(elsewhere.sim.tick)}`, run: () => goRegion(savedRegion) }] : []),
+    ...(trip ? [{ id: 'continue', kind: 'hero' as const, label: 'CONTINUE', sub: `Your expedition to ${regionLabel(regionId)}`, run: go(() => sim.command({ type: 'landing', stage: 'deploy' })) }] : []),
     {
-      id: 'new', label: 'NEW GAME', sub: newSub(),
+      // with a colony saved, starting over is the quieter button (and asks twice); without one it is the hero
+      id: 'new', kind: saved ? 'plain' : 'hero', label: 'NEW GAME', sub: newSub(),
       ...((autosaved || campaign) && !scratch ? { confirm: autosaved ? `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` : 'Your campaign will be lost · tap again' } : {}),
       run: () => {
         if (landIn !== regionId) { goRegion(landIn, { land: '1' }); return; }
@@ -1546,23 +1549,26 @@ function showTitle() {
         go(startLanding)();
       },
     },
-    dailyChoice(),
-    { id: 'skirmish', label: 'SKIRMISH', sub: 'You against the computer: pick a map and players', run: () => showSkirmishSetup() },
-    { id: 'guide', label: 'FIELD GUIDE', sub: 'How to play: every part of the game, page by page', run: () => openGuide() },
-    { id: 'options', label: 'OPTIONS', sub: regions.length > 1 ? 'Region, sound and graphics' : 'Sound and graphics', run: () => showOptions(undefined, titleOptions) },
-    { id: 'editor', label: 'EDITOR', sub: 'Units, buildings, maps and models (desktop)', href: `${import.meta.env.BASE_URL}editor.html` },
+    ...(!saved && !autosaved && !campaign ? [{ id: 'first', kind: 'link' as const, label: 'First time? Open the Field Guide ▸', run: () => openGuide() }] : []),
+    { ...dailyChoice(), kind: 'tile' },
+    { id: 'skirmish', kind: 'tile', label: 'SKIRMISH', sub: 'You against the computer', run: () => showSkirmishSetup() },
+    { id: 'guide', kind: 'icon', icon: '📖', label: 'Guide', sub: 'Field Guide: how to play, page by page', run: () => openGuide() },
+    { id: 'options', kind: 'icon', icon: '⚙', label: 'Options', sub: regions.length > 1 ? 'Region, sound, graphics and the autopilot' : 'Sound, graphics and the autopilot', run: () => showOptions(undefined, titleOptions) },
+    ...(autopilot ? [{ id: 'watch', kind: 'icon' as const, icon: '👁', label: 'Watch', sub: `Watch the computer play${saved ? ' your campaign' : ''} (settings in Options)`, run: watch }] : []),
+    { id: 'news', kind: 'icon', icon: '✦', label: "What's new", sub: `Version ${VERSION}`, badge: hasUnseen(), run: () => openWhatsNew(() => title?.root.querySelectorAll('.badge').forEach((b) => b.remove())) },
+    ...(!coarse ? [{ id: 'editor', kind: 'icon' as const, icon: '✎', label: 'Editor', sub: 'Units, buildings, maps and models', href: `${import.meta.env.BASE_URL}editor.html` }] : []),
   ];
   title = new TitleScreen(cam, camera, {
     system,
     choices,
-    foot: `<button class="t-ver" title="What's new">v${VERSION}${hasUnseen() ? '<span class="badge">NEW</span>' : ''}</button> · M1 · <a href="https://deeek.org/">deeek.org</a>`,
+    foot: `<button class="t-ver" title="What's new">v${VERSION}</button> · M1 · <a href="https://deeek.org/">deeek.org</a>`,
     tap: () => audio.play('tap'),
     // browsers hold sound back until a tap or key (unless they allow autoplay): say so, until it runs
     endings: (() => { const n = endingsReached().length; return n ? `ENDINGS: ${n} OF ${ENDINGS.length}` : ''; })(),
     status: () => (audio.disabled || !audio.on || audio.state === 'running' ? '' : `♪ ${matchMedia('(pointer: coarse)').matches ? 'TAP' : 'CLICK'} ANYWHERE FOR SOUND`),
   });
   const ver = title.root.querySelector<HTMLButtonElement>('.t-ver')!;
-  ver.onclick = () => { audio.play('tap'); openWhatsNew(() => ver.querySelector('.badge')?.remove()); };
+  ver.onclick = () => { audio.play('tap'); openWhatsNew(() => title?.root.querySelectorAll('.badge').forEach((b) => b.remove())); };
 }
 
 // ground shadows (in the light map): each building kind's body radius and a rough height

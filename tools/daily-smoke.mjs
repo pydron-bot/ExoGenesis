@@ -74,7 +74,7 @@ if (!process.argv.includes('--headless-only')) {
     await page.goto(`${url}?sw=0`);
     await page.waitForSelector('#title .t-item[data-id="daily"]', { timeout: 300000 });
     const sub = await page.textContent('#title .t-item[data-id="daily"] small');
-    check(/one scored try a day/.test(sub), `${vp.name}: the title offers today's DAILY PLANET ("${sub}")`);
+    check(/one try a day/.test(sub), `${vp.name}: the title offers today's DAILY PLANET ("${sub}")`);
     await page.click('#title .t-item[data-id="daily"]');
     await page.waitForURL(/daily=/, { timeout: 30000 });
     await page.waitForFunction(() => window.__exo?.ready && window.__exo.sim.cur?.players, null, { timeout: 300000 });
@@ -107,7 +107,7 @@ if (!process.argv.includes('--headless-only')) {
     await page.goto(`${url}?sw=0`);
     await page.waitForSelector('#title .t-item[data-id="daily"]', { timeout: 300000 });
     const sub2 = await page.textContent('#title .t-item[data-id="daily"] small');
-    check(/Today: fell · [\d,]+ pts · tap to share/.test(sub2), `${vp.name}: the title shows today's result ("${sub2}")`);
+    check(/Today: fell · [\d,]+ pts · share/.test(sub2), `${vp.name}: the title shows today's result ("${sub2}")`);
     await page.click('#title .t-item[data-id="daily"]');
     await page.waitForSelector('#dl-card .dl-share', { timeout: 10000 });
     check(await page.locator('#dl-card .dl-practice').count() === 1, `${vp.name}: with Share and a practice button`);

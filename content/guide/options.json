@@ -2,9 +2,10 @@
   "title": "Options",
   "section": "interface",
   "order": 4,
-  "summary": "Sound, interface and graphics settings, from the menu or the title screen.",
-  "text": "**Options** is in the menu (☰, or Esc) and on the title screen. It remembers your choices in this browser.\n\n- **Sound**: sound and music on or off, and their volumes\n- **Interface**: pause when you switch away, zoom toward the cursor, edge scrolling, keep the screen on (phones and tablets), performance stats\n- **Graphics**: glow, shadows, detailed water, the terrain look, weather, dust and haze, lens flare, zoom blur and more. If a phone runs hot or slow, turn off glow and weather first\n\nThe menu's **Controls** (or ?) lists every key and touch gesture.",
+  "summary": "Sound, interface and graphics settings, from the menu or the title screen (⚙).",
+  "text": "**Options** is in the menu (☰, or Esc) and on the title screen (⚙). It remembers your choices in this browser. On the title screen it also picks the region NEW GAME lands in, and how the autopilot plays.\n\n- **Sound**: sound and music on or off, and their volumes\n- **Interface**: pause when you switch away, zoom toward the cursor, edge scrolling, keep the screen on (phones and tablets), performance stats\n- **Graphics**: glow, shadows, detailed water, the terrain look, weather, dust and haze, lens flare, zoom blur and more. If a phone runs hot or slow, turn off glow and weather first\n\nThe menu's **Controls** (or ?) lists every key and touch gesture.",
   "points": "menu",
   "see": "camera-and-views, watch-the-computer-play",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.74.0"
 }

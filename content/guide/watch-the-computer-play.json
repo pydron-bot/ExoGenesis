@@ -3,7 +3,8 @@
   "section": "interface",
   "order": 8,
   "summary": "The autopilot plays your campaign while you watch. Stop hands control straight back.",
-  "text": "In the title screen's Options, **Watch the computer play** hands your campaign to an autopilot. It builds, defends, researches, reads and answers each story card, sits through the cinematics and travels when the story calls, while a camera follows what matters.\n\n- The **AUTOPILOT** badge says what it's doing, sets its speed and has **Stop**, which hands control straight back\n- Move the camera yourself and it stands back for a few seconds\n- Options choose how it answers story cards, and an **Assist** that helps it past a stuck objective or a colony about to fall\n\nIt plays **your** colony, so its choices are yours to live with. You can turn it on again from the menu.",
+  "text": "**Watch** (👁, in the row of small buttons on the title screen) hands your campaign to an autopilot. It builds, defends, researches, reads and answers each story card, sits through the cinematics and travels when the story calls, while a camera follows what matters.\n\n- The **AUTOPILOT** badge says what it's doing, sets its speed and has **Stop**, which hands control straight back\n- Move the camera yourself and it stands back for a few seconds\n- The title screen's **Options** choose how it answers story cards, and an **Assist** that helps it past a stuck objective or a colony about to fall\n\nIt plays **your** colony, so its choices are yours to live with. You can turn it on again from the menu.",
   "see": "options, story-cards",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.74.0"
 }

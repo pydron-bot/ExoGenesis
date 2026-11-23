@@ -26,6 +26,15 @@ export interface TitleChoice {
   /** A link instead of an action. */
   href?: string;
   run?: () => void;
+  /**
+   * Where it sits: `hero` (the one big button), `plain` (a full-width button), `tile` (half width, side by side),
+   * `icon` (the small row at the bottom), `link` (a line of text). Default `plain`.
+   */
+  kind?: 'hero' | 'plain' | 'tile' | 'icon' | 'link';
+  /** An icon row button's symbol. */
+  icon?: string;
+  /** A NEW badge on it. */
+  badge?: boolean;
 }
 
 export interface TitleOptions {
@@ -89,13 +98,22 @@ export class TitleScreen {
     this.statusEl = root.querySelector('.t-status')!;
     root.querySelector('.endings')!.textContent = opts.endings ?? '';
     const menu = root.querySelector('.t-menu')!;
+    // grouped by kind: the hero and full-width buttons in order, the tiles in one row, the icons in the bottom row
+    const tiles = document.createElement('div'), icons = document.createElement('div');
+    tiles.className = 't-tiles';
+    icons.className = 't-icons';
     opts.choices.forEach((c, i) => {
+      const kind = c.kind ?? 'plain';
       const el = document.createElement(c.href ? 'a' : 'button') as HTMLButtonElement & HTMLAnchorElement;
-      el.className = 't-item';
+      el.className = `t-item t-${kind}`;
       el.style.setProperty('--i', String(i));
       el.dataset.id = c.id;
       if (c.href) { el.href = c.href; el.target = '_blank'; el.rel = 'noopener'; }
-      el.innerHTML = `<b>${c.label}</b>${c.sub ? `<small>${c.sub}</small>` : ''}`;
+      const badge = c.badge ? '<span class="badge">NEW</span>' : '';
+      el.innerHTML = kind === 'icon'
+        ? `<i aria-hidden="true">${c.icon ?? ''}</i><b>${c.label}</b>${badge}`
+        : `<b>${c.label}${badge}</b>${c.sub ? `<small>${c.sub}</small>` : ''}`;
+      if (kind === 'icon' && c.sub) el.title = c.sub;
       el.onclick = (e) => {
         opts.tap();
         if (c.href) return;
@@ -111,8 +129,10 @@ export class TitleScreen {
         c.run?.();
         this.refresh();
       };
-      menu.appendChild(el);
+      (kind === 'tile' ? tiles : kind === 'icon' ? icons : menu).appendChild(el);
     });
+    if (tiles.childElementCount) menu.appendChild(tiles);
+    if (icons.childElementCount) menu.appendChild(icons);
     // arrow keys walk the menu, Enter picks (buttons do that natively)
     root.addEventListener('keydown', (e) => {
       const items = [...menu.querySelectorAll<HTMLElement>('.t-item')];
@@ -120,6 +140,10 @@ export class TitleScreen {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         items[(at + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+      }
+      if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && at >= 0 && items[at].parentElement !== menu) {
+        e.preventDefault();
+        items[(at + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length]?.focus();
       }
       if (e.key === 'Escape') this.disarm();
     });

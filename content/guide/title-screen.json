@@ -1,0 +1,9 @@
+{
+  "title": "The title screen",
+  "section": "interface",
+  "order": 0,
+  "summary": "Continue your colony, start again, try today's planet or a skirmish, and the small buttons for everything else.",
+  "text": "The title screen puts what you'll want most at the top.\n\n- **CONTINUE** (the big button) picks up your colony where you left it. With nothing saved, the big button is **NEW GAME**\n- **NEW GAME** under it starts a new campaign. With a colony saved it asks you to tap twice, because your old one is lost\n- **DAILY PLANET** and **SKIRMISH**, side by side, are battles away from the story\n\nThe row of small buttons at the bottom:\n\n- 📖 **Guide**: this Field Guide\n- ⚙ **Options**: sound, graphics, the region to land in, and the autopilot's settings\n- 👁 **Watch**: the computer plays your campaign while you watch\n- ✦ **What's new**: every update, marked NEW when there's one you haven't seen\n- ✎ **Editor** (on a computer): make units, buildings, maps and models",
+  "see": "saving,options,watch-the-computer-play,whats-new",
+  "since": "0.74.0"
+}

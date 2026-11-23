@@ -21,6 +21,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.74.0',
+    date: '2026-11-23',
+    title: 'A tidier title screen',
+    notes: [
+      'The title screen is reorganised: CONTINUE is the one big button, and NEW GAME sits quietly under it (with nothing saved, NEW GAME is the big one, with a link to the Field Guide for first-timers)',
+      'Daily Planet and Skirmish share a row, and Guide, Options, Watch, What\'s new and the Editor are small buttons along the bottom, so the planet shows through',
+      'Watch the computer play is now a button of its own (👁 Watch); its settings stay in Options',
+      'What\'s new carries the NEW badge when there\'s an update you haven\'t seen',
+      'On phones and tablets the Editor (which needs a computer) is no longer offered',
+    ],
+    guide: ['title-screen', 'watch-the-computer-play', 'field-guide', 'whats-new', 'options'],
+  },
+  {
     version: '0.73.0',
     date: '2026-11-23',
     title: 'The Field Guide',

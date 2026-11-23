@@ -3,8 +3,9 @@
   "section": "interface",
   "order": 5,
   "summary": "The game keeps changing. What's new lists every update.",
-  "text": "Exo Genesis is still growing, and updates arrive often. **What's new** (in the menu and on the title screen) lists each version and what it changed, newest first, written for players.\n\nThe Field Guide keeps up: pages added or changed by an update are marked, so you can see what's different without reading everything again.",
+  "text": "Exo Genesis is still growing, and updates arrive often. **What's new** (✦ on the title screen, marked NEW when there's an update you haven't seen, and in the menu) lists each version and what it changed, newest first, written for players.\n\nThe Field Guide keeps up: pages added or changed by an update are marked, so you can see what's different without reading everything again.",
   "points": "menu",
   "see": "field-guide",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.74.0"
 }
