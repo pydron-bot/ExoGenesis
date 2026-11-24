@@ -21,6 +21,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.79.0',
+    date: '2026-11-24',
+    title: 'Light and metal',
+    notes: [
+      'Sky reflections: metal and glass reflect the sky and catch glints of the sun, so vehicles and buildings no longer look like dark cut-outs (Options → Sky reflections; the Field Guide has a new Graphics page)',
+      'Ambient occlusion: soft shade where things meet, under vehicles, round buildings and among plants. On by default on computers, off on phones (Options → Ambient occlusion)',
+      'Vehicles lean with the slope they stand on instead of sinking into hillsides',
+      'Opening Options, Controls, the Field Guide and the rest from the menu keeps the game paused (it used to carry on behind them)',
+      'With several kinds of unit selected, their ability buttons wrap onto a second row instead of overlapping',
+    ],
+    guide: ['graphics'],
+  },
+  {
     version: '0.78.0',
     date: '2026-11-24',
     title: 'Weather and wear',
