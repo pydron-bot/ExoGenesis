@@ -122,12 +122,16 @@ export interface MenuItem {
   confirm?: string;
 }
 
-/** The in-game menu: big buttons, one per action (each closes the menu, then runs). */
-export function openMenu(title: string, items: MenuItem[], foot: string, tap?: () => void, onClose?: () => void) {
+/**
+ * The in-game menu: big buttons, one per action (each closes the menu, then runs).
+ * `onClose` gets the item that closed it (null for Esc, a tap outside or the panel's ✕), so it can tell those apart.
+ */
+export function openMenu(title: string, items: MenuItem[], foot: string, tap?: () => void, onClose?: (picked: MenuItem | null) => void) {
+  let picked: MenuItem | null = null;
   const { el, close } = panel(title, `${items.map((m) => `
     <button class="op-row op-act" data-id="${esc(m.id)}">
       <span class="op-text"><b>${esc(m.label)}</b>${m.sub ? `<small>${esc(m.sub)}</small>` : ''}</span>
-    </button>`).join('')}<div class="op-foot">${foot}</div>`, onClose);
+    </button>`).join('')}<div class="op-foot">${foot}</div>`, () => onClose?.(picked));
   el.classList.add('menu');
   for (const m of items) {
     const b = el.querySelector<HTMLButtonElement>(`[data-id="${m.id}"]`)!;
@@ -141,6 +145,7 @@ export function openMenu(title: string, items: MenuItem[], foot: string, tap?: (
         b.querySelector('.op-text')!.insertAdjacentHTML('beforeend', `<small>${esc(m.confirm)}</small>`);
         return;
       }
+      picked = m;
       close();
       m.run();
     };

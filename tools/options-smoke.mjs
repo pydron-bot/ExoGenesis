@@ -90,6 +90,7 @@ async function menu(viewport, name, mobile = false) {
   await page.click('#options [data-id="options"]');
   await page.waitForSelector('#options [data-id="stats"]');
   check(!!(await page.$('#options [data-id="volume"] input')), `${name}: volume sliders in Options`);
+  check(await page.evaluate(() => document.querySelector('#b-pause').classList.contains('on') && !document.querySelector('#b-play').classList.contains('on')), `${name}: Options from the menu keeps the game paused`);
   await page.click('#options [data-id="stats"]');
   check(await page.$eval('#tele', (e) => getComputedStyle(e).display !== 'none'), `${name}: Performance stats shows them`);
   await page.click('#options [data-id="stats"]');

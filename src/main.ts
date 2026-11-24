@@ -1452,10 +1452,12 @@ function openGameMenu() {
   menuOpen = true;
   const was = speed;
   setSpeed(0);
-  let resume = true;
-  const back = () => { if (!resume) return; menuOpen = false; if (speed === 0) setSpeed(was || 1); };
-  const keep = (fn: () => void) => () => { resume = false; menuOpen = false; fn(); };
-  const reopen = () => { resume = true; openGameMenu(); };
+  // buttons that open something over the menu (and mostly come back to it): the game stays paused.
+  // The menu closes before running a button, so the close handler checks which one was picked.
+  const kept = new Set<() => void>();
+  const keep = (fn: () => void) => { const run = () => { menuOpen = false; fn(); }; kept.add(run); return run; };
+  const back = (picked: { run(): void } | null) => { if (picked && kept.has(picked.run)) return; menuOpen = false; if (speed === 0) setSpeed(was || 1); };
+  const reopen = () => openGameMenu();
   // the menu's buttons close it first; ones that come back to it (Options, What's new) keep the game paused
   const toTitle = () => { const u = new URL(location.href); for (const k of [...u.searchParams.keys()]) if (k !== 'look' && k !== 'sw') u.searchParams.delete(k); location.href = u.toString(); };
   const setup = keep(() => showSkirmishSetup(() => { menuOpen = false; reopen(); }));
@@ -1490,7 +1492,7 @@ function openGameMenu() {
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
     { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },
     { id: 'new', label: 'New game', sub: scratch ? 'Start over in this region' : 'Start the campaign over', confirm: scratch ? 'Your current colony will be lost (unless you Saved it) · tap again' : 'Every region\'s colony will be lost (unless you Saved it) · tap again', run: () => restartGame() },
-  ], `v${VERSION} · M1`, () => audio.play('tap'), () => back());
+  ], `v${VERSION} · M1`, () => audio.play('tap'), back);
   el.querySelector('.op-foot')?.classList.add('dim');
 }
 $('b-menu').onclick = () => openGameMenu();
