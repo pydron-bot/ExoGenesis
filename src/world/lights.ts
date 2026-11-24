@@ -31,6 +31,7 @@ import * as THREE from 'three';
 import { E, HALF, N, R, U } from './planet';
 import { GRID_N, rawGrid, regionPoint } from './heightGrid';
 import { GROUND_FRAG_PARS, GROUND_VERT_PARS, groundUniforms } from './ground';
+import { ATMOS_FOG, ATMOS_FRAG_PARS, ATMOS_VERT_PARS, atmosUniforms } from './atmos';
 
 /** Light map resolution: 256² over the 240 u region ≈ 1 texel per unit. */
 const RES = 256;
@@ -88,7 +89,7 @@ export function addLights(mat: THREE.Material) {
   mat.onBeforeCompile = (sh, r) => {
     prev.call(mat, sh, r);
     if (!LIT.test(sh.fragmentShader)) return;
-    Object.assign(sh.uniforms, lightUniforms, groundUniforms);
+    Object.assign(sh.uniforms, lightUniforms, groundUniforms, atmosUniforms);
     // everything positional (where in the light map, how high above the ground) is worked out per vertex;
     // the fragment does one texture read
     sh.vertexShader = sh.vertexShader
@@ -100,7 +101,7 @@ export function addLights(mat: THREE.Material) {
         varying float vLmK;
         varying float vLmS;
         varying float vGrIn, vGrC, vGrG;
-        ${GROUND_VERT_PARS}`)
+        ${GROUND_VERT_PARS}${ATMOS_VERT_PARS}`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         {
           vec4 lmW4 = vec4(transformed, 1.0);
@@ -108,6 +109,7 @@ export function addLights(mat: THREE.Material) {
             lmW4 = instanceMatrix * lmW4;
           #endif
           vec3 lmW = (modelMatrix * lmW4).xyz;
+          vAtW = lmW;
           float lmRad = length(lmW);
           vec3 fd = lmW / lmRad;
           float up = dot(fd, uLmU);
@@ -141,7 +143,8 @@ export function addLights(mat: THREE.Material) {
         varying float vLmK;
         varying float vLmS;
         varying float vGrIn, vGrC, vGrG;
-        ${GROUND_FRAG_PARS}`)
+        ${GROUND_FRAG_PARS}${ATMOS_FRAG_PARS}`)
+      .replace('#include <fog_fragment>', ATMOS_FOG)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         vec4 lmT = vec4(0.0);
         if ((uLmOn > 0.001 && vLmK > 0.002) || (uShOn > 0.001 && vLmS > 0.002)) lmT = texture2D(uLmTex, vLmUv);

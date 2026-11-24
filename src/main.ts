@@ -30,6 +30,7 @@ import { StoryHud } from './story-hud';
 import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { SkyEnv, type SkyLook } from './world/envmap';
+import { atmosUniforms } from './world/atmos';
 import { enableColonyLights } from './world/lights';
 import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
 import { GroundMarks, Sky, type MarkMover } from './world/ground';
@@ -324,6 +325,19 @@ skyEnv.enabled = setting(REFLECT_KEY, 'reflect', true);
 // ambient occlusion (src/world/post.ts, n8ao): on by default on desktop like Glow, off on phones; ?ao=0|1
 const AO_KEY = 'exo.ao';
 post.ao = setting(AO_KEY, 'ao', !coarse && !navigator.webdriver);
+// mist in low ground and haze toward the sun (src/world/atmos.ts, rides the light map's patch); ?mist=0|1
+const MIST_KEY = 'exo.mist';
+let mistOn = setting(MIST_KEY, 'mist', true);
+/** Where this region's low ground is (heights above the datum): the mist pools below `base`, thinning over `scale`. */
+let mistLevels: { base: number; scale: number } | null = null;
+function regionMistLevels() {
+  const hs: number[] = [];
+  const n = 24;
+  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) hs.push(Math.max(0, regionHeight((i / n * 2 - 1) * HALF * 0.9, (j / n * 2 - 1) * HALF * 0.9)));
+  hs.sort((a, b) => a - b);
+  const lo = hs[Math.floor(hs.length * 0.25)], hi = hs[Math.floor(hs.length * 0.75)];
+  return { base: lo + 0.5 * (hi - lo), scale: Math.max(3, 0.6 * (hi - lo)) };
+}
 // colour grade and vignette (src/world/post.ts): Options → Colour grade, remembered; ?grade=0|1
 post.grading = setting(GRADE_KEY, 'grade', true);
 // the ground weathers (src/world/ground.ts): cloud shadows, wet ground after rain, tracks and scorches. They ride on
@@ -1384,6 +1398,11 @@ const graphicsToggles: Toggle[] = [
     get: () => post.ao, set: (v) => { post.ao = v; remember(AO_KEY, v); }, locked: urlLock('ao'),
   },
   {
+    id: 'mist', label: 'Mist and sun haze',
+    help: 'Mist gathers in low ground, thickest round sunrise and sunset, and the haze glows warm toward a low sun. On worlds with air.',
+    get: () => mistOn, set: (v) => { mistOn = v; remember(MIST_KEY, v); }, locked: urlLock('mist'),
+  },
+  {
     id: 'grade', label: 'Colour grade',
     help: 'Each world gets its own colour mood: nights bluer, sunrise and sunset warmer, the corners of the view a little darker. (The colours need Glow or FXAA/SMAA; without them, just the corners.)',
     get: () => post.grading, set: (v) => { post.grading = v; remember(GRADE_KEY, v); }, locked: urlLock('grade'),
@@ -1787,6 +1806,20 @@ function frame(now: number) {
     envLook.up.copy(U);
     skyEnv.update(envLook, t);
     skyEnv.intensity = ENV_STRENGTH * air;
+  }
+  // mist and sun haze (they ride the fog: none without air, none from orbit)
+  {
+    const au = atmosUniforms, on = mistOn && !!airGlow ? air : 0;
+    mistLevels ??= regionMistLevels();
+    au.uAtR.value = R;
+    au.uAtBase.value = mistLevels.base;
+    au.uAtScale.value = mistLevels.scale;
+    au.uAtReach.value = Math.max(30, cam.dist * 0.9);
+    // morning and evening mist, a little by day, more in weather
+    au.uAtMist.value = on * Math.min(0.9, 0.38 + 0.45 * system.golden + 0.35 * wl.haze);
+    au.uAtSun.value.copy(system.sunPos).normalize();
+    au.uAtSunCol.value.copy(system.sunColor).lerp(skySunset, 0.35 + 0.4 * system.golden);
+    au.uAtSunK.value = on * smoothstep(-0.08, 0.05, sunUp) * (0.3 + 0.55 * system.golden) * (1 - system.overcast * 0.75);
   }
   // the ground takes much less of it than metal: keeps its hills' shading
   skyEnv.own(region.patch.material, GROUND_ENV * air);
