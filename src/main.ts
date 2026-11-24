@@ -31,6 +31,7 @@ import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { SkyEnv, type SkyLook } from './world/envmap';
 import { atmosUniforms } from './world/atmos';
+import { PerfReport } from './perf-report';
 import { wearUniforms } from './world/wear';
 import { SunShadows } from './world/sunshadow';
 import { enableColonyLights } from './world/lights';
@@ -266,11 +267,11 @@ const renderer = new THREE.WebGLRenderer({ antialias: aaStart === 'auto' || aaSt
 const dprPinned = Number(params.get('dpr')) || 0;
 const dprMax = dprPinned || Math.min(devicePixelRatio, coarse ? 1.75 : 2);
 const dprMin = Math.min(dprMax, 1);
-const res = { scale: dprMax, acc: 0, n: 0, good: 0 };
+const res = { scale: dprMax, acc: 0, n: 0, good: 0, hold: false };
 renderer.setPixelRatio(dprMax);
 /** Called once a frame with the real frame time (unclamped, seconds). */
 function adaptRes(rawDt: number) {
-  if (dprPinned || rawDt > 0.5 || document.hidden) return; // a stall or a background tab, not load
+  if (dprPinned || res.hold || rawDt > 0.5 || document.hidden) return; // a stall or a background tab, not load (or the performance benchmark holding it)
   res.acc += rawDt; res.n++;
   if (res.acc < 2) return;
   const fps = res.n / res.acc;
@@ -1495,6 +1496,32 @@ const interfaceToggles: Toggle[] = [
 ];
 const showOptions = (onClose?: () => void, extra: OptionRow[] = [...soundToggles, ...interfaceToggles]) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
 
+// ---------- performance report (src/perf-report.ts): menu → Performance report ----------
+const perf = new PerfReport({
+  renderer,
+  toggles: () => [...interfaceToggles, ...graphicsToggles].filter((r): r is Toggle => (r as { kind?: string }).kind !== 'slider'),
+  bench: ['glow', 'ao', 'sunshadows', 'reflect', 'mist', 'shadows', 'clouds', 'marks', 'weather', 'dust', 'water', 'lights', 'print', 'grade', 'flare'],
+  facts: () => ({
+    Version: VERSION,
+    Mode: rts ? 'skirmish' : skirmish ? 'battle (?mode=skirmish)' : 'campaign',
+    Region: regionDef?.name ?? '?',
+    'Camera distance': cam.dist.toFixed(0),
+    'Render scale': `${res.scale.toFixed(2)} (most ${dprMax.toFixed(2)})`,
+    'Anti-aliasing in use': post.aaInUse,
+    'Units / buildings': `${sim.cur?.units.length ?? 0} / ${sim.cur?.buildings.length ?? 0}`,
+    Speed: speed,
+  }),
+  camDist: () => cam.dist,
+  resScale: () => res.scale,
+  holdRes: (on) => { res.hold = on; },
+  speed: () => speed,
+  setSpeed: (n) => setSpeed(n),
+  open: openInfo,
+  tap: () => audio.play('tap'),
+  // ?perfframes=W,M: fewer frames per benchmark step (tests)
+  frames: params.has('perfframes') ? { warm: Number(params.get('perfframes')!.split(',')[0]) || 5, measure: Number(params.get('perfframes')!.split(',')[1]) || 10 } : undefined,
+});
+
 // ---------- game menu (☰ Menu / Esc): pauses while open ----------
 let menuOpen = false;
 function openGameMenu() {
@@ -1515,6 +1542,7 @@ function openGameMenu() {
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'perf', label: 'Performance report', sub: 'Measure how the game runs on this device, to send in', run: keep(() => perf.open(() => { menuOpen = false; reopen(); }, () => { if (speed === 0) setSpeed(was || 1); })) },
     { id: 'guide', label: 'Field Guide', sub: 'How the game works, page by page', run: keep(() => openGuide({ onClose: () => { menuOpen = false; reopen(); } })) },
     { id: 'rematch', label: 'Rematch', sub: 'The same map and players, from the start', confirm: 'This game will be lost · tap again', run: () => restartGame() },
     { id: 'skirmish', label: 'New skirmish', sub: 'Pick another map and players', run: setup },
@@ -1527,6 +1555,7 @@ function openGameMenu() {
     { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'perf', label: 'Performance report', sub: 'Measure how the game runs on this device, to send in', run: keep(() => perf.open(() => { menuOpen = false; reopen(); }, () => { if (speed === 0) setSpeed(was || 1); })) },
     {
       id: 'guide', label: 'Field Guide', sub: 'How the game works, page by page · Show me around',
       // back to the menu, unless it closed to point at the HUD or start the tour: then the game carries on
@@ -1766,6 +1795,7 @@ let ready = false;
 let gameT = 0;
 
 function frame(now: number) {
+  perf.frameStart(now);
   adaptRes((now - last) / 1000);
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -2017,6 +2047,7 @@ function frame(now: number) {
     lights?.realShadows(hk);
   }
   post ? post.render(dt) : renderer.render(scene, camera);
+  perf.frameEnd();
   // the flare: washed out a little under a bright daytime sky
   flare.update(camera, system.sunPos, STAR_R, system.occluders(R), Math.min(1, 0.45 * air * smoothstep(-0.15, 0.25, sunUp) + system.overcast * 0.9), dt);
   flare.render(renderer);

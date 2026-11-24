@@ -1024,3 +1024,28 @@ body.cine .gd-note, body.skirmish .gd-note, body.title .gd-note { display: none 
 #whatsnew .wn-guide { margin: 6px 0 0; font-size: 11px; color: var(--cyan-dim); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 #whatsnew .wn-guide button { font: inherit; font-size: 11px; color: var(--cyan); background: none; border: 1px solid var(--line); border-radius: 3px; padding: 1px 7px; cursor: pointer; }
 .gd-note.hold { display: none !important; }
+
+/* performance report (src/perf-report.ts): the panel's buttons and report, and the badge while it runs */
+#options .pf-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+#options .pf-btn {
+  flex: 1 1 12em; min-height: 40px; padding: 8px 10px; cursor: pointer;
+  background: color-mix(in srgb, var(--cyan) 8%, transparent); border: 1px solid var(--line); color: var(--cyan);
+  font: inherit; font-weight: 600; letter-spacing: 0.04em;
+}
+#options .pf-btn:hover { border-color: var(--cyan); }
+#options .pf-pre {
+  max-height: 38vh; overflow: auto; margin: 6px 0 0; padding: 8px; white-space: pre-wrap; word-break: break-word;
+  font: 11px/1.45 ui-monospace, monospace; color: var(--text); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line);
+}
+#options .pf-none { opacity: 0.6; }
+#perf-badge {
+  position: fixed; z-index: 70; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 54px);
+  display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px);
+  padding: 5px 6px 5px 12px; background: var(--panel); border: 1px solid var(--amber); color: var(--amber);
+  font: 600 12px/1.2 ui-monospace, monospace; white-space: nowrap; pointer-events: auto;
+}
+#perf-badge span { overflow: hidden; text-overflow: ellipsis; }
+#perf-badge button {
+  flex: none; padding: 5px 10px; cursor: pointer; font: inherit; color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 14%, transparent); border: 1px solid var(--amber);
+}

@@ -651,6 +651,16 @@ How content is stored and edited in general (one JSON record per file, schemas i
     light's frame so edges don't crawl; bias −0.0004, normalBias 0.04. `mark()` (once a second) makes lit opaque
     meshes cast and receive (not glow-only, transparent, basic or shader materials). The light map's blob
     shadows fade by k (`lights.realShadows`). Flora's wind sway isn't in the depth pass (shadows don't sway).
+  - **Performance report** (`src/perf-report.ts`, menu → Performance report; test `tools/perf-smoke.mjs`):
+    *Record* logs rAF deltas, the frame function's own time, draws/triangles, render-scale changes and frame
+    times by zoom bucket, until Stop (10 min max). *Benchmark* pauses, pins the render scale (`res.hold`),
+    then for "as you have it", each costly effect that's on (`bench` ids in main.ts) switched off alone, and
+    all of them off: 40 warm-up frames (shader compiles) and 90 measured, each ended with a 1-pixel
+    `readPixels` so the time includes the GPU (vsync would hide it). Switches write their remembered keys:
+    `setOff` wraps `Storage.prototype.setItem` to note which, and only those are restored afterwards (other
+    saves made meanwhile, like the camera, are left alone). Report = device (unmasked GPU string), game facts,
+    settings, sections; Copy (clipboard, execCommand fallback) / Save (.txt download). `?perfframes=W,M`
+    shortens the steps for tests.
   - Sky reflections default off in automated browsers (like Glow): on SwiftShader they took frames from ~0.7 s
     to ~1.2 s and `skirmish-play-smoke` lost sight of its spawned enemies; screenshot scripts pass `?reflect=1`.
   - `tools/asset-smoke.mjs` had been checking `army.bodies[1]` for the asset model since before v0.14.0 moved

@@ -33,6 +33,7 @@ export const CHANGELOG: Release[] = [
       'Rovers, tanks, lancers, arc casters, artillery and engineers have headlights, tail lights, panel seams and a stripe down each side',
       'The land is drawn Smooth by default now: soft shading, ground texture and bare rock on steep slopes, with the texture no longer repeating in a visible grid. If you chose Flat, you keep it (Options → Terrain look)',
       'Skirmish: up close, players\' vehicles wear their colour on their trim (stripes, deck patches and glowing strips) instead of all over, so you can see the machines themselves; zoomed out they still take it all over',
+      'Performance report (Menu): record frame times while you play, or benchmark what each graphics effect costs on your device, then copy the report or save it as a file to send in',
       'Vehicles lean with the slope they stand on instead of sinking into hillsides',
       'Opening Options, Controls, the Field Guide and the rest from the menu keeps the game paused (it used to carry on behind them)',
       'With several kinds of unit selected, their ability buttons wrap onto a second row instead of overlapping',
