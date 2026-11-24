@@ -328,6 +328,8 @@ export class SolarSystem {
 
   /** Distance from the star to the body being played, now. */
   get starDist() { return this.starPos.length(); }
+  /** The sunlight's colour now (warmer low in the sky). */
+  get sunColor() { return this.light.color; }
 
   /**
    * `t` in seconds; `sys` 0..1 = how far into the system view the camera is.

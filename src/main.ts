@@ -29,6 +29,7 @@ import { ColonyHud } from './colony-hud';
 import { StoryHud } from './story-hud';
 import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
+import { SkyEnv, type SkyLook } from './world/envmap';
 import { enableColonyLights } from './world/lights';
 import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
 import { GroundMarks, Sky, type MarkMover } from './world/ground';
@@ -316,6 +317,10 @@ const post = new Post(renderer, scene, camera);
 post.aa = aaStart;
 post.enabled = setting(GLOW_KEY, 'bloom', !coarse && !navigator.webdriver);
 if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
+// sky reflections (src/world/envmap.ts): metal reflects the sky, everything picks up its light; Options → Sky reflections; ?reflect=0|1
+const REFLECT_KEY = 'exo.reflect';
+const skyEnv = new SkyEnv(renderer, scene);
+skyEnv.enabled = setting(REFLECT_KEY, 'reflect', true);
 // colour grade and vignette (src/world/post.ts): Options → Colour grade, remembered; ?grade=0|1
 post.grading = setting(GRADE_KEY, 'grade', true);
 // the ground weathers (src/world/ground.ts): cloud shadows, wet ground after rain, tracks and scorches. They ride on
@@ -1367,6 +1372,10 @@ const graphicsToggles: Toggle[] = [
     locked: () => (aaFromUrl ? 'Set in URL' : null),
   },
   {
+    id: 'reflect', label: 'Sky reflections', help: 'Metal and glass reflect the sky and catch glints of the sun, and the sky lights everything softly from all round.',
+    get: () => skyEnv.enabled, set: (v) => { skyEnv.enabled = v; remember(REFLECT_KEY, v); }, locked: urlLock('reflect'),
+  },
+  {
     id: 'grade', label: 'Colour grade',
     help: 'Each world gets its own colour mood: nights bluer, sunrise and sunset warmer, the corners of the view a little darker. (The colours need Glow or FXAA/SMAA; without them, just the corners.)',
     get: () => post.grading, set: (v) => { post.grading = v; remember(GRADE_KEY, v); }, locked: urlLock('grade'),
@@ -1700,6 +1709,13 @@ const skySunset = new THREE.Color('#c9825e');
 const tintTmp = new THREE.Color();
 const space = new THREE.Color('#020306');
 const bg = new THREE.Color();
+/** The sky the reflections are baked from, and the ground under it (sunlit dust). */
+const envLook: SkyLook = { zenith: new THREE.Color(), horizon: new THREE.Color(), ground: new THREE.Color(), sun: new THREE.Vector3(), sunColor: new THREE.Color(), up: new THREE.Vector3() };
+const envGround = new THREE.Color(terrain.world?.ground[0] ?? '#7c4a33');
+/** How strongly the sky lights and reflects; the sky fill dims by part of it so the scene isn't brighter overall. */
+const ENV_STRENGTH = 0.65;
+/** …and for the ground. */
+const GROUND_ENV = 0.2;
 const t0 = performance.now();
 let last = t0;
 let ready = false;
@@ -1752,6 +1768,21 @@ function frame(now: number) {
   scene.background = bg.clone().lerp(space, 1 - air);
   updateWater(skirmish ? t : gameT, bg);
   fog.color.copy(bg);
+  // the sky for reflections: as seen from the ground (it fades out climbing to orbit, where there's no sky round you)
+  if (skyEnv.enabled) {
+    const day = smoothstep(-0.15, 0.25, sunUp);
+    envLook.horizon.copy(bg).multiplyScalar(1.1);
+    envLook.zenith.copy(bg).multiplyScalar(0.7);
+    envLook.ground.copy(envGround).multiplyScalar(0.12 + 0.88 * day);
+    envLook.sun.copy(system.sunPos).normalize();
+    envLook.sunColor.copy(system.sunColor).multiplyScalar(smoothstep(-0.05, 0.08, sunUp) * (1 - system.overcast * 0.85));
+    envLook.up.copy(U);
+    skyEnv.update(envLook, t);
+    skyEnv.intensity = ENV_STRENGTH * air;
+  }
+  // the ground takes much less of it than metal: keeps its hills' shading
+  skyEnv.own(region.patch.material, GROUND_ENV * air);
+  skyEnv.own(globe.material, GROUND_ENV * air);
   fog.near = air > 0.01 ? cam.dist * 2.2 * (1 - wl.haze * 0.7) : 1e9;
   fog.far = air > 0.01 ? lerp(cam.dist * 9, cam.dist * 60, 1 - air) * (1 - wl.haze * 0.6) : 1e9 + 1;
 
@@ -1813,7 +1844,7 @@ function frame(now: number) {
     // darker nights so the lights read (only while they're on); steady lights fade out by day
     const night = lights.enabled ? 1 - smoothstep(-0.2, 0.15, sunUp) : 0;
     lights.night = night;
-    system.fill.intensity = lerp(0.7, 0.32, night) * (1 - system.overcast * 0.3);
+    system.fill.intensity = lerp(0.7, 0.32, night) * (1 - system.overcast * 0.3) * (skyEnv.enabled ? 1 - 0.45 * air : 1);
     system.ambient.intensity = lerp(0.12, 0.07, night);
     const c = sim.cur, p = sim.prev;
     const live = !skirmish && c && p && c.deployed;
@@ -1967,6 +1998,7 @@ const exo = {
   hud,
   ui,
   army,
+  skyEnv,
   droneScreen: (id?: number) => {
     const d = id === undefined ? null : region.drones.get(id);
     const v = (d ? d.world : region.droneWorld).clone().project(camera);
