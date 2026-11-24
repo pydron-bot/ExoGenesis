@@ -813,8 +813,9 @@ body.placing:not(.menu-open) #hud > #place-hint.on { display: block; }
 @media (max-width: 640px) { #options .op-info .kb { flex-direction: column; gap: 2px; } #options .op-info .kb span:last-child { text-align: left; } }
 
 /* unit abilities: one wide button per kind on the unit card (touch-sized) */
-#card .grp.abil { display: flex; gap: 4px; }
-#hud #card .grp.abil button { flex: 1; min-height: 38px; font-weight: 600; letter-spacing: 0.04em; }
+#card .grp.abil { display: flex; flex-wrap: wrap; gap: 4px; }
+/* several kinds selected: each button keeps its label on one line, and the row wraps instead of squeezing them */
+#hud #card .grp.abil button { flex: 1 1 auto; min-height: 38px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 #hud #card .grp.abil button.wait { opacity: 0.55; }
 
 /* Daily Planet: the score card on the end screen and in the title's look back */

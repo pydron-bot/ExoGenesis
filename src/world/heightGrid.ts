@@ -49,18 +49,40 @@ const _up = new THREE.Vector3();
 const _f = new THREE.Vector3();
 const _r = new THREE.Vector3();
 
-/** Instance matrix for an object standing on the ground at (x,z) facing `heading`. */
-export function placeMatrix(x: number, z: number, heading: number, lift: number, scale: number, out: THREE.Matrix4) {
+const _n = new THREE.Vector3();
+const _e = new THREE.Vector3();
+/** Steepest a unit leans with the ground (slope 1 = 45°): past it, it still stands mostly upright. */
+const MAX_LEAN = 0.8;
+
+/**
+ * Instance matrix for an object standing on the ground at (x,z) facing `heading`.
+ * With `foot` (the footprint radius), it leans with the slope across it (a tank on a hillside sits along the
+ * hill instead of the uphill half going into it); without, it stands straight up from the planet.
+ */
+export function placeMatrix(x: number, z: number, heading: number, lift: number, scale: number, out: THREE.Matrix4, foot = 0) {
   _up.set(U.x * R + E.x * x + N.x * z, U.y * R + E.y * x + N.y * z, U.z * R + E.z * x + N.z * z).normalize();
   const h = R + sampleHeight(x, z) + lift;
+  // where it stands stays the same (the centre on the ground); only the axes lean
+  const pos = _n.copy(_up).multiplyScalar(h);
+  if (foot > 0) {
+    let gx = (sampleHeight(x + foot, z) - sampleHeight(x - foot, z)) / (2 * foot);
+    let gz = (sampleHeight(x, z + foot) - sampleHeight(x, z - foot)) / (2 * foot);
+    const g = Math.hypot(gx, gz);
+    if (g > MAX_LEAN) { gx *= MAX_LEAN / g; gz *= MAX_LEAN / g; }
+    // the ground's normal: up, minus the slope along the local east and north
+    _e.copy(E).addScaledVector(_up, -E.dot(_up)).normalize();
+    _f.copy(N).addScaledVector(_up, -N.dot(_up)).normalize();
+    _up.addScaledVector(_e, -gx).addScaledVector(_f, -gz).normalize();
+  }
+  const px = pos.x, py = pos.y, pz = pos.z;
   const s = Math.sin(heading), c = Math.cos(heading);
   _f.set(E.x * s + N.x * c, E.y * s + N.y * c, E.z * s + N.z * c);
   _f.addScaledVector(_up, -_f.dot(_up)).normalize();
   _r.crossVectors(_up, _f);
   return out.set(
-    _r.x * scale, _up.x * scale, _f.x * scale, _up.x * h,
-    _r.y * scale, _up.y * scale, _f.y * scale, _up.y * h,
-    _r.z * scale, _up.z * scale, _f.z * scale, _up.z * h,
+    _r.x * scale, _up.x * scale, _f.x * scale, px,
+    _r.y * scale, _up.y * scale, _f.y * scale, py,
+    _r.z * scale, _up.z * scale, _f.z * scale, pz,
     0, 0, 0, 1,
   );
 }

@@ -241,7 +241,9 @@ export class ArmyView {
           : mv === 'hover' ? sea + 0.15 + 0.08 * Math.sin(this.clock * 2.3 + s * 1.7) : sea - 0.25 + 0.06 * Math.sin(this.clock * 1.4 + s * 2.1);
       }
       this.lift[s] = lift;
-      placeMatrix(x, z, h, lift, scale, this.m);
+      // ground units lean with the slope under them; flyers and boats stay level
+      const foot = mv ? 0 : DEFS[t].radius;
+      placeMatrix(x, z, h, lift, scale, this.m, foot);
       if (mv === 'air') {
         // right turns (heading growing) dip the right wing: a negative roll about the nose
         const want = -Math.max(-0.6, Math.min(0.6, turn * 2.2));
@@ -261,7 +263,7 @@ export class ArmyView {
         d = Math.atan2(Math.sin(d), Math.cos(d));
         this.tyaw[s] += Math.max(-TURRET_SLEW * dt, Math.min(TURRET_SLEW * dt, d));
         this.v1.copy(tur.pivot).applyMatrix4(this.m);
-        placeMatrix(x, z, this.tyaw[s], lift, scale, this.tm).setPosition(this.v1);
+        placeMatrix(x, z, this.tyaw[s], lift, scale, this.tm, foot).setPosition(this.v1);
         tur.mesh.setMatrixAt(i, this.tm);
       }
       this.lx[s] = x; this.lz[s] = z; this.hd[s] = h;
@@ -288,7 +290,7 @@ export class ArmyView {
         const g = model ? null : this.glows[t];
         if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, sel ? C.glowSel : C.glow); }
         if (sel) {
-          placeMatrix(x, z, 0, 0.25 + (mv === 'air' ? lift : 0), DEFS[t].radius * 1.1, this.m);
+          placeMatrix(x, z, 0, 0.25 + (mv === 'air' ? lift : 0), DEFS[t].radius * 1.1, this.m, foot);
           this.rings.setMatrixAt(rings++, this.m);
         }
       }
