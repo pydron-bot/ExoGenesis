@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.77.2',
+    date: '2026-11-24',
+    title: 'Astral Drift is back',
+    notes: [
+      'Astral Drift returns to the daytime music, playing alongside Snow in Space instead of being replaced by it',
+    ],
+    guide: [],
+  },
+  {
     version: '0.77.1',
     date: '2026-11-24',
     title: 'Snow in Space',
