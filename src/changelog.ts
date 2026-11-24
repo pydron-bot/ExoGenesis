@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.77.1',
+    date: '2026-11-24',
+    title: 'Snow in Space',
+    notes: [
+      'New daytime music: Snow in Space, a brisk piece in D for strings, piano, plucked arpeggios and violin, with drums that come in for the chorus. It takes the place of Astral Drift',
+    ],
+    guide: [],
+  },
+  {
     version: '0.77.0',
     date: '2026-11-23',
     title: 'Select a whole squad',
