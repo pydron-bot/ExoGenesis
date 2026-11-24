@@ -322,7 +322,9 @@ if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
 // sky reflections (src/world/envmap.ts): metal reflects the sky, everything picks up its light; Options → Sky reflections; ?reflect=0|1
 const REFLECT_KEY = 'exo.reflect';
 const skyEnv = new SkyEnv(renderer, scene);
-skyEnv.enabled = setting(REFLECT_KEY, 'reflect', true);
+// (off by default in automated browsers, like Glow: on SwiftShader its per-pixel lookups slow every frame, and tests time
+// things in frames; ?reflect=1 turns it on there)
+skyEnv.enabled = setting(REFLECT_KEY, 'reflect', !navigator.webdriver);
 // ambient occlusion (src/world/post.ts, n8ao): on by default on desktop like Glow, off on phones; ?ao=0|1
 const AO_KEY = 'exo.ao';
 post.ao = setting(AO_KEY, 'ao', !coarse && !navigator.webdriver);

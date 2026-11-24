@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { placeMatrix, regionPoint, sampleRaw } from '../world/heightGrid';
 import { addWear } from '../world/wear';
+import { addTeamAttr, addTeamTrim } from '../world/trim';
 import { WATER_LIFT } from '../world/water';
 import { flattenForInstancing, loadModel, splitPart } from '../assets/models';
 import { builtinUnitLook } from './models';
@@ -106,6 +107,9 @@ export class ArmyView {
   private mTur: (Turret | null)[] = [];
   /** Per slot: the turret's world yaw now (eased toward the aim), and the unit generation it belongs to. */
   private tyaw = new Float32Array(MAX_UNITS);
+  /** Per type: the asset model's (and its turret's) team-trim colour attribute (src/world/trim.ts). */
+  private mTeam: (THREE.InstancedBufferAttribute | null)[] = [];
+  private mTurTeam: (THREE.InstancedBufferAttribute | null)[] = [];
   private tgen = new Float32Array(MAX_UNITS).fill(-1);
   private tm = new THREE.Matrix4();
   private lastTick = -1;
@@ -157,9 +161,14 @@ export class ArmyView {
         const tur = splitPart(root, 'turret');
         if (tur) {
           const f = flattenForInstancing(tur.part);
+          this.mTurTeam[t] = addTeamAttr(f.geometry, MAX_UNITS);
+          addTeamTrim(f.materials);
           this.mTur[t] = this.turretMesh(f.geometry, f.materials, tur.pivot, d.team === 0);
         }
         const { geometry, materials } = flattenForInstancing(root);
+        // skirmish players' colours go on the trim (src/world/trim.ts)
+        this.mTeam[t] = addTeamAttr(geometry, MAX_UNITS);
+        addTeamTrim(materials);
         // the colony's machines wear dust and use (src/world/wear.ts); the turret shares the look
         if (d.team === 0) addWear(materials);
         if (d.team === 0 && this.mTur[t]) addWear(this.mTur[t]!.mesh.material);
@@ -284,7 +293,16 @@ export class ArmyView {
       if (this.hit[s] > 0) this.hit[s] = Math.max(0, this.hit[s] - dt);
       const hk = this.hit[s] / HIT_GLOW;
       this.creature[s] = !tc && ORGANIC[t] ? 1 : 0;
-      if (tc) {
+      // up close (the asset model) a skirmish player's colour is on the trim only; your own too, in skirmish.
+      // Zoomed out, the built-ins keep the whole-unit tint (trim would be a few pixels)
+      const trimCol = model ? (tc ?? (this.teamCols.length > 1 && team === 0 ? this.teamCols[0] : undefined)) : undefined;
+      const ta = model ? this.mTeam[t] : null;
+      if (ta) { if (trimCol) ta.setXYZ(i, trimCol.r, trimCol.g, trimCol.b); else ta.setXYZ(i, 0, 0, 0); }
+      const tta = model ? this.mTurTeam[t] : null;
+      if (tta) { if (trimCol) tta.setXYZ(i, trimCol.r, trimCol.g, trimCol.b); else tta.setXYZ(i, 0, 0, 0); }
+      if (tc && model) {
+        body.setColorAt(i, this.flashed(this.col.copy(C.hurt).lerp(C.white, Math.min(1, hp * 1.3)), hk));
+      } else if (tc) {
         body.setColorAt(i, this.flashed(this.col.copy(tc).multiplyScalar(1.5).lerp(C.hurt, Math.max(0, 1 - hp * 1.3) * 0.6), hk));
         const g = model ? null : this.glows[t];
         if (g) { g.setMatrixAt(i, this.m); g.setColorAt(i, tc); }
@@ -320,6 +338,8 @@ export class ArmyView {
       im.count = counts[t];
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      if (useModel && this.mTeam[t]) this.mTeam[t]!.needsUpdate = true;
+      if (useModel && this.mTurTeam[t]) this.mTurTeam[t]!.needsUpdate = true;
       const idle = useModel ? this.bodies[t] : model;
       if (idle) idle.count = 0;
       const tOn = useModel ? this.mTur[t] : this.bTur[t], tOff = useModel ? this.bTur[t] : this.mTur[t];

@@ -634,6 +634,13 @@ How content is stored and edited in general (one JSON record per file, schemas i
     GPU). Debug tip: modules edited while the dev server runs are served as `?t=…`, so a test's
     `import('/src/world/x.ts')` gets a second copy; reach live uniforms through a material instead
     (`renderer.properties.get(mat).uniforms`).
+  - **Team trim** (`src/world/trim.ts`): skirmish players' colours go per unit into an instanced `aTeam` (rgb;
+    black = none, which is also what a mesh without the attribute reads) on the asset models and their
+    turrets; materials named `team` (kit stripes and deck patches, `vehicle_kit(patch=…)`) take it as paint,
+    `cyan` glow strips glow in it. The instance colour stays health + hit flash. Built-ins (zoomed out) keep
+    the whole-unit tint. In skirmish your own trim shows your colour too.
+  - Sky reflections default off in automated browsers (like Glow): on SwiftShader they took frames from ~0.7 s
+    to ~1.2 s and `skirmish-play-smoke` lost sight of its spawned enemies; screenshot scripts pass `?reflect=1`.
   - `tools/asset-smoke.mjs` had been checking `army.bodies[1]` for the asset model since before v0.14.0 moved
     models to `army.models`; fixed.
 ## 3. M1 — one region
