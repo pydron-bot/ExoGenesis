@@ -140,8 +140,8 @@ try {
   check(true, 'game loaded the asset as the Solar Array model');
   await game.goto(`${url}?mode=skirmish`);
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
-  await game.waitForFunction(() => Array.isArray(__exo.skirmish.army.bodies[1].material), null, { timeout: 30000 });
-  check(await game.evaluate(() => __exo.skirmish.army.glows[1] === null), 'skirmish tanks use the asset (instanced, built-in glow strips dropped)');
+  await game.waitForFunction(() => Array.isArray(__exo.skirmish.army.models[1]?.material), null, { timeout: 30000 });
+  check(await game.evaluate(() => !!__exo.skirmish.army.models[1]), 'skirmish tanks use the asset up close (the built-in, with its glow strips, stays for the zoomed-out view)');
 
   // 7. used-by + delete
   await ed.goto(`${url}editor.html#assets/scout-tank.json`);

@@ -3,7 +3,7 @@
  * main.ts) stays; on top of it, in every lit material (the light map's shader patch, src/world/lights.ts):
  *
  *  - Mist pools in low ground: fog thickens below `uAtBase` (height above the planet's datum), fading out over
- *    `uAtScale` above it, and only over distance (a valley floor across the map is hazier than one at your feet).
+ *    `uAtScale` above it, and only past what the camera looks at (a valley across the map is hazy, one at your feet clear).
  *    main.ts makes it strongest round sunrise and sunset, and thicker in weather.
  *  - Looking toward the sun, the fog takes the sun's colour: haze glows warm round a low sun.
  *
@@ -14,7 +14,7 @@ import * as THREE from 'three';
 export const atmosUniforms = {
   /** Planet radius: heights are measured from it. */
   uAtR: { value: 1 },
-  /** Mist: how much (0 = off), the height it pools below, how fast it thins above that, and the distance it builds over. */
+  /** Mist: how much (0 = off), the height it pools below, how fast it thins above that, and the camera's distance (it builds beyond it). */
   uAtMist: { value: 0 },
   uAtBase: { value: 4 },
   uAtScale: { value: 6 },
@@ -48,7 +48,8 @@ export const ATMOS_FOG = /* glsl */ `
           if (uAtMist > 0.001) {
             float alt = length(vAtW) - uAtR;
             float low = exp(-max(alt - uAtBase, 0.0) / uAtScale);
-            float mist = uAtMist * low * (1.0 - exp(-atD / uAtReach));
+            // beyond what you're looking at: clear round the focus, building over the distance past it
+            float mist = uAtMist * low * smoothstep(uAtReach * 0.6, uAtReach * 3.0, atD);
             fogFactor = 1.0 - (1.0 - fogFactor) * (1.0 - clamp(mist, 0.0, 0.85));
           }
           vec3 fc = fogColor;

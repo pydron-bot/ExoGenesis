@@ -31,6 +31,7 @@ import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { SkyEnv, type SkyLook } from './world/envmap';
 import { atmosUniforms } from './world/atmos';
+import { wearUniforms } from './world/wear';
 import { enableColonyLights } from './world/lights';
 import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
 import { GroundMarks, Sky, type MarkMover } from './world/ground';
@@ -336,7 +337,7 @@ function regionMistLevels() {
   for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) hs.push(Math.max(0, regionHeight((i / n * 2 - 1) * HALF * 0.9, (j / n * 2 - 1) * HALF * 0.9)));
   hs.sort((a, b) => a - b);
   const lo = hs[Math.floor(hs.length * 0.25)], hi = hs[Math.floor(hs.length * 0.75)];
-  return { base: lo + 0.5 * (hi - lo), scale: Math.max(3, 0.6 * (hi - lo)) };
+  return { base: lo + 0.35 * (hi - lo), scale: Math.max(3, 0.6 * (hi - lo)) };
 }
 // colour grade and vignette (src/world/post.ts): Options → Colour grade, remembered; ?grade=0|1
 post.grading = setting(GRADE_KEY, 'grade', true);
@@ -1739,6 +1740,8 @@ const bg = new THREE.Color();
 /** The sky the reflections are baked from, and the ground under it (sunlit dust). */
 const envLook: SkyLook = { zenith: new THREE.Color(), horizon: new THREE.Color(), ground: new THREE.Color(), sun: new THREE.Vector3(), sunColor: new THREE.Color(), up: new THREE.Vector3() };
 const envGround = new THREE.Color(terrain.world?.ground[0] ?? '#7c4a33');
+// the colony's vehicles wear the dust of the ground they drive on (src/world/wear.ts)
+wearUniforms.uWearDust.value.copy(envGround);
 /** How strongly the sky lights and reflects; the sky fill dims by part of it so the scene isn't brighter overall. */
 const ENV_STRENGTH = 0.65;
 /** …and for the ground. */
@@ -1814,7 +1817,7 @@ function frame(now: number) {
     au.uAtR.value = R;
     au.uAtBase.value = mistLevels.base;
     au.uAtScale.value = mistLevels.scale;
-    au.uAtReach.value = Math.max(30, cam.dist * 0.9);
+    au.uAtReach.value = cam.dist;
     // morning and evening mist, a little by day, more in weather
     au.uAtMist.value = on * Math.min(0.9, 0.38 + 0.45 * system.golden + 0.35 * wl.haze);
     au.uAtSun.value.copy(system.sunPos).normalize();

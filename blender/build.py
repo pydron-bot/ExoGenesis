@@ -387,6 +387,7 @@ def rover(M):
     top = [box((0.14, 0.95, 0.14), (0, -0.45, 1.5), M["dark"]), box((0.35, 0.4, 0.25), (0, 0.05, 1.5), M["dark"])]
     parts.append(box((0.04, 0.04, 0.8), (0.45, 0.6, 1.75), M["dark"], bevel=0))  # antenna
     parts.append(box((1.0, 0.06, 0.08), (0, -0.25, 1.4), M["cyan"], bevel=0))
+    parts += vehicle_kit(M, (1.35, 2.1, 0.45), (0, 0, 0.72), seams=(0.72,))
     export("rover", [join(parts, "body"), join(top, "turret", pivot=(0, 0.05, 1.4))])
 
 
@@ -400,6 +401,7 @@ def tank(M):
             parts.append(cyl(0.22, 0.3, (sx * 1.15, -1.05 + k * 0.7, 0.32), M["dark"], verts=8, rot=(0, math.pi / 2, 0), bevel=0))
         parts.append(box((0.65, 3.0, 0.1), (sx * 1.15, 0, 0.8), M["hull2"], bevel=0.03))   # track guard
     parts.append(box((2.05, 0.08, 0.08), (0, 1.48, 1.1), M["red"], bevel=0))
+    parts += vehicle_kit(M, (2.0, 2.9, 0.7), (0, 0, 0.8), front=-1.7, light_z=0.78, seams=(0.2, 0.82))
     # the turret is its own object, pivoting on the turret ring: the game swings it toward the target
     top = []
     top.append(cyl(0.78, 0.55, (0, 0.15, 1.4), M["hull2"], verts=8, bevel=0.08))
@@ -414,6 +416,27 @@ def tank(M):
 
 def glow_mat(name, color, strength):
     return mat(name, "#000000", 0.0, 0.4, emit=color, strength=strength)
+
+
+def vehicle_kit(M, size, loc, front=None, rear=None, light_z=None, seams=(0.34, 0.67), stripe_z=None):
+    """Detail for a ground vehicle's main hull box (`size`, `loc`; front is −Y): headlights at the front and red
+    tail lights at the back (on `front` / `rear` when the nose or tail sticks out past the box), dark panel
+    seams across the top, and an accent stripe down each side. Flat (unbevelled) boxes: ~120 tris in all."""
+    w, l, h = size
+    cx, cy, cz = loc
+    lamp = glow_mat("lamp", "#fff1d6", 3.2)
+    fy = (cy - l / 2) if front is None else front
+    ry = (cy + l / 2) if rear is None else rear
+    lz = cz + h * 0.15 if light_z is None else light_z
+    out = []
+    for sx in (-1, 1):
+        out.append(box((0.22, 0.06, 0.12), (sx * w * 0.32, fy - 0.03, lz), lamp, bevel=0))
+        out.append(box((0.16, 0.05, 0.08), (sx * w * 0.36, ry + 0.025, lz + 0.05), M["red"], bevel=0))
+        sz = cz + h * 0.1 if stripe_z is None else stripe_z
+        out.append(box((0.03, l * 0.62, 0.07), (sx * (w / 2 + 0.012), cy + l * 0.05, sz), M["accent"], bevel=0))
+    for f in seams:
+        out.append(box((w * 0.9, 0.035, 0.02), (cx, cy - l / 2 + l * f, cz + h / 2 + 0.008), M["black"], bevel=0))
+    return out
 
 
 def veil(name, color, emit, strength, alpha):
@@ -646,6 +669,7 @@ def artillery(M):
         parts.append(box((0.4, 0.4, 0.08), (sx * 0.85, 1.78, 0.06), M["dark"], bevel=0))
     parts.append(box((1.35, 0.06, 0.1), (0, -0.16, 1.82), M["cyan"], bevel=0))
     parts.append(box((1.85, 0.08, 0.08), (0, 1.32, 0.9), M["red"], bevel=0))
+    parts += vehicle_kit(M, (1.8, 2.6, 0.6), (0, 0, 0.75), seams=(0.12,))
     export("artillery", [join(parts, "body")])
 
 
@@ -664,6 +688,7 @@ def arc(M):
         parts.append(_finish(bpy.context.active_object, M["accent"], 0))
     parts.append(sphere(0.42, (0, -0.45, 2.55), M["cyan"], seg=8, rings=5))
     parts.append(box((1.05, 0.06, 0.08), (0, -1.12, 0.88), M["cyan"], bevel=0))
+    parts += vehicle_kit(M, (1.4, 2.2, 0.55), (0, 0, 0.75), light_z=0.72, seams=(0.88,))
     export("arc", [join(parts, "body")])
 
 
@@ -685,6 +710,7 @@ def engineer(M):
     parts.append(box((0.24, 0.1, 0.1), (0.35, -1.0, 1.82), green, bevel=0))
     parts.append(box((1.42, 0.06, 0.1), (0, 1.22, 1.35), M["cyan"], bevel=0))
     parts.append(cyl(0.08, 0.15, (-0.45, 0.8, 1.52), M["amber"], verts=6, bevel=0))      # beacon
+    parts += vehicle_kit(M, (1.4, 2.2, 0.9), (0, 0.1, 1.0), front=-1.65, light_z=0.95, seams=(0.2,), stripe_z=0.75)
     export("engineer", [join(parts, "body")])
 
 
@@ -1186,6 +1212,7 @@ def lancer(M):
     parts.append(box((0.6, 0.6, 0.35), (0.55, 0.0, 1.85), M["dark"], bevel=0.05))   # sight
     parts.append(box((0.4, 0.06, 0.16), (0.55, -0.31, 1.88), M["cyan"], bevel=0))
     parts.append(box((1.7, 0.08, 0.08), (0, 1.62, 1.1), M["red"], bevel=0))
+    parts += vehicle_kit(M, (1.6, 3.0, 0.6), (0, 0.1, 0.85), front=-1.72, light_z=0.8, seams=(0.6, 0.85))
     export("lancer", [join(parts, "body")])
 
 

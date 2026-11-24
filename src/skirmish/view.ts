@@ -11,6 +11,7 @@
  */
 import * as THREE from 'three';
 import { placeMatrix, regionPoint, sampleRaw } from '../world/heightGrid';
+import { addWear } from '../world/wear';
 import { WATER_LIFT } from '../world/water';
 import { flattenForInstancing, loadModel, splitPart } from '../assets/models';
 import { builtinUnitLook } from './models';
@@ -130,6 +131,7 @@ export class ArmyView {
     for (const d of DEFS) {
       const look = builtinUnitLook(d.id, d.team === 0 ? 'accord' : 'fauna');
       const im = new THREE.InstancedMesh(look.geo(), look.material(), MAX_UNITS);
+      if (d.team === 0) addWear(im.material);
       im.count = 0;
       im.frustumCulled = false;
       if (d.team === 0) im.setColorAt(0, C.white);
@@ -158,6 +160,9 @@ export class ArmyView {
           this.mTur[t] = this.turretMesh(f.geometry, f.materials, tur.pivot, d.team === 0);
         }
         const { geometry, materials } = flattenForInstancing(root);
+        // the colony's machines wear dust and use (src/world/wear.ts); the turret shares the look
+        if (d.team === 0) addWear(materials);
+        if (d.team === 0 && this.mTur[t]) addWear(this.mTur[t]!.mesh.material);
         const im = new THREE.InstancedMesh(geometry, materials, MAX_UNITS);
         im.count = 0;
         im.frustumCulled = false;

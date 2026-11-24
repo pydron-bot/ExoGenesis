@@ -606,6 +606,36 @@ How content is stored and edited in general (one JSON record per file, schemas i
     - a Defense Turret ignores a Skimmerwing, a Flak Tower shoots it down, and ignores a Swarmer;
     - a Swarmer doesn't go for a Gunship, a Spitter does.
   - `node tools/sim-bench.mjs`: unchanged within its noise (3.1 to 3.6 ms/tick before, 3.3 to 3.5 after).
+- **Light, mist and metal (v0.79.0, 2026-11-24):** four Options rows (each `?name=0|1`), all off-able:
+  - **Sky reflections** (`src/world/envmap.ts`, `?reflect`): a tiny sky scene (zenith, horizon, ground, sun spot)
+    baked by PMREMGenerator into `scene.environment`, re-baked only when its quantised colours or the sun (~3°)
+    move, at most every 1.5 s, 128 px faces. Metal (`metal()`, metalness 0.45) had nothing to reflect and drew
+    near-black. The ground gets the map at a fifth of the strength (`SkyEnv.own`: its own `envMap` and intensity,
+    since `scene.environmentIntensity` is global) so hills keep their shading; the hemisphere fill dims by 45%
+    to make up. Fades with `air` toward orbit.
+  - **Ambient occlusion** (`n8ao` 2.1.0 in `src/world/post.ts`, `?ao`; types in `src/n8ao.d.ts`): N8AOPass
+    replaces the RenderPass. Half-res, Low (desktop) / Performance (phones) quality, radius 0.22 × camera
+    distance (2.5..14 u), intensity 4, zero in orbit. Its depth isn't multisampled, so with AO on, auto/MSAA
+    anti-aliasing becomes SMAA (`aaPassMode`). `transparencyAware` off (domes and ghosts don't occlude).
+    Default on with Glow's rule (desktop, not automated browsers).
+  - **Mist and sun haze** (`src/world/atmos.ts`, `?mist`): replaces `fog_fragment` inside the light map's
+    patch (so only lit materials; glow strips keep plain fog). Linear fog unchanged; mist adds below a base
+    height taken from the region's terrain (25th..75th percentile spread) and only past the camera's focus
+    (0.6× to 3× its distance), strongest round sunrise/sunset and in weather; fog toward the sun takes the
+    sun's colour. Off without air.
+  - **Vehicle wear** (`src/world/wear.ts`, always on, player units in ArmyView): dust low down measured above
+    the terrain (the light map's height texture, under the patch's own uniform names: the light patch
+    declares `uLmH` & co. in the same shader), a patchy film on upward faces, per-panel and per-vehicle tone.
+    Injected before `lights_physical_fragment`, where the normal is known. Glow materials are skipped.
+  - **Vehicle kit** (`vehicle_kit` in `blender/build.py`): headlights (`lamp`), tail lights, top seams and
+    side accent stripes on rover, tank, artillery, arc, lancer and engineer (~120 tris each; all stay
+    under 1,500).
+  - Checked by screenshot only (SwiftShader: no GPU numbers; the dev box's headless Chromium can't reach the
+    GPU). Debug tip: modules edited while the dev server runs are served as `?t=…`, so a test's
+    `import('/src/world/x.ts')` gets a second copy; reach live uniforms through a material instead
+    (`renderer.properties.get(mat).uniforms`).
+  - `tools/asset-smoke.mjs` had been checking `army.bodies[1]` for the asset model since before v0.14.0 moved
+    models to `army.models`; fixed.
 ## 3. M1 — one region
 
 First playtest build (2026-11-15).
