@@ -321,6 +321,9 @@ if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
 const REFLECT_KEY = 'exo.reflect';
 const skyEnv = new SkyEnv(renderer, scene);
 skyEnv.enabled = setting(REFLECT_KEY, 'reflect', true);
+// ambient occlusion (src/world/post.ts, n8ao): on by default on desktop like Glow, off on phones; ?ao=0|1
+const AO_KEY = 'exo.ao';
+post.ao = setting(AO_KEY, 'ao', !coarse && !navigator.webdriver);
 // colour grade and vignette (src/world/post.ts): Options → Colour grade, remembered; ?grade=0|1
 post.grading = setting(GRADE_KEY, 'grade', true);
 // the ground weathers (src/world/ground.ts): cloud shadows, wet ground after rain, tracks and scorches. They ride on
@@ -1376,6 +1379,11 @@ const graphicsToggles: Toggle[] = [
     get: () => skyEnv.enabled, set: (v) => { skyEnv.enabled = v; remember(REFLECT_KEY, v); }, locked: urlLock('reflect'),
   },
   {
+    id: 'ao', label: 'Ambient occlusion',
+    help: 'Soft shade where things meet the ground and each other: under vehicles, round buildings, in creases and among plants. Costs some speed, most on phones; with it on, edges are smoothed with SMAA.',
+    get: () => post.ao, set: (v) => { post.ao = v; remember(AO_KEY, v); }, locked: urlLock('ao'),
+  },
+  {
     id: 'grade', label: 'Colour grade',
     help: 'Each world gets its own colour mood: nights bluer, sunrise and sunset warmer, the corners of the view a little darker. (The colours need Glow or FXAA/SMAA; without them, just the corners.)',
     get: () => post.grading, set: (v) => { post.grading = v; remember(GRADE_KEY, v); }, locked: urlLock('grade'),
@@ -1949,7 +1957,7 @@ function frame(now: number) {
       night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air, sun: shaftUv.set((sp.x + 1) / 2, (sp.y + 1) / 2), shafts,
       zoom: zoomBlur && !cine && !title ? smoothstep(1.2, 5, zoomRate) * 0.035 : 0,
       heat, heatK: 0.5 + 0.5 * day, time: t,
-      grade: worldGrade, golden: system.golden,
+      grade: worldGrade, golden: system.golden, camDist: cam.dist,
     });
   }
   post ? post.render(dt) : renderer.render(scene, camera);

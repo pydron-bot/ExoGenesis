@@ -32,6 +32,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { N8AOPass } from 'n8ao';
 
 export type AAMode = 'auto' | 'off' | 'fxaa' | 'smaa' | 'msaa';
 export const AA_MODES: AAMode[] = ['auto', 'off', 'fxaa', 'smaa', 'msaa'];
@@ -189,6 +190,8 @@ const GOLDEN_GAIN = new THREE.Color('#fff0dc');
 
 /** Bloom works at this fraction of the canvas resolution (the pass halves it again for its first level). */
 const BLOOM_SCALE = 0.5;
+/** Ambient occlusion's darkening (n8ao's intensity: an exponent on the occlusion). */
+const AO_STRENGTH = 4;
 
 export interface GlowLook {
   /** 0 day .. 1 night at the landing site. */
@@ -205,6 +208,8 @@ export interface GlowLook {
   heatK?: number;
   /** Seconds, for the shimmer's ripples. */
   time?: number;
+  /** The camera's distance from what it looks at (the AO's reach grows with it). */
+  camDist?: number;
   /** The world's grade, and 0..1 sunrise/sunset (night comes from `night`). */
   grade?: Grade;
   golden?: number;
@@ -220,10 +225,13 @@ export class Post {
   private gradeOn = true;
   private aaMode: AAMode = 'auto';
   private aaPass: FXAAPass | SMAAPass | null = null;
+  /** Ambient occlusion (n8ao): it renders the scene itself, in place of the RenderPass. */
+  private aoOn = false;
+  private aoPass: N8AOPass | null = null;
   /** Whether the canvas itself was made with MSAA (fixed for the page's life). */
   private readonly nativeAA: boolean;
   /** Bloom strength, threshold and radius in use (test hook). */
-  readonly look = { strength: 0, threshold: 0, radius: 0, shafts: 0, zoom: 0, heat: 0, grade: false };
+  readonly look = { strength: 0, threshold: 0, radius: 0, shafts: 0, zoom: 0, heat: 0, grade: false, ao: 0, aoRadius: 0 };
 
   constructor(private renderer: THREE.WebGLRenderer, private scene: THREE.Scene, private camera: THREE.Camera) {
     this.nativeAA = !!renderer.getContext().getContextAttributes()?.antialias;
@@ -241,6 +249,26 @@ export class Post {
   /** The grade pass is drawing this frame (else the page shows a plain vignette while grading is on). */
   get gradeInUse() { return this.gradeOn && !!this.composer && this.needsComposer(); }
 
+  /**
+   * Ambient occlusion (Options): soft shade where things meet, in creases and under overhangs. It needs the
+   * composer, and can't share it with MSAA (the depth it reads isn't multisampled), so with it on, auto and MSAA
+   * smooth edges with SMAA instead.
+   */
+  get ao() { return this.aoOn; }
+  set ao(v: boolean) {
+    if (v === this.aoOn) return;
+    this.aoOn = v;
+    this.dispose();
+    if (this.needsComposer()) this.build();
+  }
+
+  /** The AA pass the composer gets: what was asked for, except that AO turns auto and MSAA into SMAA. */
+  private aaPassMode(): 'fxaa' | 'smaa' | null {
+    const m = this.aaMode;
+    if (m === 'fxaa' || m === 'smaa') return m;
+    return this.aoOn && (m === 'auto' || m === 'msaa') ? 'smaa' : null;
+  }
+
   get aa() { return this.aaMode; }
   set aa(m: AAMode) {
     if (m === this.aaMode) return;
@@ -252,13 +280,14 @@ export class Post {
   /** What actually smooths edges right now (for the options row and tests). */
   get aaInUse(): 'off' | 'fxaa' | 'smaa' | 'msaa' {
     if (this.composer && this.needsComposer()) {
-      if (this.aaPass) return this.aaMode as 'fxaa' | 'smaa';
+      if (this.aaPass) return this.aaPassMode()!;
       return this.samples() > 0 ? 'msaa' : 'off';
     }
     return this.nativeAA ? 'msaa' : 'off';
   }
 
   private samples() {
+    if (this.aoOn) return 0;
     const q = new URLSearchParams(location.search).get('glowaa');
     if (q !== null) return Number(q) || 0;
     // the renderer's own antialias doesn't apply to render targets, so desktop multisamples the HDR target;
@@ -270,14 +299,14 @@ export class Post {
   /** Glow needs it; so do FXAA/SMAA, and MSAA on a canvas that wasn't made with its own. */
   private needsComposer() {
     const m = this.aaMode;
-    return this.on || m === 'fxaa' || m === 'smaa' || (m === 'msaa' && !this.nativeAA);
+    return this.on || this.aoOn || m === 'fxaa' || m === 'smaa' || (m === 'msaa' && !this.nativeAA);
   }
 
   private dispose() {
     if (!this.composer) return;
     for (const p of this.composer.passes) p.dispose?.();
     this.composer.dispose();
-    this.composer = this.bloom = this.shafts = this.distort = this.gradePass = this.aaPass = null;
+    this.composer = this.bloom = this.shafts = this.distort = this.gradePass = this.aaPass = this.aoPass = null;
   }
 
   private build() {
@@ -286,7 +315,19 @@ export class Post {
     const pr = r.getPixelRatio();
     const target = new THREE.WebGLRenderTarget(size.x * pr, size.y * pr, { type: THREE.HalfFloatType, samples: this.samples() });
     const c = new EffectComposer(r, target);
-    c.addPass(new RenderPass(this.scene, this.camera));
+    if (this.aoOn) {
+      const ao = new N8AOPass(this.scene, this.camera, size.x * pr, size.y * pr);
+      ao.setQualityMode(PHONE ? 'Performance' : 'Low');
+      const cf = ao.configuration;
+      cf.halfRes = true;
+      // the OutputPass after it does the colour space
+      cf.gammaCorrection = false;
+      cf.screenSpaceRadius = false;
+      // shield domes, ghosts and glass don't occlude: skip the second transparent render
+      cf.transparencyAware = false;
+      c.addPass(ao);
+      this.aoPass = ao;
+    } else c.addPass(new RenderPass(this.scene, this.camera));
     const sh = new ShaderPass(ShaftShader);
     sh.enabled = false;
     c.addPass(sh);
@@ -305,7 +346,8 @@ export class Post {
     c.addPass(gp);
     this.gradePass = gp;
     // FXAA/SMAA work on the final (tone-mapped, sRGB) picture, so they go last
-    this.aaPass = this.aaMode === 'fxaa' ? new FXAAPass() : this.aaMode === 'smaa' ? new SMAAPass() : null;
+    const am = this.aaPassMode();
+    this.aaPass = am === 'fxaa' ? new FXAAPass() : am === 'smaa' ? new SMAAPass() : null;
     if (this.aaPass) c.addPass(this.aaPass);
     this.composer = c;
     this.bloom = b;
@@ -323,6 +365,17 @@ export class Post {
   /** Tune the bloom to the light (call once a frame, before render). */
   update(l: GlowLook) {
     if (!this.bloom) return;
+    if (this.aoPass) {
+      // reach in world units: a unit's height up close, more of a building's footprint from further out
+      const d = l.camDist ?? 60;
+      const cf = this.aoPass.configuration;
+      cf.aoRadius = THREE.MathUtils.clamp(d * 0.22, 2.5, 14);
+      cf.distanceFalloff = 1;
+      // gone in orbit (no creases worth shading from there). It stays enabled: it's the pass that draws the scene
+      cf.intensity = AO_STRENGTH * (1 - l.orbit);
+      this.look.ao = cf.intensity;
+      this.look.aoRadius = cf.aoRadius;
+    }
     const surfaceThreshold = THREE.MathUtils.lerp(1.0, 0.72, l.night);
     const threshold = THREE.MathUtils.lerp(surfaceThreshold, 0.85, l.orbit);
     const strength = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.35, 0.55, l.night), 0.6, l.orbit);

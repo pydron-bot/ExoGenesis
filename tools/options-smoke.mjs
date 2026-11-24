@@ -29,11 +29,11 @@ async function run(viewport, name, mobile = false) {
   const live = () => page.evaluate(() => ({ glow: __exo.post.enabled, flare: __exo.flare.enabled, dust: __exo.dust.enabled, weather: __exo.weather.enabled, print: __exo.region.printing, water: __exo.region.waterDetail, grade: __exo.post.grading, clouds: __exo.groundSky.cloudShadows, marks: __exo.marks.enabled }));
   const all = await state();
   const ids = Object.keys(all), regionIds = ids.filter((k) => k.startsWith('region:'));
-  check(ids.slice(-14).join() === 'glow,aa,reflect,grade,flare,dust,zoomblur,weather,shadows,clouds,marks,print,water,lights', `${name}: fourteen graphics rows (${ids.slice(-14).join()})`);
+  check(ids.slice(-15).join() === 'glow,aa,reflect,ao,grade,flare,dust,zoomblur,weather,shadows,clouds,marks,print,water,lights', `${name}: fifteen graphics rows (${ids.slice(-15).join()})`);
   const first = ids.filter((k) => !k.startsWith('ap:'));
   check(first[0] === 'sound' && ids.slice(0, ids.indexOf('sound')).every((k) => k.startsWith('ap:')) && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, the autopilot rows, then sound and the regions (${regionIds.length} regions, Touchdown picked)`);
   // the graphics toggles flip and are remembered (sound and the region list have their own checks)
-  const G = ['glow', 'reflect', 'grade', 'flare', 'dust', 'zoomblur', 'weather', 'shadows', 'clouds', 'marks', 'print', 'water', 'lights'];
+  const G = ['glow', 'reflect', 'ao', 'grade', 'flare', 'dust', 'zoomblur', 'weather', 'shadows', 'clouds', 'marks', 'print', 'water', 'lights'];
   const pick = (o) => Object.fromEntries(G.map((k) => [k, o[k]]));
   const s0 = pick(all);
   if (shots) await page.screenshot({ path: `${shots}/${name}-options.png` });
