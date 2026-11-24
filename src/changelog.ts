@@ -28,6 +28,7 @@ export const CHANGELOG: Release[] = [
       'Paint to select: hold your finger (or the mouse button) on empty ground until it buzzes, then drag over your units to pick them all up. A quick drag still moves the camera',
       'On a computer, Ctrl-drag (Cmd-drag on a Mac) draws a box around units to select them; hold Shift as well to add them to what you already have',
       'Fixed: after a long session, the clouds seen from orbit turned into thin white streaks wrapped round the planet. They now drift without smearing however long you play',
+      'New daytime music: Astral Drift, a bright piece in D for glass pads, harp, arpeggios and flute that builds to a full chorus and settles again',
     ],
     guide: ['selecting-and-orders'],
   },
