@@ -15,7 +15,8 @@ page.on('console', (m) => { if (/THREE\.WebGLProgram|Shader Error|Program Info L
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 
-await page.goto(`${url}?title=0&intro=0&new=1&sw=0`, { timeout: 120000 });
+// Smooth is the default (v0.79.0): start in Flat to test switching both ways
+await page.goto(`${url}?title=0&intro=0&new=1&sw=0&look=flat`, { timeout: 120000 });
 await page.waitForFunction(() => window.__exo?.ready && window.__exo.sim.cur?.deployed, null, { timeout: 180000 });
 await page.evaluate(() => { localStorage.removeItem('exo.look'); window.__samePage = true; });
 // a building beside the Core, so there's a pad levelled into the ground
@@ -51,7 +52,7 @@ const state = () => page.evaluate(() => {
 const before = await state();
 const padBefore = await padGap();
 check(padBefore !== null, 'a building pad is levelled into the ground');
-check(!before.indexed && before.flatPatch && before.floraFlat === true, 'starts flat (faceted ground and plants)');
+check(!before.indexed && before.flatPatch && before.floraFlat === true, 'starts flat with ?look=flat (faceted ground and plants)');
 
 const toggle = async () => {
   await page.click('#b-menu');
@@ -85,12 +86,15 @@ await toggle();
 const flat = await state();
 check(flat.same && !flat.indexed && flat.flatPatch && flat.floraFlat === true && flat.stored === 'flat', 'and back to flat, still the same page');
 
-// the next visit opens with the remembered look
-await page.evaluate(() => localStorage.setItem('exo.look', 'smooth'));
+// the next visit opens with the remembered look; with none remembered, Smooth
+await page.evaluate(() => localStorage.setItem('exo.look', 'flat'));
 await page.goto(`${url}?title=0&intro=0&new=1&sw=0`, { timeout: 120000 });
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 180000 });
-check(await page.evaluate(() => !!__exo.region.patch.geometry.index), 'a new visit opens in the remembered look');
+check(await page.evaluate(() => !__exo.region.patch.geometry.index), 'a new visit opens in the remembered look (Flat)');
 await page.evaluate(() => localStorage.removeItem('exo.look'));
+await page.goto(`${url}?title=0&intro=0&new=1&sw=0`, { timeout: 120000 });
+await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 180000 });
+check(await page.evaluate(() => !!__exo.region.patch.geometry.index), 'with no choice remembered, it opens Smooth (the default)');
 
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' / ')}` : ''}`);
 await browser.close();

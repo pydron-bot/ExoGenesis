@@ -639,6 +639,10 @@ How content is stored and edited in general (one JSON record per file, schemas i
     turrets; materials named `team` (kit stripes and deck patches, `vehicle_kit(patch=…)`) take it as paint,
     `cyan` glow strips glow in it. The instance colour stays health + hit flash. Built-ins (zoomed out) keep
     the whole-unit tint. In skirmish your own trim shows your colour too.
+  - **Smooth terrain is the default** (`look` in main.ts: only a stored `flat` keeps Flat). Its 22 u texture tile
+    no longer shows: `antiTile` (`src/world/terrainTex.ts`) blends each map and normal-map lookup with a
+    second one rotated ~53° at 0.73× scale, weighted by a value noise (uv × 0.9), and the texture's cracks are
+    shallower (−0.16, was −0.35). `look-smoke` starts with `?look=flat` and checks the new default.
   - Sky reflections default off in automated browsers (like Glow): on SwiftShader they took frames from ~0.7 s
     to ~1.2 s and `skirmish-play-smoke` lost sight of its spawned enemies; screenshot scripts pass `?reflect=1`.
   - `tools/asset-smoke.mjs` had been checking `army.bodies[1]` for the asset model since before v0.14.0 moved

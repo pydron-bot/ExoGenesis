@@ -59,7 +59,7 @@ export function makeGroundTextures(): { map: THREE.Texture; normalMap: THREE.Tex
       const grain = pfbm(u, v, 32, 3, 1);
       const broad = pfbm(u, v, 4, 3, 7);
       const peb = 1 - Math.min(1, cells(u, v, 18, 3) * 2.2); // raised pebble bumps
-      const crack = Math.abs(pfbm(u, v, 6, 3, 11) - 0.5) < 0.012 ? -0.35 : 0;
+      const crack = Math.abs(pfbm(u, v, 6, 3, 11) - 0.5) < 0.012 ? -0.16 : 0; // shallow: a deep one outlined every tile
       height[y * SIZE + x] = broad * 0.45 + grain * 0.25 + Math.max(0, peb) ** 2 * 0.5 + crack;
     }
   }
@@ -103,4 +103,43 @@ export function makeGroundTextures(): { map: THREE.Texture; normalMap: THREE.Tex
   }
   // average brightness: what the texture looks like from far away (its smallest mip)
   return { map, normalMap, mean: sum / (SIZE * SIZE) };
+}
+
+/**
+ * Hide the ground texture's repeat (Smooth look): every lookup is blended with a second one, rotated ~53° and at
+ * 0.73× the scale, by a slow value noise, so neighbouring tiles never match and the crack lines don't line up
+ * into a grid. The normal map gets the same blend (the second sample's normal turned back by the rotation).
+ */
+const AT_GLSL = /* glsl */ `
+  float atHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float atNoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(atHash(i), atHash(i + vec2(1.0, 0.0)), f.x), mix(atHash(i + vec2(0.0, 1.0)), atHash(i + vec2(1.0, 1.0)), f.x), f.y);
+  }
+  const mat2 AT_R = mat2(0.6, 0.8, -0.8, 0.6);
+  vec2 atUv2(vec2 uv) { return AT_R * (uv * 0.73) + vec2(0.37, 0.61); }
+  float atW(vec2 uv) { return smoothstep(0.25, 0.75, atNoise(uv * 0.9)); }
+  vec4 atMap(sampler2D t, vec2 uv) { return mix(texture2D(t, uv), texture2D(t, atUv2(uv)), atW(uv)); }
+  vec3 atNormal(sampler2D t, vec2 uv) {
+    vec3 a = texture2D(t, uv).xyz * 2.0 - 1.0;
+    vec3 b = texture2D(t, atUv2(uv)).xyz * 2.0 - 1.0;
+    b.xy = transpose(AT_R) * b.xy;
+    return normalize(mix(a, b, atW(uv)));
+  }`;
+
+export function antiTile(mat: THREE.MeshStandardMaterial) {
+  const prev = mat.onBeforeCompile;
+  const prevKey = mat.customProgramCacheKey.bind(mat);
+  mat.onBeforeCompile = (sh, r) => {
+    prev.call(mat, sh, r);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>${AT_GLSL}`)
+      .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace('texture2D( map, vMapUv )', 'atMap( map, vMapUv )'))
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps
+        .replace('texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0', 'atNormal( normalMap, vNormalMapUv )')
+        .replace('texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0', 'atNormal( normalMap, vNormalMapUv )'));
+  };
+  mat.customProgramCacheKey = () => `${prevKey()}|antitile`;
+  return mat;
 }

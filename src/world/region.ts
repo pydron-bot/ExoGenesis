@@ -9,7 +9,7 @@ import { buildMedBay, buildMemorial, buildSeedBank, buildShieldProjector } from 
 import { BATCHED_KINDS, BuildingBatch } from './batch';
 import type { Building, Snapshot } from '../sim/types';
 import { lerp, smoothstep } from './noise';
-import { makeGroundTextures } from './terrainTex';
+import { antiTile, makeGroundTextures } from './terrainTex';
 import { Flora, type FloraBiome } from './flora';
 import { buildCreatureLook, creatureMaterial } from './fauna-models';
 import { recolorModel } from './recolor';
@@ -126,9 +126,9 @@ function buildPatch(look: Look): THREE.Mesh {
       colAttr.setXYZ(i, c.r, c.g, c.b);
     }
     const tex = groundTextures();
-    mat = new THREE.MeshStandardMaterial({
+    mat = antiTile(new THREE.MeshStandardMaterial({
       vertexColors: true, map: tex.map, normalMap: tex.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.95,
-    });
+    }));
   } else {
     geo = geo.toNonIndexed();
     // toNonIndexed walks the index in order: vertex k came from index[k]

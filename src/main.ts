@@ -212,7 +212,8 @@ const LOOK_KEY = 'exo.look';
 let look: 'flat' | 'smooth' = (() => {
   const q = params.get('look');
   if (q === 'smooth' || q === 'flat') return q;
-  try { return localStorage.getItem(LOOK_KEY) === 'smooth' ? 'smooth' : 'flat'; } catch { return 'flat'; }
+  // Smooth by default (since v0.79.0); a player who picked Flat keeps it
+  try { return localStorage.getItem(LOOK_KEY) === 'flat' ? 'flat' : 'smooth'; } catch { return 'smooth'; }
 })();
 /** The region's terrain with its body (a planet, moon, asteroid or comet) looked up: every worker gets this. */
 const terrain = regionTerrain(regionDef, content.bodies);

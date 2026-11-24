@@ -30,6 +30,7 @@ export const CHANGELOG: Release[] = [
       'Mist and sun haze: on worlds with air, mist settles in low ground in the distance, thickest round sunrise and sunset, and the haze glows warm toward a low sun (Options → Mist and sun haze)',
       'The colony\'s vehicles look lived-in: dust on their tracks, wheels and lower hulls in the colour of the ground they drive on, a film of it on flat tops, and plates that vary a little in tone',
       'Rovers, tanks, lancers, arc casters, artillery and engineers have headlights, tail lights, panel seams and a stripe down each side',
+      'The land is drawn Smooth by default now: soft shading, ground texture and bare rock on steep slopes, with the texture no longer repeating in a visible grid. If you chose Flat, you keep it (Options → Terrain look)',
       'Skirmish: up close, players\' vehicles wear their colour on their trim (stripes, deck patches and glowing strips) instead of all over, so you can see the machines themselves; zoomed out they still take it all over',
       'Vehicles lean with the slope they stand on instead of sinking into hillsides',
       'Opening Options, Controls, the Field Guide and the rest from the menu keeps the game paused (it used to carry on behind them)',
