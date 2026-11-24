@@ -18,6 +18,15 @@ import { FX } from './types';
 export const SHELL_FLIGHT = 0.5;
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+/** How many of something that happens `mean` times on average this frame (small means: Knuth). */
+function poisson(mean: number) {
+  if (mean <= 0) return 0;
+  if (mean > 30) return Math.round(mean);
+  const L = Math.exp(-mean);
+  let k = 0, p = 1;
+  do { k++; p *= Math.random(); } while (p > L);
+  return k - 1;
+}
 
 // ---------- shaders ----------
 
@@ -695,6 +704,57 @@ export class BattleFx {
     this.sLife[j] = this.sMax[j] = life;
     this.sAlpha[j] = a;
     if (j > this.sHi) this.sHi = j;
+  }
+
+  /**
+   * A damaged building (or a fresh heap of rubble) smoking, once a frame: at region (x, z), `top` its height,
+   * `r` its radius, `dmg` 0 (just hurt) .. 1 (nearly gone). Smoke from the first, flames above half, now and
+   * then a burst of sparks. `dt` is game time (nothing new while paused).
+   */
+  smoulder(x: number, z: number, top: number, r: number, dmg: number, dt: number) {
+    if (dt <= 0 || dmg <= 0) return;
+    const P = this.v1;
+    const smokeRate = (2.5 + dmg * 7) * this.detail;
+    // a steady breeze, so the column leans the same way over the whole base
+    const wx = 0.5, wz = 0.25;
+    for (let n = poisson(smokeRate * dt); n > 0; n--) {
+      const a = Math.random() * 6.283, d = Math.random() * r * 0.45;
+      regionPoint(x + Math.cos(a) * d, z + Math.sin(a) * d, top * rnd(0.6, 0.95), P);
+      regionPoint(x + Math.cos(a) * d + wx, z + Math.sin(a) * d + wz, top * rnd(0.6, 0.95), this.v2);
+      this.v2.sub(P);
+      this.upv.copy(P).normalize();
+      const up = rnd(1.8, 3.0);
+      const dark = Math.random() < 0.3 + dmg * 0.5;
+      this.smoke.add(P, this.upv.x * up + this.v2.x, this.upv.y * up + this.v2.y, this.upv.z * up + this.v2.z,
+        rnd(3.2, 5), 1.2 + r * 0.2, 4 + r * 0.7 + dmg * 2, dark ? COL.smokeDark : COL.smokeLight, -0.1, 0.15, rnd(0.35, 0.5) + dmg * 0.15);
+    }
+    if (dmg > 0.5) {
+      const fire = (dmg - 0.5) * 2;
+      for (let n = poisson(fire * 16 * this.detail * dt); n > 0; n--) {
+        const a = Math.random() * 6.283, d = Math.random() * r * 0.4;
+        regionPoint(x + Math.cos(a) * d, z + Math.sin(a) * d, top * rnd(0.35, 0.8), P);
+        this.upv.copy(P).normalize();
+        const up = rnd(1.5, 2.8);
+        this.glows.add(P, this.upv.x * up, this.upv.y * up, this.upv.z * up, rnd(0.4, 0.8), rnd(1.4, 2.2) + r * 0.12, 0.4, Math.random() < 0.35 ? COL.spark : COL.fireball, -0.5, 1, 1);
+      }
+    }
+    if (dmg > 0.3 && Math.random() < dt * 0.5 * dmg) {
+      regionPoint(x + rnd(-r, r) * 0.4, z + rnd(-r, r) * 0.4, top * rnd(0.5, 0.9), P);
+      this.sparks(P, 5, 5, COL.spark, 0.5, 0.18, 10, 0.8);
+      this.glow(P, 1.2, 0.08, COL.spark, 0.8);
+    }
+  }
+
+  /** A building coming down at (x, z): a billow of dust and smoke, debris, and a ring along the ground. */
+  collapse(x: number, z: number, r: number, h: number) {
+    const P = this.v1;
+    regionPoint(x, z, 0.6, P);
+    this.dust(P, 10 + r * 1.5, 2.5 + r * 0.4, COL.dirt, 1.2 + r * 0.35, 2.6);
+    regionPoint(x, z, h * 0.5, P);
+    this.dust(P, 6 + r, 1.5, COL.smokeDark, 1 + r * 0.3, 3.2);
+    this.debris(P, 8 + r, 4, COL.debris, 1.3);
+    this.sparks(P, 10, 7, COL.spark, 0.7, 0.22, 10, 0.6);
+    this.ring(x, z, r * 2.4, 0.9, COL.dirt);
   }
 
   /** Move p d units along the ground toward q (to a barrel's end). */

@@ -30,7 +30,8 @@ import { StoryHud } from './story-hud';
 import { Inspector, LIVE_COLLECTIONS } from './inspector';
 import { FogView, addFog } from './world/fog';
 import { enableColonyLights } from './world/lights';
-import { AA_MODES, HEAT_MAX, Post, type AAMode } from './world/post';
+import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
+import { GroundMarks, Sky, type MarkMover } from './world/ground';
 import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
@@ -294,6 +295,7 @@ if (lights) {
 }
 // glow (bloom, src/world/post.ts): on by default on desktop, off on phones; ⋯ menu ✺ Glow, remembered; ?bloom=0|1 overrides
 // (automated browsers default to off: SwiftShader halves the frame rate with it, and tests time things in frames)
+const CLOUDS_KEY = 'exo.cloudshadows', MARKS_KEY = 'exo.marks', GRADE_KEY = 'exo.grade';
 const GLOW_KEY = 'exo.glow', FLARE_KEY = 'exo.flare', AWAKE_KEY = 'exo.awake', DUST_KEY = 'exo.dust', ZOOMBLUR_KEY = 'exo.zoomblur', WEATHER_KEY = 'exo.weather', SHADOWS_KEY = 'exo.shadows', PRINT_KEY = 'exo.print', WATER_KEY = 'exo.water';
 /** A remembered on/off option: the URL (?name=0|1) wins, then what the player chose, then the default. */
 function setting(key: string, param: string, dflt: boolean) {
@@ -314,6 +316,15 @@ const post = new Post(renderer, scene, camera);
 post.aa = aaStart;
 post.enabled = setting(GLOW_KEY, 'bloom', !coarse && !navigator.webdriver);
 if (lights) lights.shadows = setting(SHADOWS_KEY, 'shadows', true);
+// colour grade and vignette (src/world/post.ts): Options → Colour grade, remembered; ?grade=0|1
+post.grading = setting(GRADE_KEY, 'grade', true);
+// the ground weathers (src/world/ground.ts): cloud shadows, wet ground after rain, tracks and scorches. They ride on
+// the light map's shader patch, so ?lights=0 leaves them out too
+const groundSky = new Sky();
+groundSky.cloudShadows = !!lights && setting(CLOUDS_KEY, 'cloudshadows', true);
+const marks = lights ? new GroundMarks() : null;
+if (marks) marks.enabled = setting(MARKS_KEY, 'marks', true);
+groundSky.wetOn = !!marks?.enabled;
 // lens flare from the sun (src/world/flare.ts): Options → Lens flare, remembered; ?flare=0|1 overrides
 const flare = new SunFlare();
 flare.enabled = setting(FLARE_KEY, 'flare', true);
@@ -1356,6 +1367,11 @@ const graphicsToggles: Toggle[] = [
     locked: () => (aaFromUrl ? 'Set in URL' : null),
   },
   {
+    id: 'grade', label: 'Colour grade',
+    help: 'Each world gets its own colour mood: nights bluer, sunrise and sunset warmer, the corners of the view a little darker. (The colours need Glow or FXAA/SMAA; without them, just the corners.)',
+    get: () => post.grading, set: (v) => { post.grading = v; remember(GRADE_KEY, v); }, locked: urlLock('grade'),
+  },
+  {
     id: 'flare', label: 'Lens flare', help: 'The sun flares across the camera lens when it is in view, fading as a planet or the horizon hides it.',
     get: () => flare.enabled, set: (v) => { flare.enabled = v; remember(FLARE_KEY, v); }, locked: urlLock('flare'),
   },
@@ -1375,6 +1391,17 @@ const graphicsToggles: Toggle[] = [
     id: 'shadows', label: 'Ground shadows', help: 'Buildings, drones and vehicles cast soft shadows that follow the sun.',
     get: () => !!lights?.shadows, set: (v) => { if (lights) lights.shadows = v; remember(SHADOWS_KEY, v); },
     locked: () => (!lights ? 'Off in URL' : urlLock('shadows')()),
+  },
+  {
+    id: 'clouds', label: 'Cloud shadows', help: 'On worlds with air, the shadows of passing clouds drift over the land.',
+    get: () => groundSky.cloudShadows, set: (v) => { groundSky.cloudShadows = v; remember(CLOUDS_KEY, v); },
+    locked: () => (!lights ? 'Off in URL' : urlLock('cloudshadows')()),
+  },
+  {
+    id: 'marks', label: 'Tracks and wet ground',
+    help: 'Vehicles leave tread marks and creatures footprints that fade after a while; wrecked buildings scorch the ground; after rain the ground stays dark and puddled until it dries.',
+    get: () => !!marks?.enabled, set: (v) => { if (marks) { marks.enabled = v; groundSky.wetOn = v; remember(MARKS_KEY, v); } },
+    locked: () => (!lights ? 'Off in URL' : urlLock('marks')()),
   },
   {
     id: 'print', label: 'Printed construction', help: 'New buildings print from the ground up. Off: a plain construction frame.',
@@ -1627,6 +1654,13 @@ const shadowSizes = Object.fromEntries(Object.entries(content.buildings).map(([k
   const r = Math.max(1, (d.clearance ?? 8) / 2 * 0.85);
   return [k, { r, h: d.role === 'wall' || d.role === 'gate' ? 3 : Math.min(r * 1.2, 9) }];
 }));
+region.shadowSize = (k) => shadowSizes[k];
+/** What each unit type leaves on the ground: tread marks (vehicles), footprints (creatures), or nothing (hover, sea, air). */
+const MARK_KIND = UNIT_DEFS.map((d) => (d.move ? -1 : content.units[d.id]?.faction === 'fauna' ? 1 : 0));
+const markMovers: MarkMover[] = [];
+/** This world's colour grade (src/world/post.ts). */
+const worldGrade = gradeFor(airGlow ? bodyDef?.sky ?? '#8fb0ad' : undefined, (bodyDef?.ground ?? []).map((g) => g.color), bodyDef ? !!bodyDef.ocean : true);
+let vignetteCss = false;
 // ---------- sounds of the place ----------
 /** How much of the ground round the camera focus is water (0..1), and how close the camera is: sampled twice a second. */
 let waterNear = 0, waterIn = 0;
@@ -1813,6 +1847,41 @@ function frame(now: number) {
     }
     dust.update(dt * Math.min(1, speed), movers, day, viewH() / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)));
   }
+  // the ground weathers: cloud shadows, wet after rain, tracks; smoke from damaged buildings; ruins (src/world/ground.ts, ruins.ts)
+  {
+    const gdt = skirmish ? dt : dt * speed;
+    groundSky.update(gdt, airGlow ? air : 0, day, weather.kind === 'rain' ? weather.amount : 0, system.overcast, bg);
+    const c = sim.cur;
+    const live = !skirmish && !title && !!c?.deployed;
+    markMovers.length = 0;
+    if (marks?.enabled && live && army) {
+      for (let s = 0; s < army.slots; s++) {
+        const k = MARK_KIND[army.type[s]];
+        if (!army.visible[s] || k < 0 || army.lift[s] > 0.5) continue;
+        const d = UNIT_DEFS[army.type[s]];
+        markMovers.push({ key: s, x: army.lx[s], z: army.lz[s], w: Math.max(0.6, d.radius * (d.scale ?? 1) * 0.85), kind: k as 0 | 1 });
+      }
+    }
+    marks?.update(renderer, live ? gdt : 0, markMovers, (x, z) => regionHeightRaw(x, z) < 0.3);
+    if (army && live && c) {
+      if (gdt > 0) {
+        for (const b of c.buildings) {
+          if (b.progress < 1 || (b.team && c.players && !b.seen)) continue;
+          const max = content.buildings[b.kind]?.hp ?? 0;
+          const f = max > 0 ? b.hp / max : 1;
+          if (f >= 0.6) continue;
+          const sz = shadowSizes[b.kind] ?? { r: 3, h: 4 };
+          army.fx.smoulder(b.x, b.z, b.kind === 'core' ? 14 : sz.h, sz.r, (0.6 - f) / 0.6, gdt);
+        }
+        for (const h of region.ruins.smouldering()) army.fx.smoulder(h.x, h.z, 1.5, h.r, h.k * 0.7, gdt);
+      }
+      for (const f of region.ruins.fresh) { army.fx.collapse(f.x, f.z, f.r, f.h); marks?.scorch(f.x, f.z, f.r * 1.4, 0.85); }
+    }
+    region.ruins.fresh.length = 0;
+    // with no grade pass running, the page draws the vignette
+    const css = post.grading && !post.gradeInUse;
+    if (css !== vignetteCss) { vignetteCss = css; document.body.classList.toggle('vignette', css); }
+  }
   heat.length = 0;
   if (!skirmish && dust.enabled && post.enabled && sim.cur?.deployed && cam.dist < 260) {
     const tanF = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
@@ -1847,6 +1916,7 @@ function frame(now: number) {
       night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air, sun: shaftUv.set((sp.x + 1) / 2, (sp.y + 1) / 2), shafts,
       zoom: zoomBlur && !cine && !title ? smoothstep(1.2, 5, zoomRate) * 0.035 : 0,
       heat, heatK: 0.5 + 0.5 * day, time: t,
+      grade: worldGrade, golden: system.golden,
     });
   }
   post ? post.render(dt) : renderer.render(scene, camera);
@@ -1872,6 +1942,9 @@ const exo = {
   flare,
   dust,
   weather,
+  /** Cloud shadows and wet ground, and the ground marks (src/world/ground.ts). */
+  groundSky,
+  marks,
   cam,
   sim,
   skirmish,

@@ -17,6 +17,8 @@ import type { WildlifeDef } from '../content/defs';
 import { hash01 } from '../content/nature';
 import { addFog } from './fog';
 import { Printed } from './print';
+import { Ruins } from './ruins';
+import { FX, FX_STRIDE } from '../skirmish/types';
 import { buildWater, seabedColor, setWaterDetail } from './water';
 import { buildPier, buildSeaPlatform, buildShipyard, buildTidal } from './sea-models';
 
@@ -912,7 +914,7 @@ export interface RegionUi {
   ghostLine?: { pts: { x: number; z: number; ok: boolean }[]; yaw: number } | null;
 }
 
-interface BEntry { kind: string; done: boolean; obj: THREE.Group; powered: boolean; emissive: [THREE.MeshStandardMaterial, number][]; bar: THREE.Group; print?: Printed }
+interface BEntry { kind: string; done: boolean; obj: THREE.Group; powered: boolean; emissive: [THREE.MeshStandardMaterial, number][]; bar: THREE.Group; print?: Printed; x: number; z: number; progress: number }
 
 /** Every part called `name` in a model (an asset and its zoomed-out built-in both have one). */
 function parts(root: THREE.Object3D, name: string): THREE.Object3D[] {
@@ -927,6 +929,9 @@ interface Lod { near: THREE.Object3D; far: THREE.Object3D }
 export class RegionView {
   patch: THREE.Mesh;
   readonly details = new THREE.Group();
+  /** Destroyed buildings: the fall, then rubble for a while (src/world/ruins.ts). */
+  readonly ruins = new Ruins(this.details);
+  private ruinT = -1;
   /** Shield domes (projectors) and bubbles (Aegis units). */
   private shields = new ShieldDomes((o, x, z) => orient(o, x, z, 0, 0));
   private lastShieldT = 0;
@@ -1294,6 +1299,8 @@ export class RegionView {
    */
   update(prev: Snapshot, cur: Snapshot, alpha: number, t: number, ui: RegionUi, dist: number, camera: THREE.Camera, gameT = t) {
     this.gameT = gameT;
+    this.ruins.update(this.ruinT < 0 ? 0 : Math.min(0.5, Math.max(0, gameT - this.ruinT)));
+    this.ruinT = gameT;
     this.roofSrc = cur.buildings;
     const dt = this.lastUpdT < 0 ? 0 : Math.min(0.1, Math.max(0, t - this.lastUpdT));
     this.lastUpdT = t;
@@ -1653,7 +1660,7 @@ export class RegionView {
       let e = this.buildings.get(b.id);
       if (!e || e.done !== done) {
         if (e) this.dropBuilding(b.id, e);
-        else this.flora?.clear(b.x, b.z, (d?.clearance ?? 8) / 2 + 2);
+        else { this.flora?.clear(b.x, b.z, (d?.clearance ?? 8) / 2 + 2); this.ruins.clearAt(b.x, b.z, (d?.clearance ?? 8) / 2); }
         // batched kinds: an empty placeholder (it keeps the pose for facing()); the batch draws the model
         const batch = done ? this.batchFor(b.kind) : null;
         // under construction: the real model, printed from the ground up (src/world/print.ts); ?print=0: the old scaffold
@@ -1688,10 +1695,11 @@ export class RegionView {
             emissive.push([c, c.emissiveIntensity]);
           }
         });
-        e = { kind: b.kind, done, obj, powered: true, emissive, bar: makeBar(), print };
+        e = { kind: b.kind, done, obj, powered: true, emissive, bar: makeBar(), print, x: b.x, z: b.z, progress: b.progress };
         this.details.add(e.bar);
         this.buildings.set(b.id, e);
       }
+      e.progress = b.progress;
       if (!done && e.print) e.print.set(b.progress, t);
       else if (!done) {
         const fill = e.obj.getObjectByName('fill') as THREE.Mesh;
@@ -1787,6 +1795,7 @@ export class RegionView {
     }
     for (const [id, e] of this.buildings) {
       if (seen.has(id)) continue;
+      if (this.destroyedAt(cur, e.x, e.z)) this.fall(e);
       this.dropBuilding(id, e);
       this.buildings.delete(id);
       const h = this.haulers.get(id);
@@ -1798,6 +1807,31 @@ export class RegionView {
       this.core.visible = coreSeen;
     }
   }
+
+  /** The sim blew something up at (x, z) this tick (a building that goes now was destroyed, not recycled). */
+  private destroyedAt(cur: Snapshot, x: number, z: number) {
+    const fx = cur.fx;
+    if (!fx) return false;
+    for (let i = 0; i < fx.length; i += FX_STRIDE) if (fx[i] === FX.DIE_BIG && Math.abs(fx[i + 1] - x) < 0.5 && Math.abs(fx[i + 2] - z) < 0.5) return true;
+    return false;
+  }
+
+  /** A destroyed building comes down (src/world/ruins.ts): a fresh copy of its model in its pose, and rubble. */
+  private fall(e: BEntry) {
+    const d = this.rules.defs[e.kind];
+    const r = Math.max(1.5, (d?.clearance ?? 8) / 2 * 0.85);
+    const size = this.shadowSize(e.kind);
+    let model: THREE.Object3D | null = null;
+    if (e.done) {
+      const m = this.models[e.kind];
+      model = m ? m.clone(true) : buildForKind(e.kind, d?.role ?? 'solar');
+      model.position.copy(e.obj.position);
+      model.quaternion.copy(e.obj.quaternion);
+    }
+    this.ruins.collapse(e.x, e.z, r, size?.h ?? r * 1.2, model, e.done || e.progress > 0.5);
+  }
+  /** A kind's shadow size (body radius, height), as main.ts measures it; set from there. */
+  shadowSize: (kind: string) => { r: number; h: number } | undefined = () => undefined;
 
   private coreBar: THREE.Group | null = null;
   private hpBar(b: Building, d: BuildingLook | undefined, ui: RegionUi, camera: THREE.Camera, bar: THREE.Group | null) {

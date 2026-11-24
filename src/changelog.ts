@@ -21,6 +21,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.78.0',
+    date: '2026-11-24',
+    title: 'Weather and wear',
+    notes: [
+      'Cloud shadows: on worlds with air, the shadows of passing clouds drift across the land, thicker while it rains',
+      'After rain the ground stays dark and glossy, with puddles that catch the sky, until it dries out over a few minutes',
+      'Vehicles leave tread marks and creatures footprints, fading after half a minute or so',
+      'Badly damaged buildings smoke, and burn when they are close to falling',
+      'Destroyed buildings buckle and come down, leaving a smoking heap of rubble on scorched ground for a few minutes (building over it clears it)',
+      'Colour grade: each world gets its own colour mood, nights a little bluer and sunrise and sunset warmer, with slightly darker corners. New options: Colour grade, Cloud shadows, and Tracks and wet ground',
+    ],
+    guide: ['weather-and-wear', 'repairs'],
+  },
+  {
     version: '0.77.2',
     date: '2026-11-24',
     title: 'Astral Drift is back',

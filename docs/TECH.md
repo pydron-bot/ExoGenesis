@@ -2262,6 +2262,48 @@ Options rows, no shader errors) and renders of each effect.
   260 puffs instead of 700 with at most 9 puffs/s per mover and 25% smaller puffs (overdraw), and weather
   draws 900 of its 2400 streaks. Everywhere: dust skips its buffer uploads while no puff is alive.
 
+### Weathering: cloud shadows, wet ground, tracks, smoke, ruins and the colour grade (v0.78.0)
+
+All look only: the sim, saves and balance are untouched. Checked by `tools/weathering-smoke.mjs`.
+
+- **Cloud shadows and wet ground** (`src/world/ground.ts`, `Sky`; shader in `lights.ts`'s lit-material patch, so
+  `?lights=0` leaves them out). Clouds: three octaves of value noise in region coordinates, worked out **per vertex**
+  (`grCloud`, cells `CLOUD_CELL` = 70 u), darkening direct light by up to `uCloudK` (0.4 × air × day, cut 75% under
+  overcast). The noise repeats every 64 cells and the drift wraps there, so the offset never grows and the sin-hash
+  keeps its precision. The wind turns slowly at ~3 u/s; cover drifts between ~0.1 and ~0.55 and closes to 0.85 in
+  rain. The globe round the region gets them too, fading out from 150 to 500 u past the edge. Wet ground: `Sky.wet`
+  rises at `rain / 50` per game second and dries at 1/240; upward faces get darker and a fresnel sky sheen; puddles
+  (fixed value-noise mask, ~11 u features, flat ground near the ground line only) get much darker with a stronger sky
+  reflection and sun glint. The sea's own surface (`userData.noGround`) gets cloud shadows but no wet or marks.
+  Options → Cloud shadows (`exo.cloudshadows`, `?cloudshadows=0|1`).
+- **Ground marks** (`GroundMarks`): a top-down RGBA8 render target over the region (1024², 512² on phones; same
+  mapping as the light map, so the shader reuses `vLmUv`), never cleared. Stamps are instanced quads blended with
+  `MaxEquation` (overlaps don't stack to black): ground vehicles (unit `move` = ground, not fauna) press tread pairs
+  with cross bars into red, creatures footprints into red, wrecked buildings a ragged scorch into blue. A mover
+  stamps a segment from where it last stamped once it has gone `max(0.35, 0.4 w)`; a jump over 12 u (a slot reused)
+  starts afresh; nothing over water (raw < 0.3). Fading: a full-region quad with `ReverseSubtractEquation` takes one
+  step (1/255) off red every 0.25 game s and off blue every 1 s (an 8-bit target clamps at 0): tracks last ~35 s,
+  scorches ~3.5 min. Lit fragments within ~0.6 u of the ground darken by `r × 0.5 + b × 0.8`.
+  Options → Tracks and wet ground (`exo.marks`, `?marks=0|1`; also turns wet ground off).
+  `__exo.marks.read(renderer)` counts marked texels (tests).
+- **Damaged buildings** (`BattleFx.smoulder`, called from main.ts per finished building under 60% health, damage
+  `(0.6 − hp/max) / 0.6`): smoke puffs (2.5 + 7·dmg per s, drifting on a fixed breeze, darker as it gets worse),
+  flames above dmg 0.5, now and then sparks. Game time: nothing new while paused. Particle counts follow `detail`.
+- **Ruins** (`src/world/ruins.ts`, owned by `RegionView`): a building that leaves the snapshot in a tick whose FX
+  holds a `DIE_BIG` at its spot (`destroyedAt`) was destroyed, not recycled. A fresh copy of its model (own materials)
+  crushes to half height, leans 7–16° and chars over 1.6 s, then sinks out of sight over 1.4 s; meanwhile a heap
+  rises: 12–60 dodecahedron chunks (instance colours concrete to char) and 2–6 beams, sized to the footprint (55% for
+  a building still under construction). main.ts takes `ruins.fresh` for a dust burst (`BattleFx.collapse`) and the
+  scorch, and `smouldering()` for smoke over heaps younger than 45 s. Heaps last 180 game s, then sink over 8;
+  at most 16 (oldest first); a new building over one clears it.
+- **Colour grade and vignette** (`post.ts`, `GradeShader` after `OutputPass`, before FXAA/SMAA): contrast round 0.5,
+  lift toward a tint, gain, saturation, vignette. `gradeFor(sky, ground, oceans)`: lift = the sky colour scaled to
+  0.045 at its strongest (airless: a cool `#2c3a5c`), gain = 7% toward the ground's mid colour (largest channel kept
+  at 1), saturation 1.08 seas / 1.04 air / 0.9 airless, contrast 1.04 / 1.1 airless. Nights lean the lift toward
+  `#0a1430` and drop saturation 12%; golden hour warms the gain. All of it eases off in orbit. With no composer
+  (Glow off and plain AA) a CSS radial gradient on `#app::after` (`body.vignette`) draws the vignette alone.
+  Options → Colour grade (`exo.grade`, `?grade=0|1`).
+
 ### Settings without reloading (v0.70.0)
 
 - **Terrain look in place:** Options → Terrain look no longer reloads. `RegionView.setLook(look)` builds a new

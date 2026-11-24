@@ -31,6 +31,10 @@ html, body {
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 #app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* Colour grade's vignette when no grade pass runs (Glow off): drawn by the page, costs nothing (src/world/post.ts) */
+#app::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.4s;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.3) 100%); }
+body.vignette #app::after { opacity: 1; }
 #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .label {
   position: absolute; left: 0; top: 0; transform: translate(-50%, -140%); white-space: nowrap;

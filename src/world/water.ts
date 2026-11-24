@@ -102,6 +102,8 @@ function waterMaterial(detailed: boolean): THREE.MeshStandardMaterial {
   waterUniforms.uWaterShallow.value.set(sea.shallow).multiplyScalar(1.35);
   const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.14, metalness: 0, transparent: true });
   mat.name = 'water';
+  // cloud shadows, but no tracks or puddles on the sea (src/world/ground.ts)
+  mat.userData.noGround = true;
   setWaterDetail(mat, detailed);
   const prevKey = mat.customProgramCacheKey.bind(mat);
   mat.onBeforeCompile = (sh) => {

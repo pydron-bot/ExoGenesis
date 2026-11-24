@@ -125,6 +125,68 @@ const ShaftShader = {
     }`,
 };
 
+/**
+ * Colour grade and vignette (Options → Colour grade): after OutputPass, on the display picture. Each world gets
+ * its own mood from its sky and ground (main.ts, `gradeFor`): shadows lifted toward a tint, highlights
+ * tinted, saturation and contrast nudged; nights go bluer, sunrise and sunset warmer. The vignette darkens the
+ * corners a little. With no composer running (Glow off, plain anti-aliasing) only the vignette shows, drawn by
+ * the page (a CSS overlay, free).
+ */
+const GradeShader = {
+  uniforms: {
+    tDiffuse: { value: null }, uLift: { value: new THREE.Color(0, 0, 0) }, uGain: { value: new THREE.Color(1, 1, 1) },
+    uSat: { value: 1 }, uContrast: { value: 1 }, uVig: { value: 0.3 }, uAspect: { value: 1 },
+  },
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: /* glsl */`
+    uniform sampler2D tDiffuse;
+    uniform vec3 uLift, uGain;
+    uniform float uSat, uContrast, uVig, uAspect;
+    varying vec2 vUv;
+    void main() {
+      vec4 base = texture2D(tDiffuse, vUv);
+      vec3 c = clamp(base.rgb, 0.0, 1.0);
+      // a gentle S round the middle
+      c = clamp(mix(vec3(0.5), c, uContrast), 0.0, 1.0);
+      // lift the shadows toward a tint, tint the highlights
+      c = c * uGain + uLift * (1.0 - c);
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = mix(vec3(l), c, uSat);
+      // the corners a little darker (an ellipse that fits the screen)
+      vec2 d = (vUv - 0.5) * 2.0;
+      d.x *= mix(1.0, 0.85, clamp(uAspect - 1.0, 0.0, 1.0));
+      float r = length(d) * 0.7071;
+      c *= 1.0 - uVig * pow(smoothstep(0.4, 1.0, r), 1.4);
+      gl_FragColor = vec4(c, base.a);
+    }`,
+};
+
+/** A world's grade (see GradeShader): shadow tint and amount, highlight tint, saturation, contrast. */
+export interface Grade { lift: THREE.Color; gain: THREE.Color; sat: number; contrast: number }
+
+/**
+ * The grade for a world from its look: `sky` its sky colour (none: airless), `ground` its ground colours.
+ * Airless worlds get harsh, cool, a little drained; worlds with air take their sky into the shadows and a
+ * touch of their ground into the light.
+ */
+export function gradeFor(sky: string | undefined, ground: string[], oceans: boolean): Grade {
+  const lift = new THREE.Color(sky ?? '#2c3a5c');
+  // keep its hue, set its strength: shadows only lean toward it
+  const lk = 0.045 / Math.max(0.05, Math.max(lift.r, lift.g, lift.b));
+  lift.multiplyScalar(lk);
+  const g = new THREE.Color(ground[Math.min(1, ground.length - 1)] ?? '#999999');
+  const gl = Math.max(0.05, 0.2126 * g.r + 0.7152 * g.g + 0.0722 * g.b);
+  const gain = new THREE.Color(1, 1, 1).lerp(g.multiplyScalar(1 / gl), 0.07);
+  // (never brighter overall: the largest channel stays at 1)
+  gain.multiplyScalar(1 / Math.max(gain.r, gain.g, gain.b));
+  return { lift, gain, sat: sky ? (oceans ? 1.08 : 1.04) : 0.9, contrast: sky ? 1.04 : 1.1 };
+}
+
+const NIGHT_LIFT = new THREE.Color('#0a1430');
+const GOLDEN_GAIN = new THREE.Color('#fff0dc');
+
 /** Bloom works at this fraction of the canvas resolution (the pass halves it again for its first level). */
 const BLOOM_SCALE = 0.5;
 
@@ -143,6 +205,9 @@ export interface GlowLook {
   heatK?: number;
   /** Seconds, for the shimmer's ripples. */
   time?: number;
+  /** The world's grade, and 0..1 sunrise/sunset (night comes from `night`). */
+  grade?: Grade;
+  golden?: number;
 }
 
 export class Post {
@@ -150,13 +215,15 @@ export class Post {
   private bloom: UnrealBloomPass | null = null;
   private shafts: ShaderPass | null = null;
   private distort: ShaderPass | null = null;
+  private gradePass: ShaderPass | null = null;
   private on = false;
+  private gradeOn = true;
   private aaMode: AAMode = 'auto';
   private aaPass: FXAAPass | SMAAPass | null = null;
   /** Whether the canvas itself was made with MSAA (fixed for the page's life). */
   private readonly nativeAA: boolean;
   /** Bloom strength, threshold and radius in use (test hook). */
-  readonly look = { strength: 0, threshold: 0, radius: 0, shafts: 0, zoom: 0, heat: 0 };
+  readonly look = { strength: 0, threshold: 0, radius: 0, shafts: 0, zoom: 0, heat: 0, grade: false };
 
   constructor(private renderer: THREE.WebGLRenderer, private scene: THREE.Scene, private camera: THREE.Camera) {
     this.nativeAA = !!renderer.getContext().getContextAttributes()?.antialias;
@@ -167,6 +234,12 @@ export class Post {
     this.on = v;
     if (this.needsComposer() && !this.composer) this.build();
   }
+
+  /** Colour grade and vignette (Options). */
+  get grading() { return this.gradeOn; }
+  set grading(v: boolean) { this.gradeOn = v; }
+  /** The grade pass is drawing this frame (else the page shows a plain vignette while grading is on). */
+  get gradeInUse() { return this.gradeOn && !!this.composer && this.needsComposer(); }
 
   get aa() { return this.aaMode; }
   set aa(m: AAMode) {
@@ -204,7 +277,7 @@ export class Post {
     if (!this.composer) return;
     for (const p of this.composer.passes) p.dispose?.();
     this.composer.dispose();
-    this.composer = this.bloom = this.shafts = this.distort = this.aaPass = null;
+    this.composer = this.bloom = this.shafts = this.distort = this.gradePass = this.aaPass = null;
   }
 
   private build() {
@@ -228,6 +301,9 @@ export class Post {
     b.setSize = (w: number, h: number) => setSize(Math.max(1, Math.round(w * BLOOM_SCALE)), Math.max(1, Math.round(h * BLOOM_SCALE)));
     c.addPass(b);
     c.addPass(new OutputPass());
+    const gp = new ShaderPass(GradeShader);
+    c.addPass(gp);
+    this.gradePass = gp;
     // FXAA/SMAA work on the final (tone-mapped, sRGB) picture, so they go last
     this.aaPass = this.aaMode === 'fxaa' ? new FXAAPass() : this.aaMode === 'smaa' ? new SMAAPass() : null;
     if (this.aaPass) c.addPass(this.aaPass);
@@ -286,13 +362,43 @@ export class Post {
       }
       this.look.zoom = zoom; this.look.heat = on ? Math.min(HEAT_MAX, heat.length) : 0;
     }
+    this.updateGrade(l);
   }
+
+  private updateGrade(l: GlowLook) {
+    const gp = this.gradePass;
+    if (!gp) return;
+    gp.enabled = this.gradeOn;
+    this.look.grade = this.gradeOn;
+    if (!this.gradeOn) return;
+    const u = gp.uniforms;
+    const g = l.grade;
+    const n = l.night * (1 - l.orbit), gold = (l.golden ?? 0) * (1 - l.orbit);
+    // the grade is the surface's: it eases off in orbit (space keeps its own colours)
+    const k = 1 - l.orbit;
+    (u.uLift.value as THREE.Color).setRGB(0, 0, 0);
+    (u.uGain.value as THREE.Color).setRGB(1, 1, 1);
+    if (g) {
+      (u.uLift.value as THREE.Color).copy(g.lift).multiplyScalar(k);
+      (u.uGain.value as THREE.Color).lerp(g.gain, k);
+    }
+    (u.uLift.value as THREE.Color).lerp(NIGHT_LIFT, n * 0.6);
+    (u.uGain.value as THREE.Color).multiply(this.tmpC.setRGB(1, 1, 1).lerp(GOLDEN_GAIN, gold));
+    u.uSat.value = THREE.MathUtils.lerp(1, g?.sat ?? 1, k) * (1 - 0.12 * n);
+    u.uContrast.value = THREE.MathUtils.lerp(1, g?.contrast ?? 1, k);
+    u.uVig.value = THREE.MathUtils.lerp(0.32, 0.18, l.orbit);
+    const sz = this.renderer.getSize(this.tmpV);
+    u.uAspect.value = sz.x / Math.max(1, sz.y);
+  }
+  private tmpC = new THREE.Color();
+  private tmpV = new THREE.Vector2();
 
   render(dt: number) {
     if (this.composer && this.needsComposer()) {
       // with Glow off the composer is only here for anti-aliasing: skip bloom and the glow-only effects
       if (!this.on) this.bloom!.enabled = this.shafts!.enabled = this.distort!.enabled = false;
       else this.bloom!.enabled = true;
+      this.gradePass!.enabled = this.gradeOn;
       this.composer.render(dt);
     } else this.renderer.render(this.scene, this.camera);
   }

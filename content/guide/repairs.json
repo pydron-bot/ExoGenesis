@@ -3,7 +3,8 @@
   "section": "army",
   "order": 6,
   "summary": "Drones mend buildings, Field Engineers and Repair Pads mend units.",
-  "text": "Damage doesn't heal by itself. Ways to fix it:\n\n- **Worker drones** repair damaged buildings when they have nothing to build (or tap **Repair** on a building's card). Repairs cost alloys\n- **Field Engineers** repair units and buildings near them, out in the field, for alloys; their Patch up ability is a free burst\n- A **Repair Pad** repairs units parked within reach while it has power, for free\n\nPull badly hurt units back to a pad between fights, and they're as good as new for the next one. The research Field Repair improves pads and drone repairs, and Hardened Plating means less to repair in the first place.",
+  "text": "Damage doesn't heal by itself, and a badly damaged building shows it: it smokes, and burns when it's close to falling. Ways to fix it:\n\n- **Worker drones** repair damaged buildings when they have nothing to build (or tap **Repair** on a building's card). Repairs cost alloys\n- **Field Engineers** repair units and buildings near them, out in the field, for alloys; their Patch up ability is a free burst\n- A **Repair Pad** repairs units parked within reach while it has power, for free\n\nPull badly hurt units back to a pad between fights, and they're as good as new for the next one. The research Field Repair improves pads and drone repairs, and Hardened Plating means less to repair in the first place.",
   "see": "worker-drones, unit-roster",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.78.0"
 }

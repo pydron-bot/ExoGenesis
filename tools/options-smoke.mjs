@@ -26,14 +26,14 @@ async function run(viewport, name, mobile = false) {
   await page.click('#title [data-id="options"]');
   await page.waitForSelector('#options .op-row');
   const state = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#options .op-row')].map((r) => [r.dataset.id, r.getAttribute('aria-checked') === 'true'])));
-  const live = () => page.evaluate(() => ({ glow: __exo.post.enabled, flare: __exo.flare.enabled, dust: __exo.dust.enabled, weather: __exo.weather.enabled, print: __exo.region.printing, water: __exo.region.waterDetail }));
+  const live = () => page.evaluate(() => ({ glow: __exo.post.enabled, flare: __exo.flare.enabled, dust: __exo.dust.enabled, weather: __exo.weather.enabled, print: __exo.region.printing, water: __exo.region.waterDetail, grade: __exo.post.grading, clouds: __exo.groundSky.cloudShadows, marks: __exo.marks.enabled }));
   const all = await state();
   const ids = Object.keys(all), regionIds = ids.filter((k) => k.startsWith('region:'));
-  check(ids.slice(-10).join() === 'glow,aa,flare,dust,zoomblur,weather,shadows,print,water,lights', `${name}: ten graphics rows (${ids.slice(-10).join()})`);
+  check(ids.slice(-13).join() === 'glow,aa,grade,flare,dust,zoomblur,weather,shadows,clouds,marks,print,water,lights', `${name}: thirteen graphics rows (${ids.slice(-13).join()})`);
   const first = ids.filter((k) => !k.startsWith('ap:'));
   check(first[0] === 'sound' && ids.slice(0, ids.indexOf('sound')).every((k) => k.startsWith('ap:')) && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, the autopilot rows, then sound and the regions (${regionIds.length} regions, Touchdown picked)`);
   // the graphics toggles flip and are remembered (sound and the region list have their own checks)
-  const G = ['glow', 'flare', 'dust', 'zoomblur', 'weather', 'shadows', 'print', 'water', 'lights'];
+  const G = ['glow', 'grade', 'flare', 'dust', 'zoomblur', 'weather', 'shadows', 'clouds', 'marks', 'print', 'water', 'lights'];
   const pick = (o) => Object.fromEntries(G.map((k) => [k, o[k]]));
   const s0 = pick(all);
   if (shots) await page.screenshot({ path: `${shots}/${name}-options.png` });
@@ -41,7 +41,8 @@ async function run(viewport, name, mobile = false) {
   const s1 = pick(await state());
   check(Object.keys(s0).every((k) => s1[k] === !s0[k]), `${name}: each toggle flips (${JSON.stringify(s0)} → ${JSON.stringify(s1)})`);
   const l1 = await live();
-  check(l1.glow === s1.glow && l1.flare === s1.flare && l1.dust === s1.dust && l1.weather === s1.weather && l1.print === s1.print && l1.water === s1.water, `${name}: the game follows (glow ${l1.glow}, print ${l1.print}, water ${l1.water})`);
+  check(l1.glow === s1.glow && l1.flare === s1.flare && l1.dust === s1.dust && l1.weather === s1.weather && l1.print === s1.print && l1.water === s1.water
+    && l1.grade === s1.grade && l1.clouds === s1.clouds && l1.marks === s1.marks, `${name}: the game follows (glow ${l1.glow}, print ${l1.print}, water ${l1.water}, grade ${l1.grade}, clouds ${l1.clouds}, marks ${l1.marks})`);
   await page.keyboard.press('Escape');
   check(!(await page.$('#options')), `${name}: Escape closes it`);
   await open();

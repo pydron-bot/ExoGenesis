@@ -30,6 +30,7 @@
 import * as THREE from 'three';
 import { E, HALF, N, R, U } from './planet';
 import { GRID_N, rawGrid, regionPoint } from './heightGrid';
+import { GROUND_FRAG_PARS, GROUND_VERT_PARS, groundUniforms } from './ground';
 
 /** Light map resolution: 256² over the 240 u region ≈ 1 texel per unit. */
 const RES = 256;
@@ -80,12 +81,14 @@ export function addLights(mat: THREE.Material) {
   const ok = mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshLambertMaterial || mat instanceof THREE.MeshPhongMaterial;
   mat.userData.lm = ok;
   if (!ok) return;
+  // wet ground and ground marks (src/world/ground.ts); not on the sea's own surface (it gets cloud shadows)
+  const ground = !mat.userData.noGround;
   const prev = mat.onBeforeCompile;
   const prevKey = mat.customProgramCacheKey.bind(mat);
   mat.onBeforeCompile = (sh, r) => {
     prev.call(mat, sh, r);
     if (!LIT.test(sh.fragmentShader)) return;
-    Object.assign(sh.uniforms, lightUniforms);
+    Object.assign(sh.uniforms, lightUniforms, groundUniforms);
     // everything positional (where in the light map, how high above the ground) is worked out per vertex;
     // the fragment does one texture read
     sh.vertexShader = sh.vertexShader
@@ -95,7 +98,9 @@ export function addLights(mat: THREE.Material) {
         uniform vec3 uLmU, uLmE, uLmN;
         varying vec2 vLmUv;
         varying float vLmK;
-        varying float vLmS;`)
+        varying float vLmS;
+        varying float vGrIn, vGrC, vGrG;
+        ${GROUND_VERT_PARS}`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         {
           vec4 lmW4 = vec4(transformed, 1.0);
@@ -110,6 +115,12 @@ export function addLights(mat: THREE.Material) {
           vLmUv = (rp + uLmHalf) / (2.0 * uLmHalf);
           vLmK = 0.0;
           vLmS = 0.0;
+          vGrIn = 0.0; vGrC = 0.0; vGrG = 0.0;
+          if (lmRad < uLmR + 400.0 && up > 0.5) {
+            // the weather reaches a little past the region, fading out (the globe round it gets it too)
+            vGrIn = 1.0 - smoothstep(uLmHalf + 150.0, uLmHalf + 500.0, max(abs(rp.x), abs(rp.y)));
+            if (uCloudK > 0.001 && vGrIn > 0.0) vGrC = grCloud(rp) * uCloudK * vGrIn;
+          }
           if (lmRad < uLmR + 400.0 && up > 0.5 && abs(rp.x) < uLmHalf && abs(rp.y) < uLmHalf) {
             float g = texture2D(uLmH, (rp + uLmHalf + 0.5) / (2.0 * uLmHalf + 1.0)).r;
             float lift = max(0.0, lmRad - uLmR - g);
@@ -117,16 +128,20 @@ export function addLights(mat: THREE.Material) {
             vLmK = 1.0 / (1.0 + lift * lift * 0.006);
             // shadows lie on the ground: only the bottom of things is darkened
             vLmS = 1.0 - smoothstep(0.3, 2.4, lift);
+            // marks and puddles lie on the ground itself
+            vGrG = 1.0 - smoothstep(0.08, 0.6, lift);
           }
         }`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform sampler2D uLmTex;
-        uniform float uLmOn, uShOn;
+        uniform float uLmOn, uShOn, uLmHalf;
         uniform vec3 uLmUpV;
         varying vec2 vLmUv;
         varying float vLmK;
-        varying float vLmS;`)
+        varying float vLmS;
+        varying float vGrIn, vGrC, vGrG;
+        ${GROUND_FRAG_PARS}`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         vec4 lmT = vec4(0.0);
         if ((uLmOn > 0.001 && vLmK > 0.002) || (uShOn > 0.001 && vLmS > 0.002)) lmT = texture2D(uLmTex, vLmUv);
@@ -143,11 +158,44 @@ export function addLights(mat: THREE.Material) {
           // tops catch more than sides
           float k = uLmOn * vLmK * (0.45 + 0.55 * max(dot(normal, uLmUpV), 0.0));
           reflectedLight.indirectDiffuse += diffuseColor.rgb * L * k;
-        }`);
+        }${CLOUD_FRAG}${ground ? GROUND_FRAG : ''}`);
   };
-  mat.customProgramCacheKey = () => `${prevKey()}|lm`;
+  mat.customProgramCacheKey = () => `${prevKey()}|lm${ground ? 'g' : ''}`;
   mat.needsUpdate = true;
 }
+
+/** Cloud shadows (src/world/ground.ts), after the light map. */
+const CLOUD_FRAG = /* glsl */ `
+        if (vGrC > 0.001) {
+          // a cloud between here and the sun
+          reflectedLight.directDiffuse *= 1.0 - vGrC;
+          reflectedLight.directSpecular *= 1.0 - vGrC;
+        }`;
+/** Ground marks and wet ground (src/world/ground.ts): not on the sea's surface. */
+const GROUND_FRAG = /* glsl */ `
+        if (uMkOn > 0.5 && vGrG > 0.01) {
+          // tread marks and footprints (r), scorched ground (b)
+          vec4 mk = texture2D(uMkTex, vLmUv);
+          float dk = min(0.85, mk.r * 0.5 + mk.b * 0.8) * vGrG;
+          reflectedLight.directDiffuse *= 1.0 - dk;
+          reflectedLight.indirectDiffuse *= 1.0 - dk * 0.8;
+        }
+        if (uWet > 0.001 && vGrIn > 0.001) {
+          float upF = dot(normal, uLmUpV);
+          float w = uWet * smoothstep(0.5, 0.9, upF) * vGrIn;
+          if (w > 0.001) {
+            // puddles in fixed places on flat ground; the rest is just darker and a little glossy
+            vec2 rpF = vLmUv * 2.0 * uLmHalf - uLmHalf;
+            float pn = grNoiseF(rpF * 0.085) * 0.7 + grNoiseF(rpF * 0.29 + 5.3) * 0.3;
+            float pud = smoothstep(0.6, 0.66, pn) * vGrG * smoothstep(0.7, 0.88, upF) * smoothstep(0.3, 0.8, uWet);
+            // water over the ground: much darker underneath, the sky only at a glance
+            reflectedLight.directDiffuse *= 1.0 - 0.35 * w - 0.45 * pud;
+            reflectedLight.indirectDiffuse *= 1.0 - 0.3 * w - 0.45 * pud;
+            float fres = pow(1.0 - clamp(dot(normal, geometryViewDir), 0.0, 1.0), 5.0);
+            reflectedLight.indirectSpecular += uWetSky * (w * 0.15 * fres + pud * (0.04 + 0.6 * fres));
+            reflectedLight.directSpecular *= 1.0 + w * 0.6 + pud * 2.5;
+          }
+        }`;
 
 function patchObject(o: THREE.Object3D) {
   const m = (o as THREE.Mesh).material;

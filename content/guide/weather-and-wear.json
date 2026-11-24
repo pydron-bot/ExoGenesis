@@ -1,0 +1,9 @@
+{
+  "title": "Weather and wear",
+  "section": "basics",
+  "order": 8,
+  "summary": "Clouds, rain, tracks, smoke and ruins: what the land shows about the weather and the fighting.",
+  "text": "The land keeps a record of what passes over it. None of this changes play: it's there to read at a glance.\n\n- **Cloud shadows** drift over the ground on worlds with air, thicker while it rains\n- **After rain** the ground stays dark and glossy, with puddles that catch the sky, until it dries over a few minutes\n- **Tracks**: vehicles leave tread marks and creatures footprints. They fade in about half a minute, so fresh ones show where something went just now\n- **Smoke** rises from a building that's badly damaged; when it's close to falling, it burns. Send a drone to repair it\n- **Ruins**: a destroyed building buckles and comes down, leaving a smoking heap of rubble on scorched ground. The heap clears after a few minutes, or at once if you build over it\n\nCloud shadows, tracks and wet ground, and the colour grade can each be turned off in **Options**.",
+  "see": "repairs, options, day-and-night",
+  "since": "0.78.0"
+}
