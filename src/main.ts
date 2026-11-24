@@ -32,6 +32,7 @@ import { FogView, addFog } from './world/fog';
 import { SkyEnv, type SkyLook } from './world/envmap';
 import { atmosUniforms } from './world/atmos';
 import { wearUniforms } from './world/wear';
+import { SunShadows } from './world/sunshadow';
 import { enableColonyLights } from './world/lights';
 import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
 import { GroundMarks, Sky, type MarkMover } from './world/ground';
@@ -330,6 +331,10 @@ skyEnv.enabled = setting(REFLECT_KEY, 'reflect', !navigator.webdriver);
 const AO_KEY = 'exo.ao';
 post.ao = setting(AO_KEY, 'ao', !coarse && !navigator.webdriver);
 // mist in low ground and haze toward the sun (src/world/atmos.ts, rides the light map's patch); ?mist=0|1
+// real sun shadows up close (src/world/sunshadow.ts): desktop by default, off on phones and in automated browsers; ?sunshadows=0|1
+const SUNSHADOW_KEY = 'exo.sunshadows';
+const sunShadows = new SunShadows(renderer, scene, coarse);
+sunShadows.enabled = setting(SUNSHADOW_KEY, 'sunshadows', !coarse && !navigator.webdriver);
 const MIST_KEY = 'exo.mist';
 let mistOn = setting(MIST_KEY, 'mist', true);
 /** Where this region's low ground is (heights above the datum): the mist pools below `base`, thinning over `scale`. */
@@ -1402,6 +1407,11 @@ const graphicsToggles: Toggle[] = [
     get: () => post.ao, set: (v) => { post.ao = v; remember(AO_KEY, v); }, locked: urlLock('ao'),
   },
   {
+    id: 'sunshadows', label: 'Sun shadows',
+    help: 'Up close, the sun casts real shadows: vehicles, buildings, plants and hills shade each other and themselves. Zoomed out, the soft ground shadows take over. Costs some speed; off by default on phones.',
+    get: () => sunShadows.enabled, set: (v) => { sunShadows.enabled = v; remember(SUNSHADOW_KEY, v); }, locked: urlLock('sunshadows'),
+  },
+  {
     id: 'mist', label: 'Mist and sun haze',
     help: 'Mist gathers in low ground, thickest round sunrise and sunset, and the haze glows warm toward a low sun. On worlds with air.',
     get: () => mistOn, set: (v) => { mistOn = v; remember(MIST_KEY, v); }, locked: urlLock('mist'),
@@ -1740,6 +1750,7 @@ const skySunset = new THREE.Color('#c9825e');
 const tintTmp = new THREE.Color();
 const space = new THREE.Color('#020306');
 const bg = new THREE.Color();
+const shadowDir = new THREE.Vector3();
 /** The sky the reflections are baked from, and the ground under it (sunlit dust). */
 const envLook: SkyLook = { zenith: new THREE.Color(), horizon: new THREE.Color(), ground: new THREE.Color(), sun: new THREE.Vector3(), sunColor: new THREE.Color(), up: new THREE.Vector3() };
 const envGround = new THREE.Color(terrain.world?.ground[0] ?? '#7c4a33');
@@ -1998,6 +2009,12 @@ function frame(now: number) {
       heat, heatK: 0.5 + 0.5 * day, time: t,
       grade: worldGrade, golden: system.golden, camDist: cam.dist,
     });
+  }
+  {
+    // up close the sun hands over to the shadow-casting light; the blob shadows fade by as much
+    const hk = sunShadows.update(cam.focus, shadowDir.copy(system.sunPos).normalize(), cam.dist, air, system.sunColor, system.sunIntensity, t);
+    system.handoff(hk);
+    lights?.realShadows(hk);
   }
   post ? post.render(dt) : renderer.render(scene, camera);
   // the flare: washed out a little under a bright daytime sky

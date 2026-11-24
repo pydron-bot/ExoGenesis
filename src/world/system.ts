@@ -330,6 +330,14 @@ export class SolarSystem {
   get starDist() { return this.starPos.length(); }
   /** The sunlight's colour now (warmer low in the sky). */
   get sunColor() { return this.light.color; }
+  /** The sunlight's full intensity now (before any handoff). */
+  sunIntensity = 3.2;
+  private sunHandoff = 0;
+  /** Give `k` (0..1) of the sunlight to the up-close shadow-casting light (src/world/sunshadow.ts): this one keeps the rest. */
+  handoff(k: number) {
+    this.sunHandoff = k;
+    this.light.intensity = this.sunIntensity * (1 - k);
+  }
 
   /**
    * `t` in seconds; `sys` 0..1 = how far into the system view the camera is.
@@ -440,7 +448,8 @@ export class SolarSystem {
     gu.uDay.value = this.skyDay;
     // warmer, a little dimmer sunlight low in the sky
     this.light.color.set('#fff4e4').lerp(sunsetLight, this.golden * this.skyAir * 0.6);
-    this.light.intensity = 3.2 * (1 - this.overcast * 0.6);
+    this.sunIntensity = 3.2 * (1 - this.overcast * 0.6);
+    this.light.intensity = this.sunIntensity * (1 - this.sunHandoff);
     sunDim.value = 1 - this.overcast * 0.75;
     (this.starGlow.material as THREE.SpriteMaterial).opacity *= 1 - this.overcast * 0.8;
 

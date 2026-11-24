@@ -643,6 +643,14 @@ How content is stored and edited in general (one JSON record per file, schemas i
     no longer shows: `antiTile` (`src/world/terrainTex.ts`) blends each map and normal-map lookup with a
     second one rotated ~53° at 0.73× scale, weighted by a value noise (uv × 0.9), and the texture's cracks are
     shallower (−0.16, was −0.35). `look-smoke` starts with `?look=flat` and checks the new default.
+  - **Sun shadows** (`src/world/sunshadow.ts`, `?sunshadows`; desktop default, off on phones and automated
+    browsers): the sun is a point light (six renders a frame to shadow), so near the ground a DirectionalLight
+    along the same sun direction takes the sunlight over (`system.handoff(k)`: the point light keeps 1 − k, sum
+    unchanged), k = 1 below camera distance 110, 0 past 170 and toward orbit. PCF soft, 2048² (1024² on
+    phones), an ortho box of ±1.25 × camera distance (18..190) round `cam.focus`, stepped in whole texels in the
+    light's frame so edges don't crawl; bias −0.0004, normalBias 0.04. `mark()` (once a second) makes lit opaque
+    meshes cast and receive (not glow-only, transparent, basic or shader materials). The light map's blob
+    shadows fade by k (`lights.realShadows`). Flora's wind sway isn't in the depth pass (shadows don't sway).
   - Sky reflections default off in automated browsers (like Glow): on SwiftShader they took frames from ~0.7 s
     to ~1.2 s and `skirmish-play-smoke` lost sight of its spawned enemies; screenshot scripts pass `?reflect=1`.
   - `tools/asset-smoke.mjs` had been checking `army.bodies[1]` for the asset model since before v0.14.0 moved

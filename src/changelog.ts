@@ -23,10 +23,11 @@ export const CHANGELOG: Release[] = [
   {
     version: '0.79.0',
     date: '2026-11-24',
-    title: 'Light, mist and metal',
+    title: 'Light, shadow and metal',
     notes: [
       'Sky reflections: metal and glass reflect the sky and catch glints of the sun, so vehicles and buildings no longer look like dark cut-outs (Options → Sky reflections; the Field Guide has a new Graphics page)',
       'Ambient occlusion: soft shade where things meet, under vehicles, round buildings and among plants. On by default on computers, off on phones (Options → Ambient occlusion)',
+      'Sun shadows: up close, the sun casts real shadows, so vehicles, buildings, plants and hills shade each other and themselves; zoomed out, the soft ground shadows take over. On by default on computers, off on phones (Options → Sun shadows)',
       'Mist and sun haze: on worlds with air, mist settles in low ground in the distance, thickest round sunrise and sunset, and the haze glows warm toward a low sun (Options → Mist and sun haze)',
       'The colony\'s vehicles look lived-in: dust on their tracks, wheels and lower hulls in the colour of the ground they drive on, a film of it on flat tops, and plates that vary a little in tone',
       'Rovers, tanks, lancers, arc casters, artillery and engineers have headlights, tail lights, panel seams and a stripe down each side',

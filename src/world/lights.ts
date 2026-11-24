@@ -357,7 +357,13 @@ export class ColonyLights {
   get shadows() { return this.shade; }
   set shadows(v: boolean) {
     this.shade = v;
-    lightUniforms.uShOn.value = v ? 1 : 0;
+    lightUniforms.uShOn.value = v ? 1 - this.realK : 0;
+  }
+  private realK = 0;
+  /** Real shadows (src/world/sunshadow.ts) cover `k` (0..1) of the view: the blobs fade out by as much. */
+  realShadows(k: number) {
+    this.realK = k;
+    lightUniforms.uShOn.value = this.shade ? 1 - k : 0;
   }
 
   /**
