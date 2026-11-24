@@ -122,6 +122,11 @@ export class PerfReport {
   frameStart(now: number) {
     if (this.mode === 'idle') return;
     this.frameT = performance.now();
+    // count the whole frame's draws (shadow map, effect passes and all): three resets the counters at every
+    // render call by default, which left only the last full-screen pass (1 draw)
+    const info = this.d.renderer.info;
+    info.autoReset = false;
+    info.reset();
     if (this.mode === 'record') {
       if (this.last) {
         const dt = now - this.last;
@@ -177,6 +182,7 @@ export class PerfReport {
   }
   private stopRecord() {
     this.mode = 'idle';
+    this.d.renderer.info.autoReset = true;
     this.clearBadge();
     const secs = (performance.now() - this.t0) / 1000;
     const st = stats(this.dts), wk = stats(this.work);
@@ -225,6 +231,7 @@ export class PerfReport {
   private endBench(cancelled: boolean) {
     if (this.pi < this.phases.length) this.setOff(this.phases[this.pi].off, false);
     this.mode = 'idle';
+    this.d.renderer.info.autoReset = true;
     this.clearBadge();
     try {
       for (const k of this.touched) {

@@ -21,6 +21,13 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.79.1',
+    date: '2026-11-24',
+    title: 'Performance report counts every draw',
+    notes: ['Performance report: draw calls and triangles now count the whole frame (they showed only the last step, 1 draw)'],
+    guide: [],
+  },
+  {
     version: '0.79.0',
     date: '2026-11-24',
     title: 'Light, shadow and metal',

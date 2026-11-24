@@ -68,6 +68,9 @@ await page.click('#perf-badge button');
 await page.waitForSelector('#options .pf-pre');
 const rec = await settings();
 check(/RECORDING \(\d+ s, \d+ frames\)/.test(rec) && /By zoom:/.test(rec), 'Stop writes the recording section');
+const draws = Number(/Draw calls: avg (\d+)/.exec(rec)?.[1] ?? 0);
+check(draws > 20, `draw calls count the whole frame (avg ${draws})`);
+check(/as you have it .* (\d{2,}) draws/.test(rec), 'the benchmark counts the whole frame\'s draws too');
 check(/BENCHMARK/.test(rec), 'the earlier benchmark is still in the report');
 
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(' | ')}` : ''}`);
