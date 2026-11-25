@@ -11,6 +11,7 @@ import { PeopleHud } from './people-hud';
 import { ResearchHud } from './research-hud';
 import { ORDERS, type StandingOrder } from './sim/frontier';
 import { hourAt } from './sim/daylight';
+import { reportGrade } from './sim/grade';
 import type { Command, Snapshot } from './sim/types';
 import { factoryMakes } from './sim/rules';
 import { FOG_N, REGION_HALF } from './sim/types';
@@ -197,9 +198,10 @@ export class ColonyHud {
     const pl = s.planet;
     if (pl) {
       const h = Math.round(pl.health), last = pl.reports.length ? pl.reports[pl.reports.length - 1] : null;
-      e.planet.innerHTML = `🌍 <b>${h}</b>`;
+      const g = last !== null ? reportGrade(last) : '';
+      e.planet.innerHTML = `🌍 <b>${h}</b>${g ? ` <span class="grade g-${g}">${g}</span>` : ''}`;
       e.planet.className = `r ${h < 25 ? 'bad' : h < 45 ? 'warn' : ''}`;
-      e.planet.title = `Planet health ${h} / 100 (the Biosphere Report sends it home each sol)${last !== null ? ` · last report ${last}` : ''}${pl.scars.length ? ` · ${pl.scars.length} scarred place${pl.scars.length > 1 ? 's' : ''}: a Seed Bank heals them` : ''}`;
+      e.planet.title = `Planet health ${h} / 100 (the Biosphere Report sends it home each sol)${last !== null ? ` · last report ${last}, grade ${g} (B or better, 60 up, is a good report)` : ''}${pl.scars.length ? ` · ${pl.scars.length} scarred place${pl.scars.length > 1 ? 's' : ''}: a Seed Bank heals them` : ''}`;
     }
     this.people.renderBar(s);
     const sol = this.d.rules.solSeconds;

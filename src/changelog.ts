@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.89.0',
+    date: '2026-11-25',
+    title: 'Grades',
+    notes: [
+      'Every Biosphere Report now gets a grade, A to E, shown beside planet health in the top bar; the log says when a report is your best yet and how many good ones you have sent in a row',
+      'Mission Control has recordings for a colony that does well',
+    ],
+    guide: ['planet-health'],
+  },
+  {
     version: '0.88.0',
     date: '2026-11-25',
     title: 'In your own words',

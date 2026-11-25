@@ -1053,3 +1053,7 @@ body.cine .gd-note, body.skirmish .gd-note, body.title .gd-note { display: none 
   flex: none; padding: 5px 10px; cursor: pointer; font: inherit; color: var(--amber);
   background: color-mix(in srgb, var(--amber) 14%, transparent); border: 1px solid var(--amber);
 }
+
+/* the Biosphere Report's last grade, beside planet health in the top bar */
+.grade { display: inline-block; min-width: 1.3em; padding: 0 3px; margin-left: 2px; border-radius: 3px; font-weight: 700; font-size: 0.85em; text-align: center; border: 1px solid currentColor; }
+.grade.g-A { color: #7dffb0; } .grade.g-B { color: #b6f07a; } .grade.g-C { color: var(--amber); } .grade.g-D, .grade.g-E { color: var(--crimson); }

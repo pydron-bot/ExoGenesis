@@ -6,6 +6,7 @@
  * story can never reach them. `buildLedger` is pure (the editor smoke test
  * checks it).
  */
+import { REPORT_COUNTERS } from '../sim/grade';
 import { conditionsIn, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef } from '../content/defs';
 
 export interface LedgerRow {
@@ -71,6 +72,8 @@ export function buildLedger(missions: Record<string, MissionDef>, story: Record<
     for (const r of rows) if (r.sets[m] !== undefined) { min = Math.min(min, r.sets[m]); max = Math.max(max, r.sets[m]); }
     range[m] = { min, max };
   }
+  // counters the game keeps by itself (the report's streak) can reach any value
+  for (const c of REPORT_COUNTERS) range[`counter:${c}`] = { min: 0, max: Infinity };
   // thresholds: what triggers and objectives wait for
   const thresholds: Threshold[] = [];
   const read = (kind: Condition, c: ConditionDef, coll: 'missions' | 'story', id: string, title: string) => {

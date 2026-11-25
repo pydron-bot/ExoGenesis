@@ -2813,6 +2813,15 @@ key radio gone in seconds. Each release below is one fix.
   hulls, the Ledger, the Director's booth, the Clause overwriting an entry, telling the truth, Meridian's voice).
   Content only.
 
+- **A score to chase (v0.89.0).** `src/sim/grade.ts`: the Biosphere Report's grade (A ≥ 75, B ≥ 60, C ≥ 45,
+  D ≥ 30, E); *good* is B or better, the same line `report-lead-*` reads as a high report, so the reports the Director
+  praises are the ones that feed the Clause. The report's log line has the grade, "best yet" and the run of good
+  reports; the top bar shows the last grade beside planet health. At home only: flag `report-good` (the first good
+  report) and counter `report-streak` (good reports running; a bad one resets it), declared as the game's in
+  `REPORT_FLAGS` / `REPORT_COUNTERS` for the editor's Story flow and Endings ledger. Events `director-commendation`
+  (the first good report) and `director-streak` (five running), paid off in `director-three`: their tapes are on the
+  booth's shelf, recorded before any report was sent.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

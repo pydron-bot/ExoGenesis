@@ -1,0 +1,39 @@
+{
+  "title": "Commendation",
+  "character": "director",
+  "text": "Accord, this is Mission Control. If this recording is playing, your first good report has just come in. Well done.",
+  "lines": [
+    {
+      "text": "Every sol you send one, someone here reads it. A healthy world, a growing colony, the animals left in their place: that's the whole of the job, and you're doing it."
+    },
+    {
+      "text": "Keep the numbers high. We're proud of you."
+    }
+  ],
+  "trigger": "flag",
+  "flag": "report-good",
+  "delay": 20,
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Thank you.\"",
+      "reply": "The recording ends on her folded hands. You play it twice more before the next shift starts. Nobody needs to know that."
+    },
+    {
+      "label": "Play it to the colony",
+      "reply": "It goes out on the Civilian Center's screen. Somebody claps. {first} watches you watch it."
+    }
+  ],
+  "effects": [
+    {
+      "after": 2,
+      "kind": "wellbeing",
+      "amount": 3
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, home, director, report",
+  "status": "draft",
+  "notes": "Makes the score something to chase (v0.89.0): the first report graded B or better (flag report-good, src/sim/planet.ts). Pays off at the Foundry: director-three finds ACCORD COMMENDATION, TAKE 1 on the shelf."
+}

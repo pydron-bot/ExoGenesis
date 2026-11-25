@@ -1,0 +1,30 @@
+{
+  "title": "Five Running",
+  "character": "director",
+  "text": "Accord, Mission Control. Five good reports in a row. That's exactly what we hoped for when we sent you.",
+  "lines": [
+    {
+      "text": "Whatever you're doing, don't stop. Everybody here is watching your numbers."
+    }
+  ],
+  "trigger": "counter",
+  "counter": "report-streak",
+  "count": 5,
+  "delay": 20,
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"We won't stop.\"",
+      "reply": "The recording ends. The next report goes out at sol's end, a little higher."
+    },
+    {
+      "label": "\"Who is everybody?\"",
+      "reply": "The recording doesn't answer. It was never going to. You file the question with the others."
+    }
+  ],
+  "chapter": "firstborn",
+  "tags": "act 1, home, director, report",
+  "status": "draft",
+  "notes": "Five good home reports running (counter report-streak, src/sim/planet.ts). Paid off at the Foundry (director-three: ACCORD STREAK, TAKE 1)."
+}

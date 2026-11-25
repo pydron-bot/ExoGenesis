@@ -13,6 +13,7 @@
  * Read-only; every name is a link that opens the record. `analyzeFlow` is pure
  * (the editor smoke test checks it).
  */
+import { REPORT_COUNTERS, REPORT_FLAGS } from '../sim/grade';
 import { CONDITION_HELP, EFFECT_HELP, conditionsIn, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
 
 export { conditionsIn };
@@ -136,11 +137,11 @@ export function analyzeFlow(missions: Record<string, MissionDef>, story: Record<
     for (const f of m.fails ?? []) wants(f, f.kind, at);
   }
   // flags the game itself sets (research-<id>, wreck-found, relic-woke…) are never "missing"
-  const builtin = (f: string) => /^(research|contact|trust|relic)-/.test(f) || /-attacked$/.test(f) || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed', 'inhabitants-met', 'walkout'].includes(f) || known.has(f);
+  const builtin = (f: string) => /^(research|contact|trust|relic)-/.test(f) || /-attacked$/.test(f) || ['wreck-found', 'relic-woke', 'relic-opened', 'nest-destroyed', 'inhabitants-met', 'walkout', ...REPORT_FLAGS].includes(f) || known.has(f);
   for (const [f, u] of flags) {
     if (!u.setBy.length && !builtin(f)) for (const w of u.waits) problems.push({ at: w, msg: `waits for flag "${f}", which nothing sets` });
   }
-  for (const [f, u] of counters) if (!u.setBy.length) for (const w of u.waits) problems.push({ at: w, msg: `waits on counter "${f}", which nothing changes` });
+  for (const [f, u] of counters) if (!u.setBy.length && !REPORT_COUNTERS.includes(f)) for (const w of u.waits) problems.push({ at: w, msg: `waits on counter "${f}", which nothing changes` });
   for (const [f, u] of timers) if (!u.setBy.length) for (const w of u.waits) problems.push({ at: w, msg: `waits for countdown "${f}", which nothing starts` });
 
   // ---- events that can't fire
