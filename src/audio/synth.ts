@@ -21,7 +21,7 @@ export function noise(c: AudioContext): AudioBuffer {
 }
 
 /** Envelope: linear attack to `peak`, exponential decay to silence by t + dur. */
-function env(c: AudioContext, out: AudioNode, t: number, dur: number, peak: number, attack = 0.004) {
+export function env(c: AudioContext, out: AudioNode, t: number, dur: number, peak: number, attack = 0.004) {
   const g = c.createGain();
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(peak, t + attack);
@@ -31,7 +31,7 @@ function env(c: AudioContext, out: AudioNode, t: number, dur: number, peak: numb
 }
 
 /** A tone gliding from f0 to f1 Hz. */
-function tone(c: AudioContext, out: AudioNode, t: number, type: OscillatorType, f0: number, f1: number, dur: number, peak: number, attack?: number) {
+export function tone(c: AudioContext, out: AudioNode, t: number, type: OscillatorType, f0: number, f1: number, dur: number, peak: number, attack?: number) {
   const o = c.createOscillator();
   o.type = type;
   o.frequency.setValueAtTime(f0, t);
@@ -42,7 +42,7 @@ function tone(c: AudioContext, out: AudioNode, t: number, type: OscillatorType, 
 }
 
 /** Filtered noise; the filter sweeps from f0 to f1 Hz. */
-function hiss(c: AudioContext, out: AudioNode, t: number, filter: BiquadFilterType, f0: number, f1: number, dur: number, peak: number, q = 1, attack?: number) {
+export function hiss(c: AudioContext, out: AudioNode, t: number, filter: BiquadFilterType, f0: number, f1: number, dur: number, peak: number, q = 1, attack?: number) {
   const s = c.createBufferSource();
   s.buffer = noise(c);
   const f = c.createBiquadFilter();
@@ -59,14 +59,14 @@ function hiss(c: AudioContext, out: AudioNode, t: number, filter: BiquadFilterTy
 }
 
 /** A soft note with a little harmonic (for chimes and alerts). */
-function note(c: AudioContext, out: AudioNode, t: number, f: number, dur: number, peak: number, type: OscillatorType = 'triangle') {
+export function note(c: AudioContext, out: AudioNode, t: number, f: number, dur: number, peak: number, type: OscillatorType = 'triangle') {
   tone(c, out, t, type, f, f, dur, peak, 0.012);
   tone(c, out, t, 'sine', f * 2, f * 2, dur * 0.6, peak * 0.18, 0.012);
 }
 
 /** Soft-clipping saturation into `out` (cached curves): gives booms weight without more volume. */
 const curves = new Map<number, Float32Array<ArrayBuffer>>();
-function drive(c: AudioContext, out: AudioNode, amount: number) {
+export function drive(c: AudioContext, out: AudioNode, amount: number) {
   let curve = curves.get(amount);
   if (!curve) {
     curve = new Float32Array(1024);
@@ -81,12 +81,12 @@ function drive(c: AudioContext, out: AudioNode, amount: number) {
 }
 
 /** A broadband click a few ms long: the leading edge that makes a shot read as a shot. */
-function click(c: AudioContext, out: AudioNode, t: number, f: number, peak: number, dur = 0.012) {
+export function click(c: AudioContext, out: AudioNode, t: number, f: number, peak: number, dur = 0.012) {
   hiss(c, out, t, 'highpass', f, f, dur, peak, 0.7, 0.0008);
 }
 
 /** Debris: `n` little ticks scattered over `dur` s, getting quieter (shrapnel, gravel, crackle). */
-function crackle(c: AudioContext, out: AudioNode, t: number, dur: number, n: number, peak: number, f: number, p: number) {
+export function crackle(c: AudioContext, out: AudioNode, t: number, dur: number, n: number, peak: number, f: number, p: number) {
   for (let i = 0; i < n; i++) {
     const k = Math.random();
     const dt = k * k * dur;
@@ -95,7 +95,7 @@ function crackle(c: AudioContext, out: AudioNode, t: number, dur: number, n: num
 }
 
 /** A deep boom: a pitch-dropping sine through saturation, plus a filtered noise body. */
-function boom(c: AudioContext, out: AudioNode, t: number, f0: number, f1: number, dur: number, peak: number, body: number, bodyF: number, sat = 2.5) {
+export function boom(c: AudioContext, out: AudioNode, t: number, f0: number, f1: number, dur: number, peak: number, body: number, bodyF: number, sat = 2.5) {
   const d = drive(c, out, sat);
   tone(c, d, t, 'sine', f0, f1, dur, peak, 0.002);
   hiss(c, d, t, 'lowpass', bodyF, bodyF * 0.12, dur * 0.9, body, 0.7, 0.002);

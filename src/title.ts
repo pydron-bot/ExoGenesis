@@ -5,7 +5,7 @@
  * On a landscape screen the planet is shifted right, clear of the menu column.
  * After a while the camera tours the system: it pulls out, flies to a random
  * planet or big moon, settles into a sunlit orbit there, and later moves on
- * (sometimes back home).
+ * (sometimes back home, and now and then far out over the star to see the whole system at once).
  *
  * Tour (the 🪐 button, or `?tour=1`): the same trips with the wordmark and menu put away, a screensaver
  * of the system. It leaves sooner, keeps the screen awake, and any tap or key brings the menu back.
@@ -55,7 +55,8 @@ export interface TitleOptions {
 }
 
 /** A place the title camera can orbit; `null` means home. */
-type Stop = { name: string; sub: string; radius: number; pos: THREE.Vector3 } | null;
+/** Somewhere the tour goes: home (null), a body, or `overview`: pulled far out over the star to see the whole system. */
+type Stop = { name: string; sub: string; radius: number; pos: THREE.Vector3; overview?: boolean } | null;
 interface Trip { from: Stop; to: Stop; u: number; dur: number; d0: number; d1: number; peak: number; yaw0: number; yaw1: number }
 
 const HOME_DWELL = 25; // seconds over home before the first trip, and on each return
@@ -77,6 +78,7 @@ export class TitleScreen {
   private at: Stop = null;
   private trip: Trip | null = null;
   private dwell = HOME_DWELL;
+  private trips = 0;
   private touring = false;
   private wake: { release(): Promise<void> } | null = null;
   active = true;
@@ -254,9 +256,14 @@ export class TitleScreen {
     const w = innerWidth, h = viewH(), aspect = w / h;
     // a narrow screen sees less of the width: pull back so the disc still fits
     const back = aspect < 1 ? Math.pow(1 / aspect, 0.75) : 1;
-    const orbitDist = (stop: Stop, at: number) => radiusOf(stop) * (stop ? (stop.radius < 2000 ? 3.4 : 2.6) * (1 + 0.15 * Math.sin(at * 0.06)) : 2.45 + 0.75 * Math.sin(at * 0.055)) * back;
-    cam.targetPitch = 0.38 + 0.22 * Math.sin(t * 0.037 + 1);
     const sys = this.opts.system;
+    const orbitDist = (stop: Stop, at: number) => stop?.overview
+      ? (sys?.extent() ?? 1e5) * 2.4 * (1 + 0.06 * Math.sin(at * 0.05)) * back
+      : radiusOf(stop) * (stop ? (stop.radius < 2000 ? 3.4 : 2.6) * (1 + 0.15 * Math.sin(at * 0.06)) : 2.45 + 0.75 * Math.sin(at * 0.055)) * back;
+    // over the whole system, look down on it at a steeper angle: the orbits read as rings round the star
+    const over = this.trip ? (this.trip.to?.overview ? smoothstep(0.5, 1, this.trip.u) : this.trip.from?.overview ? 1 - smoothstep(0, 0.5, this.trip.u) : 0) : this.at?.overview ? 1 : 0;
+    cam.targetPitch = THREE.MathUtils.lerp(0.38 + 0.22 * Math.sin(t * 0.037 + 1), 0.82 + 0.08 * Math.sin(t * 0.04), over);
+    if (sys) sys.overview = over;
     if (sys && !this.trip && (this.dwell -= dt) <= 0) this.depart(sys, orbitDist);
     if (this.touring && !this.trip && !this.at && this.dwell > 12) this.dwell = 12; // a shorter stay at home on the tour
     if (this.trip) {
@@ -296,6 +303,7 @@ export class TitleScreen {
     if (t > 1.6) {
       const km = (n: number) => Math.round(n * 0.01).toLocaleString();
       if (this.trip) this.tele.textContent = `IN TRANSIT · ${this.trip.to?.name ?? 'HOME'} · ${clock}`;
+      else if (this.at?.overview) this.tele.textContent = `SYSTEM VIEW · ${this.opts.system?.tourStops().length ?? 0} WORLDS · ${clock}`;
       else if (this.at) this.tele.textContent = `${this.at.name} · HIGH ORBIT · ALT ${km(this.camera.position.distanceTo(this.at.pos) - this.at.radius)} km · ${clock}`;
       else this.tele.textContent = `HOME · HIGH ORBIT · ALT ${km(alt)} km · ${clock}`;
     }
@@ -303,13 +311,18 @@ export class TitleScreen {
 
   /** Start a trip to somewhere else: another body, or home now and then. */
   private depart(sys: SolarSystem, orbitDist: (s: Stop, at: number) => number) {
-    const stops = sys.tourStops().filter((b) => b.name !== this.at?.name);
-    const to: Stop = this.at && Math.random() < 0.3 ? null : stops[Math.floor(Math.random() * stops.length)];
+    const stops: Stop[] = sys.tourStops().filter((b) => b.name !== this.at?.name);
+    // the whole system now and then (always the second trip, so a tour shows it early on)
+    const overview: Stop = { name: 'SYSTEM VIEW', sub: '', radius: 0, pos: sys.starPos, overview: true };
+    this.trips++;
+    let to: Stop;
+    if (!this.at?.overview && (this.trips === 2 || Math.random() < 0.22)) to = overview;
+    else to = this.at && Math.random() < 0.3 ? null : stops[Math.floor(Math.random() * stops.length)];
     const sep = posOf(this.at).distanceTo(posOf(to));
     const dur = THREE.MathUtils.clamp(4 + Math.log10(Math.max(1, sep / 1000)) * 1.6, 5, 9);
     const d0 = this.cam.dist, d1 = orbitDist(to, this.t + dur);
     let yaw1 = this.cam.yaw + dur * 0.045;
-    if (to) {
+    if (to && !to.overview) {
       // arrive with the sun off to one side of the camera: a lit disc with a terminator
       const sun = sys.starPos.clone().sub(to.pos).normalize();
       const dir = new THREE.Vector3();
@@ -336,7 +349,7 @@ export class TitleScreen {
       this.cam.dist = this.cam.targetDist = R * 2.45;
       this.cam.focusOverride.set(0, 0, 0);
     }
-    if (this.opts.system) this.opts.system.tour = 0;
+    if (this.opts.system) { this.opts.system.tour = 0; this.opts.system.overview = 0; }
     this.cam.freePitch = false;
     this.cam.overrideW = 0;
     if (this.camera.view) this.camera.clearViewOffset();

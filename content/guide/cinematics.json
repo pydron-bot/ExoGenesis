@@ -3,8 +3,8 @@
   "section": "story",
   "order": 3,
   "summary": "Big moments play as short scenes. The game waits while they do.",
-  "text": "Some moments play as a **cinematic**: the camera moves over the world, with titles, voices and music, while the game waits for you. Arriving in a new region usually opens with one, and a new colony opens with the **landing**: the seed-probe burns down through the dust, folds its shell open and becomes your Command Core.\n\nPress Esc or tap **Skip** to skip one. Nothing in your colony moves while it plays, so you never lose time to watching.",
+  "text": "Some moments play as a **cinematic**: the camera moves over the world, with titles, voices and music, while the game waits for you. Arriving in a new region usually opens with one, and a new colony opens with the **landing**: the seed-probe burns down through the dust, folds its shell open and becomes your Command Core, with the roar of entry, the retro rockets and the thud of touchdown to go with it.\n\nPress Esc or tap **Skip** to skip one. Nothing in your colony moves while it plays, so you never lose time to watching.",
   "see": "story-cards, routes-and-travel",
   "since": "0.73.0",
-  "updated": "0.80.0"
+  "updated": "0.81.0"
 }

@@ -665,7 +665,7 @@ function startLanding() {
   document.body.classList.add('cine');
   const def = preview?.cinematic?.def.scene === 'landing' ? preview.cinematic.def : content.landing;
   if (def.letterbox) document.body.classList.add('cine-bars');
-  const piece = new Landing(scene, region, cam, { stage: (s) => sim.command({ type: 'landing', stage: s }) }, def);
+  const piece = new Landing(scene, region, cam, { stage: (s) => sim.command({ type: 'landing', stage: s }), sfx: () => audio.sfxOut() }, def);
   cine = new Cinematic('landing', def, cam, cineHooks(() => { selectFirstDrone = true; endCine(); }), piece);
   // compile the optional post passes now (the landing warms its own shaders the same way), not mid-flight
   post.warm = 30;

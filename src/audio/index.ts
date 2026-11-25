@@ -577,6 +577,11 @@ export class GameAudio {
   // ---------- internals ----------
   private live() { return !!this.ctx && this.ctx.state === 'running' && !this.muted; }
 
+  /** Where a set piece's own sounds go (the landing's, src/audio/landing.ts): the Events channel, or null while silent. */
+  sfxOut(): { c: AudioContext; out: AudioNode } | null {
+    return this.live() ? { c: this.ctx!, out: this.cats.events } : null;
+  }
+
   private save() {
     try { localStorage.setItem(PREF_KEY, JSON.stringify({ on: this.on, vol: this.volume, music: this.musicVolume, silent: this.throughSilent })); } catch { /* private mode */ }
   }

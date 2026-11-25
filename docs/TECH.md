@@ -135,6 +135,16 @@ How content is stored and edited in general (one JSON record per file, schemas i
   fading back to lit over 1.6 half-widths, and `fogDistance(cam.dist)` lightens unexplored land from 0.1 at 180 u
   to 0.8 at 1200 u: before, zoomed out, the region was a dark square on a lit globe. The near sea fades out over
   its outer band (`uWaterEdge`). Orbit: a day-side haze term in the atmosphere; clouds shaded by thickness.
+- **Landing sound** (v0.81.0, `src/audio/landing.ts` `LandingSound`): synthesised with the synth.ts helpers (now
+  exported), into the Events channel via `GameAudio.sfxOut()` (null while silent, so it follows the settings).
+  Beds steered each frame by `Landing.frame`: entry roar (heat), burn noise + 34-44 Hz rumble (throttle, brighter near
+  the ground), air rush (speed), dissolve fizz. One-shots: ignite, touchdown (+ cooling ticks), petal(i), power,
+  hatch, drone; `Landing.cue()` plays each once and only within 0.5 s of its moment (a jump ahead stays quiet).
+  Measuring it headless: an AudioWorklet meter on the Events bus (a ScriptProcessor runs on the main thread and drops
+  audio during slow frames, so one-shots looked missing).
+- **Title tour system view** (v0.81.0): a `Stop` with `overview: true` at `system.starPos`, framed at
+  `SolarSystem.extent()` × 2.4 and pitch ~0.85; `system.overview` shows the orbit paths faintly though `tour` hides
+  them. The second trip always goes there, then ~22% of trips.
 - **Landing without hitches** (v0.80.1): shader compiles mid-landing were the stutter (JS is ~0.2 ms a frame).
   `Landing` draws everything (frustum culling off scene-wide, the region's detail layer forced on via
   `RegionView.forceDetails`, every drone LOD shown, one invisible particle/rock primed, plumes/decals/sheath at

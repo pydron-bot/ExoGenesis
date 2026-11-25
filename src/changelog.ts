@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.81.0',
+    date: '2026-11-25',
+    title: 'The landing, heard',
+    notes: [
+      'The landing has sound: the roar of entry, rushing air, the retro rockets lighting and rumbling louder near the ground, the thud of touchdown with gravel thrown out, hot metal ticking as it cools, each petal clanking down, the shell fizzing away, the Core powering up, the drone bay opening and the drone spinning up (it follows your sound settings)',
+      'The title screen\'s tour now pulls far out over the star now and then for a view of the whole system, orbits and all (the second trip always goes there)',
+    ],
+    guide: ['cinematics'],
+  },
+  {
     version: '0.80.3',
     date: '2026-11-25',
     title: 'Updates that arrive',
@@ -66,7 +76,7 @@ export const CHANGELOG: Release[] = [
       'Zooming out, unexplored land no longer turns your region into a dark square on the planet: the fog thins as you climb and fades out past the region\'s edge, and the sea round the region no longer ends in a visible sheet',
       'From orbit, a softer glow of air round the planet\'s day side, and clouds with more body',
     ],
-    guide: ['cinematics', 'weather-and-wear', 'camera-and-views'],
+    guide: ['weather-and-wear', 'camera-and-views'],
   },
   {
     version: '0.79.2',

@@ -214,6 +214,8 @@ export class SolarSystem {
    * the real star, keeps the stars bright and hides the map markers and orbit lines.
    */
   tour = 0;
+  /** 0..1: the title's tour is at its system view: the orbit paths show faintly, though `tour` hides them otherwise. */
+  overview = 0;
 
   /**
    * `defs`: content.bodies; `hereId`: the body the region being played is on.
@@ -362,6 +364,13 @@ export class SolarSystem {
     return b && b !== this.here ? b.pos : null;
   }
 
+  /** How far the planets' orbits reach from the star (their farthest points; comets left out): the title's system view frames it. */
+  extent(): number {
+    let r = 0;
+    for (const b of this.bodies) if (!b.parent && b.kind !== 'comet') r = Math.max(r, b.orbit * (1 + b.ecc));
+    return r || 1e5;
+  }
+
   /** Bodies worth a close look (the title screen's tour): planets and the bigger moons. */
   tourStops(): { name: string; sub: string; radius: number; pos: THREE.Vector3 }[] {
     return this.bodies.filter((b) => b !== this.here && b.kind !== 'comet' && b.radius >= 600);
@@ -430,8 +439,9 @@ export class SolarSystem {
     }
 
     for (const r of this.rings) {
-      (r.line.material as THREE.LineBasicMaterial).opacity = r.op * sys * (1 - away);
-      r.line.visible = sys * (1 - away) > 0.01;
+      const show = Math.max(sys * (1 - away), this.overview * 0.55);
+      (r.line.material as THREE.LineBasicMaterial).opacity = r.op * show;
+      r.line.visible = show > 0.01;
       r.line.position.copy(shift);
     }
     for (const b of this.belts) b.position.copy(shift);

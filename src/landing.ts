@@ -29,6 +29,7 @@ import { buildCore, orient, type RegionView } from './world/region';
 import { A0, probePath } from './world/probe-path';
 import { decalMaterial, groundDisc } from './world/decal';
 import { lightUniforms } from './world/lights';
+import { LandingSound } from './audio/landing';
 
 // ---------- beats (seconds; content/cinematics/landing.json) ----------
 let T_BURN = 0, T_TD = 0, T_OPEN = 0, T_POWER = 0, T_DISSOLVE = 0, T_DISSOLVED = 0, T_HATCH = 0, T_DRONE = 0, T_DRONE_POST = 0, T_END = 27;
@@ -52,6 +53,8 @@ const glf = (x: number) => x.toFixed(4);
 
 export interface LandingHooks {
   stage: (s: LandingStage) => void;
+  /** Where the landing's own sounds go (GameAudio.sfxOut); none while sound is off. */
+  sfx?: () => { c: AudioContext; out: AudioNode } | null;
 }
 
 /** Hash + 3D value noise, shared by the shell and plume shaders. */
@@ -652,6 +655,9 @@ export class Landing implements SetPiece {
   private glows: { mat: THREE.MeshStandardMaterial; base: number }[] = [];
   private hatch: THREE.Object3D;
   private sent = new Set<LandingStage>();
+  private snd: LandingSound;
+  /** One-shot sounds already played (by name). */
+  private heard = new Set<string>();
   private thudded = new Set<number>();
   private padH = regionHeight(0, 0);
   private v = 0; // probe speed, units/s
@@ -661,6 +667,7 @@ export class Landing implements SetPiece {
   /** `def`: the landing cinematic (an unsaved draft from the editor's play test, or the content's). */
   constructor(private scene: THREE.Scene, private region: RegionView, private cam: ZoomCamera, private hooks: LandingHooks, def: CinematicDef) {
     useTimeline(def);
+    this.snd = new LandingSound(hooks.sfx ?? (() => null));
     this.core = buildCore();
     this.probeObj.add(this.core);
     this.core.traverse((o) => {
@@ -888,6 +895,7 @@ export class Landing implements SetPiece {
     }
     if (t >= T_TD && !this.sent.has('touchdown')) {
       this.send('touchdown');
+      if (this.cue('touchdown', T_TD, t)) this.snd.touchdown();
       this.dust.burst(0, 0, 260, 9, 13, 18, 42, { rise: 4, size: [3, 14], life: [3, 5.5], alpha: 0.6 });
       // a fast, low shock ring racing out along the ground
       this.dust.burst(0, 0, 150, 10, 12, 45, 75, { rise: 0.6, size: [2, 7], life: [1.2, 2.2], alpha: 0.45 });
@@ -909,6 +917,7 @@ export class Landing implements SetPiece {
       pv.rotation.x = lerp(-LEAN, Math.PI / 2 - 0.015, Math.min(1, k)) - Math.abs(bounce);
       if (st >= 1 && !this.thudded.has(i)) {
         this.thudded.add(i);
+        if (this.cue(`petal${i}`, T_OPEN + i * 0.13 + 2.2, t)) this.snd.petal(i);
         const a = pv.userData.a as number;
         for (let j = 0; j < 22; j++) {
           const r = RB + Math.random() * PL;
@@ -952,6 +961,14 @@ export class Landing implements SetPiece {
     this.dust.update(dt);
     this.sparks.update(dt);
     this.debris.update(dt, 1 - smoothstep(T_DRONE_POST, T_END - 0.3, t));
+    // ---- sound ----
+    if (throttle > 0.01 && this.cue('ignite', T_BURN, t)) this.snd.ignite();
+    if (t >= T_POWER && this.cue('power', T_POWER, t)) this.snd.power();
+    if (t >= T_HATCH && this.cue('hatch', T_HATCH, t)) this.snd.hatch();
+    if (t >= T_DRONE && this.cue('drone', T_DRONE, t)) this.snd.drone();
+    const du = (t - T_DISSOLVE) / Math.max(0.1, T_DISSOLVED - T_DISSOLVE);
+    this.snd.update({ heat: entry, throttle, alt: p.alt, speed: this.v, dissolve: du > 0 && du < 1 ? Math.sin(Math.PI * du) : 0 });
+
     // last, so it overrides this frame's pose
     const warming = t < this.warmUntil && !this.over;
     if (warming || this.warm) this.warmUp(warming);
@@ -990,6 +1007,16 @@ export class Landing implements SetPiece {
   rewarm() { if (!this.over) this.warmUntil = Math.max(this.warmUntil, this.lastT + 0.3); }
   private over = false;
 
+  /**
+   * A one-shot sound's moment (`at`) has come: true the first time, if it's fresh (a jump ahead, the editor's play
+   * from the playhead, doesn't set off everything it skipped at once).
+   */
+  private cue(name: string, at: number, t: number) {
+    if (this.heard.has(name) || t < at) return false;
+    this.heard.add(name);
+    return t - at < 0.5;
+  }
+
   /** Caption text with {alt} km, {speed} m/s and {shield} °C filled in. */
   fill(x: string, t: number) {
     const km = (this.alt * 0.01).toFixed(this.alt < 100 ? 2 : 1);
@@ -1006,6 +1033,7 @@ export class Landing implements SetPiece {
   /** The end (or a skip): the colony takes over, the camera goes to the normal view. */
   finish() {
     this.over = true;
+    this.snd.stop();
     if (this.warm) this.warmUp(false);
     this.warm = false;
     this.send('touchdown');
