@@ -43,6 +43,8 @@ export class ContactCard {
   /** Story card the player just answered (hidden until the sim drops it from the inbox). */
   private answered = '';
   private paused = false;
+  /** The reply to the choice just made, shown on the card until Continue (it also goes to the log). */
+  private reply: { html: string; color: string; pause: boolean } | null = null;
   /** The conversation page showing (story card id, line). */
   private page = { id: '', n: 0 };
   private last: Snapshot | null = null;
@@ -147,7 +149,11 @@ export class ContactCard {
     const cl = document.body.classList, quiet = cl.contains('cine') || cl.contains('title');
     this.radio(all.filter((id) => this.d.story[id].style === 'radio'), quiet);
     let html = '', pause = false, color = '';
-    if (ask >= 0) {
+    // a cinematic started by the choice plays the reply out on screen: drop the card's copy
+    if (this.reply && quiet) this.reply = null;
+    if (this.reply) {
+      ({ html, color, pause } = this.reply);
+    } else if (ask >= 0) {
       const c = camps[ask], g = this.d.inhabitants[c.group];
       if (g) html = `<div class="t">${esc(g.contactTitle)}</div><p>${esc(g.contactText)}</p>
         <div class="grp"><button data-c="${ask}:approach" title="Send the drone to their fire. They may come to trust us.">Approach</button><button data-c="${ask}:avoid" title="Leave them be. Their regard won't grow past where it is.">Keep away</button><button data-c="${ask}:drive" class="bad" title="Make them leave the region.">Drive them off</button></div>
@@ -182,10 +188,27 @@ export class ContactCard {
     } else if (b.dataset.s) {
       const at = b.dataset.s.lastIndexOf(':');
       const id = b.dataset.s.slice(0, at);
-      this.d.command({ type: 'story', id, choice: Number(b.dataset.s.slice(at + 1)) });
+      const k = Number(b.dataset.s.slice(at + 1)), ev = this.d.story[id], ch = ev?.choices?.[k];
+      this.d.command({ type: 'story', id, choice: k });
       this.answered = id;
+      this.page = { id: '', n: 0 };
+      if (ch?.reply?.trim()) {
+        // the answer stays on the card: what you chose, then what came of it
+        const who = this.speaker(ev.character, ev.speaker);
+        this.reply = {
+          html: `<div class="t">${esc(this.fill(ev.title, id))}</div><p class="said">› ${esc(this.fill(ch.label, id))}</p><p>${esc(this.fill(ch.reply, id))}</p><div class="grp"><button data-reply>Continue</button></div>`,
+          color: who.color, pause: !!ev.pause,
+        };
+        if (this.last) this.update(this.last);
+        return;
+      }
       if (this.paused) { this.paused = false; this.d.pause(false); }
       this.close();
+    } else if (b.dataset.reply !== undefined) {
+      this.reply = null;
+      if (this.paused) { this.paused = false; this.d.pause(false); }
+      this.close();
+      if (this.last) this.update(this.last);
     } else if (b.dataset.c) {
       const [i, choice] = b.dataset.c.split(':');
       this.d.command({ type: 'contact', camp: Number(i), choice: choice as ContactChoice });
@@ -210,7 +233,7 @@ export class ContactCard {
 
   /** New game / load: forget what was shown. */
   reset() {
-    this.story = []; this.trusted.clear(); this.later.clear(); this.primed = false; this.answered = '';
+    this.story = []; this.trusted.clear(); this.later.clear(); this.primed = false; this.answered = ''; this.reply = null;
     this.page = { id: '', n: 0 }; this.radioId = ''; this.radioDone = ''; this.radioShown(false);
     if (this.paused) { this.paused = false; this.d.pause(false); }
     this.close();

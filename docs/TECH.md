@@ -2770,6 +2770,17 @@ itself is played with real rebuild orders and no forced army or domes; Cycle's C
 - The Vell's and the Choir's trust in the Proof are flags from their Act 1 expeditions, not the regard of camps
   at home.
 
+### Story presentation (v0.83.0 on)
+
+The story review of 2026-11-25 found the campaign read as "a bunch of text": payoffs lost in the log, no faces,
+key radio gone in seconds. Each release below is one fix.
+
+- **The reply stays on the card (v0.83.0).** Answering a story card with a choice whose `reply` isn't empty no
+  longer closes the card: `ContactCard` keeps `reply` (the title, the chosen label as `› label`, the reply) until
+  **Continue** (`data-reply`), then closes and shows the next card. A pausing event stays paused until then. The
+  reply still goes to the log (`story.ts`). A choice with no reply (the endings' choices) closes at once, as
+  before; a cinematic started by the choice (`cl.cine`) drops the card's copy, since the cinematic plays it out.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

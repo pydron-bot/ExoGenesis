@@ -3,9 +3,10 @@
   "section": "story",
   "order": 1,
   "summary": "The story arrives as cards. Most wait for you; some ask you to choose.",
-  "text": "As the colony grows, things happen: a find out in the world, a message, a colonist with something on their mind. Each arrives as a **story card**.\n\nMost cards don't stop the game: they wait their turn, one at a time, until you've read them. A few big moments pause the game while they're open.\n\n- A card with several speakers is a conversation: tap **Next** for each line\n- A card with **choices** asks you to decide. Choose with care: what you pick is remembered, and some choices only show what they cost much later\n- A card with no choice just has Continue\n\nRadio messages come in their own corner panel and close by themselves; they stay in the log.",
+  "text": "As the colony grows, things happen: a find out in the world, a message, a colonist with something on their mind. Each arrives as a **story card**.\n\nMost cards don't stop the game: they wait their turn, one at a time, until you've read them. A few big moments pause the game while they're open.\n\n- A card with several speakers is a conversation: tap **Next** for each line\n- A card with **choices** asks you to decide. Once you choose, the card shows what came of it; tap **Continue** to close it. Choose with care: what you pick is remembered, and some choices only show what they cost much later\n- A card with no choice just has Continue\n\nRadio messages come in their own corner panel and close by themselves; they stay in the log.",
   "trigger": "after",
   "event": "first-night",
   "see": "dilemmas, goals-and-missions, chronicle",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.83.0"
 }

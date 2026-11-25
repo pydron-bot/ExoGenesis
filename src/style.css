@@ -250,6 +250,7 @@ body.placing #card { display: none !important; }
 #contact .kind { display: block; font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--cyan-dim); margin-bottom: 1px; }
 #contact .t { color: var(--amber); letter-spacing: 0.16em; font-weight: 600; text-transform: uppercase; }
 #contact p { margin: 6px 0 10px; line-height: 1.45; font-size: 13px; }
+#contact p.said { margin: 6px 0 0; font-size: 12px; color: var(--cyan-dim); font-style: italic; }
 #contact .grp { display: flex; flex-wrap: wrap; gap: 6px; }
 #contact .grp.sub { margin-top: 6px; opacity: 0.8; }
 #contact button.bad { color: var(--crimson); border-color: color-mix(in srgb, var(--crimson) 50%, transparent); }

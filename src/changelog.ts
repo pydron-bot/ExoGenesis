@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.83.0',
+    date: '2026-11-25',
+    title: 'Answers that stay',
+    notes: [
+      'When you answer a story card, the card now shows what came of your choice (what was said, what happened) until you tap Continue, instead of closing at once and leaving the answer in the log',
+    ],
+    guide: ['story-cards'],
+  },
+  {
     version: '0.82.0',
     date: '2026-11-25',
     title: 'Sights of the system',
