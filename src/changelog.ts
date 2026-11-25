@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.92.1',
+    date: '2026-11-25',
+    title: 'Paused means up to date',
+    notes: [
+      'Fixed: answering a story card just as another one paused the game could leave the colony\'s display a step behind until you pressed play',
+    ],
+    guide: [],
+  },
+  {
     version: '0.92.0',
     date: '2026-11-25',
     title: 'Every place its own ending',

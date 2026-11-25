@@ -2841,6 +2841,11 @@ key radio gone in seconds. Each release below is one fix.
   stay reply of the place's own; the "the Command Core can take us home" line is gone (the guide's Goals and
   missions and Expeditions pages say it once). Content only.
 
+- **A pause sends the latest state (v0.92.1).** The sim worker posts a snapshot when the speed goes to 0. Before,
+  a command handled between two ticks (a story card answered just as another card paused the game) stayed out of
+  the main thread's snapshot until play resumed: the answered card was still in `story.inbox` there.
+  `tools/story-smoke.mjs` now waits for the inbox to drop the answered card and accepts the next card in its place.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

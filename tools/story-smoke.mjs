@@ -127,9 +127,14 @@ if (!process.argv.includes('--headless-only')) {
   check((await game2.textContent('#contact .t')) === 'The Stone', 'play test: the event fires straight away');
   check((await game2.locator('#contact button').allTextContents()).includes('Take a sample'), 'play test: with the unsaved edits');
   await game2.click('#contact button:has-text("Take a sample")');
-  await game2.waitForTimeout(800);
-  check(!(await game2.isVisible('#contact.on')), 'game: answering closes the card');
-  check(!(await game2.evaluate(() => window.__exo.sim.cur.story.inbox.includes('the-stone'))), 'game: and the sim takes it out of the inbox');
+  // the sim drops the answered card on its next step (a fixed wait raced it); the next card waiting (the
+  // Director's briefing, from the play test's fresh start) may take its place, so check the stone's card is gone,
+  // not that no card is open. The new choice has no reply, so there is no reply page to pass first.
+  const dropped = await game2.waitForFunction(() => !window.__exo.sim.cur.story.inbox.includes('the-stone'), null, { timeout: 15000 }).then(() => true, () => false);
+  await game2.waitForTimeout(300);
+  const after = (await game2.isVisible('#contact.on')) ? await game2.textContent('#contact .t') : '';
+  check(after !== 'The Stone', `game: answering closes the card${after ? ` (the next one, "${after}", takes its place)` : ''}`);
+  check(dropped, 'game: and the sim takes it out of the inbox');
   // a pausing event pauses
   await game2.goto(`${url}?intro=0&new=1&title=0&scratch=1&story=director-briefing`);
   await game2.waitForSelector('#contact.on .t', { timeout: 300000 });

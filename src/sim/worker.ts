@@ -110,6 +110,8 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       return;
     case 'speed':
       speed = msg.speed;
+      // pausing: no ticks will send what changed since the last one (a command answered just before), so send it now
+      if (speed === 0) snapshot();
       return;
     case 'save':
       post({ type: 'saved', reqId: msg.reqId, state: sim.s });
