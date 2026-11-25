@@ -28,6 +28,7 @@ import { R, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld
 import { buildCore, orient, type RegionView } from './world/region';
 import { A0, probePath } from './world/probe-path';
 import { decalMaterial, groundDisc } from './world/decal';
+import { lightUniforms } from './world/lights';
 
 // ---------- beats (seconds; content/cinematics/landing.json) ----------
 let T_BURN = 0, T_TD = 0, T_OPEN = 0, T_POWER = 0, T_DISSOLVE = 0, T_DISSOLVED = 0, T_HATCH = 0, T_DRONE = 0, T_DRONE_POST = 0, T_END = 27;
@@ -356,7 +357,13 @@ class Puffs {
   private iCol: THREE.InstancedBufferAttribute;
   private geo: THREE.InstancedBufferGeometry;
   private jit = new THREE.Color();
-  readonly uniforms = { uLight: { value: 1 }, uHot: { value: new THREE.Vector3() }, uHotK: { value: 0 } };
+  readonly uniforms = {
+    uLight: { value: 1 }, uHot: { value: new THREE.Vector3() }, uHotK: { value: 0 },
+    // the ground's heights (the light map's), so a puff fades out where it meets the ground: no hard line where
+    // a big billboard cuts into a hill (soft particles, against the terrain only, without a depth pass)
+    uSoftOn: { value: 0 }, uGH: lightUniforms.uLmH, uGR: lightUniforms.uLmR, uGHalf: lightUniforms.uLmHalf,
+    uGU: lightUniforms.uLmU, uGE: lightUniforms.uLmE, uGN: lightUniforms.uLmN,
+  };
 
   constructor(private base: THREE.Color, private additiveMode = false, max = 1600) {
     this.max = max;
@@ -391,8 +398,10 @@ class Puffs {
         varying float vS;
         varying vec3 vC;
         varying float vHot;
+        varying vec3 vWp;
+        varying float vSz;
         void main() {
-          vUv = uv; vA = iSA.y; vS = iSA.z; vC = iCol;
+          vUv = uv; vA = iSA.y; vS = iSA.z; vC = iCol; vSz = iSA.x;
           vHot = uHotK * exp(-distance(iPos, uHot) / 13.0);
           vec3 camR = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
           vec3 camU = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
@@ -400,18 +409,32 @@ class Puffs {
           float r = vS * 6.2832;
           vec2 q = vec2(cos(r) * position.x - sin(r) * position.y, sin(r) * position.x + cos(r) * position.y);
           vec3 wp = iPos + (camR * q.x + camU * q.y) * iSA.x;
+          vWp = wp;
           gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
           #include <logdepthbuf_vertex>
         }`,
       fragmentShader: /* glsl */ `
         #include <common>
         #include <logdepthbuf_pars_fragment>
-        uniform float uLight;
+        uniform float uLight, uSoftOn, uGR, uGHalf;
+        uniform sampler2D uGH;
+        uniform vec3 uGU, uGE, uGN;
         varying vec2 vUv;
         varying float vA;
         varying float vS;
         varying vec3 vC;
         varying float vHot;
+        varying vec3 vWp;
+        varying float vSz;
+        float groundSoft() {
+          if (uSoftOn < 0.5) return 1.0;
+          float r = length(vWp);
+          vec3 d = vWp / r;
+          vec2 rp = uGR * vec2(dot(d, uGE), dot(d, uGN)) / max(dot(d, uGU), 0.5);
+          float g = texture2D(uGH, (clamp(rp, -uGHalf, uGHalf) + uGHalf + 0.5) / (2.0 * uGHalf + 1.0)).r;
+          float lift = r - uGR - max(g, 0.0);
+          return smoothstep(0.0, clamp(vSz * 0.3, 0.6, 4.0), lift);
+        }
         float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
@@ -429,6 +452,8 @@ class Puffs {
           float bn = 0.65 * n2(q * 3.2 + vS * 19.0) + 0.35 * n2(q * 7.0 + vS * 41.0);
           d += (bn - 0.5) * 0.5;
           float a = (1.0 - smoothstep(0.2, 1.0, d)) * vA;
+          if (a < 0.004) discard;
+          a *= groundSoft();
           if (a < 0.004) discard;
           float shade = 0.78 + 0.3 * q.y + 0.25 * (bn - 0.5);
           vec3 col = vC * shade * (0.75 + 0.45 * vS) * uLight + vec3(1.0, 0.48, 0.16) * vHot * 1.5;
@@ -487,6 +512,7 @@ class Puffs {
   }
 
   update(dt: number) {
+    this.uniforms.uSoftOn.value = lightUniforms.uLmH.value ? 1 : 0;
     const up = U;
     const drag = Math.exp(-dt * 1.5);
     for (let i = 0; i < this.n; i++) {
