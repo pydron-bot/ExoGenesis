@@ -3,6 +3,9 @@
  * everything the sim puts on it (Command Core, drone, buildings, fauna).
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { addWear } from './wear';
+import { scorchDecal } from './decal';
 import { buildAirpad, buildFlak } from './air-models';
 import { ShieldDomes, type ShieldLook } from './shields';
 import { buildMedBay, buildMemorial, buildSeedBank, buildShieldProjector } from './batchc-models';
@@ -193,32 +196,125 @@ export function orient(obj: THREE.Object3D, x: number, z: number, heading: numbe
   obj.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd));
 }
 
+/**
+ * The Command Core (v0.80.0 look): an octagonal hab on a plinth, with corner ribs, lit windows, radiator fins,
+ * an orange band, a sensor deck with a dish and a lattice mast, two glow rings in dark housings, braced legs,
+ * and six cryo pods in clamps. The drone bay (`hatch`, `lintel`), `ring`s, `beacon` and `pod`s keep their names
+ * and places (the landing and the editor's preview drive them); the rest is merged into one mesh per material.
+ */
 export function buildCore(): THREE.Group {
   const g = new THREE.Group();
-  const hull = metal('#9aa4ad');
+  const hull = metal('#a7b0b8');
   const dark = metal('#3a4048');
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 7.5, 1.6, 8), dark);
-  base.position.y = 0.8;
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 5.2, 7, 8), hull);
-  body.position.y = 5;
-  body.rotation.y = Math.PI / 8; // a flat face toward -z for the drone hatch
-  const cap = new THREE.Mesh(new THREE.ConeGeometry(4.2, 4, 8), hull);
-  cap.position.y = 10.5;
-  cap.rotation.y = Math.PI / 8;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(4.8, 0.35, 6, 24), glow(CYAN, 3));
+  const trim = metal('#c9692a', { roughness: 0.6, metalness: 0.2 });
+  const chrome = metal('#d4dade', { roughness: 0.3, metalness: 0.85 });
+  // warm lit windows (a glow material: black base, amber light)
+  const WINDOW = new THREE.MeshStandardMaterial({ color: '#000000', emissive: new THREE.Color('#ffd28a'), emissiveIntensity: 1.6, flatShading: true });
+  addWear([hull, dark, trim]);
+  const decor = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
+  const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rot?: THREE.Euler | THREE.Quaternion, scale = one) => {
+    const qq = rot instanceof THREE.Quaternion ? rot : q.setFromEuler(rot ?? e.set(0, 0, 0));
+    geo.applyMatrix4(m4.compose(new THREE.Vector3(x, y, z), qq, scale));
+    if (!decor.has(mat)) decor.set(mat, []);
+    decor.get(mat)!.push(geo);
+  };
+  const oct = Math.PI / 8;
+  // plinth, its lip and a hazard band round the foot
+  add(new THREE.CylinderGeometry(6.5, 7.5, 1.6, 8), dark, 0, 0.8, 0);
+  add(new THREE.CylinderGeometry(6.75, 6.75, 0.25, 8), hull, 0, 1.68, 0);
+  add(new THREE.CylinderGeometry(7.42, 7.52, 0.28, 8), trim, 0, 0.32, 0);
+  // the hab: an octagon narrowing upward, a flat face toward -z for the drone hatch
+  const body = new THREE.CylinderGeometry(4.2, 5.2, 7, 8);
+  add(body, hull, 0, 5, 0, e.set(0, oct, 0));
+  const rAt = (y: number) => 5.2 - (y - 1.5) / 7; // corner radius at height y
+  const apoAt = (y: number) => rAt(y) * Math.cos(oct);
+  for (let i = 0; i < 8; i++) {
+    // corner ribs, leaning with the walls
+    const t = (i / 8) * Math.PI * 2 + oct;
+    const dir = new THREE.Vector3(-Math.sin(t), 7, -Math.cos(t)).normalize();
+    add(new THREE.BoxGeometry(0.32, 7.15, 0.32), dark, Math.sin(t) * (rAt(5) + 0.06), 5, Math.cos(t) * (rAt(5) + 0.06), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir));
+  }
+  const tilt = Math.atan2(1, 7);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2; // face centres; a = π is the drone bay
+    if (Math.abs(a - Math.PI) < 0.1) continue;
+    const face = (y: number, out = 0.04) => [Math.sin(a) * (apoAt(y) + out), y, Math.cos(a) * (apoAt(y) + out)] as const;
+    const rot = () => new THREE.Euler(-tilt, a, 0, 'YXZ');
+    // a row of lit windows between the rings
+    for (const dx of [-0.65, 0.65]) {
+      const [x, y, z] = face(5.2, 0.06);
+      add(new THREE.BoxGeometry(0.75, 0.42, 0.08), WINDOW, x + Math.cos(a) * dx, y, z - Math.sin(a) * dx, rot());
+    }
+    // a service panel low down
+    const [px, py, pz] = face(2.6, 0.05);
+    add(new THREE.BoxGeometry(1.3, 0.9, 0.1), dark, px, py, pz, rot());
+    // radiator fins on the two sides
+    if (Math.abs(Math.sin(a)) > 0.99) {
+      for (let k = 0; k < 4; k++) {
+        const [fx, fy, fz] = face(5.2 + (k - 1.5) * 0.7, 0.75);
+        add(new THREE.BoxGeometry(0.08, 0.5, 1.6), dark, fx, fy, fz, new THREE.Euler(0, a, 0));
+      }
+    }
+  }
+  // band and top collar
+  add(new THREE.CylinderGeometry(rAt(8.05) + 0.06, rAt(7.75) + 0.06, 0.3, 8), trim, 0, 7.9, 0, e.set(0, oct, 0));
+  add(new THREE.CylinderGeometry(4.4, 4.5, 0.4, 8), dark, 0, 8.6, 0, e.set(0, oct, 0));
+  // glow rings sit in dark housings
+  for (const y of [4, 6.4]) for (const dy of [-0.42, 0.42]) {
+    add(new THREE.TorusGeometry(rAt(y + dy) * 0.96 + 0.1, 0.16, 6, 32), dark, 0, y + dy, 0, e.set(Math.PI / 2, 0, 0));
+  }
+  // sensor deck: a frustum cap, a deck, a dome, a dish, a lattice mast
+  add(new THREE.CylinderGeometry(1.5, 4.2, 3.4, 8), hull, 0, 10.5, 0, e.set(0, oct, 0));
+  add(new THREE.CylinderGeometry(1.7, 1.7, 0.3, 8), dark, 0, 12.3, 0, e.set(0, oct, 0));
+  add(new THREE.SphereGeometry(1.05, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), chrome, 0, 12.45, 0);
+  const dish = new THREE.SphereGeometry(1.1, 14, 6, 0, Math.PI * 2, 0, 0.85);
+  add(dish, hull, 2.4, 11.5, 1.6, new THREE.Euler(-0.9, 0.6, 0.5));
+  add(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 4), dark, 2.4, 11.5, 1.6, new THREE.Euler(-0.9, 0.6, 0.5));
+  add(new THREE.CylinderGeometry(0.15, 0.15, 5, 5), dark, 0, 14.5, 0);
+  for (const y of [14, 15.6]) add(new THREE.BoxGeometry(1.4 - (y - 14) * 0.4, 0.08, 0.08), dark, 0, y, 0);
+  // braced legs with pistons, on footpads
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    // a strut from the footpad up into the hull, and a piston alongside it
+    const strut = (r0: number, y0: number, r1: number, y1: number, geo: THREE.BufferGeometry, mat: THREE.Material, side = 0) => {
+      const d = new THREE.Vector3(Math.cos(a) * (r1 - r0), y1 - y0, Math.sin(a) * (r1 - r0));
+      const len = d.length();
+      geo.scale(1, len, 1);
+      const tx = -Math.sin(a) * side, tz = Math.cos(a) * side;
+      add(geo, mat, Math.cos(a) * (r0 + r1) / 2 + tx, (y0 + y1) / 2, Math.sin(a) * (r0 + r1) / 2 + tz,
+        new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
+    };
+    strut(8.4, 0.3, 5.3, 4.6, new THREE.BoxGeometry(0.75, 1, 0.75), dark);
+    for (const sd of [-0.62, 0.62]) strut(8.0, 0.4, 5.6, 3.4, new THREE.CylinderGeometry(0.13, 0.13, 1, 6), chrome, sd);
+    add(new THREE.CylinderGeometry(1.2, 1.4, 0.4, 6), dark, Math.cos(a) * 8.4, 0.2, Math.sin(a) * 8.4);
+    add(new THREE.CylinderGeometry(1.45, 1.5, 0.12, 6), trim, Math.cos(a) * 8.4, 0.03, Math.sin(a) * 8.4);
+  }
+  // cryo pods ringing the base, each held in two clamps
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    for (const s of [-0.75, 0.75]) {
+      add(new THREE.TorusGeometry(0.78, 0.13, 6, 14), dark, Math.cos(a) * (5.6 + s), 2.4, Math.sin(a) * (5.6 + s), new THREE.Euler(0, Math.PI / 2 - a, 0));
+    }
+    add(new THREE.BoxGeometry(0.5, 0.9, 2.6), dark, Math.cos(a) * 5.6, 1.6, Math.sin(a) * 5.6, new THREE.Euler(0, Math.PI / 2 - a, 0));
+  }
+  for (const [mat, geos] of decor) {
+    const merged = mergeGeometries(geos.map((x) => (x.index ? x.toNonIndexed() : x)), false);
+    for (const x of geos) x.dispose();
+    if (merged) g.add(new THREE.Mesh(merged, mat));
+  }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(4.8, 0.3, 6, 32), glow(CYAN, 2.2));
   ring.name = 'ring';
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 4;
-  const ring2 = new THREE.Mesh(ring.geometry, glow(CYAN, 3));
+  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(rAt(6.4) * 0.96 + 0.1, 0.3, 6, 32), glow(CYAN, 2.2));
   ring2.name = 'ring';
   ring2.rotation.x = Math.PI / 2;
   ring2.position.y = 6.4;
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 5, 5), dark);
-  mast.position.y = 14.5;
   const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.5), glow(AMBER, 4));
   tip.position.y = 17;
   tip.name = 'beacon';
-  g.add(base, body, cap, ring, ring2, mast, tip);
+  g.add(ring, ring2, tip);
   // drone hatch on the -z face: dark bay with a lit lintel, door hinged at the bottom (folds out into a ramp)
   const apo = (y: number) => (5.2 - (y - 1.5) / 7) * Math.cos(Math.PI / 8);
   const bay = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.85, 0.1), new THREE.MeshStandardMaterial({ color: '#07090c', roughness: 1, flatShading: true }));
@@ -227,6 +323,10 @@ export function buildCore(): THREE.Group {
   const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.12, 0.12), glow(AMBER, 2.5));
   lintel.position.set(0, 3.42, -apo(3.42) - 0.08);
   lintel.name = 'lintel';
+  // a frame round the bay
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(2.75, 2.3, 0.08), dark);
+  frame.position.set(0, 2.62, -apo(2.62) + 0.01);
+  frame.rotation.x = 0.142;
   const hatch = new THREE.Group();
   hatch.name = 'hatch';
   hatch.position.set(0, 1.68, -apo(1.68) - 0.1);
@@ -236,20 +336,10 @@ export function buildCore(): THREE.Group {
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.05), glow(CYAN, 2));
   stripe.position.set(0, 1.45, -0.18);
   hatch.add(door, stripe);
-  g.add(bay, lintel, hatch);
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.8, 6, 0.8), dark);
-    leg.position.set(Math.cos(a) * 7, 2.2, Math.sin(a) * 7);
-    leg.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
-    const foot = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.4, 6), dark);
-    foot.position.set(Math.cos(a) * 8.4, 0.2, Math.sin(a) * 8.4);
-    g.add(leg, foot);
-  }
-  // cryo pods ringing the base
+  g.add(frame, bay, lintel, hatch);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    const pod = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.6, 3, 8), glow('#7ff7ff', 1.4));
+    const pod = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.6, 3, 8), glow('#7ff7ff', 1.0));
     pod.name = 'pod';
     pod.position.set(Math.cos(a) * 5.6, 2.4, Math.sin(a) * 5.6);
     pod.rotation.z = Math.PI / 2;
@@ -1053,6 +1143,7 @@ export class RegionView {
   private ghostOk = new THREE.MeshBasicMaterial({ color: '#5bff9a', transparent: true, opacity: 0.4, depthWrite: false });
   private ghostBad = new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.4, depthWrite: false });
   private border: THREE.LineLoop;
+  private scorch: THREE.Mesh;
   private marker: THREE.Sprite;
   private raycaster = new THREE.Raycaster();
   private models: Record<string, THREE.Object3D> = {};
@@ -1085,6 +1176,10 @@ export class RegionView {
     this.core = buildCore();
     orient(this.core, 0, 0, 0, 0);
     this.details.add(this.core);
+    // the landing burn's scorch round the pad (the landing fades it in; it stays)
+    this.scorch = scorchDecal();
+    this.details.add(this.scorch);
+    this.setScorch(1);
 
     this.drone = this.droneShell();
     this.details.add(this.drone);
@@ -1119,6 +1214,12 @@ export class RegionView {
     this.marker.position.copy(U).multiplyScalar(R + regionHeight(0, 0) + 4);
     this.marker.renderOrder = 10;
     scene.add(this.marker);
+  }
+
+  /** The pad's scorch mark, 0..1 (the landing burns it in; 1 for the rest of the game). */
+  setScorch(k: number) {
+    (this.scorch.material as THREE.ShaderMaterial).uniforms.uOpacity.value = k * 0.85;
+    this.scorch.visible = k > 0.01;
   }
 
   /** Region border, orbit marker and core beacon — everything that isn't sim-driven. */

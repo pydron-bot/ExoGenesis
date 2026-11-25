@@ -13,7 +13,8 @@
  *
  * Look (v0.80.0): the shell is panelled, with a tiled heat shield that glows on
  * entry and cools; the plumes are shaded cones (turbulence, shock diamonds,
- * soft edges); the burn lights the ground and the dust, scorches the pad and
+ * soft edges); the burn lights the ground and the dust, scorches the pad (the
+ * region's scorch, which stays) and
  * throws sparks; touchdown kicks out a shock ring and rocks; the dissolving
  * shell sheds motes that drift into the core.
  */
@@ -26,6 +27,7 @@ import { lerp, smoothstep } from './world/noise';
 import { R, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, terrainColor, U } from './world/planet';
 import { buildCore, orient, type RegionView } from './world/region';
 import { A0, probePath } from './world/probe-path';
+import { decalMaterial, groundDisc } from './world/decal';
 
 // ---------- beats (seconds; content/cinematics/landing.json) ----------
 let T_BURN = 0, T_TD = 0, T_OPEN = 0, T_POWER = 0, T_DISSOLVE = 0, T_DISSOLVED = 0, T_HATCH = 0, T_DRONE = 0, T_DRONE_POST = 0, T_END = 27;
@@ -330,72 +332,6 @@ function glowSprite(inner: string, outer: string): THREE.Sprite {
   return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false }));
 }
 
-// ---------- ground decals ----------
-
-/**
- * A disc draped on the terrain around the pad (world-space vertices sampled from the
- * ground, so it follows the bumps); `paint(r01, angle)` gives each vertex's RGBA.
- */
-function groundDisc(radius: number, lift: number, paint: (r: number, a: number) => [number, number, number, number]) {
-  const rings = 18, segs = 56;
-  const pos: number[] = [], col: number[] = [], idx: number[] = [];
-  const v = new THREE.Vector3();
-  regionToWorld(0, 0, lift, v);
-  pos.push(v.x, v.y, v.z);
-  col.push(...paint(0, 0));
-  for (let r = 1; r <= rings; r++) {
-    const rr = r / rings;
-    for (let s = 0; s < segs; s++) {
-      const a = (s / segs) * Math.PI * 2;
-      regionToWorld(Math.cos(a) * rr * radius, Math.sin(a) * rr * radius, lift, v);
-      pos.push(v.x, v.y, v.z);
-      col.push(...paint(rr, a));
-    }
-  }
-  for (let s = 0; s < segs; s++) idx.push(0, 1 + s, 1 + ((s + 1) % segs));
-  for (let r = 1; r < rings; r++) {
-    const a0 = 1 + (r - 1) * segs, b0 = 1 + r * segs;
-    for (let s = 0; s < segs; s++) {
-      const s1 = (s + 1) % segs;
-      idx.push(a0 + s, b0 + s, b0 + s1, a0 + s, b0 + s1, a0 + s1);
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('aRGBA', new THREE.Float32BufferAttribute(col, 4));
-  g.setIndex(idx);
-  return g;
-}
-
-/** For a groundDisc: its per-vertex RGBA times `uOpacity`. */
-function decalMaterial(additiveBlend: boolean) {
-  return new THREE.ShaderMaterial({
-    uniforms: { uOpacity: { value: 0 } },
-    vertexShader: /* glsl */ `
-      #include <common>
-      #include <logdepthbuf_pars_vertex>
-      attribute vec4 aRGBA;
-      varying vec4 vC;
-      void main() {
-        vC = aRGBA;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        #include <logdepthbuf_vertex>
-      }`,
-    fragmentShader: /* glsl */ `
-      #include <common>
-      #include <logdepthbuf_pars_fragment>
-      uniform float uOpacity;
-      varying vec4 vC;
-      void main() {
-        #include <logdepthbuf_fragment>
-        float a = vC.a * uOpacity;
-        if (a < 0.004) discard;
-        gl_FragColor = vec4(vC.rgb, a);
-      }`,
-    transparent: true, depthWrite: false, blending: additiveBlend ? THREE.AdditiveBlending : THREE.NormalBlending,
-  });
-}
-
 // ---------- particles ----------
 
 /**
@@ -666,7 +602,6 @@ export class Landing implements SetPiece {
   private sparks: Puffs;
   private debris: Debris;
   private glowDisc: THREE.Mesh;
-  private scorch: THREE.Mesh;
   private scorchK = 0;
   private shellU: ShellUniforms = { uDissolve: { value: 0 }, uCenter: { value: new THREE.Vector3() }, uHeat: { value: 0 }, uNozzle: { value: 0 } };
   private glows: { mat: THREE.MeshStandardMaterial; base: number }[] = [];
@@ -789,17 +724,12 @@ export class Landing implements SetPiece {
     // firelight pooled on the ground, and the burn's scorch mark (both draped on the terrain)
     const warm = new THREE.Color(1.0, 0.45, 0.14);
     this.glowDisc = new THREE.Mesh(groundDisc(34, 0.5, (r) => [warm.r, warm.g, warm.b, Math.pow(1 - r, 2.2)]), decalMaterial(true));
-    const jag = Array.from({ length: 7 }, () => [Math.random() * 6.3, 1 + Math.floor(Math.random() * 5)]);
-    this.scorch = new THREE.Mesh(groundDisc(24, 0.3, (r, a) => {
-      const edge = 0.72 + jag.reduce((s, [ph, f]) => s + Math.sin(a * f + ph) * 0.045, 0);
-      const k = (1 - smoothstep(edge * 0.3, edge, r)) * (0.75 + 0.2 * Math.random());
-      return [0.03, 0.022, 0.018, k];
-    }), decalMaterial(false));
-    this.glowDisc.frustumCulled = this.scorch.frustumCulled = false;
-    this.scorch.renderOrder = 1;
+    this.glowDisc.frustumCulled = false;
     this.glowDisc.renderOrder = 2;
+    // the burn's scorch is the region's own (it stays after the landing)
+    region.setScorch(0);
 
-    scene.add(this.probeObj, this.dust.mesh, this.sparks.mesh, this.debris.mesh, this.glowDisc, this.scorch);
+    scene.add(this.probeObj, this.dust.mesh, this.sparks.mesh, this.debris.mesh, this.glowDisc);
     region.core.visible = false;
     region.droneHeld = true;
     region.drone.visible = false;
@@ -895,8 +825,7 @@ export class Landing implements SetPiece {
     this.dust.uniforms.uHot.value.copy(regionToWorld(p.x, p.z, 4));
     this.dust.uniforms.uHotK.value = near * fl;
     this.scorchK = Math.max(this.scorchK, throttle * (1 - smoothstep(6, 40, p.alt)));
-    (this.scorch.material as THREE.ShaderMaterial).uniforms.uOpacity.value = this.scorchK * (1 - smoothstep(T_DRONE_POST, T_END - 0.3, t));
-    this.scorch.visible = this.scorchK > 0.01;
+    this.region.setScorch(this.scorchK);
 
     if (throttle > 0.05 && p.alt < 90) {
       const k = throttle * Math.sqrt(1 - p.alt / 90);
@@ -1002,11 +931,12 @@ export class Landing implements SetPiece {
   finish() {
     this.send('touchdown');
     this.send('deploy');
-    this.scene.remove(this.probeObj, this.dust.mesh, this.sparks.mesh, this.debris.mesh, this.glowDisc, this.scorch);
+    this.scene.remove(this.probeObj, this.dust.mesh, this.sparks.mesh, this.debris.mesh, this.glowDisc);
+    this.region.setScorch(1);
     this.dust.dispose();
     this.sparks.dispose();
     this.debris.dispose();
-    for (const m of [this.glowDisc, this.scorch]) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); }
+    this.glowDisc.geometry.dispose(); (this.glowDisc.material as THREE.Material).dispose();
     this.probeObj.traverse((o) => { if (o instanceof THREE.Mesh) o.geometry.dispose(); });
     this.region.core.visible = true;
     this.region.droneHeld = false;
