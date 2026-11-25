@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "The Team Is Home",
   "text": "The survey team is back at their camp, sand in everything, the manifest plate wrapped in a coat. Bede thanks every one of your units by its number. Marrow's shuttle is already on its way down for them.",
   "trigger": "never",
   "region": "dunmore-dustfall",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. The wind is already filling in the tracks."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay. The dunes start covering the hull again by nightfall."
     }
   ],
   "effects": [

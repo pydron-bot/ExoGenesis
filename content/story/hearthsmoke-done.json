@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Known by Sight",
   "text": "Hearthsmoke Vale is mapped, and the Vell know our drones by sight. Whatever we leave standing here, their runners will keep an eye on.",
   "trigger": "never",
   "region": "hearthsmoke",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The convoy turns for home. A Vell runner keeps pace with it as far as the ridge."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core can take us home whenever we're ready."
+      "reply": "We stay. The children come closer to the drones each day."
     }
   ],
   "effects": [

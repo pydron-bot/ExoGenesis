@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Four Home",
   "text": "The scouts sit by your Command Core with their backs to it, wrapped in thermal sheets, saying very little. One of them asks whether it's true that Marrow is still captain. When you say yes, she laughs until she cries.",
   "trigger": "never",
   "region": "pip-wreck",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. The scouts watch Pip go and don't look back."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay a while. The scouts would rather we didn't."
     }
   ],
   "effects": [

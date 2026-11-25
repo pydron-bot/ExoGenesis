@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.92.0',
+    date: '2026-11-25',
+    title: 'Every place its own ending',
+    notes: [
+      'The card at the end of each expedition is no longer the same Expedition Complete every time: each place closes with its own title and its own few lines, and a simple Head home or Stay a while',
+    ],
+    guide: ['goals-and-missions'],
+  },
+  {
     version: '0.91.0',
     date: '2026-11-25',
     title: 'Remembered',

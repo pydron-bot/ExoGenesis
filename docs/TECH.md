@@ -2836,6 +2836,11 @@ key radio gone in seconds. Each release below is one fix.
   would carry a vote tonight (`lean-autonomist` / `-devoted` / `-partners`, once: `lean-told`), and `meridian-speaks`
   now waits for `lean-told`, so the lean always comes before Trust decides.
 
+- **Expeditions end in their own words (v0.92.0).** The 17 `*-done` cards (each expedition mission's `onDone`)
+  have their own titles instead of "Expedition Complete", choices **Head home** / **Stay a while**, and a short
+  stay reply of the place's own; the "the Command Core can take us home" line is gone (the guide's Goals and
+  missions and Expeditions pages say it once). Content only.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Home, Small as a Thumb",
   "text": "The relay keeps forwarding. The seam keeps its secret. From the mast's rim Home is a blue crescent, small enough to cover with a thumb. Three new routes are on the Gantry's card: Verdance, where Marrow's voice comes from; Talus, a rock with room for a yard; and Ash, where one of the relay's carriers points.",
   "trigger": "never",
   "region": "sela-relay",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. Behind it the mast goes on forwarding, as if nobody had called."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay by the mast a while, listening to it forward our report."
     }
   ],
   "effects": [

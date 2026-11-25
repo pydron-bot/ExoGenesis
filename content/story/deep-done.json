@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Out of the Pit",
   "text": "The Enclave's cut is quiet behind us. We carry a code, a log in our own voice, and a question nobody in the cut could answer. It is a long drive home.",
   "trigger": "never",
   "region": "deep-layer",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The convoy climbs out of the crater and turns for home."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core can take us home whenever we're ready."
+      "reply": "We stay on the rim a while longer. The cut stays quiet."
     }
   ],
   "effects": [

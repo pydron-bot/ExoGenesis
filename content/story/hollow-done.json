@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Out of Sight",
   "text": "The hollow is mapped and the cellar is open. Its map points south-west, to a crater a long way off. Whatever we build here stays, and stays out of sight.",
   "trigger": "never",
   "region": "splinter-hollow",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The convoy goes out by the east gap, the easy way, and turns for home."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core can take us home whenever we're ready."
+      "reply": "We stay in the hollow. It is very easy to stay here."
     }
   ],
   "effects": [

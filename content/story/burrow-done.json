@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "The Reach, Surveyed",
   "text": "The furrows are surveyed and the samples are sealed. The Reach is still the worst place on the planet to make camp, and we have made one. It will be here if we come back.",
   "trigger": "never",
   "region": "burrow-reach",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The convoy turns for home. The Burrowers don't look up."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core can take us home whenever we're ready."
+      "reply": "We stay. The Burrowers plough round the camp as if it had always been there."
     }
   ],
   "effects": [

@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Thirty-Three",
   "text": "Thirty-three hulls, three rows, one empty berth with our name on it. The drones have mapped every one. The plates point at Vess, Halcyon's moon, and so does a routing entry in the relay. A new route is on the Gantry's card.",
   "trigger": "never",
   "region": "ash-hulls",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. Below it the rows keep their order."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay among the rows. Nobody says much on the channel."
     }
   ],
   "effects": [

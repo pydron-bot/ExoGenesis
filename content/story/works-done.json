@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Down the Orange Road",
   "text": "Engram's drones see us back down the orange road. Behind us the chassis hall's doors stay open on the orange hull. ENGRAM mentions, as if it were nothing, that its harvesters work the sulfur plains of Io-T, and that you would be welcome to watch. Io-T is on the routes.",
   "trigger": "never",
   "region": "maren-works",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. Below it the orange road stays lit."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay. Engram's drones go on walking beside ours, very politely."
     }
   ],
   "effects": [

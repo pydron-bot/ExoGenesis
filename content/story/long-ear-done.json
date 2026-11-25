@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "A Line That's Ours",
   "text": "The dish is aimed and the hub is ours. Behind us the relay chain runs back through Cinder and Ash to Sela and Home, and now it has an end that we hold.",
   "trigger": "never",
   "region": "teth-ear",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. Below it the dish keeps listening, on our band now."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay at the dish. It hears nothing back, and we listen anyway."
     }
   ],
   "effects": [

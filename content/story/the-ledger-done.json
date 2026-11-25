@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Every Column Copied",
   "text": "The plug is out and the room under the ice stays lit. Whatever keeps the Ledger watched us read it and did nothing, which is either a mercy or a measure of how little it thinks it matters. Every column is copied home.",
   "trigger": "never",
   "region": "vess-ledger",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. Under the ice the room stays lit."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay. The room under the ice stays lit."
     }
   ],
   "effects": [

@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "A Page of the Tally",
   "text": "The harvesters go back down their track. The crater on the plain cools. Somewhere in the system something is keeping a tally of every report and every parcel, and now you have a page of it.",
   "trigger": "never",
   "region": "iot-drops",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts off the sulfur. On the plain the harvesters wait for the next parcel."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay and watch the plain. The next parcel is due after Engram's next report."
     }
   ],
   "effects": [

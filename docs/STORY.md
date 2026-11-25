@@ -594,8 +594,9 @@ Existing: `director`, `firstborn`.
 - British spelling (colour, defence, favourite, towards, recognise), except game names (Civilian Center, Defense
   Turret). Sols, not days, for colony time. Plain short sentences; at most one exclamation in a scene, and
   usually none. Choice labels under about 40 characters; the reply carries the detail.
-- **Expedition Complete** cards: same title everywhere; each region's text and its "Return" reply are its own.
-  The "Stay a while" reply always tells you the Command Core (or its card) can take you home.
+- **The end of an expedition** (`*-done`, v0.92.0): each region's card has its own title ("The Reach, Surveyed",
+  "Thirty-Three") and its own text; the choices are always **Head home** / **Stay a while**, each reply the place's own.
+  The way home is the Command Core's card (the Field Guide's Expeditions page says so), not repeated on every card.
 
 ### Who knows what, when
 

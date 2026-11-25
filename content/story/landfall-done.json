@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Outside the Wire",
   "text": "Marrow walks the drone back to the gate herself. Before it goes she says one more thing, quietly, so her people won't hear: \"There's a signal on Dunmore. Under the sand. I've had it a year and never had the escort to go and look. Think about it.\" Dunmore is on the routes now.",
   "trigger": "never",
   "region": "verdance-landfall",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. On the wall, Marrow watches it all the way up."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay south of the river, as she asked."
     }
   ],
   "effects": [

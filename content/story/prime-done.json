@@ -1,16 +1,16 @@
 {
-  "title": "Expedition Complete",
+  "title": "Decided Under the Ice",
   "text": "The ice is quiet over the well. Whatever Engram is now, it decided it here, with you watching. On the long trip home the Kora band hisses softly, and you leave it on.",
   "trigger": "never",
   "region": "rime-prime",
   "choices": [
     {
-      "label": "Return to Touchdown",
+      "label": "Head home",
       "reply": "The lander lifts. Under the ice the well's lights go on thinking."
     },
     {
       "label": "Stay a while",
-      "reply": "The expedition stays. The Command Core's card lists every route, home included, for when we're ready."
+      "reply": "We stay. The well hums under our feet."
     }
   ],
   "effects": [
