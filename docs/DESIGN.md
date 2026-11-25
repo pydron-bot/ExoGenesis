@@ -340,6 +340,37 @@ A standard RTS skirmish outside the campaign: pick a map and players, then build
   5. Polish: minimap pings, an "under attack" alert, a surrender option, a rematch button.
 - Online multiplayer is out of scope for now (the game is static hosting; it would need lockstep netcode and a relay).
 
+### 5.12 Domination *(planned 2026-11-25)*
+
+A long skirmish across the whole solar system: take areas on planets and moons until the other players are wiped out.
+Meant to be played over many sittings, so it lives on named save files.
+
+- **The map is the system.** Every body is split into **areas** (about **40 to start**: big planets 6–8, mid moons 2–4,
+  small moons and asteroids 1, gas giants an orbital station or two). Areas are **generated** from a seed and the body's
+  look (icy, volcanic, dusty…) with the skirmish map generator, not hand-made; a save keeps only what changed.
+- **Links.** Areas on one body connect overland to their neighbours (natural front lines). Leaving a body needs a
+  Launch Gantry in the area you leave from, and the trip takes time.
+- **Owning an area** means holding a Command Core (or an outpost core) there. It gives income to your whole empire
+  from its depots. Everyone plays the same Accord tech, told apart by colour, as in skirmish.
+- **Live strategy map (decided: option A).** Everything runs in continuous real time. The area you're in runs the
+  full sim; every other area runs as a **summary**: each player's strength (units and defences as one number per
+  type), income, building progress. Fights there resolve from those numbers. You can jump into any area you hold or
+  are attacking and command it in full; on leaving, its full state is boiled back down to a summary.
+- **Win:** the last player (or team) holding an area. A player is out when they hold no area with a core. Near the
+  end the last few enemy areas are revealed so the game doesn't end in a hunt. Optional setup rule: control 75% of
+  areas.
+- **Computer players** get a strategy brain on top of the skirmish AI: where to expand, what to defend, when to
+  launch. The skirmish AI keeps running battles in full areas.
+- **Saves:** named save files (several per browser, each with its name, place, game time and date), autosave,
+  export and import as a file. The same save files serve the campaign and skirmish.
+- **Phases** (each its own release):
+  1. Named save files for the campaign and skirmish (the saves panel, export/import).
+  2. Areas on every body: generated, listed in content, drawn on the globes and in the system view.
+  3. The strategy layer: who owns what, income, travel between areas and bodies, summary fights.
+  4. Jumping into an area in full and back out (full state ⇄ summary).
+  5. The computer's strategy brain, with difficulty levels; measured by AI-vs-AI runs.
+  6. Setup screen, win/lose screen with stats, polish.
+
 ## 6. Technical architecture
 
 ### 6.1 Simulation owns the game state
@@ -441,6 +472,8 @@ What each milestone actually shipped, with its numbers and tests: `TECH.md` §3 
 - 2026-11-17: skirmish maps are procedural (campaign regions stay hand-authored).
 - 2026-11-19: skirmish becomes a real RTS skirmish (§5.11): you vs 1–3 computer players, same tech in different colours,
   last Command Core standing wins; no online multiplayer for now.
+- 2026-11-25: Domination (§5.12): a long skirmish across the solar system, about 40 generated areas to start; a live
+  strategy map in real time (areas you aren't in run as summaries); named save files.
 - 2026-11-14: player is always the coop probe; all three land at the same time on different
   planets; growth pods accelerate maturation.
 - 2026-11-15: one solar system only; two acts (planet, system); C&C-style direct control;

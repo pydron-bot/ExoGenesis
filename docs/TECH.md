@@ -3122,3 +3122,35 @@ build fails if it doesn't.
   and dropped day-and-night as stale; the packs page's trigger is now sol 1.35 (was 1.6). The rest wait their turn
   or, gone stale (deposits-and-depots, which Groundwork teaches anyway), a later game.
   A human playing slower meets fewer triggers per minute.
+
+### Save files (v0.94.0)
+
+DESIGN §5.12 phase 1 (Domination will use the same files). `src/saves.ts` (the store), `src/saves-panel.ts` (the
+panel), wired in `src/main.ts` ("save files").
+
+- **Records.** Each file is two IndexedDB records in the existing `saves` store: `filemeta:<id>` (`SaveMeta`: name, kind,
+  place, game time, `savedAt`, size; all the list reads) and `file:<id>` (`SaveBody`). Ids are time + random, base 36.
+- **Campaign file:** `records` holds every `region:<id>` autosave on disk, this region's taken fresh from the sim, and a
+  `campaign` record pointing here with `sharedOf(state)` (`campaignRecords`). Loading (`restoreCampaign`) stops this
+  region's autosave, wipes the campaign (`wipeCampaign`), writes the records back stamped now (so no newer campaign
+  record lays old shared state over them), writes the region's camera to its `exo.camera…` key, and goes there like
+  campaign travel (`goTravel`: `?region=<id>&travel=1`).
+- **Skirmish file:** the sim state and `url`, the address that set the battle up (the map is generated again from it;
+  `load`, `title`, `new` and `travel` dropped). Loading goes to that address with `?load=<id>`; on start the skirmish
+  reads the file, `sim.load`s it, puts the camera back and drops `load` from the address.
+- **Not saved:** play tests (`?preview=1`, `?scratch=1`), the old horde mode (`?mode=skirmish`) and the Daily Planet
+  (`?daily=`: one attempt a day). The menu has no Save & load there and Ctrl+S says so.
+- **Ctrl+S** (`quickSave`) saves over the file this game was last saved to or loaded from (`exo.file` in
+  sessionStorage, per tab, cleared when the kind changes), else a new file named "<Region> · Sol n, hh:mm" or
+  "Skirmish on <World> · n min".
+- **Panel** (the options overlay, class `saves`): name + SAVE (in a game only); the files newest first with LOAD,
+  SAVE HERE (same kind only), RENAME (inline, Enter/blur keeps, Esc drops), EXPORT (`exo-save-<name>.json`,
+  `{ exoSave: 1, meta, body }`), DELETE; IMPORT FILE… (checks the shape, gives the file a new id). Overwrite, Delete
+  and a Load that would replace something (a campaign in this browser; a battle under way) ask twice on the button.
+  Opened from the game menu (campaign and skirmish), the campaign end screen's Load, and the title's **LOAD** (shown
+  when there are files: count and latest name).
+- **The old single slot** (`slot1`, one region's sim) becomes a file "Saved game (older version)" the first time the
+  list is read; it's `partial`: loading it puts back only its region (the rest of the campaign stays).
+- Test: `tools/saves-smoke.mjs` (campaign save, rename, export, Ctrl+S over the file, NEW GAME then title LOAD brings
+  it back, delete, import and a stray file refused, old slot moved, skirmish saved and loaded into the same map).
+  `tools/skirmish-play-smoke.mjs` now expects Save & load in the skirmish menu.

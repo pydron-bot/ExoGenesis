@@ -36,10 +36,10 @@ export interface Slider {
 export type OptionRow = Toggle | Slider;
 const isSlider = (r: OptionRow): r is Slider => (r as Slider).kind === 'slider';
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 /** The shared overlay: one panel at a time; Esc or a tap outside closes it. */
-function panel(title: string, body: string, onClose?: () => void) {
+export function panel(title: string, body: string, onClose?: () => void) {
   document.getElementById('options')?.remove();
   const el = document.createElement('div');
   el.id = 'options';

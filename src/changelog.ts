@@ -21,6 +21,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.94.0',
+    date: '2026-11-25',
+    title: 'Save files',
+    notes: [
+      'Save & load (in the menu) keeps save files by name, as many as you like, each showing where you were, the game time and when you saved',
+      'Loading a campaign file brings back the whole campaign: every region\'s colony, the story and research',
+      'Skirmish battles can be saved and finished later',
+      'Ctrl+S saves over the file you are playing, or as a new one',
+      'Export a save as a file and import it on another device; LOAD on the title screen lists your files',
+      'Your old single Save becomes a file in the list',
+    ],
+    guide: ['saving'],
+  },
+  {
     version: '0.93.3',
     date: '2026-11-25',
     title: 'Out of sight',

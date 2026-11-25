@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import './style.css';
 import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input } from './input';
-import { CAMPAIGN, getSave, migrateAutosave, playable, putSave, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from './save';
+import { CAMPAIGN, getSave, migrateAutosave, playable, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from './save';
 import { applyShared, HOME_REGION, type SharedState } from './sim/campaign';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
@@ -38,6 +38,8 @@ import { enableColonyLights } from './world/lights';
 import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
 import { GroundMarks, Sky, type MarkMover } from './world/ground';
 import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
+import { campaignRecords, listSaves, readSave, restoreCampaign, writeSave, type CameraPose, type SaveBody, type SaveKind, type SaveMeta } from './saves';
+import { openSaves } from './saves-panel';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
 import { InhabitantView } from './world/inhabitants';
@@ -605,6 +607,8 @@ const apAllowed = !skirmishMode && !rts && !scratch;
 const apOnAtStart = apAllowed && loadPrefs().on && (travelIn || landHere || params.get('title') === '0');
 const useTitle = !skirmishMode && !rts && !landHere && !travelIn && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
 if (useTitle) document.body.classList.add('title');
+/** Save files, for the title's LOAD (src/saves.ts). */
+const savedFiles = useTitle ? await listSaves().catch(() => []) : [];
 let title: TitleScreen | null = null;
 
 function startResume() {
@@ -826,7 +830,7 @@ const hud = new ColonyHud({
     if (navigator.webdriver && !fireStory) return;
     if (on) { storyResume = speed || 1; setSpeed(0); } else if (speed === 0) setSpeed(storyResume);
   },
-  load: () => (rts ? showSkirmishSetup() : void loadGame()),
+  load: () => (rts ? showSkirmishSetup() : showSaves()),
   log,
   onSelect: (kind, role) => storyHud.selected(kind, role),
   nextIdleDrone: () => nextIdleDrone(),
@@ -982,29 +986,102 @@ document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
   b.onclick = () => cam.setView(b.dataset.view as ViewName);
 });
 
-interface SaveFile { version: 1; savedAt: number; sim: SimState; camera: { dist: number; yaw: number; pitch: number; fx: number; fz: number } }
-async function saveGame() {
+// ---------- save files (src/saves.ts, TECH.md "Save files") ----------
+/** Save files work in the campaign and a skirmish; not in a play test, a scratch game or the Daily Planet (one attempt). */
+const saveKind: SaveKind | null = skirmishMode || preview || params.get('scratch') === '1' || params.has('daily') ? null : rts ? 'skirmish' : 'campaign';
+const FILE_KEY = 'exo.file';
+/** The file this game was last saved to or loaded from (Ctrl+S saves over it), for this tab. */
+let currentFile: { id: string; kind: SaveKind } | null = (() => { try { return JSON.parse(sessionStorage.getItem(FILE_KEY) ?? 'null'); } catch { return null; } })();
+const rememberFile = (f: typeof currentFile) => { currentFile = f; try { if (f) sessionStorage.setItem(FILE_KEY, JSON.stringify(f)); else sessionStorage.removeItem(FILE_KEY); } catch { /* private mode */ } };
+if (currentFile && currentFile.kind !== saveKind) rememberFile(null);
+const camPose = (): CameraPose => ({ dist: cam.targetDist, yaw: cam.yaw, pitch: cam.targetPitch, fx: cam.fx, fz: cam.fz });
+const skirmishWorld = () => (content.bodies[regionDef.body ?? 'home']?.name ?? 'Home').replace(/\b[A-Z]{2,}\b/g, (w) => w[0] + w.slice(1).toLowerCase());
+const gameMinutes = (tick: number) => `${Math.floor(tick / TICK_HZ / 60)} min`;
+function saveLabels(st: SimState) {
+  return rts
+    ? { place: `${skirmishWorld()} · ${rts.setup.players.length} players`, when: gameMinutes(st.tick), name: `Skirmish on ${skirmishWorld()} · ${gameMinutes(st.tick)}` }
+    : { place: `${regionLabel(regionId)} · ${bodyLabel(regionId)}`, when: solTime(st.tick), name: `${regionLabel(regionId)} · ${solTime(st.tick)}` };
+}
+/** Write this game to a save file: a new one, or over `id`. */
+async function saveToFile(name?: string, id?: string): Promise<SaveMeta | null> {
+  if (!saveKind) { log('Play tests aren’t saved', 'warn'); return null; }
+  if (!sim.cur?.deployed) { log('Nothing to save until the probe has landed', 'warn'); return null; }
   try {
     const state = await sim.save();
-    const file: SaveFile = { version: 1, savedAt: Date.now(), sim: state, camera: { dist: cam.targetDist, yaw: cam.yaw, pitch: cam.targetPitch, fx: cam.fx, fz: cam.fz } };
-    await putSave('slot1', file);
-    log(`Saved · tick ${state.tick}`);
+    const labels = saveLabels(state);
+    const body: SaveBody = saveKind === 'skirmish'
+      ? { version: 1, region: regionId, camera: camPose(), sim: state, url: skirmishUrl() }
+      : { version: 1, region: regionId, camera: camPose(), records: await campaignRecords(regionId, state) };
+    const meta = await writeSave({ id, name: name ?? labels.name, kind: saveKind, place: labels.place, when: labels.when }, body);
+    rememberFile({ id: meta.id, kind: saveKind });
+    log(`Saved “${meta.name}”`);
+    return meta;
   } catch (err) {
     log(`Save failed: ${(err as Error).message}`, 'bad');
+    return null;
   }
 }
-async function loadGame() {
+/** The address that sets this skirmish up again (its map comes from it), without one-off options. */
+function skirmishUrl() {
+  const u = new URL(location.href);
+  for (const k of ['load', 'title', 'new', 'travel']) u.searchParams.delete(k);
+  return u.search;
+}
+/** Ctrl+S: over the file this game came from, else a new one. */
+async function quickSave() {
+  if (currentFile && (await listSaves()).some((m) => m.id === currentFile!.id)) {
+    const m = (await listSaves()).find((x) => x.id === currentFile!.id)!;
+    await saveToFile(m.name, m.id);
+  } else await saveToFile();
+}
+/** Load a save file: a campaign replaces this browser's campaign and goes to its region; a skirmish reloads its setup. */
+async function loadFile(meta: SaveMeta) {
   try {
-    const file = await getSave<SaveFile>('slot1');
-    if (!file) { log('No save in this browser yet', 'warn'); return; }
-    cine?.skip();
-    sim.load(file.sim);
-    Object.assign(cam, { yaw: file.camera.yaw, fx: file.camera.fx, fz: file.camera.fz });
-    cam.targetDist = file.camera.dist;
-    cam.targetPitch = file.camera.pitch;
+    const body = await readSave(meta.id);
+    if (!body) { log('That save couldn’t be read', 'bad'); return; }
+    if (meta.kind === 'skirmish') {
+      if (!body.url) { log('That save is incomplete', 'bad'); return; }
+      const u = new URL(location.href);
+      u.search = body.url;
+      u.searchParams.set('load', meta.id);
+      rememberFile({ id: meta.id, kind: 'skirmish' });
+      location.href = u.href;
+      return;
+    }
+    // stop this region's autosave first, so it can't write over what's put back
+    sim.autosave(false);
+    await new Promise((r) => setTimeout(r, 50));
+    const to = await restoreCampaign(body);
+    if (body.camera) try { localStorage.setItem(to === HOME_REGION ? 'exo.camera' : `exo.camera.${to}`, JSON.stringify(body.camera)); } catch { /* private mode */ }
+    rememberFile(body.partial ? null : { id: meta.id, kind: 'campaign' });
+    goTravel(to);
   } catch (err) {
     log(`Load failed: ${(err as Error).message}`, 'bad');
+    if (!scratch) sim.autosave(true);
   }
+}
+// ?load=<file>: a saved skirmish (the map came from the same address): its game and camera
+const loadId = rts ? params.get('load') : null;
+if (loadId) {
+  const u = new URL(location.href); u.searchParams.delete('load'); history.replaceState(history.state, '', u);
+  const body = await readSave(loadId).catch(() => undefined);
+  if (body?.sim) {
+    sim.load(body.sim);
+    if (body.camera) { Object.assign(cam, { yaw: body.camera.yaw, fx: body.camera.fx, fz: body.camera.fz }); cam.targetDist = body.camera.dist; cam.targetPitch = body.camera.pitch; }
+    rememberFile({ id: loadId, kind: 'skirmish' });
+  } else log('That save couldn’t be read: a new game instead', 'bad');
+}
+/** The saves panel: Save & load in a game, Load on the title screen. */
+function showSaves(onClose?: () => void) {
+  const inGame = !title && !!saveKind && !!sim.cur?.deployed && !sim.cur.over;
+  const haveCampaign = !!(autosaved || campaign);
+  openSaves({
+    save: inGame ? { kind: saveKind!, name: sim.cur ? saveLabels(sim.cur as unknown as SimState).name : 'Saved game', run: (name, id) => saveToFile(name, id) } : undefined,
+    load: (m) => void loadFile(m),
+    loadWarning: (m) => (m.kind === 'campaign' && haveCampaign && !rts ? 'TAP: REPLACES YOUR CAMPAIGN' : rts && sim.cur && !sim.cur.over ? 'TAP: THIS GAME ENDS' : null),
+    tap: () => audio.play('tap'),
+    onClose,
+  });
 }
 /** Terrain style, switched in place: the ground, the plants' shading and the globe (remembered). */
 function switchLook() {
@@ -1169,7 +1246,7 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
     if (next !== speed) { setSpeed(next, true); audio.play('tap'); }
   },
   showControls: () => { if (!panelOpen() && !menuOpen && !title && !cine) { audio.play('tap'); showControls(); } },
-  quickSave: () => { if (rts) log('Skirmish games aren\'t saved', 'warn'); else void saveGame(); },
+  quickSave: () => { if (!title) void quickSave(); },
   closeBuildMenu: () => {
     if (!document.querySelector('#build-menu.open')) return false;
     hud.toggleMenu(false);
@@ -1559,6 +1636,7 @@ function openGameMenu() {
   const setup = keep(() => showSkirmishSetup(() => { menuOpen = false; reopen(); }));
   const { el } = openMenu('Menu', rts ? [
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
+    ...(saveKind ? [{ id: 'saves', label: 'Save & load', sub: 'Save this battle to finish later (Ctrl+S saves)', run: keep(() => showSaves(() => { menuOpen = false; reopen(); })) }] : []),
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
     { id: 'perf', label: 'Performance report', sub: 'Measure how the game runs on this device, to send in', run: keep(() => perf.open(() => { menuOpen = false; reopen(); }, () => { if (speed === 0) setSpeed(was || 1); })) },
@@ -1570,8 +1648,7 @@ function openGameMenu() {
     { id: 'title', label: 'Title screen', sub: 'Leave this skirmish', confirm: 'This game will be lost · tap again', run: keep(toTitle) },
   ] : [
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
-    { id: 'save', label: 'Save', sub: 'To this browser (the game also autosaves)', run: () => void saveGame() },
-    { id: 'load', label: 'Load', sub: 'Your last Save', run: () => void loadGame() },
+    ...(saveKind ? [{ id: 'saves', label: 'Save & load', sub: 'Save files by name (Ctrl+S saves) · the game also autosaves', run: keep(() => showSaves(() => { menuOpen = false; reopen(); })) }] : []),
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
     { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
     { id: 'perf', label: 'Performance report', sub: 'Measure how the game runs on this device, to send in', run: keep(() => perf.open(() => { menuOpen = false; reopen(); }, () => { if (speed === 0) setSpeed(was || 1); })) },
@@ -1709,6 +1786,7 @@ function showTitle() {
         go(startLanding)();
       },
     },
+    ...(savedFiles.length ? [{ id: 'load', kind: 'plain' as const, label: 'LOAD', sub: `${savedFiles.length} save file${savedFiles.length > 1 ? 's' : ''} · latest: ${savedFiles[0].name}`, run: () => showSaves() }] : []),
     ...(!saved && !autosaved && !campaign ? [{ id: 'first', kind: 'link' as const, label: 'First time? Open the Field Guide ▸', run: () => openGuide() }] : []),
     { ...dailyChoice(), kind: 'tile' },
     { id: 'skirmish', kind: 'tile', label: 'SKIRMISH', sub: 'You against the computer', run: () => showSkirmishSetup() },

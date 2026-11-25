@@ -76,7 +76,7 @@ async function run(viewport, name, mobile = false) {
   // ---- menu
   await page.click('#b-menu');
   const items = await page.$$eval('#options .op-act', (bs) => bs.map((b) => b.dataset.id));
-  check(['rematch', 'skirmish', 'surrender'].every((k) => items.includes(k)) && !items.includes('save'), `${name}: skirmish menu (${items.join(', ')})`);
+  check(['rematch', 'skirmish', 'surrender', 'saves'].every((k) => items.includes(k)), `${name}: skirmish menu (${items.join(', ')})`);
   await page.keyboard.press('Escape');
   // ---- victory: the others surrender
   await page.evaluate(() => { __exo.sim.command({ type: 'surrender' }, 1); __exo.sim.command({ type: 'surrender' }, 2); });

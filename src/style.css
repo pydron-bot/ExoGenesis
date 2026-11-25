@@ -1057,3 +1057,37 @@ body.cine .gd-note, body.skirmish .gd-note, body.title .gd-note { display: none 
 /* the Biosphere Report's last grade, beside planet health in the top bar */
 .grade { display: inline-block; min-width: 1.3em; padding: 0 3px; margin-left: 2px; border-radius: 3px; font-weight: 700; font-size: 0.85em; text-align: center; border: 1px solid currentColor; }
 .grade.g-A { color: #7dffb0; } .grade.g-B { color: #b6f07a; } .grade.g-C { color: var(--amber); } .grade.g-D, .grade.g-E { color: var(--crimson); }
+
+/* ---------- save files (src/saves-panel.ts), in the options overlay ---------- */
+#options.saves .op-panel { width: min(560px, 100%); }
+#options .sv-new { display: flex; gap: 8px; padding: 12px 8px 6px; }
+#options .sv-name {
+  flex: 1; min-width: 0; font: inherit; font-size: 13px; color: var(--text); background: rgba(5, 8, 13, 0.6);
+  border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px;
+}
+#options .sv-name:focus { outline: none; border-color: var(--cyan); }
+#options .sv-rename { flex: none; width: 100%; padding: 4px 8px; }
+#options .sv-btn {
+  font: inherit; font-size: 11px; letter-spacing: 0.12em; color: var(--text); background: none; border: 1px solid var(--line);
+  border-radius: 3px; padding: 7px 10px; cursor: pointer; white-space: nowrap;
+}
+#options .sv-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--cyan) 10%, transparent); }
+#options .sv-btn:disabled { opacity: 0.35; cursor: default; }
+#options .sv-primary { color: #05080d; background: var(--cyan); border-color: var(--cyan); }
+#options .sv-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--cyan) 80%, white); }
+#options .sv-btn.armed { color: #05080d; background: var(--amber); border-color: var(--amber); }
+#options .sv-del { color: color-mix(in srgb, var(--crimson) 80%, var(--text)); }
+#options .sv-row { padding: 10px 8px; border-bottom: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent); border-radius: 4px; }
+#options .sv-row:last-child { border-bottom: 0; }
+#options .sv-row.hi { background: color-mix(in srgb, var(--cyan) 8%, transparent); }
+#options .sv-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#options .sv-text b { font-size: 13px; letter-spacing: 0.06em; overflow-wrap: anywhere; }
+#options .sv-text small { font-size: 11px; line-height: 1.4; color: color-mix(in srgb, var(--text) 70%, transparent); }
+#options .sv-text .sv-dim { color: color-mix(in srgb, var(--text) 48%, transparent); }
+#options .sv-kind { color: var(--cyan); letter-spacing: 0.08em; }
+#options .sv-acts { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+#options .sv-empty { padding: 14px 8px; font-size: 12px; color: color-mix(in srgb, var(--text) 55%, transparent); }
+#options .sv-msg { margin: 4px 8px 0; padding: 6px 8px; font-size: 12px; color: var(--cyan); border-left: 2px solid var(--cyan); }
+#options .sv-msg.bad { color: var(--crimson); border-color: var(--crimson); }
+#options .sv-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 8px 4px; border-top: 1px solid var(--line); margin-top: 6px; }
+#options .sv-foot small { flex: 1 1 200px; font-size: 11px; line-height: 1.4; color: color-mix(in srgb, var(--text) 48%, transparent); }
