@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { addWear } from './wear';
 import { scorchDecal } from './decal';
+import { Pebbles } from './pebbles';
 import { buildAirpad, buildFlak } from './air-models';
 import { ShieldDomes, type ShieldLook } from './shields';
 import { buildMedBay, buildMemorial, buildSeedBank, buildShieldProjector } from './batchc-models';
@@ -1144,6 +1145,7 @@ export class RegionView {
   private ghostBad = new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.4, depthWrite: false });
   private border: THREE.LineLoop;
   private scorch: THREE.Mesh;
+  private pebbles: Pebbles;
   private marker: THREE.Sprite;
   private raycaster = new THREE.Raycaster();
   private models: Record<string, THREE.Object3D> = {};
@@ -1186,6 +1188,8 @@ export class RegionView {
 
     this.flora = floraSeed === null ? null : new Flora({ seed: floraSeed, flat: look === 'flat', density: floraDensity, biome: nature.biome });
     if (this.flora) this.details.add(this.flora.group);
+    this.pebbles = new Pebbles(floraSeed ?? 1);
+    this.details.add(this.pebbles.mesh);
 
     this.wildDefs = nature.wildlife ?? {};
     this.wildIds = Object.keys(this.wildDefs).sort();
@@ -1291,6 +1295,7 @@ export class RegionView {
     if (this.water) addFog(this.water.material as THREE.Material);
     addFog(this.wildMat);
     this.flora?.group.traverse((o) => { if (o instanceof THREE.Mesh) addFog(o.material as THREE.Material); });
+    addFog(this.pebbles.mesh.material as THREE.Material);
     for (const g of this.deposits) this.fogObj(g);
     for (const g of this.seams) this.fogObj(g);
     for (const g of this.vents) this.fogObj(g);
@@ -1698,6 +1703,7 @@ export class RegionView {
   /** Move the patch vertices near these pads to the padded ground (and fix their normals). */
   private relevel(changed: GroundPad[]) {
     if (!changed.length) return;
+    this.pebbles.relevel(changed, PAD_FALL + 1);
     const verts = this.patch.userData.verts as { x: Float32Array; z: Float32Array; drop: Float32Array } | undefined;
     if (!verts) return;
     const pos = this.patch.geometry.getAttribute('position') as THREE.BufferAttribute;
