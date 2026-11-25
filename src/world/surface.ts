@@ -236,8 +236,13 @@ export function buildClouds(): THREE.Mesh {
         // fade at the limb so the shell's edge doesn't show
         float limb = smoothstep(0.02, 0.25, abs(dot(normalize(vN), normalize(vV))));
         float alpha = cover * limb * uOpacity * uSurfFar;
-        vec3 col = mix(vec3(0.05, 0.07, 0.1), vec3(0.95, 0.97, 1.0), lit);
-        gl_FragColor = vec4(col, alpha * mix(0.25, 0.85, lit));
+        // thick cores bright and opaque, thin edges a touch blue-grey and see-through; the side away from the sun
+        // a little shaded, so the clouds have body rather than reading as flat smudges
+        float dens = smoothstep(0.55, 0.85, n);
+        vec3 day = mix(vec3(0.78, 0.84, 0.92), vec3(1.0), dens) * (0.86 + 0.14 * dens);
+        day *= 1.0 - 0.12 * dens * (1.0 - lit);
+        vec3 col = mix(vec3(0.05, 0.07, 0.1), day, lit);
+        gl_FragColor = vec4(col, alpha * mix(0.25, 0.85, lit) * (0.7 + 0.3 * dens));
       }`,
     transparent: true,
     depthWrite: false,

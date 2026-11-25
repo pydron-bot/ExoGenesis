@@ -567,6 +567,8 @@ export function buildAtmosphere(radius: number, color: THREE.ColorRepresentation
         // warmer along the terminator (sunrise and sunset seen from space)
         vec3 col = mix(color, vec3(1.0, 0.58, 0.32), (1.0 - smoothstep(0.0, 0.35, abs(nl + 0.05))) * 0.45);
         float f = rim * (0.12 + 0.88 * day + 4.0 * fs);
+        // a wider, fainter haze inside the rim on the day side: the air reads as a layer, not a hairline
+        f += pow(1.0 - abs(dot(N, V)), 1.3) * 0.16 * strength * day;
         gl_FragColor = vec4(col * f, f);
       }`,
     transparent: true,
