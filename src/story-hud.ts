@@ -41,13 +41,22 @@ export class StoryHud {
   /** A hint of the renderer's own (the Field Guide's tour and Show me): shown instead of the story's while set. */
   private local: { target: string; building?: undefined; text: string; actions: HintAction[]; n: number } | null = null;
   private localN = -1; // (below -1: the "no hint" value)
+  /** The story's hint is showing (not one of the renderer's own). */
+  private storyHint = false;
 
   constructor(private d: StoryHudDeps) {
     this.bubble.id = 'hint';
+    // tap the bubble to put a story hint away (the renderer's own, with buttons, close through those)
+    this.bubble.addEventListener('pointerdown', (e) => {
+      if (this.local || !this.storyHint) return;
+      e.stopPropagation();
+      this.d.command({ type: 'ui', what: 'hint' });
+      this.bubble.classList.remove('on');
+    });
     this.marks.id = 'waypoints';
     document.getElementById('hud')!.append(this.marks, this.bubble);
     // the player opening parts of the HUD (tutorials wait for these)
-    const tap = (sel: string, what: string) => document.querySelector(sel)?.addEventListener('pointerdown', () => this.opened(what));
+    const tap = (sel: string, what: string) => document.querySelector(sel)?.addEventListener('pointerdown', () => this.opened(what, true));
     tap('#b-build', 'build');
     tap('#r-people', 'people');
     tap('#r-mood', 'mood');
@@ -58,9 +67,12 @@ export class StoryHud {
     tap('#b-fast', 'speed');
   }
 
-  /** Tell the sim once per game that the player opened `what` ('build', 'select:solar'…). */
-  opened(what: string) {
-    if (this.told.has(what)) return;
+  /**
+   * Tell the sim once per game that the player opened `what` ('build', 'select:solar'…). `again`: tell it anyway
+   * while one of the story's hints is up (a later hint at the same button, e.g. Build, clears only when it hears).
+   */
+  opened(what: string, again = false) {
+    if (this.told.has(what) && !(again && this.storyHint)) return;
     this.told.add(what);
     this.d.command({ type: 'ui', what });
   }
@@ -95,6 +107,7 @@ export class StoryHud {
 
   private renderHint(st: StorySnap) {
     const h = this.local ?? st.hint;
+    this.storyHint = !this.local && !!st.hint;
     this.bubble.classList.toggle('act', !!this.local?.actions.length);
     if (!h) {
       if (this.hinted) { this.hinted.classList.remove('hinted'); this.hinted = null; }

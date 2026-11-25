@@ -352,7 +352,8 @@ export class Story {
   opened(what: string) {
     if (!(this.s.opened ??= []).includes(what)) this.s.opened.push(what);
     const h = this.s.hint;
-    if (h && HINT_DONE[h.target] === what) this.s.hint = null;
+    // 'hint': the player tapped the bubble away
+    if (h && (HINT_DONE[h.target] === what || what === 'hint')) this.s.hint = null;
   }
 
   /** The player placed a building: a build-menu hint for it has done its job. */

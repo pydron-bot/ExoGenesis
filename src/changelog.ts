@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.80.1',
+    date: '2026-11-25',
+    title: 'A smoother landing',
+    notes: [
+      'The landing no longer stutters: everything it shows is prepared before it starts, instead of the first time each effect appears (the flames, dust, sparks, the sky, the drone and more each caused a hitch, worst on phones), and the hand-over to the game no longer stalls',
+      'Tutorial hints go away when you do what they ask, even when it points at something you have used before (the "Mining Depots" hint could stay on screen for good), and you can tap a hint to put it away',
+      'Performance report: open the game with ?perf=record on the address to record from the very start (the landing included); reports now list the slowest moments and when graphics were being prepared',
+    ],
+    guide: [],
+  },
+  {
     version: '0.80.0',
     date: '2026-11-25',
     title: 'Touchdown, remastered, and a new look round it',

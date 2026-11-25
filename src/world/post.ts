@@ -363,6 +363,12 @@ export class Post {
   }
 
   /** Tune the bloom to the light (call once a frame, before render). */
+  /**
+   * Frames left to run the optional passes (sun shafts, heat shimmer / zoom blur) doing nothing, so their shaders
+   * compile now instead of with a hitch the first time they switch on (main.ts sets it as the landing starts).
+   */
+  warm = 0;
+
   update(l: GlowLook) {
     if (!this.bloom) return;
     if (this.aoPass) {
@@ -414,6 +420,15 @@ export class Post {
         u.uAspect.value = sz.x / Math.max(1, sz.y);
       }
       this.look.zoom = zoom; this.look.heat = on ? Math.min(HEAT_MAX, heat.length) : 0;
+    }
+    if (this.warm > 0) {
+      this.warm--;
+      if (this.shafts && !this.shafts.enabled) { this.shafts.enabled = true; this.shafts.uniforms.uStrength.value = 0; }
+      if (this.distort && !this.distort.enabled) {
+        this.distort.enabled = true;
+        const u = this.distort.uniforms;
+        u.uZoom.value = 0; u.uHeatK.value = 0; u.uHeatN.value = 0;
+      }
     }
     this.updateGrade(l);
   }

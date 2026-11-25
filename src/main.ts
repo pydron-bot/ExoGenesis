@@ -667,6 +667,11 @@ function startLanding() {
   if (def.letterbox) document.body.classList.add('cine-bars');
   const piece = new Landing(scene, region, cam, { stage: (s) => sim.command({ type: 'landing', stage: s }) }, def);
   cine = new Cinematic('landing', def, cam, cineHooks(() => { selectFirstDrone = true; endCine(); }), piece);
+  // compile the optional post passes now (the landing warms its own shaders the same way), not mid-flight
+  post.warm = 30;
+  system.warmSky = 30;
+  // a model that arrives after the start: warm again then (one hitch now, rather than one when it first shows)
+  void Promise.allSettled(regionModels).then(() => piece.rewarm());
   if (def.music) audio.holdMusic(def.music);
   // ?cine=<seconds>: start part-way in (the editor's "play from the playhead")
   const from = Number(params.get('cine'));
@@ -697,19 +702,8 @@ function playCinematic(id: string, def: CinematicDef, from = 0) {
   if (def.music) audio.holdMusic(def.music);
   if (from > 0) cine.seek(from);
 }
-if (rts) {
-  // a skirmish starts deployed: the camera on your Command Core
-  const h = rts.setup.homes![0];
-  cam.fx = h.x; cam.fz = h.z;
-  cam.targetDist = cam.dist = 110;
-} else if (!skirmishMode && !useTitle) {
-  if (resumed) startResume();
-  else if (params.get('intro') === '0' || params.get('view') || travelIn || (expedition && expedition.landing !== 'probe')) sim.command({ type: 'landing', stage: 'deploy' });
-  else startLanding();
-}
-$('cine-skip').onclick = () => cine?.skip();
-addEventListener('keydown', (e) => { if (cine && (e.key === 'Escape' || e.key === 'Enter')) cine.skip(); });
-
+/** The region's asset models loading (the landing waits a moment for them, so its warm-up compiles their shaders). */
+const regionModels: Promise<unknown>[] = [];
 // asset models assigned in content replace built-in building models once loaded.
 // ?models=new forces the Blender set (content/assets/exo-<kind>.json) where a kind
 // has one; ?models=builtin shows the built-in procedural models (to compare).
@@ -720,15 +714,15 @@ const modelFor = (kind: string, assigned?: string) =>
 for (const [kind, d] of Object.entries(content.buildings)) {
   const id = modelFor(kind, d.model);
   if (!id || !content.assets[id] || d.role === 'core') continue;
-  loadModel(content.assets[id]).then(
+  regionModels.push(loadModel(content.assets[id]).then(
     (m) => region.setBuildingModel(kind, m),
     (e) => console.warn(`${kind} model failed to load; keeping the built-in`, e),
-  );
+  ));
 }
 // wrecks and relic caches (region map objects) use the exo-wreck / exo-cache assets when there are ones
-if (!builtinModels && content.assets['exo-cache']) loadModel(content.assets['exo-cache']).then((m) => region.setCacheModel(m), (e) => console.warn('cache model failed to load', e));
+if (!builtinModels && content.assets['exo-cache']) regionModels.push(loadModel(content.assets['exo-cache']).then((m) => region.setCacheModel(m), (e) => console.warn('cache model failed to load', e)));
 // worker drones (and the ore haulers) use the exo-drone asset when there is one
-if (!builtinModels && content.assets['exo-drone']) loadModel(content.assets['exo-drone']).then((m) => region.setDroneModel(m), (e) => console.warn('drone model failed to load', e));
+if (!builtinModels && content.assets['exo-drone']) regionModels.push(loadModel(content.assets['exo-drone']).then((m) => region.setDroneModel(m), (e) => console.warn('drone model failed to load', e)));
 // wildlife and plants: the models this region's biome and herds use (recoloured per species, src/world/recolor.ts)
 if (!builtinModels && !skirmishMode) {
   const biome = biomeOf(content, regionDef);
@@ -740,10 +734,27 @@ if (!builtinModels && !skirmishMode) {
   for (const r of biome?.plants ?? []) if (r.model) ids.add(r.model);
   for (const id of ids) {
     if (!content.assets[id]) continue;
-    loadModel(content.assets[id]).then((m) => region.setNatureModels({ [id]: m }), (e) => console.warn(`${id} failed to load; keeping the built-in`, e));
+    regionModels.push(loadModel(content.assets[id]).then((m) => region.setNatureModels({ [id]: m }), (e) => console.warn(`${id} failed to load; keeping the built-in`, e)));
   }
 }
-if (!builtinModels && content.assets['exo-wreck']) loadModel(content.assets['exo-wreck']).then((m) => region.setWreckModel(m), (e) => console.warn('wreck model failed to load', e));
+if (!builtinModels && content.assets['exo-wreck']) regionModels.push(loadModel(content.assets['exo-wreck']).then((m) => region.setWreckModel(m), (e) => console.warn('wreck model failed to load', e)));
+
+if (rts) {
+  // a skirmish starts deployed: the camera on your Command Core
+  const h = rts.setup.homes![0];
+  cam.fx = h.x; cam.fz = h.z;
+  cam.targetDist = cam.dist = 110;
+} else if (!skirmishMode && !useTitle) {
+  if (resumed) startResume();
+  else if (params.get('intro') === '0' || params.get('view') || travelIn || (expedition && expedition.landing !== 'probe')) sim.command({ type: 'landing', stage: 'deploy' });
+  else {
+    // under the loader: give the region's models a moment to arrive, so the landing's warm-up covers them
+    await Promise.race([Promise.allSettled(regionModels), new Promise((r) => setTimeout(r, 2500))]);
+    startLanding();
+  }
+}
+$('cine-skip').onclick = () => cine?.skip();
+addEventListener('keydown', (e) => { if (cine && (e.key === 'Escape' || e.key === 'Enter')) cine.skip(); });
 
 const canPlace = (kind: string, x: number, z: number) => {
   const c = sim.cur;
@@ -1513,6 +1524,7 @@ const perf = new PerfReport({
     Speed: speed,
   }),
   camDist: () => cam.dist,
+  moment: () => (cine ? `${cine.world ? 'cinematic' : 'landing'} ${cine.t.toFixed(1)} s` : title ? 'title' : cam.b > 0.5 ? 'system' : cam.a > 0.5 ? 'planet' : 'surface'),
   resScale: () => res.scale,
   holdRes: (on) => { res.hold = on; },
   speed: () => speed,
@@ -1523,6 +1535,8 @@ const perf = new PerfReport({
   frames: params.has('perfframes') ? (() => { const [w, m, l, st] = params.get('perfframes')!.split(',').map(Number); return { warm: w || 5, measure: m || 10, live: l || 10, settle: st || 2 }; })() : undefined,
   msgTiming: (fn) => { SimClient.timing = fn; },
 });
+// ?perf=record: record from the first frame (the landing included); the ⏺ badge stops it and shows the report
+if (params.get('perf') === 'record') perf.record();
 
 // ---------- game menu (☰ Menu / Esc): pauses while open ----------
 let menuOpen = false;

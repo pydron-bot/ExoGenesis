@@ -641,7 +641,7 @@ body.research-open #goals, body.research-open #colony { display: none !important
 @keyframes hint-pulse { 50% { outline-color: color-mix(in srgb, var(--amber) 25%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--amber) 60%, transparent); } }
 #hint { position: fixed; z-index: 30; display: none; transform: translateX(-50%); max-width: min(300px, 80vw); padding: 7px 10px; background: var(--panel-base);
   border: 1px solid var(--amber); border-radius: 4px; color: var(--text); font-size: 12px; line-height: 1.4; pointer-events: none; box-shadow: 0 4px 18px #0008; }
-#hint.on { display: block; }
+#hint.on { display: block; pointer-events: auto; cursor: pointer; }
 #hint[data-side="below"]::before, #hint[data-side="above"]::after { content: ''; position: absolute; left: 50%; margin-left: -6px; border: 6px solid transparent; }
 #hint[data-side="below"]::before { top: -12px; border-bottom-color: var(--amber); }
 #hint[data-side="above"]::after { bottom: -12px; border-top-color: var(--amber); }

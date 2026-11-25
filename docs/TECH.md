@@ -135,6 +135,18 @@ How content is stored and edited in general (one JSON record per file, schemas i
   fading back to lit over 1.6 half-widths, and `fogDistance(cam.dist)` lightens unexplored land from 0.1 at 180 u
   to 0.8 at 1200 u: before, zoomed out, the region was a dark square on a lit globe. The near sea fades out over
   its outer band (`uWaterEdge`). Orbit: a day-side haze term in the atmosphere; clouds shaded by thickness.
+- **Landing without hitches** (v0.80.1): shader compiles mid-landing were the stutter (JS is ~0.2 ms a frame).
+  `Landing` draws everything (frustum culling off scene-wide, the region's detail layer forced on via
+  `RegionView.forceDetails`, every drone LOD shown, one invisible particle/rock primed, plumes/decals/sheath at
+  zero) for the first 0.4 s of the landing clock (frame-counted warm-ups ran before the first render), and again
+  for 0.3 s if a background model arrives late (`rewarm()`); boot waits up to 2.5 s under the loader for the
+  region's models. `post.warm` runs sun shafts and the distort pass at zero; `system.warmSky` the sky dome and glow.
+  No point lights on the probe: adding/removing one recompiled every lit material (24 programs at the hand-over).
+  Check with `node tools/landing-perf.mjs --gpu` (programs compiled mid-landing; exit 1 if any after the warm-up).
+  Players' devices: `?perf=record` records from the first frame; reports list the slowest frames with what was on
+  screen (`PerfDeps.moment`) and shader compiles over time. Story hints: `StoryHud.opened(what, again)` re-sends
+  while a story hint is up (it was once per game, so a second hint at Build never cleared); tapping the bubble
+  sends `ui: 'hint'`, which clears it.
 - **Cinematics** (v0.22.0): `content/cinematics/<id>.json` (Cinematics → any; `cinematicShape` in
   `src/content/defs.ts`): a length, camera keys, captions, **lines** (who says what and for how long: a
   character or a speaker name, `{first}` filled in), **sounds** (audio assets; `music` loops and fades out at

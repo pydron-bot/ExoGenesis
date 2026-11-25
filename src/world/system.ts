@@ -205,6 +205,8 @@ export class SolarSystem {
   /** Set by the frame loop: the sky's colour at the horizon (the background), and whether this body has clouds. */
   skyBg = new THREE.Color();
   cloudy = true;
+  /** Frames to draw the sky layers even in space (doing nothing), so their shaders compile before the descent needs them. */
+  warmSky = 0;
   /** The body being played: at the origin, drawn by the globe (not here). */
   private here: Body;
   /**
@@ -447,7 +449,9 @@ export class SolarSystem {
     su.uScale.value = 1.5 * this.pixelRatio;
     (this.milky.material as THREE.ShaderMaterial).uniforms.uFade.value = (1 - this.skyDay) * (1 - this.overcast);
     // the air's glow round the sun and along the horizon at sunrise and sunset
-    this.glow.visible = this.skyAir > 0.01;
+    const skyWarm = this.warmSky > 0;
+    if (skyWarm) this.warmSky--;
+    this.glow.visible = this.skyAir > 0.01 || skyWarm;
     this.glow.position.copy(camera.position);
     const gu = (this.glow.material as THREE.ShaderMaterial).uniforms;
     gu.uSun.value.subVectors(this.sunPos, camera.position).normalize();
@@ -455,7 +459,7 @@ export class SolarSystem {
     gu.uGolden.value = this.golden;
     gu.uAir.value = this.skyAir * (1 - this.overcast * 0.8);
     gu.uDay.value = this.skyDay;
-    this.dome.visible = this.skyAir > 0.01;
+    this.dome.visible = this.skyAir > 0.01 || skyWarm;
     this.dome.position.copy(camera.position);
     const du = (this.dome.material as THREE.ShaderMaterial).uniforms;
     du.uSun.value.copy(gu.uSun.value);

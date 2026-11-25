@@ -174,7 +174,7 @@ function shellMaterial(u: ShellUniforms, kind: ShellKind) {
         totalEmissiveRadiance += vec3(1.0, 0.3, 0.05) * uHeat * (0.6 + 0.6 * dvn(vLp * 0.7)) * 2.4;
         #endif
         #ifdef SHELL_NOZZLE
-        totalEmissiveRadiance += vec3(1.0, 0.4, 0.1) * uNozzle * (0.25 + 0.75 * smoothstep(0.3, -0.8, vLp.y)) * 2.0;
+        totalEmissiveRadiance += vec3(1.0, 0.4, 0.1) * uNozzle * (0.25 + 0.75 * smoothstep(0.3, -0.8, vLp.y)) * 2.6;
         #endif`);
   };
   mat.customProgramCacheKey = () => `lander-shell-v2-${kind}`;
@@ -545,6 +545,8 @@ class Puffs {
   }
 
   get live() { return this.n; }
+  /** One invisible particle, so the program compiles (see Landing.warmUp). */
+  prime() { this.spawn(0, 0, 0, 0, 0, 0, 0.01, 0.01, 1, 0, { lift: -50 }); this.geo.instanceCount = this.n; }
   dispose() { this.geo.dispose(); (this.mesh.material as THREE.Material).dispose(); }
 }
 
@@ -580,9 +582,17 @@ class Debris {
     this.n = this.mesh.count = this.max;
   }
 
+  /** One rock drawn at zero size for a frame, so the program compiles (see Landing.warmUp). */
+  prime() {
+    if (this.n) return;
+    this.mesh.setMatrixAt(0, this.m.makeScale(0, 0, 0));
+    this.mesh.instanceMatrix.needsUpdate = true;
+    this.mesh.count = 1;
+  }
+
   /** `shrink` 1 → 0 sinks them away before the hand-over. */
   update(dt: number, shrink: number) {
-    if (!this.n) return;
+    if (!this.n) { this.mesh.count = 0; return; }
     for (let i = 0; i < this.n; i++) {
       const r = this.st[i];
       const moving = r.vh !== 0 || Math.abs(r.vx) + Math.abs(r.vz) > 0.05;
@@ -618,9 +628,18 @@ export class Landing implements SetPiece {
   private pivots: THREE.Group[] = [];
   private plumes: { inner: THREE.Mesh; outer: THREE.Mesh; flare: THREE.Sprite }[] = [];
   private plumeTime = { value: 0 };
-  private light = new THREE.PointLight('#ffa860', 0, 160, 1.3);
-  /** Firelight on the ground under the burn. */
-  private groundLight = new THREE.PointLight('#ff9348', 0, 90, 1.3);
+  /**
+   * Frames of warm-up left: everything the landing will ever draw is drawn once, invisibly, at the start, so no
+   * shader compiles mid-flight (each was a visible hitch on phones). No point lights either: adding or removing a
+   * light recompiles every lit material in the scene (dozens of programs at the hand-over); the burn's light is
+   * emissive heat on the shell, the nozzles' glow, the firelight disc on the ground and the warmed dust instead.
+   */
+  private warm = false;
+  /** Landing-clock time the warm-up runs until (0.4 s from the start; a late model adds 0.3 s more). */
+  private warmUntil = 0.4;
+  private lastT = 0;
+  private culled: THREE.Object3D[] = [];
+  private hidden: THREE.Object3D[] = [];
   private sheath: THREE.Mesh;
   private trail: THREE.Mesh;
   private plasma: THREE.Sprite;
@@ -636,7 +655,6 @@ export class Landing implements SetPiece {
   private thudded = new Set<number>();
   private padH = regionHeight(0, 0);
   private v = 0; // probe speed, units/s
-  private tmp = new THREE.Vector3();
   /** Probe altitude (units), for the camera's pull-back and the {alt} caption. */
   alt = A0;
 
@@ -739,8 +757,6 @@ export class Landing implements SetPiece {
     this.plasma = glowSprite('rgba(255,235,200,1)', 'rgba(255,120,40,0.45)');
     this.probeObj.add(this.sheath, this.trail, this.plasma);
 
-    this.light.position.set(0, -2, 0);
-    this.probeObj.add(this.light, this.groundLight);
 
     const dc = terrainColor(regionHeightRaw(0, 0), regionFlora(0, 0), new THREE.Color());
     this.debris = new Debris(dc.clone());
@@ -781,6 +797,9 @@ export class Landing implements SetPiece {
 
   /** Pose everything for time `t` (s). */
   frame(t: number, dt: number, day: number) {
+    this.lastT = t;
+    // the effects' visibility below reads this: drawn (invisibly) through the warm-up
+    this.warm = this.warm || (t < this.warmUntil && !this.over);
     const pos = this.pathWorld(t);
     const p = this.path(t);
     this.alt = p.alt;
@@ -814,7 +833,7 @@ export class Landing implements SetPiece {
     (this.sheath.material as THREE.MeshBasicMaterial).opacity = heat;
     (this.trail.material as THREE.MeshBasicMaterial).opacity = heat * 0.5;
     this.trail.scale.set(1 - t * 0.08, 60 + 260 * (1 - smoothstep(0, T_BURN - 0.2, t)), 1 - t * 0.08);
-    this.sheath.visible = this.trail.visible = heat > 0.01;
+    this.sheath.visible = this.trail.visible = heat > 0.01 || this.warm;
     const camDist = this.cam.camera.position.distanceTo(this.probeObj.position);
     this.plasma.visible = heat > 0.01;
     this.plasma.scale.setScalar(Math.max(34, camDist * 0.09) * (0.6 + heat * 0.6));
@@ -829,7 +848,7 @@ export class Landing implements SetPiece {
     }
     const fl = 0.88 + Math.random() * 0.24;
     for (const pl of this.plumes) {
-      pl.inner.visible = pl.outer.visible = pl.flare.visible = throttle > 0.01;
+      pl.inner.visible = pl.outer.visible = pl.flare.visible = throttle > 0.01 || this.warm;
       (pl.inner.material as THREE.ShaderMaterial).uniforms.uThrottle.value = throttle * (0.95 + 0.05 * fl);
       (pl.outer.material as THREE.ShaderMaterial).uniforms.uThrottle.value = throttle * fl;
       pl.outer.scale.set(1 + 0.06 * Math.random(), 1, 1 + 0.06 * Math.random());
@@ -837,17 +856,12 @@ export class Landing implements SetPiece {
       pl.flare.scale.setScalar(5 + 3.5 * fl * throttle);
     }
     this.shellU.uNozzle.value = t < T_TD ? throttle : 0.85 * Math.exp(-(t - T_TD) / 2.4);
-    this.light.intensity = throttle * 160 * fl + heat * 60;
     if (throttle > 0.01 && !this.sent.has('burn') && p.alt < 600) this.send('burn');
 
     // ---- the burn on the ground: firelight, scorch, dust and sparks ----
     const near = throttle * (1 - smoothstep(18, 90, p.alt));
-    const ground = regionToWorld(p.x, p.z, 3, this.tmp);
-    this.probeObj.updateMatrixWorld();
-    this.groundLight.position.copy(this.probeObj.worldToLocal(ground.clone()));
-    this.groundLight.intensity = near * 260 * fl;
-    (this.glowDisc.material as THREE.ShaderMaterial).uniforms.uOpacity.value = near * 0.55 * fl;
-    this.glowDisc.visible = near > 0.01;
+    (this.glowDisc.material as THREE.ShaderMaterial).uniforms.uOpacity.value = near * 0.8 * fl;
+    this.glowDisc.visible = near > 0.01 || this.warm;
     this.dust.uniforms.uHot.value.copy(regionToWorld(p.x, p.z, 4));
     this.dust.uniforms.uHotK.value = near * fl;
     this.scorchK = Math.max(this.scorchK, throttle * (1 - smoothstep(6, 40, p.alt)));
@@ -938,7 +952,43 @@ export class Landing implements SetPiece {
     this.dust.update(dt);
     this.sparks.update(dt);
     this.debris.update(dt, 1 - smoothstep(T_DRONE_POST, T_END - 0.3, t));
+    // last, so it overrides this frame's pose
+    const warming = t < this.warmUntil && !this.over;
+    if (warming || this.warm) this.warmUp(warming);
+    this.warm = warming;
   }
+
+  /**
+   * `on`: draw everything this frame (whatever its visibility later and wherever the camera looks), invisibly, so
+   * the programs compile now; off: put things back. frame() runs the rest of the pose after it, which sets the
+   * effects' own visibility again.
+   */
+  private warmUp(on: boolean) {
+    if (on) {
+      this.scene.traverse((o) => { if (o.frustumCulled && (o as THREE.Mesh).isMesh) { o.frustumCulled = false; this.culled.push(o); } });
+      this.dust.prime();
+      this.sparks.prime();
+      this.debris.prime();
+      // the drone and every model it can show (near and far looks), which first draw well after touchdown
+      this.region.drone.visible = true;
+      this.region.drone.traverse((o) => {
+        if (!o.visible) { o.visible = true; this.hidden.push(o); }
+        if (o.frustumCulled) { o.frustumCulled = false; this.culled.push(o); }
+      });
+      this.region.setScorch(0.02);
+      this.region.forceDetails = 2;
+      this.region.details.visible = true;
+      return;
+    }
+    for (const o of this.culled) o.frustumCulled = true;
+    for (const o of this.hidden) o.visible = false;
+    this.culled.length = this.hidden.length = 0;
+    this.region.drone.visible = false;
+  }
+
+  /** Models swapped in after the start (they load in the background): draw everything once more, so they compile now. */
+  rewarm() { if (!this.over) this.warmUntil = Math.max(this.warmUntil, this.lastT + 0.3); }
+  private over = false;
 
   /** Caption text with {alt} km, {speed} m/s and {shield} °C filled in. */
   fill(x: string, t: number) {
@@ -955,6 +1005,9 @@ export class Landing implements SetPiece {
 
   /** The end (or a skip): the colony takes over, the camera goes to the normal view. */
   finish() {
+    this.over = true;
+    if (this.warm) this.warmUp(false);
+    this.warm = false;
     this.send('touchdown');
     this.send('deploy');
     this.scene.remove(this.probeObj, this.dust.mesh, this.sparks.mesh, this.debris.mesh, this.glowDisc);

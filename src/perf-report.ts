@@ -34,6 +34,8 @@ export interface PerfDeps {
   frames?: { warm: number; measure: number; live?: number; settle?: number };
   /** Hook main-thread timing of the sim worker's messages (ms, type), or unhook it (null). */
   msgTiming: (fn: ((ms: number, type: string) => void) | null) => void;
+  /** What's on screen now, for the slow-frame list ('landing 6.3 s', 'surface'…). */
+  moment?: () => string;
 }
 
 const RECORD_MAX = 10 * 60 * 1000;
@@ -69,6 +71,11 @@ export class PerfReport {
   private recordText = '';
   private msgs: number[] = [];
   private snaps = 0;
+  /** The slowest frames: [ms, seconds into the recording, what was on screen]. */
+  private slow: [number, number, string][] = [];
+  /** Shaders compiled while recording: [seconds in, how many, what was on screen]. */
+  private compiles: [number, number, string][] = [];
+  private programs = 0;
   // bench
   private phases: Phase[] = [];
   private pi = 0;
@@ -159,6 +166,10 @@ export class PerfReport {
         const dt = now - this.last;
         if (dt < 1000) { // a background tab or a stall, not a frame
           this.dts.push(dt);
+          if (dt > 40) {
+            this.slow.push([dt, (now - this.t0) / 1000, this.d.moment?.() ?? '']);
+            if (this.slow.length > 40) { this.slow.sort((a, b) => b[0] - a[0]); this.slow.length = 20; }
+          }
           const z = this.d.camDist(), key = z < 60 ? 'close (under 60)' : z < 160 ? 'mid (60–160)' : z < 500 ? 'far (160–500)' : 'orbit and beyond';
           (this.byZoom.get(key) ?? this.byZoom.set(key, []).get(key)!).push(dt);
         }
@@ -178,6 +189,9 @@ export class PerfReport {
     if (this.mode === 'record') {
       this.work.push(performance.now() - this.frameT);
       this.calls.push(info.calls); this.tris.push(info.triangles);
+      const n = this.d.renderer.info.programs?.length ?? 0;
+      if (n > this.programs) this.compiles.push([(performance.now() - this.t0) / 1000, n - this.programs, this.d.moment?.() ?? '']);
+      this.programs = n;
       return;
     }
     const ph = this.phases[this.pi];
@@ -212,9 +226,14 @@ export class PerfReport {
     this.byZoom.clear();
     this.scales = []; this.lastScale = 0;
     this.msgs = []; this.snaps = 0;
+    this.slow = []; this.compiles = [];
+    this.programs = this.d.renderer.info.programs?.length ?? 0;
     this.d.msgTiming(this.onMsg);
     this.recordText = '';
   }
+
+  /** Start recording now (`?perf=record`: from the first frame, so the landing is in it). */
+  record() { if (this.mode === 'idle') this.startRecord(); }
   private stopRecord() {
     this.mode = 'idle';
     this.d.msgTiming(null);
@@ -233,6 +252,12 @@ export class PerfReport {
       '  By zoom:'];
     for (const [k, a] of this.byZoom) out.push(`    ${k}: ${line(stats(a))} (${a.length} frames)`);
     out.push(`  Render scale over time: ${this.scales.join(' · ') || '(unchanged)'}`);
+    const slow = this.slow.sort((a, b) => b[0] - a[0]).slice(0, 12).sort((a, b) => a[1] - b[1]);
+    out.push(`  Slowest frames (over 40 ms): ${slow.length ? '' : 'none'}`);
+    for (const [dt, at, what] of slow) out.push(`    ${ms(dt)} at ${at.toFixed(1)} s${what ? ` (${what})` : ''}`);
+    const nc = this.compiles.reduce((a, c) => a + c[1], 0);
+    out.push(`  Shaders compiled while recording (each can stall a frame): ${nc || 'none'}`);
+    for (const [at, n, what] of this.compiles.slice(0, 20)) out.push(`    ${n} at ${at.toFixed(1)} s${what ? ` (${what})` : ''}`);
     this.recordText = out.join('\n');
     this.open();
   }

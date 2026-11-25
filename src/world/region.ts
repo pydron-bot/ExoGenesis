@@ -1220,6 +1220,9 @@ export class RegionView {
     scene.add(this.marker);
   }
 
+  /** Frames to draw the detail layer whatever the distance (the landing's shader warm-up: src/landing.ts). */
+  forceDetails = 0;
+
   /** The pad's scorch mark, 0..1 (the landing burns it in; 1 for the rest of the game). */
   setScorch(k: number) {
     (this.scorch.material as THREE.ShaderMaterial).uniforms.uOpacity.value = k * 0.85;
@@ -1229,7 +1232,8 @@ export class RegionView {
   /** Region border, orbit marker and core beacon — everything that isn't sim-driven. */
   updateOverlay(dist: number, t: number) {
     // fade detail out as we leave the surface
-    this.details.visible = dist < 1800;
+    this.details.visible = dist < 1800 || this.forceDetails > 0;
+    if (this.forceDetails > 0) this.forceDetails--;
     const borderMat = this.border.material as THREE.LineBasicMaterial;
     borderMat.opacity = lerp(0.25, 0.9, smoothstep(150, 1500, dist)) * (1 - smoothstep(12000, 40000, dist));
     this.border.visible = borderMat.opacity > 0.01;
