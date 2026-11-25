@@ -1,0 +1,9 @@
+{
+  "title": "The tour",
+  "section": "interface",
+  "order": 10,
+  "summary": "🪐 Tour on the title screen: a screensaver flight round the solar system.",
+  "text": "Tap 🪐 **Tour** on the title screen to put the menu away and fly round the solar system. Tap anywhere (or press any key) to bring the menu back; on a phone the screen stays on while it runs.\n\nOn its way it visits:\n\n- **Planets and moons**, settling into a sunlit orbit over each, and now and then home\n- **The whole system**, pulled far out over the star with every orbit drawn\n- **The star**, a slow pass low over its churning surface, its streamers and prominences\n- **The asteroid belt**, running along it with rocks streaming past\n- **A comet**, alongside it with its tails in full flow\n- **A giant's rings**, skimming just above them\n\nThe readout at the top says where you are. Without the Tour button, the title screen makes the same trips more slowly behind the menu.",
+  "see": "title-screen",
+  "since": "0.82.0"
+}

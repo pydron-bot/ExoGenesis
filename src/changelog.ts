@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.82.0',
+    date: '2026-11-25',
+    title: 'Sights of the system',
+    notes: [
+      'The star, up close: a golden, churning surface with sunspots, long coronal streamers and prominences arching off its edge (seen on the tour)',
+      'New tour trips: a pass round the star, a run through the asteroid belt with rocks streaming past, alongside a comet with its tails in full flow, and skimming low over a giant\'s rings, as well as the planets, moons and the view of the whole system',
+      'Lens flare fades away right up at the star, where it looked out of place',
+    ],
+    guide: ['tour'],
+  },
+  {
     version: '0.81.0',
     date: '2026-11-25',
     title: 'The landing, heard',

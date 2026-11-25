@@ -111,9 +111,12 @@ export class CometLook {
    * `pos` the nucleus, `star` the star's place, `vel` the direction it's moving (unit),
    * `vis` 0..1 overall strength, `t` seconds (for the drifting streaks).
    */
+  /** At least this active (0..1): the title tour, alongside this comet, shows it in full flow. */
+  boost = 0;
+
   update(pos: THREE.Vector3, star: THREE.Vector3, vel: THREE.Vector3, camera: THREE.Camera, vis: number, t: number) {
     const dSun = pos.distanceTo(star);
-    const act = this.activity = smoothstep(230000, 35000, dSun);
+    const act = this.activity = Math.max(smoothstep(230000, 35000, dSun), this.boost);
     this.group.visible = vis > 0.01;
     if (!this.group.visible) return;
     const away = v.subVectors(pos, star).normalize();

@@ -8,6 +8,9 @@
  *    spots, and limb darkening to a deep orange edge. Unlit and over 1.0 in the middle, so it blooms.
  *  - `coronaMaterial()`: a shell a little larger than the star with streamers that flicker outward,
  *    brightest at the edge (seen side-on), so the disc gets a ragged, living rim.
+ *  - Up close (`sunNear` 1: the title tour's pass round the star) the photosphere turns from a white-hot disc to a
+ *    rich gold one whose granulation, spots and faculae show, the shell gives way to `coronaRays()` (a camera-facing
+ *    sheet of long streamers) and prominences arch off the limb.
  */
 import * as THREE from 'three';
 import { bodyUniforms, sunPosUniform } from './body-surface';
@@ -15,6 +18,8 @@ import { bodyUniforms, sunPosUniform } from './body-surface';
 export const sunUniforms = { uSunPos: sunPosUniform };
 /** 1 clear .. lower behind cloud or dust (weather): dims the disc and corona. */
 export const sunDim = { value: 1 };
+/** 0 far .. 1 right up at the star (SolarSystem.update sets it from the camera's distance). */
+export const sunNear = { value: 0 };
 
 const NOISE = /* glsl */`
 float sHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -40,7 +45,7 @@ float sCells(vec3 p) {
 
 export function starMaterial(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    uniforms: { uBodyTime: bodyUniforms.uBodyTime, uDim: sunDim },
+    uniforms: { uBodyTime: bodyUniforms.uBodyTime, uDim: sunDim, uNear: sunNear },
     vertexShader: /* glsl */`
       varying vec3 vDir;
       varying vec3 vN;
@@ -53,7 +58,7 @@ export function starMaterial(): THREE.ShaderMaterial {
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */`
-      uniform float uBodyTime, uDim;
+      uniform float uBodyTime, uDim, uNear;
       varying vec3 vDir;
       varying vec3 vN;
       varying vec3 vV;
@@ -77,6 +82,16 @@ export function starMaterial(): THREE.ShaderMaterial {
         vec3 col = mix(edge, hot, pow(mu, 0.45));
         col *= 0.62 + 0.6 * gran;
         col *= 1.0 - pen * 0.35 - spot * 0.7;
+        // up close: kept under white, so the surface reads: gold cells with orange lanes, a deep red limb,
+        // bright faculae near the edge, and darker, redder spots with warm halos
+        vec3 hotN = vec3(0.98, 0.58, 0.18), edgeN = vec3(0.55, 0.09, 0.01);
+        vec3 near = mix(edgeN, hotN, pow(mu, 0.7));
+        near *= 0.5 + 0.7 * gran;
+        float fac = smoothstep(0.55, 0.8, sFbm(d * 9.0 - t * 0.004)) * (1.0 - smoothstep(0.15, 0.6, mu));
+        near += vec3(0.5, 0.32, 0.12) * fac;
+        near = mix(near, near * vec3(0.4, 0.18, 0.08), spot);
+        near = mix(near, near * vec3(0.85, 0.6, 0.4), pen);
+        col = mix(col, near, uNear);
         gl_FragColor = vec4(col * uDim, 1.0);
       }`,
     fog: false,
@@ -110,7 +125,7 @@ export function coronaMaterial(): THREE.ShaderMaterial {
         float rim = pow(smoothstep(0.0, 0.64, mu), 1.6);
         float s = sFbm(vDir * 7.0 + vec3(0.0, uBodyTime * 0.05, 0.0)) * 0.7 + sNoise(vDir * 19.0 - uBodyTime * 0.08) * 0.3;
         float a = rim * (0.35 + 0.9 * smoothstep(0.35, 0.75, s));
-        a *= uDim;
+        a *= uDim * (1.0 - uNear);
         gl_FragColor = vec4(vec3(1.4, 0.9, 0.5) * a, a);
       }`,
     transparent: true,
@@ -120,4 +135,72 @@ export function coronaMaterial(): THREE.ShaderMaterial {
     fog: false,
     toneMapped: false,
   });
+}
+
+/**
+ * The star's corona up close (`sunNear`): a sheet always facing the camera, round the disc out to `OUT` radii.
+ * Streamers: long, soft rays whose brightness varies round the rim and flickers slowly outward. Prominences: flame
+ * loops at a few places on the limb, red-orange, rising and curling. Nothing inside the disc (the star covers it).
+ */
+export function coronaRays(starR: number): THREE.Mesh {
+  const OUT = 4.2;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uBodyTime: bodyUniforms.uBodyTime, uDim: sunDim, uNear: sunNear, uR: { value: starR }, uOut: { value: OUT } },
+    vertexShader: /* glsl */`
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      uniform float uR, uOut;
+      varying vec2 vP;
+      void main() {
+        vP = position.xy * uOut; // in star radii
+        vec4 c = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        // nudged toward the camera by the star's radius, so the disc in front hides only what's behind it
+        vec3 toCam = normalize(-c.xyz);
+        c.xyz += toCam * uR * 0.0;
+        gl_Position = projectionMatrix * (c + vec4(position.xy * uR * uOut, 0.0, 0.0));
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader: /* glsl */`
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform float uBodyTime, uDim, uNear;
+      varying vec2 vP;
+      ${NOISE}
+      void main() {
+        #include <logdepthbuf_fragment>
+        float r = length(vP);
+        if (r < 0.985 || uNear < 0.01) discard;
+        float a = atan(vP.y, vP.x);
+        float t = uBodyTime;
+        vec2 ca = vec2(cos(a), sin(a));
+        // streamers: brightness round the rim (a few broad fans and many fine rays), stretched outward
+        float fans = sFbm(vec3(ca * 1.6, t * 0.01));
+        float rays = sNoise(vec3(ca * 14.0, r * 0.35 - t * 0.04)) * 0.6 + sNoise(vec3(ca * 37.0, r * 0.6 - t * 0.07)) * 0.4;
+        float fall = exp(-(r - 1.0) * (2.4 - 1.2 * fans));
+        float str = fall * (0.25 + 0.75 * smoothstep(0.3, 0.75, fans)) * (0.55 + 0.6 * rays);
+        // a bright, thin inner corona hugging the limb
+        float inner = exp(-(r - 1.0) * 14.0);
+        vec3 col = vec3(1.2, 0.8, 0.45) * str * 0.85 + vec3(1.3, 0.62, 0.25) * inner * 0.5;
+        // prominences: flame loops at a few places on the limb, rising and curling
+        float site = smoothstep(0.5, 0.68, sNoise(vec3(ca * 2.6, 3.0 + t * 0.002)));
+        float h = (r - 1.0) * 4.0;
+        // arches: the flame field bent into loops (a curl that rises and falls back), with fine filaments
+        float arch = sin(a * 9.0 + sNoise(vec3(ca * 3.0, t * 0.01)) * 6.0) * 0.5 + 0.5;
+        float flame = sFbm(vec3(ca * 18.0 + vec2(h * 0.8, -h * 0.5), h * 1.3 - t * 0.12)) * 0.75 + arch * 0.25;
+        float fil = sNoise(vec3(ca * 70.0, h * 3.0 - t * 0.2));
+        float loop = smoothstep(0.42, 0.7, flame) * exp(-h * 0.9) * smoothstep(0.0, 0.06, h) * (0.7 + 0.5 * fil);
+        col += vec3(1.7, 0.32, 0.06) * loop * site * 2.6;
+        float alpha = clamp(max(str, inner) + loop * site, 0.0, 1.0);
+        gl_FragColor = vec4(col * uDim * uNear, alpha * uNear);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    fog: false,
+    toneMapped: false,
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+  m.frustumCulled = false;
+  m.renderOrder = 2;
+  return m;
 }

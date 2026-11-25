@@ -43,6 +43,12 @@ export class ZoomCamera {
   readonly right = new THREE.Vector3();
   /** Cinematic hooks (landing sequence): look at this point instead, with weight 0..1. */
   readonly focusOverride = new THREE.Vector3();
+  /**
+   * Frame "up" to blend toward (by `upW` 0..1) instead of the home region's: the title tour levels the horizon to an
+   * asteroid belt's or a ring's plane. 0 leaves the camera exactly as it was.
+   */
+  readonly upOverride = new THREE.Vector3(0, 1, 0);
+  upW = 0;
   overrideW = 0;
   /** Cinematic: honour `pitch` exactly instead of tilting to top-down as we climb. */
   freePitch = false;
@@ -117,7 +123,7 @@ export class ZoomCamera {
     if (this.overrideW > 0) this.focus.lerp(this.focusOverride, this.overrideW);
 
     // frame
-    const up = new THREE.Vector3().copy(U).lerp(Y, this.b).normalize();
+    const up = this.frameUp(this.dist, new THREE.Vector3());
     const ef = new THREE.Vector3().copy(E).addScaledVector(up, -E.dot(up)).normalize();
     const nf = new THREE.Vector3().crossVectors(up, ef);
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
@@ -158,9 +164,23 @@ export class ZoomCamera {
   }
 
   /** The unit vector from the focus out to the camera for a yaw/pitch/distance (as update() frames it, with freePitch). */
+  /** The frame's up at a distance: the home region's, turning to the system's far out, and the override blended in. */
+  private frameUp(dist: number, out: THREE.Vector3) {
+    out.copy(U).lerp(Y, smoothstep(25000, 320000, dist)).normalize();
+    if (this.upW > 0) out.lerp(this.upOverride, Math.min(1, this.upW)).normalize();
+    return out;
+  }
+
+  /** Yaw and pitch that put the camera along `dir` (unit, from the focus out to the camera) at `dist`: viewDir's inverse. */
+  aim(dir: THREE.Vector3, dist: number): { yaw: number; pitch: number } {
+    const up = this.frameUp(dist, new THREE.Vector3());
+    const ef = new THREE.Vector3().copy(E).addScaledVector(up, -E.dot(up)).normalize();
+    const nf = new THREE.Vector3().crossVectors(up, ef);
+    return { yaw: Math.atan2(-dir.dot(ef), -dir.dot(nf)), pitch: Math.asin(THREE.MathUtils.clamp(dir.dot(up), -1, 1)) };
+  }
+
   viewDir(yaw: number, pitch: number, dist: number, out = new THREE.Vector3()) {
-    const b = smoothstep(25000, 320000, dist);
-    const up = new THREE.Vector3().copy(U).lerp(Y, b).normalize();
+    const up = this.frameUp(dist, new THREE.Vector3());
     const ef = new THREE.Vector3().copy(E).addScaledVector(up, -E.dot(up)).normalize();
     const nf = new THREE.Vector3().crossVectors(up, ef);
     const fwd = ef.multiplyScalar(Math.sin(yaw)).addScaledVector(nf, Math.cos(yaw));

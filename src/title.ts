@@ -55,8 +55,16 @@ export interface TitleOptions {
 }
 
 /** A place the title camera can orbit; `null` means home. */
-/** Somewhere the tour goes: home (null), a body, or `overview`: pulled far out over the star to see the whole system. */
-type Stop = { name: string; sub: string; radius: number; pos: THREE.Vector3; overview?: boolean } | null;
+/**
+ * Somewhere the tour goes: home (null), a body, or a special stop (`kind`): `overview` far out over the star to see the
+ * whole system; `sun` a close pass round the star; `comet` alongside a comet and its tail; `belt` a run through the
+ * asteroid belt (the focus flies along it); `rings` a skim just above a ringed giant's ring plane.
+ */
+type StopKind = 'overview' | 'sun' | 'comet' | 'belt' | 'rings';
+type Stop = { name: string; sub: string; radius: number; pos: THREE.Vector3; kind?: StopKind; normal?: (out: THREE.Vector3) => THREE.Vector3 } | null;
+/** The camera's look at a special stop: the way out from the focus to the camera, how far, and how level to the stop's plane. */
+interface Aim { dir: THREE.Vector3; dist: number; level: number }
+const Y_UP = new THREE.Vector3(0, 1, 0);
 interface Trip { from: Stop; to: Stop; u: number; dur: number; d0: number; d1: number; peak: number; yaw0: number; yaw1: number }
 
 const HOME_DWELL = 25; // seconds over home before the first trip, and on each return
@@ -255,14 +263,29 @@ export class TitleScreen {
     // slow orbit: swings low over the limb and back out to the whole disc
     const w = innerWidth, h = viewH(), aspect = w / h;
     // a narrow screen sees less of the width: pull back so the disc still fits
-    const back = aspect < 1 ? Math.pow(1 / aspect, 0.75) : 1;
+    const back = (this.back = aspect < 1 ? Math.pow(1 / aspect, 0.75) : 1);
     const sys = this.opts.system;
-    const orbitDist = (stop: Stop, at: number) => stop?.overview
-      ? (sys?.extent() ?? 1e5) * 2.4 * (1 + 0.06 * Math.sin(at * 0.05)) * back
-      : radiusOf(stop) * (stop ? (stop.radius < 2000 ? 3.4 : 2.6) * (1 + 0.15 * Math.sin(at * 0.06)) : 2.45 + 0.75 * Math.sin(at * 0.055)) * back;
+    const orbitDist = (stop: Stop, at: number) => this.distAt(stop, at);
+    // the belt run's focus flies along the belt
+    if (sys && (this.at?.kind === 'belt' || this.trip?.to?.kind === 'belt' || this.trip?.from?.kind === 'belt')) {
+      this.beltA += dt * 2400 / this.beltR;
+      this.beltPos.set(Math.cos(this.beltA) * this.beltR, 0, Math.sin(this.beltA) * this.beltR).add(sys.starPos);
+    }
+    if (sys) sys.beltsOn = this.at?.kind === 'belt' || this.trip?.to?.kind === 'belt' || this.trip?.from?.kind === 'belt';
+    if (sys) sys.chase = [this.at, this.trip?.to, this.trip?.from].find((s) => s?.kind === 'comet')?.name ?? null;
+    // how much of a special look applies: in on the way in, out on the way away
+    const into = (k: (s: Stop) => boolean) => this.trip ? (k(this.trip.to) ? smoothstep(0.5, 1, this.trip.u) : k(this.trip.from) ? 1 - smoothstep(0, 0.5, this.trip.u) : 0) : k(this.at) ? 1 : 0;
     // over the whole system, look down on it at a steeper angle: the orbits read as rings round the star
-    const over = this.trip ? (this.trip.to?.overview ? smoothstep(0.5, 1, this.trip.u) : this.trip.from?.overview ? 1 - smoothstep(0, 0.5, this.trip.u) : 0) : this.at?.overview ? 1 : 0;
-    cam.targetPitch = THREE.MathUtils.lerp(0.38 + 0.22 * Math.sin(t * 0.037 + 1), 0.82 + 0.08 * Math.sin(t * 0.04), over);
+    const over = into((s) => s?.kind === 'overview');
+    const special = into((s) => !!s?.kind && s.kind !== 'overview');
+    const sp = this.trip ? (this.trip.u > 0.5 ? this.trip.to : this.trip.from) : this.at;
+    const aim = sp?.kind && sp.kind !== 'overview' ? this.aimAt(sp, t) : null;
+    let pitch = THREE.MathUtils.lerp(0.38 + 0.22 * Math.sin(t * 0.037 + 1), 0.82 + 0.08 * Math.sin(t * 0.04), over);
+    // level the horizon with a belt's or a ring's plane (blended in, so the frame never jumps)
+    cam.upW += ((aim ? aim.level * special : 0) - cam.upW) * Math.min(1, dt * 1.5);
+    if (aim && sp?.kind === 'rings' && sp.normal) sp.normal(cam.upOverride); else cam.upOverride.copy(Y_UP);
+    if (aim) pitch = THREE.MathUtils.lerp(pitch, cam.aim(aim.dir, aim.dist).pitch, special);
+    cam.targetPitch = pitch;
     if (sys) sys.overview = over;
     if (sys && !this.trip && (this.dwell -= dt) <= 0) this.depart(sys, orbitDist);
     if (this.touring && !this.trip && !this.at && this.dwell > 12) this.dwell = 12; // a shorter stay at home on the tour
@@ -274,10 +297,12 @@ export class TitleScreen {
       // out, across while far out, then in: the pan happens near the top of the arc
       const ef = smoothstep(0.22, 0.78, u);
       cam.focusOverride.copy(posOf(tr.from)).lerp(posOf(tr.to), ef);
-      const l0 = Math.log(tr.d0), l1 = Math.log(tr.d1);
+      const l0 = Math.log(tr.d0), l1 = Math.log(tr.to?.kind && tr.to.kind !== 'overview' ? this.aimAt(tr.to, t).dist : tr.d1);
       const ld = l0 + (l1 - l0) * e + (Math.log(tr.peak) - (l0 + l1) / 2) * Math.sin(Math.PI * u);
       cam.dist = cam.targetDist = Math.exp(ld);
-      let dy = tr.yaw1 - tr.yaw0;
+      // a special stop is arrived at along its own look (it moves: aim at it as it is now)
+      const yaw1 = tr.to?.kind && tr.to.kind !== 'overview' ? cam.aim(this.aimAt(tr.to, t).dir, cam.dist).yaw : tr.yaw1;
+      let dy = yaw1 - tr.yaw0;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       cam.yaw = tr.yaw0 + dy * e;
       sys!.tour = tr.to ? (tr.from ? 1 : ef) : 1 - ef;
@@ -285,12 +310,21 @@ export class TitleScreen {
         this.at = tr.to;
         this.trip = null;
         this.dwell = tr.to ? AWAY_DWELL[0] + Math.random() * (AWAY_DWELL[1] - AWAY_DWELL[0]) : HOME_DWELL;
+        // a run along the belt or past a comet is over sooner
+        if (tr.to?.kind === 'belt' || tr.to?.kind === 'comet') this.dwell = Math.min(this.dwell, 16);
       }
+    } else if (aim) {
+      // a special stop: follow its look (yaw eased toward it; the pitch rides targetPitch above)
+      cam.focusOverride.copy(posOf(this.at));
+      cam.targetDist = aim.dist;
+      const want = cam.aim(aim.dir, cam.dist).yaw;
+      cam.yaw += Math.atan2(Math.sin(want - cam.yaw), Math.cos(want - cam.yaw)) * Math.min(1, dt * 2);
     } else {
       cam.yaw += dt * 0.045;
       cam.focusOverride.copy(posOf(this.at));
       cam.targetDist = orbitDist(this.at, t);
     }
+    void back;
     // landscape: shift the planet right, clear of the menu column; portrait: lift it
     // into the gap between the wordmark and the menu
     if (this.touring) { if (this.camera.view) this.camera.clearViewOffset(); } // nothing to keep clear of: centred
@@ -302,27 +336,96 @@ export class TitleScreen {
     if (n !== this.typed) { this.typed = n; this.tagEl.textContent = TAGLINE.slice(0, n); }
     if (t > 1.6) {
       const km = (n: number) => Math.round(n * 0.01).toLocaleString();
+      const at = this.at;
       if (this.trip) this.tele.textContent = `IN TRANSIT · ${this.trip.to?.name ?? 'HOME'} · ${clock}`;
-      else if (this.at?.overview) this.tele.textContent = `SYSTEM VIEW · ${this.opts.system?.tourStops().length ?? 0} WORLDS · ${clock}`;
-      else if (this.at) this.tele.textContent = `${this.at.name} · HIGH ORBIT · ALT ${km(this.camera.position.distanceTo(this.at.pos) - this.at.radius)} km · ${clock}`;
+      else if (at?.kind === 'overview') this.tele.textContent = `SYSTEM VIEW · ${this.opts.system?.tourStops().length ?? 0} WORLDS · ${clock}`;
+      else if (at?.kind === 'sun') this.tele.textContent = `THE STAR · CORONA PASS · ALT ${km(this.camera.position.distanceTo(at.pos) - at.radius)} km · ${clock}`;
+      else if (at?.kind === 'comet') this.tele.textContent = `${at.name} · ALONGSIDE · ${clock}`;
+      else if (at?.kind === 'belt') this.tele.textContent = `ASTEROID BELT · RUNNING THE BELT · ${clock}`;
+      else if (at?.kind === 'rings') this.tele.textContent = `${at.name} · RING PASS · ${clock}`;
+      else if (at) this.tele.textContent = `${at.name} · HIGH ORBIT · ALT ${km(this.camera.position.distanceTo(at.pos) - at.radius)} km · ${clock}`;
       else this.tele.textContent = `HOME · HIGH ORBIT · ALT ${km(alt)} km · ${clock}`;
     }
   }
 
-  /** Start a trip to somewhere else: another body, or home now and then. */
+  private back = 1;
+  private beltA = Math.random() * Math.PI * 2;
+  private beltR = 135000;
+  private beltPos = new THREE.Vector3();
+
+  /** How far out the camera sits at a stop (the ordinary orbits, and the system view). */
+  private distAt(stop: Stop, at: number) {
+    const back = this.back, sys = this.opts.system;
+    if (stop?.kind === 'overview') return (sys?.extent() ?? 1e5) * 2.4 * (1 + 0.06 * Math.sin(at * 0.05)) * back;
+    if (stop?.kind) return this.aimAt(stop, at).dist;
+    return radiusOf(stop) * (stop ? (stop.radius < 2000 ? 3.4 : 2.6) * (1 + 0.15 * Math.sin(at * 0.06)) : 2.45 + 0.75 * Math.sin(at * 0.055)) * back;
+  }
+
+  /** The look at a special stop at time `t`. */
+  private aimAt(stop: NonNullable<Stop>, t: number): Aim {
+    const sys = this.opts.system!;
+    const dir = new THREE.Vector3();
+    switch (stop.kind) {
+      case 'sun': {
+        // a slow pass round the star, low over its limb: the corona and the prominences against space
+        const y = t * 0.05;
+        dir.set(Math.cos(y), 0.18 + 0.12 * Math.sin(t * 0.07), Math.sin(y)).normalize();
+        return { dir, dist: stop.radius * (2.5 + 0.35 * Math.sin(t * 0.06)) * this.back, level: 1 };
+      }
+      case 'comet': {
+        // side-on to the tail (it streams away from the star), a little above and sunward of the head
+        const sun = sys.starPos.clone().sub(stop.pos).normalize();
+        const side = new THREE.Vector3().crossVectors(sun, Y_UP).normalize();
+        dir.copy(side).multiplyScalar(0.85).addScaledVector(Y_UP, 0.3).addScaledVector(sun, 0.35 + 0.1 * Math.sin(t * 0.1)).normalize();
+        return { dir, dist: 30000 * this.back, level: 1 };
+      }
+      case 'belt': {
+        // behind the focus as it flies along the belt, just above the plane: rocks come past
+        const tan = new THREE.Vector3(-Math.sin(this.beltA), 0, Math.cos(this.beltA));
+        dir.copy(tan).multiplyScalar(-Math.cos(0.16)).addScaledVector(Y_UP, Math.sin(0.16 + 0.05 * Math.sin(t * 0.3))).normalize();
+        return { dir, dist: 2600, level: 1 };
+      }
+      case 'rings': {
+        // just above the ring plane, swinging slowly round: the rings sweep past, edge-on, with the planet behind
+        const n = stop.normal!(new THREE.Vector3());
+        const e1 = new THREE.Vector3().crossVectors(n, Math.abs(n.y) < 0.9 ? Y_UP : new THREE.Vector3(1, 0, 0)).normalize();
+        const e2 = new THREE.Vector3().crossVectors(n, e1);
+        const a = t * 0.04;
+        dir.copy(e1).multiplyScalar(Math.cos(a)).addScaledVector(e2, Math.sin(a)).multiplyScalar(Math.cos(0.1)).addScaledVector(n, Math.sin(0.1)).normalize();
+        return { dir, dist: stop.radius * 2.9 * this.back, level: 1 };
+      }
+      default:
+        return { dir: dir.set(0, 1, 0), dist: stop.radius * 3, level: 0 };
+    }
+  }
+
+  /** Start a trip to somewhere else: another body, a special stop, or home now and then. */
   private depart(sys: SolarSystem, orbitDist: (s: Stop, at: number) => number) {
-    const stops: Stop[] = sys.tourStops().filter((b) => b.name !== this.at?.name);
-    // the whole system now and then (always the second trip, so a tour shows it early on)
-    const overview: Stop = { name: 'SYSTEM VIEW', sub: '', radius: 0, pos: sys.starPos, overview: true };
+    // the bodies as plain stops (their own `kind`, planet or moon, isn't a special stop's)
+    const bodies: Stop[] = sys.tourStops().filter((b) => b.name !== this.at?.name).map((b) => ({ name: b.name, sub: b.sub, radius: b.radius, pos: b.pos }));
+    const sc = sys.scenic();
+    const specials: Stop[] = [
+      { name: 'SYSTEM VIEW', sub: '', radius: 0, pos: sys.starPos, kind: 'overview' as const },
+      { name: 'THE STAR', sub: '', radius: sc.star.radius, pos: sc.star.pos, kind: 'sun' as const },
+      { name: 'THE BELT', sub: '', radius: 0, pos: this.beltPos, kind: 'belt' as const },
+      ...sc.comets.map((c): Stop => ({ name: c.name, sub: '', radius: c.radius, pos: c.pos, kind: 'comet' })),
+      ...sc.ringed.map((r): Stop => ({ name: r.name, sub: '', radius: r.radius, pos: r.pos, kind: 'rings', normal: r.normal })),
+    ].filter((s) => !(s!.kind === this.at?.kind && s!.name === this.at?.name));
+    this.beltR = sc.belt;
     this.trips++;
+    // the first few trips show the new sights (the whole system, then the star), then a mix
+    const pick = (k: StopKind) => specials.find((s) => s!.kind === k) ?? null;
     let to: Stop;
-    if (!this.at?.overview && (this.trips === 2 || Math.random() < 0.22)) to = overview;
-    else to = this.at && Math.random() < 0.3 ? null : stops[Math.floor(Math.random() * stops.length)];
+    if (this.trips === 2 && this.at?.kind !== 'overview') to = pick('overview');
+    else if (this.trips === 3 && this.at?.kind !== 'sun') to = pick('sun');
+    else if (Math.random() < 0.4) to = specials[Math.floor(Math.random() * specials.length)];
+    else to = this.at && Math.random() < 0.25 ? null : bodies[Math.floor(Math.random() * bodies.length)];
+    if (to?.kind === 'belt') this.beltA = Math.random() * Math.PI * 2;
     const sep = posOf(this.at).distanceTo(posOf(to));
     const dur = THREE.MathUtils.clamp(4 + Math.log10(Math.max(1, sep / 1000)) * 1.6, 5, 9);
     const d0 = this.cam.dist, d1 = orbitDist(to, this.t + dur);
     let yaw1 = this.cam.yaw + dur * 0.045;
-    if (to && !to.overview) {
+    if (to && !to.kind) {
       // arrive with the sun off to one side of the camera: a lit disc with a terminator
       const sun = sys.starPos.clone().sub(to.pos).normalize();
       const dir = new THREE.Vector3();
@@ -349,7 +452,8 @@ export class TitleScreen {
       this.cam.dist = this.cam.targetDist = R * 2.45;
       this.cam.focusOverride.set(0, 0, 0);
     }
-    if (this.opts.system) { this.opts.system.tour = 0; this.opts.system.overview = 0; }
+    if (this.opts.system) { this.opts.system.tour = 0; this.opts.system.overview = 0; this.opts.system.beltsOn = false; this.opts.system.chase = null; }
+    this.cam.upW = 0;
     this.cam.freePitch = false;
     this.cam.overrideW = 0;
     if (this.camera.view) this.camera.clearViewOffset();

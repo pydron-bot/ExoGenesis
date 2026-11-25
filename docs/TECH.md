@@ -145,6 +145,16 @@ How content is stored and edited in general (one JSON record per file, schemas i
 - **Title tour system view** (v0.81.0): a `Stop` with `overview: true` at `system.starPos`, framed at
   `SolarSystem.extent()` × 2.4 and pitch ~0.85; `system.overview` shows the orbit paths faintly though `tour` hides
   them. The second trip always goes there, then ~22% of trips.
+- **Tour sights and the star up close** (v0.82.0): `title.ts` stops have a `kind` (`overview`, `sun`, `comet`,
+  `belt`, `rings`); each special one has an `aimAt()` look (direction out from the focus, distance, level) that the
+  camera follows via `ZoomCamera.aim()` (viewDir's inverse) and `upOverride`/`upW` (the frame's up blended to the
+  belt's or a ring's plane, so the horizon is level and never jumps). Bodies from `tourStops()` are passed as plain
+  stops (their own `kind` is planet/moon). `SolarSystem.scenic()` lists the star, comets, ringed giants (ring normal
+  from the RingGeometry's world matrix) and the belt radius; `beltsOn` draws the belts up close; `chase` (a comet's
+  name) draws it in full with `CometLook.boost` ≥ 0.7. The star: `sunNear` (1 within ~6 radii) turns the photosphere
+  gold with faculae and red spots, fades the old corona shell, and shows `coronaRays()` (a camera-facing sheet:
+  streamers, an inner rim, prominence loops); the lens flare fades out as the sun grows past 0.1-0.2 of the view.
+  Stills: `node tools/tour-shot.mjs --gpu [--kinds sun,belt,comet,rings,overview] [--w 390 --h 844]`.
 - **Landing without hitches** (v0.80.1): shader compiles mid-landing were the stutter (JS is ~0.2 ms a frame).
   `Landing` draws everything (frustum culling off scene-wide, the region's detail layer forced on via
   `RegionView.forceDetails`, every drone LOD shown, one invisible particle/rock primed, plumes/decals/sheath at

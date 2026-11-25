@@ -10,7 +10,7 @@ import type { BodyDef } from '../content/defs';
 import { addRockyDetail, bodyUniforms, cloudShell, giantMaterial, lookOf, ringMaterial } from './body-surface';
 import { CometLook } from './comet';
 import { milkyWay, skyDome, skyGlow, starField } from './sky';
-import { coronaMaterial, starMaterial, sunDim, sunUniforms } from './sun';
+import { coronaMaterial, coronaRays, starMaterial, sunDim, sunNear, sunUniforms } from './sun';
 import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
 
 interface Body {
@@ -175,6 +175,8 @@ export class SolarSystem {
   private star: THREE.Group;
   /** The star's soft halo: fades as the camera comes close, so its surface shows. */
   private starGlow: THREE.Sprite;
+  /** The corona's streamers and prominences, up close. */
+  private rays: THREE.Mesh;
   private light: THREE.PointLight;
   /** Ambient and sky fill (colony lights dim them at night). */
   ambient: THREE.AmbientLight;
@@ -216,6 +218,10 @@ export class SolarSystem {
   tour = 0;
   /** 0..1: the title's tour is at its system view: the orbit paths show faintly, though `tour` hides them otherwise. */
   overview = 0;
+  /** The title tour's belt run: draw the asteroid belts though the camera is close (they're hidden below the system view). */
+  beltsOn = false;
+  /** The title tour is alongside this comet (its name): drawn in full, its tails at least 70% grown. */
+  chase: string | null = null;
 
   /**
    * `defs`: content.bodies; `hereId`: the body the region being played is on.
@@ -232,6 +238,8 @@ export class SolarSystem {
     const corona = new THREE.Mesh(new THREE.SphereGeometry(STAR_R * 1.3, 64, 48), coronaMaterial());
     corona.renderOrder = 1;
     this.star.add(corona);
+    this.rays = coronaRays(STAR_R);
+    this.star.add(this.rays);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({
       map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false, toneMapped: false,
     }));
@@ -371,6 +379,25 @@ export class SolarSystem {
     return r || 1e5;
   }
 
+  /**
+   * The title tour's special stops: the star, the comets (to chase), the ringed giants (to skim their rings, with the
+   * ring plane's normal) and the main asteroid belt (its middle radius, round the star).
+   */
+  scenic() {
+    const ringed: { name: string; radius: number; pos: THREE.Vector3; normal: (out: THREE.Vector3) => THREE.Vector3 }[] = [];
+    for (const b of this.bodies) {
+      if (b === this.here || b.kind === 'comet') continue;
+      const ring = b.obj.children.find((c) => (c as THREE.Mesh).geometry?.type === 'RingGeometry');
+      if (ring) ringed.push({ name: b.name, radius: b.radius, pos: b.pos, normal: (out) => { ring.updateWorldMatrix(true, false); return out.set(0, 0, 1).transformDirection(ring.matrixWorld); } });
+    }
+    return {
+      star: { radius: STAR_R, pos: this.starPos },
+      comets: this.bodies.filter((b) => b.kind === 'comet').map((b) => ({ name: b.name, radius: b.radius, pos: b.pos })),
+      ringed,
+      belt: 135000,
+    };
+  }
+
   /** Bodies worth a close look (the title screen's tour): planets and the bigger moons. */
   tourStops(): { name: string; sub: string; radius: number; pos: THREE.Vector3 }[] {
     return this.bodies.filter((b) => b !== this.here && b.kind !== 'comet' && b.radius >= 600);
@@ -397,12 +424,15 @@ export class SolarSystem {
     else this.sunPos.set(Math.cos(sunAngle) * sunDist, 0, Math.sin(sunAngle) * sunDist).lerp(this.starPos, Math.max(away, smoothstep(0.05, 0.5, sys)));
     this.star.position.copy(this.sunPos);
     sunUniforms.uSunPos.value.copy(this.sunPos);
-    (this.starGlow.material as THREE.SpriteMaterial).opacity = smoothstep(STAR_R * 2.5, STAR_R * 9, camera.position.distanceTo(this.sunPos));
+    const starD = camera.position.distanceTo(this.sunPos);
+    (this.starGlow.material as THREE.SpriteMaterial).opacity = smoothstep(STAR_R * 2.5, STAR_R * 9, starD);
+    sunNear.value = 1 - smoothstep(STAR_R * 6, STAR_R * 22, starD);
+    this.rays.visible = sunNear.value > 0.01;
     this.light.position.copy(this.sunPos);
     this.belts[0].rotation.y = t * 0.0004;
     this.belts[1].rotation.y = t * 0.00008;
     // belts are sub-pixel specks until the system view; skip ~5k rocks' worth of triangles below it
-    for (const b of this.belts) b.visible = sys > 0.02;
+    for (const b of this.belts) b.visible = sys > 0.02 || this.beltsOn;
     // the star (and with it belts and orbit paths) is drawn at the sun's place; keep paths centred on the real star
     const shift = new THREE.Vector3().subVectors(this.starPos, this.sunPos);
 
@@ -434,7 +464,9 @@ export class SolarSystem {
         // which way it's moving (a few seconds on along its orbit), for the dust tail's sweep
         const vel = this.orbitPos(b, t + 5, b.parent ? b.parent.abs : zero, v).sub(b.abs).normalize();
         // seen from the system view (and faintly from orbit, if it's close)
-        b.comet.update(b.pos, this.starPos, vel, camera, Math.max(smoothstep(0.02, 0.4, sys), 0.35 * (1 - surface)) * (1 - away), t);
+        const chased = this.chase === b.name;
+        b.comet.boost += ((chased ? 0.7 : 0) - b.comet.boost) * 0.02;
+        b.comet.update(b.pos, this.starPos, vel, camera, Math.max(Math.max(smoothstep(0.02, 0.4, sys), 0.35 * (1 - surface)) * (1 - away), chased || b.comet.boost > 0.01 ? 1 : 0), t);
       }
     }
 

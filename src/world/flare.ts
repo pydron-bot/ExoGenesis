@@ -160,7 +160,8 @@ export class SunFlare {
     const edge = behind ? 0 : 1 - smoothstep(0.85, 1.25, Math.max(Math.abs(S.x), Math.abs(S.y)));
     // a small, far sun (the system view) flares less than the big one in the sky
     const size = smoothstep(0.004, 0.05, sunR / dist);
-    const target = this.enabled ? vis * edge * (0.45 + 0.55 * size) * (1 - dim) : 0;
+    // right up at the star (the title tour's pass) the lens effects would sit oddly on its surface: gone
+    const target = this.enabled ? vis * edge * (0.45 + 0.55 * size) * (1 - dim) * (1 - smoothstep(0.1, 0.2, sunR / dist)) : 0;
     // ease (a planet's edge sweeping over the sun, the camera swinging)
     this.vis += (target - this.vis) * (1 - Math.exp(-dt * 12));
     this.strength = this.vis;
