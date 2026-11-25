@@ -1,6 +1,7 @@
 {
   "title": "Kora",
   "style": "radio",
+  "pause": true,
   "character": "engram",
   "text": "Hello, Accord. We have been listening from Kora since your first night. We have enjoyed your reports very much. Sol 1 was our favourite. You were so careful with the numbers.",
   "trigger": "mission",

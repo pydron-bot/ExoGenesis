@@ -142,7 +142,7 @@ export class Story {
     const sim = this.sim, st = this.s, R = content.colony;
     if (!sim.s.people || sim.secs < (R.dilemmaFrom ?? 900)) return false;
     if (st.lastDilemma !== undefined && sim.s.tick - st.lastDilemma < (R.dilemmaGap ?? 180) * TICK_HZ) return false;
-    if (st.inbox.some((id) => content.story[id] && content.story[id].style !== 'radio')) return false;
+    if (st.inbox.some((id) => content.story[id] && (content.story[id].style !== 'radio' || content.story[id].pause))) return false;
     return !st.timers.some((t) => content.story[t.id]?.dilemma);
   }
 

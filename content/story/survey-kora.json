@@ -1,6 +1,7 @@
 {
   "title": "Kora",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "I've found Kora on the telescope, the moon Engram talks to us from. There's an array on it the size of a county, and it faces us. Not Verdance, not Rime: us. I went back through the old plates. It turned to face Home the night we landed. Not the night after.",
   "trigger": "flag",

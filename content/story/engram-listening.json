@@ -1,6 +1,7 @@
 {
   "title": "Still Listening",
   "style": "radio",
+  "hold": true,
   "character": "engram",
   "text": "We are still listening from Kora. Your report last night was lovely; the flora numbers especially. Do you ever wonder who else reads them? We have started to.",
   "trigger": "mission",

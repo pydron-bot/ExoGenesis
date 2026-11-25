@@ -1,6 +1,7 @@
 {
   "title": "Parcels",
   "style": "radio",
+  "hold": true,
   "character": "marrow",
   "text": "Marrow. So the machines get parcels. Thanks for telling me and not them. Don't go thinking that makes us friends. It might make us neighbours.",
   "trigger": "flag",

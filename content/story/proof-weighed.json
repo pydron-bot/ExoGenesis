@@ -1,6 +1,7 @@
 {
   "title": "The Argument Holds",
   "style": "radio",
+  "pause": true,
   "character": "archivist",
   "text": "The Archivist, on the relay from home, as the Lid comes up: \"The last report went up with you. Planet health, every adult who said yes, Kindred, the Vell, the Choir, the Ledger, the dish on Teth. I ran it twice. It holds. If you can take that thing whole, take it whole. It's the only way anyone at Sol ever reads it.\"",
   "trigger": "all",

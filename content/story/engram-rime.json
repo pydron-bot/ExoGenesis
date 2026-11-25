@@ -1,6 +1,7 @@
 {
   "title": "Rime",
   "style": "radio",
+  "hold": true,
   "character": "engram",
   "text": "Rime. This is where we think. It is cold and quiet and very deep. Come to the well. We have something to ask you and something to show you, and we are not sure which should come first.",
   "trigger": "never",

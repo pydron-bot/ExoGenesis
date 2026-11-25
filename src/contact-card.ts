@@ -94,7 +94,7 @@ export class ContactCard {
     const buttons = n < pages.length - 1
       ? `<button data-next>Next ›</button><span class="pg">${n + 1} / ${pages.length}</span>`
       : offered.length ? offered.map((k) => `<button data-s="${esc(id)}:${k}">${esc(this.fill(ev.choices![k].label, id))}</button>`).join('') : `<button data-s="${esc(id)}:0">Continue</button>`;
-    return { html: `${who.html}${ev.dilemma ? '<small class="kind">Colony dilemma</small>' : ''}<div class="t">${esc(this.fill(ev.title, id))}</div><p>${esc(this.fill(pg.text, id))}</p><div class="grp">${buttons}</div>`, color: who.color };
+    return { html: `${who.html}${ev.dilemma ? '<small class="kind">Colony dilemma</small>' : ev.style === 'radio' ? '<small class="kind">Radio</small>' : ''}<div class="t">${esc(this.fill(ev.title, id))}</div><p>${esc(this.fill(pg.text, id))}</p><div class="grp">${buttons}</div>`, color: who.color };
   }
 
   /** The radio panel: the oldest radio message, until it times out or is tapped. */
@@ -108,8 +108,8 @@ export class ContactCard {
       const ev = this.d.story[id], who = this.speaker(ev.character, ev.speaker || 'Transmission');
       this.radioId = id;
       const words = ev.text.split(/\s+/).length;
-      this.radioUntil = performance.now() + Math.min(20, Math.max(6, 4 + words * 0.35)) * 1000;
-      this.radioEl.innerHTML = `<div class="rd-head"><i></i>${who.html}</div><div class="t">${esc(this.fill(ev.title))}</div><p>${esc(this.fill(ev.text))}</p>`;
+      this.radioUntil = ev.hold ? Infinity : performance.now() + Math.min(20, Math.max(6, 4 + words * 0.35)) * 1000;
+      this.radioEl.innerHTML = `<div class="rd-head"><i></i>${who.html}</div><div class="t">${esc(this.fill(ev.title))}</div><p>${esc(this.fill(ev.text))}</p>${ev.hold ? '<small class="tap">tap to close</small>' : ''}`;
       this.radioEl.style.borderColor = who.color;
       this.radioShown(true);
     } else if (performance.now() > this.radioUntil) this.closeRadio();
@@ -145,9 +145,11 @@ export class ContactCard {
     const all = (s.story?.inbox ?? []).filter((id) => id !== this.answered && this.d.story[id]);
     if (!s.story?.inbox.includes(this.answered)) this.answered = '';
     if (!s.story?.inbox.includes(this.radioDone)) this.radioDone = '';
-    const inbox = all.filter((id) => this.d.story[id].style !== 'radio');
+    // a radio message that pauses is a card (marked Radio); the rest go to the corner panel
+    const corner = (id: string) => this.d.story[id].style === 'radio' && !this.d.story[id].pause;
+    const inbox = all.filter((id) => !corner(id));
     const cl = document.body.classList, quiet = cl.contains('cine') || cl.contains('title');
-    this.radio(all.filter((id) => this.d.story[id].style === 'radio'), quiet);
+    this.radio(all.filter(corner), quiet);
     let html = '', pause = false, color = '';
     // a cinematic started by the choice plays the reply out on screen: drop the card's copy
     if (this.reply && quiet) this.reply = null;

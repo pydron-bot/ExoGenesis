@@ -2788,6 +2788,13 @@ key radio gone in seconds. Each release below is one fix.
   caretaker's glyph gone pale and eclipsed, the Clause's the same glyph torn; `caretaker.svg` is the player's own
   glyph (used from v0.88.0).
 
+- **Story radio that waits (v0.85.0).** Story field `hold` (radio only): the corner panel stays until tapped ("tap
+  to close") instead of timing out. A radio event with `pause` comes as a card instead (marked Radio), pauses, and
+  counts as a card everywhere a radio message doesn't (the dilemma gap in `story.ts`, the guide's free time in
+  main.ts). Pausing: ENGRAM's first words, its answers (cache, luck), Rime's invitation, Kindred allied / wary /
+  fired on / the scouts home, the Heights' bearing, the Proof's gate. Held: the landings' briefings, the survey
+  notes, ENGRAM's asides. The fight's chatter (strikes, the Lantern) still times out.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

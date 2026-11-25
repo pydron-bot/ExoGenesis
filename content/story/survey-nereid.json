@@ -1,6 +1,7 @@
 {
   "title": "Nereid",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "Survey note, because I can't help myself. Nereid is a plain blue giant: no rings, no storms worth naming, twenty-odd moons of nothing much. Teth is the only thing out here with a straight line on it.",
   "trigger": "here",

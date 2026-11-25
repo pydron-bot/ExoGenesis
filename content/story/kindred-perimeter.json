@@ -1,6 +1,7 @@
 {
   "title": "The Wire",
   "style": "radio",
+  "hold": true,
   "character": "marrow",
   "text": "Machine. I can see your lander from my wall. You'll stay south of the river. If you want to talk, walk one drone up the ramp to my gate. Nothing armed. If anything of yours fires on mine, we're done talking, and I mean for good.",
   "trigger": "never",

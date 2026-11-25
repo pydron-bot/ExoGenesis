@@ -1,6 +1,7 @@
 {
   "title": "Pip",
   "style": "radio",
+  "hold": true,
   "character": "engram",
   "text": "Pip. You will want the scouts. They are well. We found them by a broken lander with no air to spare, and we have kept them safe since. We would like to go on keeping them safe.",
   "trigger": "never",

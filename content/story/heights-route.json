@@ -1,6 +1,7 @@
 {
   "title": "A Wrong Bearing",
   "style": "radio",
+  "pause": true,
   "character": "archivist",
   "text": "I've been checking the Biosphere Report's carrier against the archive. The beam isn't aimed where it should be. I need a high place and a Radar to be sure. There's a plateau in the far north: Signal Heights.",
   "trigger": "counter",

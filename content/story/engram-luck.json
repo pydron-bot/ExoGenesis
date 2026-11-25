@@ -1,6 +1,7 @@
 {
   "title": "Gifts",
   "style": "radio",
+  "pause": true,
   "character": "engram",
   "text": "We have read it. Four hundred and nineteen. We had counted them as gifts. We do not know yet what we have won, if we were helped to win it. We will think. Thank you for telling us.",
   "trigger": "never",

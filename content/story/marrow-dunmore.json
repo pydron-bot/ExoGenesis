@@ -1,6 +1,7 @@
 {
   "title": "Dunmore",
   "style": "radio",
+  "hold": true,
   "character": "marrow",
   "text": "My survey team's at the camp by your lander. Three engineers, no guns. You're the guns. If they come back short, so do we.",
   "trigger": "never",

@@ -3,8 +3,9 @@
   "section": "basics",
   "order": 7,
   "summary": "The log says what just happened. Tap a line marked ◎ to look there.",
-  "text": "The log runs down the side of the screen: a new building online, a deposit running dry, research done, a colonist saying something, a pack sighted.\n\nWhen something of yours is hit, lost or found, you hear it, the radar map pings the spot and the log line gets a **◎**. Tap the line (or press H for the latest alert) and the camera goes straight there.\n\nRadio messages show in their own corner panel. They close by themselves after a while, and stay in the log.\n\nIf something goes wrong and you're not sure why, the log is the first place to look.",
+  "text": "The log runs down the side of the screen: a new building online, a deposit running dry, research done, a colonist saying something, a pack sighted.\n\nWhen something of yours is hit, lost or found, you hear it, the radar map pings the spot and the log line gets a **◎**. Tap the line (or press H for the latest alert) and the camera goes straight there.\n\nRadio messages show in their own corner panel. Most close by themselves after a while; ones that matter to the story stay until you tap them (**tap to close**), and the most important come in as a full card marked **Radio** and pause the game. All of them stay in the log.\n\nIf something goes wrong and you're not sure why, the log is the first place to look.",
   "points": "log",
   "see": "minimap, defence",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.85.0"
 }

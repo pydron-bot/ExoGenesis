@@ -1,6 +1,7 @@
 {
   "title": "Io-T",
   "style": "radio",
+  "hold": true,
   "character": "engram",
   "text": "Io-T. We harvest here; you are welcome to watch. Our report goes out at the end of each of your sols, the same as yours. Things tend to arrive afterwards. We have never asked why.",
   "trigger": "never",

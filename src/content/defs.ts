@@ -1019,7 +1019,7 @@ export const storyShape = {
   title: str({ label: 'Title' }),
   style: choice(['card', 'radio'], { label: 'Shown as', optional: true, help: 'Empty = a card.', helps: {
     card: 'A card at the top of the screen that waits for an answer.',
-    radio: 'A transmission in the corner: no choices; it closes by itself after a while (or when tapped) and stays in the log.',
+    radio: 'A transmission in the corner: no choices; it closes by itself after a while (or when tapped) and stays in the log. With Pause the game, it comes as a card instead (marked Radio); with Hold, it stays in the corner until tapped.',
   } }),
   character: ref('characters', { label: 'Character', optional: true, help: 'Who is talking (Story → Characters): their name, colour and portrait.' }),
   speaker: str({ label: 'Speaker', optional: true, help: 'Or just a name for who is talking, shown above the text.' }),
@@ -1029,7 +1029,8 @@ export const storyShape = {
   delay: num({ label: 'Delay', min: 0, max: 3600, unit: 's', optional: true, help: 'Wait this long after the trigger before firing.' }),
   region: ref('regions', { label: 'Only in region', optional: true, help: 'Empty = any region.' }),
   unless: str({ label: 'Unless flag', optional: true, help: 'Doesn\'t fire if this flag is set.' }),
-  pause: bool({ label: 'Pause the game', optional: true, help: 'Pauses while the card is open (tutorials, big moments).' }),
+  pause: bool({ label: 'Pause the game', optional: true, help: 'Pauses while the card is open (tutorials, big moments). A radio message that pauses comes as a card, marked Radio.' }),
+  hold: bool({ label: 'Hold the radio', optional: true, help: 'Radio only: stays in the corner until tapped, instead of closing by itself (story that mustn\'t be missed, but needn\'t stop play).' }),
   dilemma: bool({ label: 'Colony dilemma', optional: true, help: 'Waits its turn: dilemmas start after the colony rules\' first-dilemma time, at most one per dilemma gap, and never while another card is waiting.' }),
   again: num({ label: 'Can come again after', min: 0, max: 36000, unit: 's', optional: true, help: 'Dilemmas: once answered, it can fire again this long after (its trigger met again). Empty = once a game.' }),
   cast: choice(CASTS, { label: 'About', optional: true, helps: CAST_HELP, help: 'The colonist the card is about: {who} in its text is their name, {whoLine} their family line. With no one to fit, it waits.' }),

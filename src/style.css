@@ -265,6 +265,7 @@ body.placing #card { display: none !important; }
   background: color-mix(in srgb, var(--panel-base) min(100%, calc(88% * var(--panel-k))), transparent); border: 1px solid var(--cyan-dim); border-left-width: 3px; border-radius: 6px; padding: 8px 12px 6px;
   display: none; pointer-events: auto; cursor: pointer;
 }
+#radio .tap { display: block; margin-top: 4px; font-size: 10px; opacity: 0.5; letter-spacing: 0.08em; }
 #radio.on { display: block; animation: radio-in .35s ease-out; }
 /* the log moves up out of its way */
 body.radio-on #log { bottom: calc(var(--above-bar) + var(--radio-h, 0px)); }

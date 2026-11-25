@@ -1,6 +1,7 @@
 {
   "title": "Talus",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "Talus. Nothing alive, nothing to fight, and more metal in the first metre than our whole plain. The archive says a supply cache was set down on the north-east pad before launch. For a yard. For us.",
   "trigger": "never",

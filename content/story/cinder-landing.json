@@ -1,6 +1,7 @@
 {
   "title": "Cinder",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "You're down on Cinder. Don't stand on anything orange. There's a roofed hall on the terrace north-west of you and something long and straight to the north-east. The relay has been pointing a carrier here for as long as we've been sending.",
   "trigger": "never",

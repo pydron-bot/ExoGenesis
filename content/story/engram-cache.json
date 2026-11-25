@@ -1,6 +1,7 @@
 {
   "title": "Kora Answers",
   "style": "radio",
+  "pause": true,
   "character": "engram",
   "text": "We did not take it. It arrived. Caches arrive here quite often; we had thought it was luck. We will look at the log. Thank you for asking us instead of telling us.",
   "trigger": "never",

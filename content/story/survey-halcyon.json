@@ -1,6 +1,7 @@
 {
   "title": "Halcyon",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "Survey note. For a year the Choir's broadcast has carried one bearing, over and over, and I was sure it pointed at Halcyon's rings. I had a whole theory. I've looked at the rings properly now: ice, dust, nothing. It was never pointing past Halcyon. It was pointing at Vess. At you.",
   "trigger": "all",

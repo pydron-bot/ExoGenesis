@@ -1,6 +1,7 @@
 {
   "title": "Orrin",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "While you were down the shaft I ran Halcyon's moons through the survey. Orrin's orbit is a circle to six decimal places. Nothing natural is that round, and nothing stays that round without help. Something keeps it there.",
   "trigger": "all",

@@ -1,6 +1,7 @@
 {
   "title": "Come to Rime",
   "style": "radio",
+  "pause": true,
   "character": "engram",
   "text": "We would like you to come to Rime. Not to fight. We have read the capsules, and we think you have read something under Vess. We would like you to be there when we decide what we are.",
   "trigger": "all",

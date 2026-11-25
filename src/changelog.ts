@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.85.0',
+    date: '2026-11-25',
+    title: 'Messages that wait',
+    notes: [
+      'Radio messages that carry the story no longer vanish while you are busy: the important ones (ENGRAM\'s first words, Kindred\'s answer, the bearing to Signal Heights and more) come in as a full card marked Radio and pause the game',
+      'Briefings on landing and the Archivist\'s survey notes stay in the corner until you tap them',
+    ],
+    guide: ['alerts-and-the-log'],
+  },
+  {
     version: '0.84.0',
     date: '2026-11-25',
     title: 'Faces',

@@ -1,6 +1,7 @@
 {
   "title": "Dunmore's Moons",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "Kindred's shuttles stop at Dunmore's two little moons on every trip. Fuel, Marrow says. I've had the telescope on them. Both moons have the same tank farm, the same make as our Gantry's tanks, and Kindred built neither. They were there when Kindred arrived. Full.",
   "trigger": "mission",

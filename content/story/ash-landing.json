@@ -1,6 +1,7 @@
 {
   "title": "Ash",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "You're down on Ash. No air, no weather, nothing alive. One of the relay's carriers ends in the basin north of you. Radar says metal: a lot of it, in straight lines.",
   "trigger": "never",

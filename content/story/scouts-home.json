@@ -1,6 +1,7 @@
 {
   "title": "That's Twice",
   "style": "radio",
+  "pause": true,
   "character": "marrow",
   "text": "Marrow. I've got four people back I'd stopped counting. You went and got them off a machine that didn't want to give them up. That's twice now. All right. Kindred stands with you.",
   "trigger": "all",

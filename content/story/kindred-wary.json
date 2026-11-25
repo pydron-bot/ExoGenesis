@@ -1,6 +1,7 @@
 {
   "title": "Not Yet",
   "style": "radio",
+  "pause": true,
   "character": "marrow",
   "text": "Marrow. They're home. Thank you for that, and I mean it. But back at the hall you showed me what you wanted me to see, and I haven't forgotten. We'll talk again.",
   "trigger": "all",

@@ -956,7 +956,7 @@ function updateGuide(now: number) {
   guideLast = now;
   const c = sim.cur;
   const playing = !skirmish && !title && !cine && !travelling && !!c?.deployed && !c.over;
-  const card = !!document.querySelector('#contact.on') || !!c?.story?.inbox.some((id) => content.story[id]?.style !== 'radio');
+  const card = !!document.querySelector('#contact.on') || !!c?.story?.inbox.some((id) => content.story[id]?.style !== 'radio' || !!content.story[id]?.pause);
   const free = playing && !card && !menuOpen && !panelOpen() && !tourActive() && !storyHud.pointing && !document.getElementById('whatsnew') && !document.getElementById('chronicle');
   if (tourOffer && free && !autopilot?.on && c!.secs >= 4) {
     if (!offerAt) offerAt = now + 1200;

@@ -1,6 +1,7 @@
 {
   "title": "Vess",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "Down on Vess. Halcyon's taking up half your sky; try not to stare. The ice north of you has been drilled once and filled in again. Whatever LEDGER is, it's under the plug.",
   "trigger": "never",

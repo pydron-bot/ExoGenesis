@@ -1,6 +1,7 @@
 {
   "title": "Sela",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "Telemetry's good. You're down. The mast is north-west of you, on the rim of the big crater. That's where our report goes every night. Mind the relics round it: they're ours, more or less.",
   "trigger": "never",

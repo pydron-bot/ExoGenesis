@@ -1,6 +1,7 @@
 {
   "title": "Written Down",
   "style": "radio",
+  "hold": true,
   "character": "engram",
   "text": "That was unnecessary. We are not angry. We are writing it down.",
   "trigger": "flag",

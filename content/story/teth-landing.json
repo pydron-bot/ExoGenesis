@@ -1,6 +1,7 @@
 {
   "title": "Teth",
   "style": "radio",
+  "hold": true,
   "character": "archivist",
   "text": "Teth. Nereid's moon, about as far out as anything goes. North of you there's a dish sunk in the ice that would hold our whole colony twice over. Every report we've ever sent ends up here. Get to the hub.",
   "trigger": "never",
