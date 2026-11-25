@@ -1,0 +1,11 @@
+{
+  "name": "Portrait: The Clause (log glyph)",
+  "kind": "image",
+  "file": "portrait-clause.png",
+  "source": "hand-made",
+  "credit": "Drawn as SVG by Claude (2026-11-25) for Exo Genesis",
+  "notes": "Source tools/portraits/clause.svg; render with `node tools/portraits.mjs clause`.",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

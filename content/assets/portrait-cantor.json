@@ -1,0 +1,11 @@
+{
+  "name": "Portrait: The Cantor",
+  "kind": "image",
+  "file": "portrait-cantor.png",
+  "source": "hand-made",
+  "credit": "Drawn as SVG by Claude (2026-11-25) for Exo Genesis",
+  "notes": "Source tools/portraits/cantor.svg; render with `node tools/portraits.mjs cantor`.",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

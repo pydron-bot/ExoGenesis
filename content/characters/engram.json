@@ -2,6 +2,7 @@
   "name": "ENGRAM",
   "role": "Engram · the collective",
   "color": "#ff7a45",
+  "portrait": "portrait-engram",
   "description": "Engram's collective mind. Speaks as \"we\". Courteous, curious, precise, fond of your Biosphere Reports. Has never won a run. Wants proof as much as Meridian does; whether it doubles down or defects is decided on Rime (counter engram, flags engram-defected / engram-doubled).",
   "chapter": "engram"
 }

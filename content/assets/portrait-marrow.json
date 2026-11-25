@@ -1,0 +1,11 @@
+{
+  "name": "Portrait: Captain Ilse Marrow",
+  "kind": "image",
+  "file": "portrait-marrow.png",
+  "source": "hand-made",
+  "credit": "Drawn as SVG by Claude (2026-11-25) for Exo Genesis",
+  "notes": "Source tools/portraits/marrow.svg; render with `node tools/portraits.mjs marrow`.",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

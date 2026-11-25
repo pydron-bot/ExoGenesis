@@ -1,0 +1,11 @@
+{
+  "title": "Who is speaking",
+  "section": "story",
+  "order": 2,
+  "summary": "Every voice in the story has a face and a colour.",
+  "text": "The story has a cast. When someone speaks on a card, their **portrait**, name and role show at the top, and the card's edge takes their colour, so you can tell at a glance who is talking: your own colonists, people from other colonies, or things that are not people at all.\n\nRadio messages show a smaller portrait in their corner panel.\n\nA card with no portrait is the colony's own log: what happened, told as **we** for the colony and **you** for you.",
+  "trigger": "after",
+  "event": "first-night",
+  "see": "story-cards",
+  "since": "0.84.0"
+}

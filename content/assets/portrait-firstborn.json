@@ -1,0 +1,11 @@
+{
+  "name": "Portrait: The Firstborn",
+  "kind": "image",
+  "file": "portrait-firstborn.png",
+  "source": "hand-made",
+  "credit": "Drawn as SVG by Claude (2026-11-25) for Exo Genesis",
+  "notes": "Source tools/portraits/firstborn.svg; render with `node tools/portraits.mjs firstborn`.",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

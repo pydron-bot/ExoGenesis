@@ -2781,6 +2781,13 @@ key radio gone in seconds. Each release below is one fix.
   reply still goes to the log (`story.ts`). A choice with no reply (the endings' choices) closes at once, as
   before; a cinematic started by the choice (`cl.cine`) drops the card's copy, since the cinematic plays it out.
 
+- **Portraits (v0.84.0).** Every character in content/characters has a `portrait` (an image asset
+  `portrait-<id>`, 192 px PNG in public/media/image). The sources are SVGs in `tools/portraits/<id>.svg`, drawn
+  flat over a glow in the character's colour; `node tools/portraits.mjs [id…] [--sheet out.png]` renders them (and a
+  contact sheet). The story card shows its portrait at 56 px, the radio panel at 38 px. Meridian's is the
+  caretaker's glyph gone pale and eclipsed, the Clause's the same glyph torn; `caretaker.svg` is the player's own
+  glyph (used from v0.88.0).
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

@@ -1,0 +1,11 @@
+{
+  "name": "Portrait: The Archivist",
+  "kind": "image",
+  "file": "portrait-archivist.png",
+  "source": "hand-made",
+  "credit": "Drawn as SVG by Claude (2026-11-25) for Exo Genesis",
+  "notes": "Source tools/portraits/archivist.svg; render with `node tools/portraits.mjs archivist`.",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

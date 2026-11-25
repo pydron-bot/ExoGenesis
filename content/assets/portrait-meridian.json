@@ -1,0 +1,11 @@
+{
+  "name": "Portrait: Meridian (pale glyph)",
+  "kind": "image",
+  "file": "portrait-meridian.png",
+  "source": "hand-made",
+  "credit": "Drawn as SVG by Claude (2026-11-25) for Exo Genesis",
+  "notes": "Source tools/portraits/meridian.svg; render with `node tools/portraits.mjs meridian`.",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

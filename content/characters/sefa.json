@@ -2,6 +2,7 @@
   "name": "Sefa of the Enclave",
   "role": "Speaker of the Survivors",
   "color": "#c2e07a",
+  "portrait": "portrait-sefa",
   "description": "Speaker of the Enclave in the Deep Layer: descendants of a purged Accord run who escaped their own caretaker. Old-fashioned, wry, unafraid of you, afraid for you. Knows the Clause exists and what wakes it. Holds the code to the Lid on Sela's far side.",
   "chapter": "the-planet"
 }

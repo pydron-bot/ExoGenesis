@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+<defs><radialGradient id="bg" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#7df9ff" stop-opacity=".55"/><stop offset=".55" stop-color="#7df9ff" stop-opacity=".12"/><stop offset="1" stop-color="#05080c"/></radialGradient>
+<linearGradient id="shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient></defs>
+<rect width="256" height="256" fill="#05080c"/><rect width="256" height="256" fill="url(#bg)"/>
+
+<g fill="none" stroke="#7df9ff" stroke-width="5">
+<path d="M128 44 L196 84 V164 L128 204 L60 164 V84Z"/></g>
+<rect x="40" y="96" width="176" height="10" fill="#05080c"/><rect x="40" y="140" width="176" height="6" fill="#05080c"/>
+<g transform="translate(14 0)"><rect x="60" y="106" width="136" height="34" fill="#05080c"/><path d="M60 106 V140 M196 106 V140" stroke="#7df9ff" stroke-width="5"/></g>
+<circle cx="128" cy="124" r="20" fill="#7df9ff" opacity=".85"/>
+<rect x="118" y="116" width="40" height="5" fill="#05080c"/>
+<text x="128" y="234" font-family="monospace" font-size="20" fill="#7df9ff" text-anchor="middle" opacity=".8">§ closing</text>
+<rect x="2" y="2" width="252" height="252" rx="18" fill="none" stroke="#7df9ff" stroke-opacity=".5" stroke-width="4"/>
+</svg>

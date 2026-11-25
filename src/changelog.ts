@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.84.0',
+    date: '2026-11-25',
+    title: 'Faces',
+    notes: [
+      'Everyone who speaks in the story has a portrait now: the Firstborn, the Archivist, Captain Marrow, Dr Bede, ENGRAM, the Marro, Sefa, the Cantor, the Director, and two you may not want to meet',
+      'Story cards show the speaker\'s portrait larger',
+    ],
+    guide: ['who-is-speaking'],
+  },
+  {
     version: '0.83.0',
     date: '2026-11-25',
     title: 'Answers that stay',

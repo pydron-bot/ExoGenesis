@@ -256,7 +256,8 @@ body.placing #card { display: none !important; }
 #contact button.bad { color: var(--crimson); border-color: color-mix(in srgb, var(--crimson) 50%, transparent); }
 #contact .who { display: flex; align-items: center; gap: 8px; }
 #contact .who small, #radio .who small { display: block; color: var(--text); opacity: 0.55; letter-spacing: 0.06em; text-transform: none; font-size: 10px; margin-top: 1px; }
-#contact .por, #radio .por { width: 38px; height: 38px; object-fit: cover; border-radius: 4px; border: 1px solid currentColor; flex: none; }
+#contact .por { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid currentColor; flex: none; }
+#radio .por { width: 38px; height: 38px; object-fit: cover; border-radius: 4px; border: 1px solid currentColor; flex: none; }
 #contact .grp .pg { align-self: center; margin-left: auto; font-size: 11px; opacity: 0.5; }
 /* radio messages: a transmission in the corner (src/contact-card.ts) */
 #radio {

@@ -2,6 +2,7 @@
   "name": "The Archivist",
   "role": "Colony archivist",
   "color": "#a9c4ff",
+  "portrait": "portrait-archivist",
   "description": "A colonist who studies the archive. Pedantic, delighted by evidence, frightened by where it leads. Finds the Clean Signal (E10) and reads the three Directors' scripts side by side.",
   "chapter": "the-planet"
 }

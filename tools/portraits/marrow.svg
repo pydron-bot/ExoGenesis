@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+<defs><radialGradient id="bg" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#ffb36a" stop-opacity=".55"/><stop offset=".55" stop-color="#ffb36a" stop-opacity=".12"/><stop offset="1" stop-color="#05080c"/></radialGradient>
+<linearGradient id="shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient></defs>
+<rect width="256" height="256" fill="#05080c"/><rect width="256" height="256" fill="url(#bg)"/>
+
+<path d="M34 256 C40 196 82 176 128 176 C174 176 216 196 222 256Z" fill="#3a2e22"/>
+<path d="M98 176 L128 200 L158 176 L158 196 L128 222 L98 196Z" fill="#6b5236"/>
+<rect x="166" y="206" width="22" height="6" fill="#ffb36a"/><rect x="166" y="216" width="22" height="6" fill="#ffb36a"/>
+<rect x="116" y="148" width="24" height="32" rx="8" fill="#a8785c"/>
+<path d="M90 110 C90 76 108 60 128 60 C150 60 166 76 166 110 C166 140 150 160 128 160 C106 160 90 140 90 110Z" fill="#c08c6a"/>
+<path d="M88 112 C82 70 104 52 130 52 C158 52 176 72 168 112 C166 92 160 80 146 76 C126 84 104 82 96 80 C90 88 88 98 88 112Z" fill="#7d7468"/>
+<path d="M104 72 C120 66 140 66 152 72" stroke="#c8c2b8" stroke-width="3" fill="none"/>
+<path d="M104 110 H120 M136 110 H152" stroke="#2a1a12" stroke-width="5" stroke-linecap="round"/>
+<path d="M102 100 L120 104 M154 100 L136 104" stroke="#4a3a30" stroke-width="3"/>
+<path d="M116 138 H140" stroke="#6e4434" stroke-width="3" stroke-linecap="round"/>
+<path d="M90 110 C90 76 108 60 128 60 C150 60 166 76 166 110 C166 140 150 160 128 160 C106 160 90 140 90 110Z" fill="url(#shade)"/>
+<rect x="2" y="2" width="252" height="252" rx="18" fill="none" stroke="#ffb36a" stroke-opacity=".5" stroke-width="4"/>
+</svg>
