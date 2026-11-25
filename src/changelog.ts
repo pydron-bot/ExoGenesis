@@ -21,6 +21,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.80.0',
+    date: '2026-11-25',
+    title: 'Touchdown, remastered',
+    notes: [
+      'The landing probe is rebuilt in detail: panelled shell, a tiled heat shield that glows red-hot through entry and cools after, hinge knuckles, thruster pods and proper engine bells that glow while they burn',
+      'New retro-rocket flames: turbulent, soft-edged plumes with bright shock diamonds that reach down to the ground as the probe comes in',
+      'The burn lights up the ground and the dust cloud, throws sparks, and leaves a scorch mark on the pad; touchdown sends a shock ring across the ground and kicks out rocks',
+      'Billowier, more natural dust, and the shell now breaks into glowing motes that drift into the Command Core as it is reclaimed',
+    ],
+    guide: ['cinematics'],
+  },
+  {
     version: '0.79.2',
     date: '2026-11-25',
     title: 'Lighter reflections, heat-aware benchmark',

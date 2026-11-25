@@ -113,6 +113,15 @@ How content is stored and edited in general (one JSON record per file, schemas i
   curves, and plays the game's landing from any moment (`?cine=<s>`; the preview carries the draft).
   Since v0.22.0 the landing is `content/cinematics/landing.json`, one of the cinematics below (`end` became
   `length`; nine beats).
+- **Landing look** (v0.80.0, `src/landing.ts`): petals shade panel seams, staggered heat-shield tiles, re-entry
+  streaks and a painted band in hinge space (per-petal `aSeed`), and glow with entry heat (`uHeat`) that cools
+  after the burn; bells are lathed and glow while burning (`uNozzle`). Plumes are open tubes with a shader
+  (soft silhouette, scrolling 3D noise, shock diamonds in the core; `uThrottle` sets brightness and reach).
+  The burn adds a ground point light, an additive firelight disc and a scorch disc draped on the terrain
+  (`groundDisc` + `decalMaterial`: per-vertex RGBA via its own attribute, since MeshBasicMaterial with
+  4-component vertex colours drew nothing here), warms nearby dust, and throws sparks; touchdown adds a
+  low shock ring of dust, sparks and ~70 instanced rocks; the dissolve sheds cyan motes into the core.
+  Dust puffs are billowy (noise edge, twist, lit top). Stills: `node tools/landing-shot.mjs --gpu --bloom`.
 - **Cinematics** (v0.22.0): `content/cinematics/<id>.json` (Cinematics → any; `cinematicShape` in
   `src/content/defs.ts`): a length, camera keys, captions, **lines** (who says what and for how long: a
   character or a speaker name, `{first}` filled in), **sounds** (audio assets; `music` loops and fades out at
