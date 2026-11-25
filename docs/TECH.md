@@ -155,6 +155,12 @@ How content is stored and edited in general (one JSON record per file, schemas i
   gold with faculae and red spots, fades the old corona shell, and shows `coronaRays()` (a camera-facing sheet:
   streamers, an inner rim, prominence loops); the lens flare fades out as the sun grows past 0.1-0.2 of the view.
   Stills: `node tools/tour-shot.mjs --gpu [--kinds sun,belt,comet,rings,overview] [--w 390 --h 844]`.
+- **No hitch on first placement** (v0.82.1): Derek's iPhone report showed a 445 ms freeze at a shader compile ~10 s
+  into play; placing each building kind compiled 3-5 programs. `RegionView.warmBuildings(kinds)` (boot, once the
+  region's models settle) draws one of every kind buried under the pad for 3 frames: finished (both LODs), printed,
+  and through its batch. The warm prints' materials are kept (not disposed): three.js deletes a program when no
+  material uses it, so each real print finishing freed it and the next placement recompiled. A shrunk construction
+  bar stays in the scene for the same reason. The Performance report names what each compile was for.
 - **Landing without hitches** (v0.80.1): shader compiles mid-landing were the stutter (JS is ~0.2 ms a frame).
   `Landing` draws everything (frustum culling off scene-wide, the region's detail layer forced on via
   `RegionView.forceDetails`, every drone LOD shown, one invisible particle/rock primed, plumes/decals/sheath at

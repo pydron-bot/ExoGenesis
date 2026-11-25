@@ -739,6 +739,8 @@ if (!builtinModels && !skirmishMode) {
 }
 if (!builtinModels && content.assets['exo-wreck']) regionModels.push(loadModel(content.assets['exo-wreck']).then((m) => region.setWreckModel(m), (e) => console.warn('wreck model failed to load', e)));
 
+// once the models are in (or have failed), compile every building's shaders now rather than when each is first placed
+void Promise.allSettled(regionModels).then(() => region.warmBuildings(Object.keys(content.buildings)));
 if (rts) {
   // a skirmish starts deployed: the camera on your Command Core
   const h = rts.setup.homes![0];
@@ -1524,6 +1526,7 @@ const perf = new PerfReport({
     Speed: speed,
   }),
   camDist: () => cam.dist,
+  scene,
   moment: () => (cine ? `${cine.world ? 'cinematic' : 'landing'} ${cine.t.toFixed(1)} s` : title ? 'title' : cam.b > 0.5 ? 'system' : cam.a > 0.5 ? 'planet' : 'surface'),
   resScale: () => res.scale,
   holdRes: (on) => { res.hold = on; },

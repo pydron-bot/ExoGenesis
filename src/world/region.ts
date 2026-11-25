@@ -1223,6 +1223,72 @@ export class RegionView {
   /** Frames to draw the detail layer whatever the distance (the landing's shader warm-up: src/landing.ts). */
   forceDetails = 0;
 
+  /** The building warm-up in progress (warmBuildings). */
+  private warmKeep: Printed[] = [];
+  private warmBar: THREE.Group | null = null;
+  private warming: { g: THREE.Group; objs: THREE.Object3D[]; prints: Printed[]; batched: [BuildingBatch, number][]; unculled: THREE.Object3D[]; left: number } | null = null;
+
+  /**
+   * Draw one of every building kind (finished, at both levels of detail; being printed; and the batched kinds through
+   * their batch) buried under the pad, where nothing shows, for a few frames: their shaders compile now (at load, or
+   * when the models arrive) instead of stalling a frame the first time the player places each kind (v0.82.1: a
+   * 445 ms freeze on an iPhone). Then they're taken away again.
+   */
+  warmBuildings(kinds: string[], frames = 3) {
+    this.endWarm();
+    const g = new THREE.Group();
+    g.name = 'warm-buildings';
+    const objs: THREE.Object3D[] = [], prints: Printed[] = [], batched: [BuildingBatch, number][] = [], unculled: THREE.Object3D[] = [];
+    const deep = new THREE.Matrix4();
+    kinds.forEach((kind, i) => {
+      if (!this.rules.defs[kind]) return;
+      const done = this.modelFor(kind);
+      const print = this.printOn ? new Printed(this.modelFor(kind)) : null;
+      print?.set(0.5, 0);
+      for (const o of [done, print?.root]) {
+        if (!o) continue;
+        orient(o, 0, 0, 0, -60);
+        objs.push(o);
+        g.add(o);
+      }
+      if (print) prints.push(print);
+      const b = this.batchFor(kind);
+      if (b) {
+        done.updateMatrix();
+        deep.copy(done.matrix);
+        b.set(-1000 - i, deep);
+        batched.push([b, -1000 - i]);
+        b.group.traverse((o) => { if (o.frustumCulled) { o.frustumCulled = false; unculled.push(o); } });
+      }
+    });
+    // every part drawn: both levels of detail, wherever the camera is looking
+    g.traverse((o) => { o.visible = true; o.frustumCulled = false; });
+    // a construction bar (drawn over everything, so not buried: shrunk to nothing), kept for good so its programs stay
+    if (!this.warmBar) {
+      this.warmBar = makeBar();
+      this.warmBar.visible = true;
+      this.warmBar.scale.setScalar(1e-5);
+      this.warmBar.traverse((o) => { o.frustumCulled = false; });
+      this.details.add(this.warmBar);
+    }
+    this.details.add(g);
+    this.forceDetails = Math.max(this.forceDetails, frames + 1);
+    this.warming = { g, objs, prints, batched, unculled, left: frames };
+  }
+
+  private endWarm() {
+    const w = this.warming;
+    if (!w) return;
+    this.warming = null;
+    this.details.remove(w.g);
+    for (const o of w.objs) this.dropLod(o);
+    // not disposed: a program is deleted once no material uses it, so each real building's print finishing would
+    // free it and the next placement would compile it again. These few materials keep them for the session.
+    this.warmKeep.push(...w.prints);
+    for (const [b, id] of w.batched) b.remove(id);
+    for (const o of w.unculled) o.frustumCulled = true;
+  }
+
   /** The pad's scorch mark, 0..1 (the landing burns it in; 1 for the rest of the game). */
   setScorch(k: number) {
     (this.scorch.material as THREE.ShaderMaterial).uniforms.uOpacity.value = k * 0.85;
@@ -1232,6 +1298,7 @@ export class RegionView {
   /** Region border, orbit marker and core beacon — everything that isn't sim-driven. */
   updateOverlay(dist: number, t: number) {
     // fade detail out as we leave the surface
+    if (this.warming && --this.warming.left < 0) this.endWarm();
     this.details.visible = dist < 1800 || this.forceDetails > 0;
     if (this.forceDetails > 0) this.forceDetails--;
     const borderMat = this.border.material as THREE.LineBasicMaterial;

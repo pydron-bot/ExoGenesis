@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.93.1',
+    date: '2026-11-25',
+    title: 'No hitch on your first building',
+    notes: [
+      'Placing a kind of building for the first time no longer freezes the game for a moment (up to half a second on a phone): every building\'s graphics are prepared while the game loads',
+      'Performance report: the list of graphics prepared while recording now says what each was for',
+    ],
+    guide: [],
+  },
+  {
     version: '0.93.0',
     date: '2026-11-25',
     title: 'Which editor',

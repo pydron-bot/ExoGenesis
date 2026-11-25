@@ -36,6 +36,8 @@ export interface PerfDeps {
   msgTiming: (fn: ((ms: number, type: string) => void) | null) => void;
   /** What's on screen now, for the slow-frame list ('landing 6.3 s', 'surface'…). */
   moment?: () => string;
+  /** The scene, to name what a freshly compiled shader is for. */
+  scene?: THREE.Scene;
 }
 
 const RECORD_MAX = 10 * 60 * 1000;
@@ -74,7 +76,8 @@ export class PerfReport {
   /** The slowest frames: [ms, seconds into the recording, what was on screen]. */
   private slow: [number, number, string][] = [];
   /** Shaders compiled while recording: [seconds in, how many, what was on screen]. */
-  private compiles: [number, number, string][] = [];
+  private compiles: [number, number, string, string][] = [];
+  private progIds = new Set<number>();
   private programs = 0;
   // bench
   private phases: Phase[] = [];
@@ -189,9 +192,13 @@ export class PerfReport {
     if (this.mode === 'record') {
       this.work.push(performance.now() - this.frameT);
       this.calls.push(info.calls); this.tris.push(info.triangles);
-      const n = this.d.renderer.info.programs?.length ?? 0;
-      if (n > this.programs) this.compiles.push([(performance.now() - this.t0) / 1000, n - this.programs, this.d.moment?.() ?? '']);
-      this.programs = n;
+      const progs = this.d.renderer.info.programs ?? [];
+      if (progs.length !== this.programs) {
+        const fresh = progs.filter((p) => !this.progIds.has(p.id));
+        for (const p of progs) this.progIds.add(p.id);
+        if (fresh.length) this.compiles.push([(performance.now() - this.t0) / 1000, fresh.length, this.d.moment?.() ?? '', this.nameOf(fresh)]);
+      }
+      this.programs = progs.length;
       return;
     }
     const ph = this.phases[this.pi];
@@ -228,8 +235,26 @@ export class PerfReport {
     this.msgs = []; this.snaps = 0;
     this.slow = []; this.compiles = [];
     this.programs = this.d.renderer.info.programs?.length ?? 0;
+    this.progIds = new Set((this.d.renderer.info.programs ?? []).map((p) => p.id));
     this.d.msgTiming(this.onMsg);
     this.recordText = '';
+  }
+
+  /** What a set of new programs draws: the materials in the scene now using them (with an owner's name), a few. */
+  private nameOf(fresh: { id: number; name?: string }[]): string {
+    const ids = new Set(fresh.map((p) => p.id)), out = new Set<string>();
+    this.d.scene?.traverse((o) => {
+      if (out.size >= 4) return;
+      const ms = (o as THREE.Mesh).material;
+      for (const m of ms ? ([] as THREE.Material[]).concat(ms) : []) {
+        const prog = (this.d.renderer.properties.get(m) as { currentProgram?: { id: number } }).currentProgram;
+        if (!prog || !ids.has(prog.id)) continue;
+        let p: THREE.Object3D | null = o, owner = '';
+        while (p && !owner) { owner = p.name; p = p.parent; }
+        out.add(`${m.type.replace('Material', '')}${m.name ? `:${m.name}` : ''}${owner ? ` in ${owner}` : ''}`);
+      }
+    });
+    return out.size ? [...out].join(', ') : fresh.map((p) => p.name || 'shader').join(', ');
   }
 
   /** Start recording now (`?perf=record`: from the first frame, so the landing is in it). */
@@ -258,7 +283,7 @@ export class PerfReport {
     for (const [dt, at, what] of slow) out.push(`    ${ms(dt)} at ${at.toFixed(1)} s${what ? ` (${what})` : ''}`);
     const nc = this.compiles.reduce((a, c) => a + c[1], 0);
     out.push(`  Shaders compiled while recording (each can stall a frame): ${nc || 'none'}`);
-    for (const [at, n, what] of this.compiles.slice(0, 20)) out.push(`    ${n} at ${at.toFixed(1)} s${what ? ` (${what})` : ''}`);
+    for (const [at, n, what, names] of this.compiles.slice(0, 20)) out.push(`    ${n} at ${at.toFixed(1)} s${what ? ` (${what})` : ''}${names ? `: ${names}` : ''}`);
     this.recordText = out.join('\n');
     this.open();
   }
