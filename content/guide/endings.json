@@ -3,7 +3,8 @@
   "section": "story",
   "order": 5,
   "summary": "The story has five endings. Your choices, and your colonists, decide which you reach.",
-  "text": "The story doesn't end the same way every time. There are **five endings**, and the title screen counts the ones you've reached.\n\nWhich one you reach isn't picked in one moment. It grows out of the whole campaign: the choices on the story cards, how you treat the planet and the people you meet, and above all what your own colonists think of you by then.\n\nA colony that trusts you, one that doesn't, one that would follow you anywhere: each takes the story somewhere different. There's no wrong way to play, but there are ways to lose everything.",
+  "text": "The story doesn't end the same way every time. There are **five endings**, and the title screen counts the ones you've reached.\n\nWhich one you reach isn't picked in one moment. It grows out of the whole campaign: the choices on the story cards, how you treat the planet and the people you meet, and above all what your own colonists think of you by then.\n\nA colony that trusts you, one that doesn't, one that would follow you anywhere: each takes the story somewhere different. There's no wrong way to play, but there are ways to lose everything.\n\nYou won't have to guess at all of it. The people you deal with tell you what they remember of you: Kindred's captain, ENGRAM, who keeps notes, and, before the end, your own colony, which tells you which way it would vote.",
   "see": "acceptance-and-blocs, story-cards, chronicle",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.91.0"
 }

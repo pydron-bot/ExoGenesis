@@ -1,0 +1,42 @@
+{
+  "title": "If We Voted Tonight",
+  "character": "firstborn",
+  "text": "\"If the colony voted tonight, it'd be close, and it'd come out for you. Not for doing as you say: for standing next to you.\"",
+  "lines": [
+    {
+      "text": "\"Keep it that way. Whatever's coming, I think that's the only side worth being on.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "flag",
+      "flag": "foundry-found"
+    },
+    {
+      "kind": "majority",
+      "stance": "devoted",
+      "not": true
+    },
+    {
+      "kind": "majority",
+      "stance": "autonomist",
+      "not": true
+    }
+  ],
+  "delay": 20,
+  "region": "touchdown",
+  "unless": "lean-told",
+  "pause": true,
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "lean-told"
+    }
+  ],
+  "chapter": "the-lantern",
+  "tags": "consequence, trust, climax",
+  "status": "draft",
+  "notes": "Says the colony's lean before Trust decides (v0.91.0): the bloc that would carry a vote, read at home after the Foundry; one of the three, once (lean-told). The Clause wakes a little later (clause-6 +3 lead, clause-patience)."
+}

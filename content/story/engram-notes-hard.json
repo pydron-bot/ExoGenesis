@@ -1,0 +1,25 @@
+{
+  "title": "What We Wrote Down",
+  "style": "radio",
+  "hold": true,
+  "character": "engram",
+  "text": "Before you come down: we keep notes. By our count you have not been kind to us. We are not angry. It is written down, and we have read it several times.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "engram-rime"
+    },
+    {
+      "kind": "counterBelow",
+      "counter": "engram",
+      "count": 0
+    }
+  ],
+  "delay": 10,
+  "region": "rime-prime",
+  "chapter": "engram",
+  "tags": "consequence",
+  "status": "draft",
+  "notes": "Says the engram counter aloud before engram-choice reads it (v0.91.0): ≥ 3 kind, 1–2 careful, ≤ 0 hard."
+}

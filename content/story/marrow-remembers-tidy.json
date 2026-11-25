@@ -1,0 +1,24 @@
+{
+  "title": "She Remembers",
+  "style": "radio",
+  "hold": true,
+  "character": "marrow",
+  "text": "Marrow. I've still got your tidy little log on my desk. I'm letting my people near you because I've no one else to ask. Walk behind them. I'll be watching which way your guns point.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "marrow-dunmore"
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-withheld"
+    }
+  ],
+  "delay": 12,
+  "region": "dunmore-dustfall",
+  "chapter": "kindred",
+  "tags": "consequence",
+  "status": "draft",
+  "notes": "Consequence of marrow-meeting's withheld choice, said aloud at Dunmore."
+}

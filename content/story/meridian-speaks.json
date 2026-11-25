@@ -18,6 +18,10 @@
       "kind": "counter",
       "counter": "lead",
       "count": 6
+    },
+    {
+      "kind": "flag",
+      "flag": "lean-told"
     }
   ],
   "region": "touchdown",
@@ -57,5 +61,5 @@
   "chapter": "the-lantern",
   "tags": "climax, meridian, clause",
   "status": "draft",
-  "notes": "The Clause wakes. Starts after the Foundry, once lead ≥ 6 (Foundry +3, Ledger +2, one report a sol). Plays cine-meridian; the card follows it."
+  "notes": "The Clause wakes. Starts after the Foundry, once lead ≥ 6 (Foundry +3, Ledger +2, one report a sol). Plays cine-meridian; the card follows it. Waits for lean-told (the colony's lean said first, v0.91.0)."
 }

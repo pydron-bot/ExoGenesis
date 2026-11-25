@@ -1,0 +1,24 @@
+{
+  "title": "She Remembers",
+  "style": "radio",
+  "hold": true,
+  "character": "marrow",
+  "text": "Marrow. I read your log again last night, the bad days and all. That's the only reason my people are walking out with your machines. Prove me right.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "marrow-dunmore"
+    },
+    {
+      "kind": "flag",
+      "flag": "kindred-honest"
+    }
+  ],
+  "delay": 12,
+  "region": "dunmore-dustfall",
+  "chapter": "kindred",
+  "tags": "consequence",
+  "status": "draft",
+  "notes": "Consequence of marrow-meeting's honest choice, said aloud at Dunmore."
+}

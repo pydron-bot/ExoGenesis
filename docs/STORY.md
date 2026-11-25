@@ -354,6 +354,7 @@ Flags (lower-case, hyphenated). The ones the endings read:
 | counter `act1-trips` | each Act 1 expedition's reward | `heights-route` (3 trips route Signal Heights) |
 | `kindred-honest` | `marrow-meeting` (show the colonists' log) | `kindred-allied` → `kindred-ally` |
 | `lid-open`, `lid-code` | `lantern-sefa` (the Enclave's code) or the Lid's relic grid broken (`lid-forced`) | `the-core`, `proof-weighed` |
+| `lean-told` | `lean-*` at home after the Foundry (the colony's lean, said aloud) | `meridian-speaks` waits for it |
 | `proof-ready` | `proof-ready` at home during the fight (the Archivist's drive) | text only |
 | `proof-holds` | `proof-weighed` at the Lantern once the Lid is open: every Proof condition, the colony's from the home snapshot | `proof` / `covenant-seized` |
 | `the-fight`, `trust-settled` | `trust-partners` / `trust-devoted` (refuse) | the fight at home |

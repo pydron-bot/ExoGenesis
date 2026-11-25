@@ -1,0 +1,24 @@
+{
+  "title": "What We Wrote Down",
+  "style": "radio",
+  "hold": true,
+  "character": "engram",
+  "text": "Also written down: you gave us your bank's genomes and did not ask them. We were glad of them. We thought less of you for it. Both are true.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "engram-rime"
+    },
+    {
+      "kind": "flag",
+      "flag": "genomes-copied"
+    }
+  ],
+  "delay": 16,
+  "region": "rime-prime",
+  "chapter": "engram",
+  "tags": "consequence",
+  "status": "draft",
+  "notes": "Names a choice the engram counter remembers (genomes-copied), on Rime before the choice."
+}

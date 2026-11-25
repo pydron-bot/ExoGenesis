@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.91.0',
+    date: '2026-11-25',
+    title: 'Remembered',
+    notes: [
+      'Your choices come back to you: Captain Marrow brings up what you showed her at the council hall, and on Rime ENGRAM reads out what it has written down about you before it decides',
+      'Before the end, your colony tells you which way it would vote if it came to it, while there is still time to change its mind',
+    ],
+    guide: ['endings'],
+  },
+  {
     version: '0.90.0',
     date: '2026-11-25',
     title: 'Along for the ride',

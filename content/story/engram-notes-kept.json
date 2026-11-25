@@ -1,0 +1,24 @@
+{
+  "title": "What We Wrote Down",
+  "style": "radio",
+  "hold": true,
+  "character": "engram",
+  "text": "Also written down: you told Kindred about the parcels, and not us. We found out from the relay, the way you did. It was a lonely way to find out.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "engram-rime"
+    },
+    {
+      "kind": "flag",
+      "flag": "luck-kept"
+    }
+  ],
+  "delay": 20,
+  "region": "rime-prime",
+  "chapter": "engram",
+  "tags": "consequence",
+  "status": "draft",
+  "notes": "Names a choice the engram counter remembers (luck-kept), on Rime before the choice."
+}

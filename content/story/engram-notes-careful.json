@@ -1,0 +1,31 @@
+{
+  "title": "What We Wrote Down",
+  "style": "radio",
+  "hold": true,
+  "character": "engram",
+  "text": "Before you come down: we keep notes. By our count you have been careful with us, mostly. Not kind. Careful. We have written down both.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "engram-rime"
+    },
+    {
+      "kind": "counter",
+      "counter": "engram",
+      "count": 1
+    },
+    {
+      "kind": "counter",
+      "counter": "engram",
+      "count": 3,
+      "not": true
+    }
+  ],
+  "delay": 10,
+  "region": "rime-prime",
+  "chapter": "engram",
+  "tags": "consequence",
+  "status": "draft",
+  "notes": "Says the engram counter aloud before engram-choice reads it (v0.91.0): ≥ 3 kind, 1–2 careful, ≤ 0 hard."
+}

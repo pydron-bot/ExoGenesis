@@ -1,0 +1,24 @@
+{
+  "title": "What We Wrote Down",
+  "style": "radio",
+  "hold": true,
+  "character": "engram",
+  "text": "Also written down: the pen on Pip. You did not ask. Our guards there were very old.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "engram-rime"
+    },
+    {
+      "kind": "flag",
+      "flag": "scouts-forced"
+    }
+  ],
+  "delay": 22,
+  "region": "rime-prime",
+  "chapter": "engram",
+  "tags": "consequence",
+  "status": "draft",
+  "notes": "Names a choice the engram counter remembers (scouts-forced), on Rime before the choice."
+}

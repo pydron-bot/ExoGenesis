@@ -2829,6 +2829,13 @@ key radio gone in seconds. Each release below is one fix.
   Touchdown). `open-planet` now has the Firstborn ride along. Six home reactions by name (`cast`), 75 s after a
   discovery's mission: `home-vell`, `home-choir`, `home-burrows`, `home-berth`, `home-graded`, `home-tape`.
 
+- **Consequences said aloud (v0.91.0).** Marrow at Dunmore names the hall (`marrow-remembers-honest` /
+  `-tidy`, on `kindred-honest` / `kindred-withheld`). On Rime, before the choice, ENGRAM reads its notes: the counter
+  `engram` as kind (≥ 3), careful (1–2) or hard (≤ 0) (`engram-notes-*`), then the choices it remembers
+  (`genomes-copied`, `luck-told`, `luck-kept`, `scouts-forced`). At home after the Foundry, the colony says which bloc
+  would carry a vote tonight (`lean-autonomist` / `-devoted` / `-partners`, once: `lean-told`), and `meridian-speaks`
+  now waits for `lean-told`, so the lean always comes before Trust decides.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).
