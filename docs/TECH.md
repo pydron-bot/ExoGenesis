@@ -659,8 +659,17 @@ How content is stored and edited in general (one JSON record per file, schemas i
     `readPixels` so the time includes the GPU (vsync would hide it). Switches write their remembered keys:
     `setOff` wraps `Storage.prototype.setItem` to note which, and only those are restored afterwards (other
     saves made meanwhile, like the camera, are left alone). Report = device (unmasked GPU string), game facts,
-    settings, sections; Copy (clipboard, execCommand fallback) / Save (.txt download). `?perfframes=W,M`
+    settings, sections; Copy (clipboard, execCommand fallback) / Save (.txt download). `?perfframes=W,M,L,S`
     shortens the steps for tests.
+    v0.79.1: `renderer.info.autoReset` off while running (it counted only the composer's last pass: "1 draw").
+    Each benchmark step has a *running* part after the waited one: un-paused, `S` settle frames then `L`
+    (120) frames timed frame to frame, no sync. `SimClient.timing` (static hook) times each worker message on
+    the main thread from the first `e.data` read (that's when the browser decodes it). The recording adds
+    snapshots/s and their cost, and frame-to-frame minus own work ("outside the frame"). First real report
+    (Derek's iPhone, v0.79.0): waited ~12 ms with every effect on and no measurable saving from any of them,
+    yet 42 fps in play with the render scale stuck at 1.0–1.25: the cost is outside the GPU work, which is
+    what the running part and the message timing are for. Headless Chromium doesn't throttle rAF to the GPU,
+    so "running" reads 16.7 ms there whatever the load (meaningful on real devices only).
   - Sky reflections default off in automated browsers (like Glow): on SwiftShader they took frames from ~0.7 s
     to ~1.2 s and `skirmish-play-smoke` lost sight of its spawned enemies; screenshot scripts pass `?reflect=1`.
   - `tools/asset-smoke.mjs` had been checking `army.bodies[1]` for the asset model since before v0.14.0 moved

@@ -1518,8 +1518,9 @@ const perf = new PerfReport({
   setSpeed: (n) => setSpeed(n),
   open: openInfo,
   tap: () => audio.play('tap'),
-  // ?perfframes=W,M: fewer frames per benchmark step (tests)
-  frames: params.has('perfframes') ? { warm: Number(params.get('perfframes')!.split(',')[0]) || 5, measure: Number(params.get('perfframes')!.split(',')[1]) || 10 } : undefined,
+  // ?perfframes=W,M,L,S: fewer frames per benchmark step (tests)
+  frames: params.has('perfframes') ? (() => { const [w, m, l, st] = params.get('perfframes')!.split(',').map(Number); return { warm: w || 5, measure: m || 10, live: l || 10, settle: st || 2 }; })() : undefined,
+  msgTiming: (fn) => { SimClient.timing = fn; },
 });
 
 // ---------- game menu (☰ Menu / Esc): pauses while open ----------

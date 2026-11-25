@@ -30,8 +30,10 @@ export interface PerfDeps {
   setSpeed: (s: number) => void;
   open: (title: string, html: string, onClose?: () => void) => { el: HTMLElement; close: () => void };
   tap: () => void;
-  /** Frames to settle and to measure per benchmark step (tests shorten them). */
-  frames?: { warm: number; measure: number };
+  /** Frames to settle, to measure with the graphics chip waited for, and to measure running, per benchmark step (tests shorten them). */
+  frames?: { warm: number; measure: number; live?: number; settle?: number };
+  /** Hook main-thread timing of the sim worker's messages (ms, type), or unhook it (null). */
+  msgTiming: (fn: ((ms: number, type: string) => void) | null) => void;
 }
 
 const RECORD_MAX = 10 * 60 * 1000;
@@ -47,7 +49,9 @@ const ms = (v: number) => `${v.toFixed(1)} ms`;
 const line = (st: Stats) => `avg ${ms(st.mean)} (${st.mean ? (1000 / st.mean).toFixed(0) : '–'} fps) · median ${ms(st.p50)} · 90% ${ms(st.p90)} · 99% ${ms(st.p99)} · worst ${ms(st.max)}`;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
-interface Phase { label: string; off: string[]; times: number[]; calls: number; tris: number }
+interface Phase { label: string; off: string[]; times: number[]; calls: number; tris: number; live: number[]; msgMs: number; msgN: number; liveT: number }
+const phase = (label: string, off: string[]): Phase => ({ label, off, times: [], calls: 0, tris: 0, live: [], msgMs: 0, msgN: 0, liveT: 0 });
+
 
 export class PerfReport {
   private mode: 'idle' | 'record' | 'bench' = 'idle';
@@ -63,6 +67,8 @@ export class PerfReport {
   private calls: number[] = [];
   private tris: number[] = [];
   private recordText = '';
+  private msgs: number[] = [];
+  private snaps = 0;
   // bench
   private phases: Phase[] = [];
   private pi = 0;
@@ -75,10 +81,22 @@ export class PerfReport {
 
   private warm: number;
   private measure: number;
+  private live: number;
+  /** Frames let go by after un-pausing, before the running part is measured. */
+  private settle: number;
+  private lastLive = 0;
   constructor(private d: PerfDeps) {
-    this.warm = d.frames?.warm ?? 40;
-    this.measure = d.frames?.measure ?? 90;
+    this.warm = d.frames?.warm ?? 30;
+    this.measure = d.frames?.measure ?? 60;
+    this.live = d.frames?.live ?? 120;
+    this.settle = d.frames?.settle ?? 10;
   }
+
+  /** A message from the sim worker took `ms` on the main thread (receiving, decoding, handling). */
+  private onMsg = (msv: number, type: string) => {
+    if (this.mode === 'record') { this.msgs.push(msv); if (type === 'snap') this.snaps++; }
+    else if (this.mode === 'bench' && this.fi >= this.warm + this.measure + this.settle) { const ph = this.phases[this.pi]; ph.msgMs += msv; ph.msgN++; }
+  };
 
   get busy() { return this.mode !== 'idle'; }
 
@@ -94,7 +112,7 @@ export class PerfReport {
     const html = `
       <p>Measures how the game runs on this device. Paste the report into a message (or attach the file) when something is slow.</p>
       <p><b>Record while I play</b>: play as usual (move around, zoom in and out, fight); stop when you're done. Up to 10 minutes.</p>
-      <p><b>Benchmark the effects</b>: the game pauses and the view holds still for about half a minute while each costly effect is switched off in turn. Leave the camera where something typical is on screen. Your settings are put back afterwards.</p>
+      <p><b>Benchmark the effects</b>: about a minute and a half. Each costly effect is switched off in turn and measured twice: paused, waiting for the graphics chip to finish each frame, then for a few seconds with the game running. Leave the camera where something typical is on screen and don't touch it. Your settings are put back afterwards.</p>
       <div class="pf-acts">
         <button class="op-act pf-btn" data-pf="record">● Record while I play</button>
         <button class="op-act pf-btn" data-pf="bench">⏱ Benchmark the effects</button>
@@ -127,6 +145,15 @@ export class PerfReport {
     const info = this.d.renderer.info;
     info.autoReset = false;
     info.reset();
+    if (this.mode === 'bench') {
+      // the running part: frame to frame, as the game normally runs
+      if (this.fi >= this.warm + this.measure + this.settle) {
+        const ph = this.phases[this.pi];
+        if (this.lastLive) { ph.live.push(now - this.lastLive); ph.liveT += now - this.lastLive; }
+        this.lastLive = now;
+      }
+      return;
+    }
     if (this.mode === 'record') {
       if (this.last) {
         const dt = now - this.last;
@@ -153,15 +180,21 @@ export class PerfReport {
       this.calls.push(info.calls); this.tris.push(info.triangles);
       return;
     }
-    // bench: wait for the graphics chip, then count the whole frame
-    const gl = this.d.renderer.getContext();
-    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
-    const took = performance.now() - this.frameT;
     const ph = this.phases[this.pi];
+    const synced = this.warm + this.measure;
     this.fi++;
-    if (this.fi > this.warm) { ph.times.push(took); ph.calls = info.calls; ph.tris = info.triangles; }
-    this.setBadge(`⏱ Benchmark ${this.pi + 1}/${this.phases.length}: ${ph.label}`, 'Cancel', () => this.endBench(true));
-    if (this.fi >= this.warm + this.measure) {
+    if (this.fi <= synced) {
+      // paused: wait for the graphics chip, then count the whole frame
+      const gl = this.d.renderer.getContext();
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
+      const took = performance.now() - this.frameT;
+      if (this.fi > this.warm) { ph.times.push(took); ph.calls = info.calls; ph.tris = info.triangles; }
+      // then the same, running
+      if (this.fi === synced) { this.d.setSpeed(1); this.lastLive = 0; }
+    }
+    this.setBadge(`⏱ Benchmark ${this.pi + 1}/${this.phases.length}: ${ph.label}${this.fi > synced ? ' · running' : ''}`, 'Cancel', () => this.endBench(true));
+    if (this.fi >= synced + this.settle + this.live) {
+      this.d.setSpeed(0);
       this.setOff(ph.off, false);
       this.pi++;
       this.fi = 0;
@@ -178,10 +211,13 @@ export class PerfReport {
     this.dts = []; this.work = []; this.calls = []; this.tris = [];
     this.byZoom.clear();
     this.scales = []; this.lastScale = 0;
+    this.msgs = []; this.snaps = 0;
+    this.d.msgTiming(this.onMsg);
     this.recordText = '';
   }
   private stopRecord() {
     this.mode = 'idle';
+    this.d.msgTiming(null);
     this.d.renderer.info.autoReset = true;
     this.clearBadge();
     const secs = (performance.now() - this.t0) / 1000;
@@ -190,6 +226,8 @@ export class PerfReport {
     const out = [`RECORDING (${secs.toFixed(0)} s, ${st.n} frames)`,
       `  Frame to frame: ${line(st)}`,
       `  The game's own work per frame (main thread, graphics chip not waited for): ${line(wk)}`,
+      `  Between frames, outside the game's frame (waiting for the next screen refresh, the browser compositing, the graphics chip catching up, garbage collection, messages): avg ${ms(Math.max(0, st.mean - wk.mean))} a frame`,
+      ...this.msgLines(this.msgs, this.snaps, secs),
       `  Slow frames: ${long(33.4)} over 33 ms, ${long(50)} over 50 ms, ${long(100)} over 100 ms`,
       `  Draw calls: avg ${stats(this.calls).mean.toFixed(0)}, most ${stats(this.calls).max}; triangles: avg ${(stats(this.tris).mean / 1000).toFixed(0)}k, most ${(stats(this.tris).max / 1000).toFixed(0)}k`,
       '  By zoom:'];
@@ -213,10 +251,9 @@ export class PerfReport {
     this.d.setSpeed(0);
     this.d.holdRes(true);
     const label = (id: string) => ts.find((x) => x.id === id)?.label ?? id;
-    this.phases = [{ label: 'as you have it', off: [], times: [], calls: 0, tris: 0 },
-      ...on.map((id) => ({ label: `${label(id)} off`, off: [id], times: [], calls: 0, tris: 0 })),
-      ...(on.length > 1 ? [{ label: 'all of those off', off: on, times: [], calls: 0, tris: 0 }] : [])];
+    this.phases = [phase('as you have it', []), ...on.map((id) => phase(`${label(id)} off`, [id])), ...(on.length > 1 ? [phase('all of those off', on)] : [])];
     this.pi = 0; this.fi = 0;
+    this.d.msgTiming(this.onMsg);
     this.benchText = '';
     this.mode = 'bench';
   }
@@ -231,6 +268,7 @@ export class PerfReport {
   private endBench(cancelled: boolean) {
     if (this.pi < this.phases.length) this.setOff(this.phases[this.pi].off, false);
     this.mode = 'idle';
+    this.d.msgTiming(null);
     this.d.renderer.info.autoReset = true;
     this.clearBadge();
     try {
@@ -243,15 +281,26 @@ export class PerfReport {
     this.d.setSpeed(this.savedSpeed);
     const done = () => { this.resume?.(); this.resume = undefined; };
     if (cancelled) { this.open(done); return; }
-    const base = stats(this.phases[0].times).mean;
-    const out = [`BENCHMARK (view held still, render scale ${this.d.resScale().toFixed(2)}, each frame waits for the graphics chip; ${this.measure} frames each)`];
+    const base = stats(this.phases[0].times).mean, baseLive = stats(this.phases[0].live).mean;
+    const saves = (b: number, v: number) => ` → saves ${ms(b - v)} (${((1 - v / b) * 100).toFixed(0)}%)`;
+    const out = [`BENCHMARK (view held still, render scale ${this.d.resScale().toFixed(2)})`,
+      `  Each step twice: "waited" = paused, each frame waits for the graphics chip to finish (${this.measure} frames: the frame's full cost);`,
+      `  "running" = the game running, frame to frame as it normally plays (${this.live} frames), with the main thread's time on simulation updates.`];
     for (const ph of this.phases) {
-      const st = stats(ph.times);
-      const save = ph.off.length ? `  → saves ${ms(base - st.mean)} (${((1 - st.mean / base) * 100).toFixed(0)}%)` : '';
-      out.push(`  ${ph.label.padEnd(30)} ${line(st)} · ${ph.calls} draws, ${(ph.tris / 1000).toFixed(0)}k tris${save}`);
+      const st = stats(ph.times), lv = stats(ph.live);
+      const secs = ph.liveT / 1000;
+      out.push(`  ${ph.label}`);
+      out.push(`    waited:  ${line(st)} · ${ph.calls} draws, ${(ph.tris / 1000).toFixed(0)}k tris${ph.off.length ? saves(base, st.mean) : ''}`);
+      out.push(`    running: ${line(lv)}${ph.off.length ? saves(baseLive, lv.mean) : ''} · sim updates ${secs ? (ph.msgN / secs).toFixed(0) : '?'}/s, ${ph.msgN ? ms(ph.msgMs / ph.msgN) : '–'} each`);
     }
     this.benchText = out.join('\n');
     this.open(done);
+  }
+
+  private msgLines(a: number[], snaps: number, secs: number) {
+    if (!a.length) return ['  Simulation updates on the main thread: none received'];
+    const st = stats(a), total = a.reduce((x, y) => x + y, 0);
+    return [`  Simulation updates on the main thread (receiving, decoding, handling): ${(snaps / secs).toFixed(0)} snapshots/s, ${(a.length / secs).toFixed(0)} messages/s · avg ${ms(st.mean)} each, 99% ${ms(st.p99)}, worst ${ms(st.max)} · ${ms(total / secs)} per second in all`];
   }
 
   // ---------- the report ----------

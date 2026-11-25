@@ -17,7 +17,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 
 // sky reflections and sun shadows on (off by default in automated browsers), so the benchmark has them to try
-await page.goto(`${url}?intro=0&new=1&sw=0&reflect=1&sunshadows=1&perfframes=3,6`);
+await page.goto(`${url}?intro=0&new=1&sw=0&reflect=1&sunshadows=1&perfframes=2,4,4,2`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 180000 });
 await page.waitForTimeout(1500);
 await page.evaluate(() => { localStorage.setItem('exo.mist', 'on'); });
@@ -37,7 +37,8 @@ await page.waitForSelector('#options .pf-pre', { timeout: 400000 });
 const report = await settings();
 if (process.env.SHOW) console.log(report);
 check(/BENCHMARK/.test(report) && /as you have it/.test(report), 'the report has the benchmark');
-check(/Sun shadows off .*saves/.test(report) && /Sky reflections off .*saves/.test(report) && /all of those off/.test(report), 'each effect that was on is measured by itself, then all off');
+check(/Sun shadows off\n\s+waited: .*saves/.test(report) && /Sky reflections off\n\s+waited: .*saves/.test(report) && /all of those off/.test(report), 'each effect that was on is measured by itself, then all off');
+check((report.match(/running: avg \d/g) ?? []).length >= 3 && /sim updates \d+\/s/.test(report), 'each step is also measured running, with the sim updates');
 check(/Graphics: /.test(report) && /SETTINGS/.test(report) && /Version: /.test(report), 'device, game and settings sections');
 check(!(await page.$('#perf-badge')), 'the badge is gone');
 const after = await page.evaluate(() => JSON.stringify(Object.keys(localStorage).filter((k) => k.startsWith('exo') && k !== 'exo.camera').sort().map((k) => [k, localStorage.getItem(k)])));
@@ -70,8 +71,9 @@ const rec = await settings();
 check(/RECORDING \(\d+ s, \d+ frames\)/.test(rec) && /By zoom:/.test(rec), 'Stop writes the recording section');
 const draws = Number(/Draw calls: avg (\d+)/.exec(rec)?.[1] ?? 0);
 check(draws > 20, `draw calls count the whole frame (avg ${draws})`);
-check(/as you have it .* (\d{2,}) draws/.test(rec), 'the benchmark counts the whole frame\'s draws too');
+check(/as you have it\n\s+waited: .* (\d{2,}) draws/.test(rec), 'the benchmark counts the whole frame\'s draws too');
 check(/BENCHMARK/.test(rec), 'the earlier benchmark is still in the report');
+check(/Simulation updates on the main thread .* snapshots\/s/.test(rec) && /Between frames, outside/.test(rec), 'the recording times the simulation updates and the time outside the frame');
 
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(' | ')}` : ''}`);
 await browser.close();

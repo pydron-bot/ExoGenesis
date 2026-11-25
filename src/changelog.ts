@@ -23,8 +23,12 @@ export const CHANGELOG: Release[] = [
   {
     version: '0.79.1',
     date: '2026-11-24',
-    title: 'Performance report counts every draw',
-    notes: ['Performance report: draw calls and triangles now count the whole frame (they showed only the last step, 1 draw)'],
+    title: 'A sharper performance report',
+    notes: [
+      'Performance report: draw calls and triangles now count the whole frame (they showed only the last step, 1 draw)',
+      'The benchmark measures each step twice: paused (each frame\'s full cost on the graphics chip) and with the game running (frame to frame, as it really plays)',
+      'Reports now show how long the game spends taking in the simulation\'s updates, and how much of each frame goes outside the game itself',
+    ],
     guide: [],
   },
   {

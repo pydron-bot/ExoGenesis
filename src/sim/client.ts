@@ -24,6 +24,19 @@ export class SimClient {
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
       : ({ postMessage() {}, onmessage: null } as unknown as Worker);
     this.worker.onmessage = (e: MessageEvent<FromWorker>) => {
+      // timed from before the first read of e.data: the browser decodes the message then
+      const t0 = SimClient.timing ? performance.now() : 0;
+      try { this.receive(e); } finally { if (SimClient.timing) SimClient.timing(performance.now() - t0, e.data.type); }
+    };
+    // the region comes first: the sim starts its first game from it
+    this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic, skirmish, shared });
+  }
+
+  /** The performance report's hook (src/perf-report.ts): main-thread time per message from the sim worker, and its type. */
+  static timing: ((ms: number, type: string) => void) | null = null;
+
+  private receive(e: MessageEvent<FromWorker>) {
+    {
       const m = e.data;
       if (m.type === 'snap') {
         const now = performance.now();
@@ -52,9 +65,7 @@ export class SimClient {
       } else if (m.type === 'event') {
         this.onEvent(m.text, m.level, m.cue, m.at, m.style);
       }
-    };
-    // the region comes first: the sim starts its first game from it
-    this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic, skirmish, shared });
+    }
   }
 
   /** 0..1 blend factor between prev and cur for this frame. */
