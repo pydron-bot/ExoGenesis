@@ -16,6 +16,10 @@
       "drones": 4,
       "units": [
         {
+          "unit": "envoy",
+          "count": 1
+        },
+        {
           "unit": "tank",
           "count": 3
         },

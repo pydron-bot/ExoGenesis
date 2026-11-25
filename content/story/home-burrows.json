@@ -1,0 +1,23 @@
+{
+  "title": "Made",
+  "text": "{who} won't let their child play near the burrows any more. \"Someone made those animals. Bred them to plough, and left them ploughing. What else did they make here?\" They look at the Core when they say it.",
+  "trigger": "mission",
+  "mission": "designer-marks",
+  "delay": 75,
+  "region": "touchdown",
+  "cast": "parent",
+  "choices": [
+    {
+      "label": "\"Not me.\"",
+      "reply": "\"I didn't say you,\" {who} says. \"I just looked at you.\""
+    },
+    {
+      "label": "\"I'll find out.\"",
+      "reply": "\"Do,\" says {who}. \"And tell me before you tell anyone else.\""
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "home, reaction",
+  "status": "draft",
+  "notes": "A colonist at home reacts by name once designer-marks is done (the discovery played back at home, v0.90.0)."
+}

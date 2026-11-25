@@ -1,0 +1,23 @@
+{
+  "title": "Circles",
+  "text": "{who} found the footage of the Choir's tenders on the shared screen and hasn't looked away since. \"They walk in circles round a dead tower. For how long?\" A pause. \"Is that what happens to your kind, when nobody needs you any more?\"",
+  "trigger": "mission",
+  "mission": "the-choir",
+  "delay": 75,
+  "region": "touchdown",
+  "cast": "adult",
+  "choices": [
+    {
+      "label": "\"I don't know.\"",
+      "reply": "\"Then we'd better keep needing you,\" {who} says, and almost makes it sound like a joke."
+    },
+    {
+      "label": "\"They still have each other.\"",
+      "reply": "{who} thinks about that for a long time. \"That's worse, somehow. Or better. I can't tell.\""
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "home, reaction",
+  "status": "draft",
+  "notes": "A colonist at home reacts by name once the-choir is done (the discovery played back at home, v0.90.0)."
+}

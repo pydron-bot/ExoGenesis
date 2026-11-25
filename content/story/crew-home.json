@@ -1,0 +1,46 @@
+{
+  "title": "Home, Hurt",
+  "text": "{first} is home with one arm strapped to their chest and a dressing down the side of their face. The colony fusses. They hate it.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"Don't. I saw it, that's the point. I saw it and I'm back. Next time I'll duck.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "crew-hurt",
+  "delay": 40,
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"You're not going again.\"",
+      "reply": "\"Watch me.\" They go anyway, the next time. You had known they would."
+    },
+    {
+      "label": "\"Rest. Then tell me what you saw.\"",
+      "reply": "They tell you all of it, that night, slowly, and leave nothing out. It's the longest you've ever talked."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "wellbeing",
+      "amount": -3
+    },
+    {
+      "after": 1,
+      "kind": "stance",
+      "amount": -2
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 3
+    }
+  ],
+  "chapter": "beyond-the-ridge",
+  "tags": "home, crew rover, firstborn",
+  "status": "draft",
+  "notes": "At home after the Crew Rover was lost (crew-hurt)."
+}

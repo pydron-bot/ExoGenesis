@@ -1,0 +1,23 @@
+{
+  "title": "The Village",
+  "text": "{who} has watched the drone footage of the Vell village six times. \"They have children. They have songs. They had all of it before we ever got here.\" They want to know when they can go and see it themselves.",
+  "trigger": "mission",
+  "mission": "smoke-on-the-horizon",
+  "delay": 75,
+  "region": "touchdown",
+  "cast": "adult",
+  "choices": [
+    {
+      "label": "\"When they invite us.\"",
+      "reply": "\"Then I'll learn the songs first,\" {who} says, \"so I've something to bring.\""
+    },
+    {
+      "label": "\"It's not safe yet.\"",
+      "reply": "\"It's not safe here either,\" {who} says. \"It's never stopped us.\""
+    }
+  ],
+  "chapter": "the-planet",
+  "tags": "home, reaction",
+  "status": "draft",
+  "notes": "A colonist at home reacts by name once smoke-on-the-horizon is done (the discovery played back at home, v0.90.0)."
+}

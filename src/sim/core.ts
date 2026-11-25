@@ -2673,6 +2673,9 @@ export class Sim {
       const e = REGION.encounters?.find((x) => x.id === u.enc);
       if (e?.doneFlag && !this.story.has(e.doneFlag)) this.story.s.flags.push(e.doneFlag);
     }
+    // a unit with someone aboard (lostFlag): the story hears of it
+    const lf = content.units[u.unit].lostFlag;
+    if (!u.team && lf && this.story.s && !this.story.has(lf)) this.story.s.flags.push(lf);
     this.fx.push(dieFx(content.units[u.unit].radius), u.x, u.z, 0, 0);
     if (!u.team) this.emit(`${content.units[u.unit].name} destroyed${aboard ? ` with ${aboard} aboard` : ''}`, 'bad', 'lost');
     if (u.pax?.length) this.people.spill(u.pax, u.x, u.z);

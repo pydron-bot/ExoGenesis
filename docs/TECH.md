@@ -2822,6 +2822,13 @@ key radio gone in seconds. Each release below is one fix.
   (the first good report) and `director-streak` (five running), paid off in `director-three`: their tapes are on the
   booth's shelf, recorded before any report was sent.
 
+- **Someone along, and the news at home (v0.90.0).** Unit `envoy` (Crew Rover: the first colonist aboard, the
+  rover's model at 1.2) is first in every expedition kit but the Lantern's. Unit field `lostFlag`: losing one of
+  ours sets that story flag (`destroyUnit` in core.ts; the editor's Story flow and campaign-smoke count it as the
+  game's). The Crew Rover's is `crew-hurt`: `crew-hurt` (any region: the medevac pod fired) and `crew-home` (at
+  Touchdown). `open-planet` now has the Firstborn ride along. Six home reactions by name (`cast`), 75 s after a
+  discovery's mission: `home-vell`, `home-choir`, `home-burrows`, `home-berth`, `home-graded`, `home-tape`.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

@@ -1,0 +1,23 @@
+{
+  "title": "ACCORD 12",
+  "text": "Someone has put a picture of the empty berth on Ash on the wall by the Core. Under it, in chalk: ACCORD 12. Nobody has rubbed it off. {who} stands in front of it every morning before shift.",
+  "trigger": "mission",
+  "mission": "hull-field",
+  "delay": 75,
+  "region": "touchdown",
+  "cast": "adult",
+  "choices": [
+    {
+      "label": "Leave it up",
+      "reply": "It stays. By the end of the week there are thirty-two marks chalked under it, one for every other hull. Nobody owns up to them."
+    },
+    {
+      "label": "Ask {who} about it",
+      "reply": "\"I like to know where I'm parked,\" {who} says, and goes to work."
+    }
+  ],
+  "chapter": "the-proof",
+  "tags": "home, reaction",
+  "status": "draft",
+  "notes": "A colonist at home reacts by name once hull-field is done (the discovery played back at home, v0.90.0)."
+}

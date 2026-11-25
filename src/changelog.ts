@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.90.0',
+    date: '2026-11-25',
+    title: 'Along for the ride',
+    notes: [
+      'Your first colonist now rides along on expeditions in the Crew Rover, to see each place with their own eyes. Keep it safe: if it\'s lost they make it home, but hurt',
+      'Back home, colonists react to what the expeditions find: the Vell\'s village, the Choir, the engineered animals, the empty berth on Ash, the Ledger and the Director\'s booth',
+    ],
+    guide: ['expeditions'],
+  },
+  {
     version: '0.89.0',
     date: '2026-11-25',
     title: 'Grades',

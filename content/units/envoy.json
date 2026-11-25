@@ -1,0 +1,18 @@
+{
+  "name": "Crew Rover",
+  "faction": "accord",
+  "description": "An armoured rover with a colonist aboard: on expeditions, your first colonist rides along to see for themselves. Lightly armed and tougher than it looks, but keep it out of the worst of it. If it's lost, they get home on the medevac pod, hurt.",
+  "lostFlag": "crew-hurt",
+  "hp": 320,
+  "speed": 6.5,
+  "range": 14,
+  "damage": 5,
+  "cooldown": 0.5,
+  "weapon": "bolt",
+  "radius": 0.9,
+  "aggro": 18,
+  "model": "exo-rover",
+  "modelScale": 1.2,
+  "cost": 0,
+  "buildSeconds": 1
+}

@@ -1,0 +1,23 @@
+{
+  "title": "Graded",
+  "text": "{who} has the Ledger's columns up on the Civilian Center's screen, and the colony's own report grades beside them. \"It's a gradebook. Every sol we sent our grades up, and every sol somebody marked them. Eleven classes before us.\" Nobody laughs.",
+  "trigger": "mission",
+  "mission": "the-ledger",
+  "delay": 75,
+  "region": "touchdown",
+  "cast": "adult",
+  "choices": [
+    {
+      "label": "\"We'll stop sending them.\"",
+      "reply": "\"And then what does it do?\" {who} asks. Nobody knows. The report goes out at sol's end, as it always has."
+    },
+    {
+      "label": "\"Then we pass differently.\"",
+      "reply": "{who} looks at you for a long time. \"I'd like to know what that means. I think you would too.\""
+    }
+  ],
+  "chapter": "the-proof",
+  "tags": "home, reaction",
+  "status": "draft",
+  "notes": "A colonist at home reacts by name once the-ledger is done (the discovery played back at home, v0.90.0)."
+}

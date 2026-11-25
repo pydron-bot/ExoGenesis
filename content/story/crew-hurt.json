@@ -1,0 +1,27 @@
+{
+  "title": "Crew Rover Down",
+  "text": "The crew rover is down. The medevac pod fired before the hull split: {first} is alive, strapped in, and on a long, rough ride home.",
+  "lines": [
+    {
+      "character": "firstborn",
+      "text": "\"I'm fine. I'm not fine. I'll be fine. Finish it without me, and don't you dare go easy because I'm not watching.\""
+    }
+  ],
+  "trigger": "flag",
+  "flag": "crew-hurt",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"We'll finish it.\"",
+      "reply": "The pod's beacon tracks home across the map. You keep one eye on it the whole time."
+    },
+    {
+      "label": "\"I should have kept you back.\"",
+      "reply": "\"You'd have had to tie me down.\" A pause. \"Next time, tie me down a bit.\""
+    }
+  ],
+  "chapter": "beyond-the-ridge",
+  "tags": "expedition, crew rover, firstborn",
+  "status": "draft",
+  "notes": "The Crew Rover (unit envoy, lostFlag crew-hurt) destroyed on an expedition. Any region; crew-home follows at Touchdown."
+}

@@ -31,6 +31,7 @@ export const unitShape = {
   faction: choice(['accord', 'fauna', 'relic'], { label: 'Faction', help: 'Accord units are the player\'s; fauna attack them; relics are precursor defenses on a relic grid (region map).' }),
   relic: choice(['sentinel', 'node'], { label: 'Relic part', optional: true, help: 'Relics: a sentinel shoots once its grid wakes; a node powers its grid (destroy or re-tune every node to shut the grid down and open its cache).' }),
   description: str({ label: 'Description', multiline: true, optional: true }),
+  lostFlag: str({ label: 'Story flag when lost', optional: true, help: 'Accord units: losing one of ours sets this story flag (a unit with someone aboard, e.g. the Crew Rover: crew-hurt).' }),
   hp: int({ label: 'Hit points', min: 1, max: 100000 }),
   speed: num({ label: 'Speed', min: 0, max: 60, step: 0.1, unit: 'u/s', help: '1 world unit ≈ 10 m.' }),
   range: num({ label: 'Attack range', min: 0, max: 200, step: 0.1, unit: 'u' }),

@@ -41,6 +41,7 @@ const note = (msg) => console.log(`   ${msg}`);
 // ---------- the content's own consistency (the editor's Story flow and Endings ledger) ----------
 {
   const known = new Set(Object.values(C.regions).flatMap((r) => [...(r.encounters ?? []).map((e) => e.doneFlag), ...(r.outposts ?? []).map((o) => o.story)]).filter(Boolean));
+  for (const u of Object.values(C.units)) if (u.lostFlag) known.add(u.lostFlag); // a unit lost with someone aboard
   const flow = F.analyzeFlow(C.missions, C.story, known);
   check(!flow.problems.length, `Story flow: no problems${flow.problems.length ? ` (${flow.problems.map((p) => `${p.at.id}: ${p.msg}`).join('; ')})` : ''}`);
   check(!flow.stray.length, 'Story flow: every mission is in the chain');

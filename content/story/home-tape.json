@@ -1,0 +1,23 @@
+{
+  "title": "Her Voice",
+  "text": "{who} sits alone in the Civilian Center with the Director's briefing on a loop. \"She was the first voice the pods played us. Before you. I used to think she sounded like home.\" The tape folds its hands and starts again.",
+  "trigger": "mission",
+  "mission": "foundry",
+  "delay": 75,
+  "region": "touchdown",
+  "cast": "adult",
+  "choices": [
+    {
+      "label": "Turn it off",
+      "reply": "\"Leave it,\" {who} says. \"I want to hear it till it stops sounding like anything.\""
+    },
+    {
+      "label": "Sit with them",
+      "reply": "You stay on the channel and say nothing, and the tape plays through to the end four more times."
+    }
+  ],
+  "chapter": "the-foundry",
+  "tags": "home, reaction",
+  "status": "draft",
+  "notes": "A colonist at home reacts by name once foundry is done (the discovery played back at home, v0.90.0)."
+}

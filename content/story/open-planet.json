@@ -4,10 +4,10 @@
   "text": "\"The radar's finished its first full sweep. Smoke in a vale to the north-west. A plain to the east that's too flat to be real. Furrows in the north. A hollow ringed by hills.\"",
   "lines": [
     {
-      "text": "\"The Core says it can send an expedition overland: drones, a few units, no colonists. Someone has to stay and keep the lights on. I'll keep them on.\""
+      "text": "\"The Core says it can send an expedition overland: drones, a few units, no settlers. I'm going with it, in the crew rover. Somebody should see these places with their own eyes, not just yours.\""
     },
     {
-      "text": "\"Bring back something worth the trip.\""
+      "text": "\"Someone else can keep the lights on. We'll bring back something worth the trip.\""
     }
   ],
   "trigger": "never",
