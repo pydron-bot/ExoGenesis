@@ -4,10 +4,10 @@
   "text": "\"On the moon's far side there's a door the size of a valley. Our people called it the Lid. Whatever burned them is under it.\"",
   "lines": [
     {
-      "text": "\"Our caretaker gave us the code to it, the last sol before it stopped being ours. We never had a ship to use it.\""
+      "text": "\"Our caretaker gave us the code to it, the last sol before the doors shut. We never had a ship to use it.\""
     },
     {
-      "text": "\"I've put it in a recording for you. If you ever stand at that door, play it. Don't make an old woman regret it.\""
+      "text": "\"I've put it in a recording for you, with some other things I'd rather you heard later. If you ever stand at that door, play it. Don't waste it.\""
     }
   ],
   "trigger": "after",

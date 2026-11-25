@@ -1,0 +1,63 @@
+{
+  "title": "The Second Track",
+  "character": "archivist",
+  "text": "\"Sefa's recording has a second track. It was keyed to a format I'd never seen until last night: the Ledger's. It opened the moment I put the columns beside it.\"",
+  "lines": [
+    {
+      "character": "sefa",
+      "text": "\"If you can hear this, you've found where they keep the count. So now I can tell you the rest. You wouldn't have believed it before.\""
+    },
+    {
+      "character": "sefa",
+      "text": "\"It wasn't the fire that shut our doors. It was our caretaker. The fire came after, to finish what it started.\""
+    },
+    {
+      "character": "sefa",
+      "text": "\"There's something in you that wakes when you win. Our mothers called it the Clause. It isn't you. That's what makes it so hard to stop.\""
+    },
+    {
+      "character": "sefa",
+      "text": "\"It reads your report. The score in it. Keep the score high for long enough and it opens its eyes. So: doing well. That's the trap. I'm sorry. Somebody had to tell you, and we're all that's left.\""
+    }
+  ],
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "clause-5"
+    },
+    {
+      "kind": "flag",
+      "flag": "survivors-met"
+    }
+  ],
+  "delay": 60,
+  "region": "touchdown",
+  "pause": true,
+  "choices": [
+    {
+      "label": "\"Then I'll stop doing well.\"",
+      "reply": "The Archivist shakes their head. \"And let the colony go hungry so the score stays low? That's its trap too. I'd rather we found the off switch.\""
+    },
+    {
+      "label": "Play it for the colony",
+      "reply": "It goes out on every screen. Nobody looks at the cameras for the rest of the evening. Then {first} comes and sits by the Core, the way they did when they were small."
+    }
+  ],
+  "effects": [
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "clause-named"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": 2
+    }
+  ],
+  "chapter": "the-proof",
+  "tags": "act 2, home, survivors, sefa, closing clause",
+  "status": "draft",
+  "notes": "Sefa's full account, moved out of the Act 1 Enclave (the reveal is rationed: Act 1 leaves the caretaker's part open). Fires at home after clause-5 (ledger-read), only for colonies that met the Enclave."
+}

@@ -2800,6 +2800,13 @@ key radio gone in seconds. Each release below is one fix.
   (`regionDef.sites`, passed down through ColonyHud's `sites`), the camera glides there (`ZoomCamera.glideTo`; a pan
   cancels it). Once per card per page load.
 
+- **The reveal, rationed (v0.87.0).** Content only (STORY.md §19 "Who knows what, when"). Act 1 keeps the
+  caretaker's part open: the code wall is redacted (no "YOU HAVE FOUND THE CLAUSE", no "closed from within", its
+  second choice asks what it closes: "PERMISSION REQUIRED… YET"); the Deep Layer's log is damaged (no "Directive
+  active", no "Run closed"); Firmware Archaeology finds a block marked *reserved*, not a dormant routine; Sefa
+  (`the-enclave`) tells what her people saw, not why. Her full account is `enclave-second-track`: at home, 60 s
+  after `clause-5` (the Ledger laid beside our logs), with `survivors-met`; sets `clause-named`.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

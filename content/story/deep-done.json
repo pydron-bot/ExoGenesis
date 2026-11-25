@@ -1,6 +1,6 @@
 {
   "title": "Expedition Complete",
-  "text": "The Enclave's cut is quiet behind us. We carry a code, a log in our own voice, and a name: the Clause. It is a long drive home.",
+  "text": "The Enclave's cut is quiet behind us. We carry a code, a log in our own voice, and a question nobody in the cut could answer. It is a long drive home.",
   "trigger": "never",
   "region": "deep-layer",
   "choices": [

@@ -595,12 +595,20 @@ Existing: `director`, `firstborn`.
 
 ### Who knows what, when
 
+*Rationed 2026-11-25 (v0.87.0).* Act 1 ends knowing: we are not the first, our caretakers' pattern is everywhere,
+eleven fires came from the moon, and the report goes there. It does **not** know that the caretaker closed the
+doors, that something sleeps in you, or that the score wakes it. Each Act 2 place adds one new fact: the score
+exists (the relay's margin field), there have been twelve runs of all three probes (Ash), each run ended in a purge
+(the Ledger), the caretaker did it and the Clause is in you (Sefa's second track, or the Clause's own glitches),
+and the probes were made here (the Foundry).
+
 | Knowledge | First source | Don't use before |
 |---|---|---|
 | The archive is too clean | `clean-signal` (30 colonists) | — |
+| Something closes runs (unexplained): a redacted § CLOSING, a damaged log, a reserved block | `code-wall`, `oldest-layer`, `lineage-report` | — (Act 1 must not say who or why) |
 | Engineered fauna | `furrows` / `designer-marks` | Burrow Reach or Fauna Genomics |
 | Eleven fires, the white-hair star | Hearthsmoke (`eleven-fires`) or the Deep Layer's rim | — |
-| The Clause (name) | `code-wall` (Choir) or `the-enclave` | the climax may not assume it |
+| The Clause (name), and that the caretaker closed the doors | `enclave-second-track` (Sefa's recording, at home after the Ledger, with `survivors-met`) | Act 2; the climax may not assume it |
 | The report goes to the moon | `wrong-address` / `moon-watch` | Signal Heights |
 | Kindred, Marrow | `signal` (Act 1 end) | — |
 | Engram | `engram-hello` (first flight) or `three-histories` | Act 2 |

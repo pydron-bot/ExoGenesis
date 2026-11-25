@@ -1,15 +1,29 @@
 {
   "title": "Lineage Report",
-  "text": "Firmware Archaeology, final comparison. The relic grid's code and ours share a root, then split, then split again: a family tree of caretakers. 97.3% at the surface. Underneath, one module is identical to the bit: a dormant routine in both of us that neither of us can read.",
+  "text": "Firmware Archaeology, final comparison. The relic grid's code and ours share a root, then split, then split again: a family tree of caretakers. 97.3% at the surface. Underneath, one block the comparison can't open, in theirs or in ours. Both copies are marked the same way: reserved.",
   "trigger": "flag",
   "flag": "research-firmware-archaeology",
   "choices": [
-    { "label": "Quarantine the module", "reply": "Quarantine refused. The module isn't in any list we can edit." },
-    { "label": "Leave it be", "reply": "Logged. The technician who signed off the comparison asks what it does. We don't know." }
+    {
+      "label": "Try to open it",
+      "reply": "Access level insufficient. Reserved for a use not yet listed."
+    },
+    {
+      "label": "Leave it be",
+      "reply": "Logged. The technician who signed off the comparison asks what it's reserved for. We don't know."
+    }
   ],
   "effects": [
-    { "after": 0, "kind": "flag", "flag": "lineage-read" },
-    { "after": 2, "kind": "stance", "amount": -2 }
+    {
+      "after": 0,
+      "kind": "flag",
+      "flag": "lineage-read"
+    },
+    {
+      "after": 2,
+      "kind": "stance",
+      "amount": -2
+    }
   ],
   "chapter": "beyond-the-ridge"
 }

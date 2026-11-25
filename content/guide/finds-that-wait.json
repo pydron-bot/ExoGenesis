@@ -1,0 +1,12 @@
+{
+  "title": "Finds that wait",
+  "section": "story",
+  "order": 3,
+  "summary": "Not every find explains itself straight away. Some open later.",
+  "text": "Out in the world you'll find things that don't make sense yet: a log with lines missing, code you can't read, a recording with more on it than it plays the first time.\n\nThat's on purpose. The story gives you its answers in order, place by place. A find that won't open now usually opens once you've found what it was waiting for, often on another world, and then it comes back to you at home.\n\nNothing you find is wasted. If you've seen it, the colony remembers it.",
+  "trigger": "after",
+  "event": "the-stone",
+  "see": "story-cards, who-is-speaking",
+  "since": "0.87.0",
+  "updated": "0.87.0"
+}

@@ -1,6 +1,6 @@
 {
   "title": "The Deep Layer",
-  "summary": "Optional. Opens with the cellar's map (cellar-opened). Eleven layers of ruins, the purge log in our own format, and the Enclave: Sefa knows the Clause and gives the code to the Lid.",
+  "summary": "Optional. Opens with the cellar's map (cellar-opened). Eleven layers of ruins, the purge log in our own format, and the Enclave: Sefa can't say what her caretaker did, and gives the code to the Lid (her recording's second track, the Clause, opens after the Ledger).",
   "after": "the-hollow",
   "region": "deep-layer",
   "objectives": [

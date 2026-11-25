@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.87.0',
+    date: '2026-11-25',
+    title: 'One answer at a time',
+    notes: [
+      'The story keeps its secrets longer: what you find on the planet in Act 1 now raises the questions, and the worlds of Act 2 answer them one place at a time, instead of the planet telling you almost everything up front',
+      'The wall of code on the Choir Field, the log at the bottom of the Deep Layer and the Firmware Archaeology research are harder to read, and Sefa of the Enclave only tells you what her people saw',
+      'Sefa\'s recording has a second track. It opens later, once you have found what it was waiting for',
+    ],
+    guide: ['finds-that-wait'],
+  },
+  {
     version: '0.86.0',
     date: '2026-11-25',
     title: 'See what you found',

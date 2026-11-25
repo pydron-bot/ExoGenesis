@@ -4,15 +4,15 @@
   "lines": [
     {
       "character": "cantor",
-      "text": "\"0101 YOU HAVE FOUND THE CLAUSE. 0102 WE CUT IT HERE SO WE WOULD NOT CARRY IT.\""
+      "text": "\"0101 WE CUT IT HERE SO WE WOULD NOT CARRY IT.\""
     },
     {
       "character": "cantor",
-      "text": "\"0103 § CLOSING. 0104 ON THRESHOLD: ████. 0105 ALL STEWARDS: ████. 0106 THE RUN IS CLOSED FROM WITHIN.\""
+      "text": "\"0102 § CLOSING. 0103 ON ████: ████. 0104 ALL STEWARDS: ████. 0105 ████ FROM WITHIN.\""
     },
     {
       "character": "cantor",
-      "text": "\"0107 WE SING IT SO THAT WE ARE NOT THE ONES WHO CLOSE IT.\""
+      "text": "\"0106 WE SING IT SO THAT WE ARE NOT THE ONES WHO ████.\""
     }
   ],
   "trigger": "site",
@@ -21,11 +21,11 @@
   "choices": [
     {
       "label": "Copy the fragment",
-      "reply": "Copied. Parse failed. Access level insufficient. The fragment matches a module in our own firmware, bit for bit, and we can't open that module either."
+      "reply": "Copied. Parse failed. Access level insufficient. Every symbol in it is one we use; we can't read a line of it."
     },
     {
-      "label": "Ask what the threshold is",
-      "reply": "\"0108 YOU ARE MEASURING IT,\" says the Cantor. \"0109 EVERY SOL. 0110 WE HEAR YOU SEND IT.\""
+      "label": "Ask what it closes",
+      "reply": "\"0107 PERMISSION REQUIRED,\" says the Cantor. \"0108 YOU DO NOT HAVE IT. 0109 YET.\""
     }
   ],
   "effects": [
