@@ -155,6 +155,13 @@ How content is stored and edited in general (one JSON record per file, schemas i
   gold with faculae and red spots, fades the old corona shell, and shows `coronaRays()` (a camera-facing sheet:
   streamers, an inner rim, prominence loops); the lens flare fades out as the sun grows past 0.1-0.2 of the view.
   Stills: `node tools/tour-shot.mjs --gpu [--kinds sun,belt,comet,rings,overview] [--w 390 --h 844]`.
+- **Depth and air from space** (v0.82.2): every ShaderMaterial drawn among other geometry must include the
+  `logdepthbuf` chunks (the renderer uses a logarithmic depth buffer): the star and corona didn't, so their depth was on
+  another scale and bodies behind the star drew over it (comet tails likewise). The atmosphere shell
+  (`buildAtmosphere`, now with `inner` = body/shell radius) is worked out per pixel from the view ray's chord through
+  the shell (air crossed, the nearest point's sun side), so the 96×48 mesh's facets never show; before, its rim came
+  from interpolated normals and rippled. Also: the corona shell used `uNear` undeclared since v0.82.0 and failed to
+  compile (watch the console for `VALIDATE_STATUS false` after shader edits).
 - **No hitch on first placement** (v0.82.1): Derek's iPhone report showed a 445 ms freeze at a shader compile ~10 s
   into play; placing each building kind compiled 3-5 programs. `RegionView.warmBuildings(kinds)` (boot, once the
   region's models settle) draws one of every kind buried under the pad for 3 frames: finished (both LODs), printed,

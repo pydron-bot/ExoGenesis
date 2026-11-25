@@ -430,7 +430,7 @@ const provinces = new Provinces(scene, globe, $('labels'), generated.prov);
 // atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
 // (the body's own colour and strength: an airless body has none)
 const airGlow = bodyDef ? bodyDef.atmosphere : '#8fd6ff', airStrength = bodyDef?.atmosphere ? bodyDef.haze ?? 1 : 1.25;
-const atmosphere = buildAtmosphere(R * 1.03, airGlow ?? '#000000', airStrength);
+const atmosphere = buildAtmosphere(R * 1.03, airGlow ?? '#000000', airStrength, 1 / 1.03);
 atmosphere.visible = !!airGlow;
 scene.add(atmosphere);
 // fog of war (colony only; ?fog=0 turns it off)

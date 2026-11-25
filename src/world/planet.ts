@@ -529,51 +529,70 @@ export function globeMesh(a: GlobeArrays, look: 'flat' | 'smooth' = 'flat'): THR
 export const buildGlobe = (look: 'flat' | 'smooth' = 'flat') => globeMesh(globeArrays(look), look);
 
 /** Thin fresnel shell for the atmosphere glow seen from orbit. */
-export function buildAtmosphere(radius: number, color: THREE.ColorRepresentation, strength = 1): THREE.Mesh {
-  // lit by the sun (sunPosUniform, set by SolarSystem.update): bright on the day side, a faint rim on
-  // the night side, and a glowing ring when the sun is behind the body (light scattered toward you)
+/**
+ * A body's air seen from space (v0.82.2: worked out exactly per pixel, so the shell's facets never show in it). For
+ * each pixel the view ray's path through the shell is measured analytically: how much air it crosses (long at the
+ * limb, where it skims the surface; nothing past the shell) and where it comes closest to the body, whose side to the
+ * sun sets how lit that air is. Bright on the day side, faint on the night side, warm along the terminator, and a
+ * glowing ring when the sun is behind the body. `inner`: the body's radius as a fraction of the shell's.
+ */
+export function buildAtmosphere(radius: number, color: THREE.ColorRepresentation, strength = 1, inner = 1 / 1.04): THREE.Mesh {
   const mat = new THREE.ShaderMaterial({
-    uniforms: { color: { value: new THREE.Color(color) }, strength: { value: strength }, uSunPos: sunPosUniform },
+    uniforms: { color: { value: new THREE.Color(color) }, strength: { value: strength }, uSunPos: sunPosUniform, uRa: { value: radius }, uRp: { value: radius * inner } },
     vertexShader: /* glsl */ `
       #include <common>
       #include <logdepthbuf_pars_vertex>
-      varying vec3 vN;
-      varying vec3 vV;
       varying vec3 vP;
+      varying vec3 vC;
+      varying float vScale;
       void main() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vN = normalize(normalMatrix * normal);
-        vV = normalize(-mv.xyz);
         vP = mv.xyz;
+        vC = (modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        vScale = length((modelMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
         gl_Position = projectionMatrix * mv;
         #include <logdepthbuf_vertex>
       }`,
     fragmentShader: /* glsl */ `
       #include <logdepthbuf_pars_fragment>
       uniform vec3 color;
-      uniform float strength;
+      uniform float strength, uRa, uRp;
       uniform vec3 uSunPos;
-      varying vec3 vN;
-      varying vec3 vV;
       varying vec3 vP;
+      varying vec3 vC;
+      varying float vScale;
       void main() {
         #include <logdepthbuf_fragment>
-        vec3 N = normalize(vN), V = normalize(vV);
-        vec3 L = normalize((viewMatrix * vec4(uSunPos, 1.0)).xyz - vP);
-        float rim = pow(1.0 - abs(dot(N, V)), 2.6) * strength;
+        float Ra = uRa * vScale, Rp = uRp * vScale;
+        vec3 D = normalize(vP);           // the view ray (from the camera, at the view-space origin)
+        float tc = dot(vC, D);            // along the ray to the point closest to the centre
+        vec3 closest = D * tc - vC;
+        float b = length(closest);        // how near the ray passes the centre
+        if (b >= Ra) discard;
+        float ha = sqrt(Ra * Ra - b * b);
+        // air crossed: the whole chord past the limb; in front of the body, only down to its surface
+        float path = b > Rp ? 2.0 * ha : ha - sqrt(max(Rp * Rp - b * b, 0.0));
+        float pmax = 2.0 * sqrt(Ra * Ra - Rp * Rp);
+        float depth = clamp(path / pmax, 0.0, 1.0);
+        // where the ray meets the air nearest the body (the limb point, or the surface point in front of it)
+        vec3 at = b > Rp ? closest : D * (tc - sqrt(max(Rp * Rp - b * b, 0.0))) - vC;
+        vec3 N = normalize(at);
+        vec3 L = normalize((viewMatrix * vec4(uSunPos, 1.0)).xyz - vC);
         float nl = dot(N, L);
         float day = smoothstep(-0.3, 0.35, nl);
-        float fs = pow(max(dot(-V, L), 0.0), 5.0);
-        // warmer along the terminator (sunrise and sunset seen from space)
+        float fs = pow(max(dot(D, L), 0.0), 5.0) * smoothstep(Rp * 0.98, Rp * 1.02, b);
         vec3 col = mix(color, vec3(1.0, 0.58, 0.32), (1.0 - smoothstep(0.0, 0.35, abs(nl + 0.05))) * 0.45);
-        float f = rim * (0.12 + 0.88 * day + 4.0 * fs);
-        // a wider, fainter haze inside the rim on the day side: the air reads as a layer, not a hairline
-        f += pow(1.0 - abs(dot(N, V)), 1.3) * 0.16 * strength * day;
+        // a thin, bright limb and a fainter layer across the day side
+        float limb = pow(depth, 2.2);
+        float haze = pow(depth, 0.9) * 0.22;
+        float f = strength * (limb * (0.12 + 0.88 * day + 4.0 * fs) + haze * day);
+        // fade softly to nothing at the shell's edge
+        f *= smoothstep(Ra, Ra - (Ra - Rp) * 0.6, b);
         gl_FragColor = vec4(col * f, f);
       }`,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
-  return new THREE.Mesh(new THREE.SphereGeometry(radius, 64, 32), mat);
+  return new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 48), mat);
 }

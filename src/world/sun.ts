@@ -47,6 +47,8 @@ export function starMaterial(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: { uBodyTime: bodyUniforms.uBodyTime, uDim: sunDim, uNear: sunNear },
     vertexShader: /* glsl */`
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
       varying vec3 vDir;
       varying vec3 vN;
       varying vec3 vV;
@@ -56,14 +58,17 @@ export function starMaterial(): THREE.ShaderMaterial {
         vN = normalize(normalMatrix * normal);
         vV = normalize(-mv.xyz);
         gl_Position = projectionMatrix * mv;
+        #include <logdepthbuf_vertex>
       }`,
     fragmentShader: /* glsl */`
+      #include <logdepthbuf_pars_fragment>
       uniform float uBodyTime, uDim, uNear;
       varying vec3 vDir;
       varying vec3 vN;
       varying vec3 vV;
       ${NOISE}
       void main() {
+        #include <logdepthbuf_fragment>
         float t = uBodyTime;
         vec3 d = vDir;
         // churning: the cell grid is pushed about by slow noise
@@ -101,8 +106,10 @@ export function starMaterial(): THREE.ShaderMaterial {
 
 export function coronaMaterial(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    uniforms: { uBodyTime: bodyUniforms.uBodyTime, uDim: sunDim },
+    uniforms: { uBodyTime: bodyUniforms.uBodyTime, uDim: sunDim, uNear: sunNear },
     vertexShader: /* glsl */`
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
       varying vec3 vDir;
       varying vec3 vN;
       varying vec3 vV;
@@ -112,14 +119,17 @@ export function coronaMaterial(): THREE.ShaderMaterial {
         vN = normalize(normalMatrix * normal);
         vV = normalize(-mv.xyz);
         gl_Position = projectionMatrix * mv;
+        #include <logdepthbuf_vertex>
       }`,
     fragmentShader: /* glsl */`
-      uniform float uBodyTime, uDim;
+      #include <logdepthbuf_pars_fragment>
+      uniform float uBodyTime, uDim, uNear;
       varying vec3 vDir;
       varying vec3 vN;
       varying vec3 vV;
       ${NOISE}
       void main() {
+        #include <logdepthbuf_fragment>
         float mu = abs(dot(normalize(vN), normalize(vV)));
         // the shell is 1.3× the star: mu runs 0 at its outline to ~0.64 at the star's edge (the disc hides the rest)
         float rim = pow(smoothstep(0.0, 0.64, mu), 1.6);

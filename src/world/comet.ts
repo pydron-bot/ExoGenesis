@@ -14,6 +14,8 @@ import { smoothstep } from './noise';
 const SEG = 40;
 
 const vert = /* glsl */`
+#include <common>
+#include <logdepthbuf_pars_vertex>
 attribute float aT;
 attribute float aS;
 varying float vT;
@@ -21,9 +23,12 @@ varying float vS;
 void main() {
   vT = aT; vS = aS;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  #include <logdepthbuf_vertex>
 }`;
 
 const frag = /* glsl */`
+#include <common>
+#include <logdepthbuf_pars_fragment>
 uniform vec3 uColor;
 uniform float uOpacity;
 uniform float uTime;
@@ -37,6 +42,7 @@ float noise(vec2 p) {
   return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
 }
 void main() {
+  #include <logdepthbuf_fragment>
   float s = abs(vS);
   // soft across the tail, softer still further out
   float across = pow(max(0.0, 1.0 - s), mix(2.2, 1.2, vT));

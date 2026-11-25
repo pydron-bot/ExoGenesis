@@ -95,7 +95,7 @@ function giant(radius: number, palette: string[], sd: number, ring?: RingLook, i
   const g = new THREE.Group();
   g.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 64), giantMaterial(palette, sd, icy)));
   // a thin haze of the top band's colour, paled: a soft limb, and a glowing ring when backlit
-  g.add(buildAtmosphere(radius * 1.02, new THREE.Color(palette[0]).lerp(new THREE.Color('#ffffff'), 0.65), 0.4));
+  g.add(buildAtmosphere(radius * 1.02, new THREE.Color(palette[0]).lerp(new THREE.Color('#ffffff'), 0.65), 0.4, 1 / 1.02));
   if (ring) g.add(ringMesh(radius, ring));
   return g;
 }
@@ -157,7 +157,7 @@ export function buildBodyObject(id: string, d: BodyDef): THREE.Object3D {
   addRockyDetail(rock.material as THREE.MeshStandardMaterial, d, lookOf(d));
   g.add(rock);
   if (d.clouds) g.add(cloudShell(d.radius + Math.max(0, w.relief), d.seed ?? 7));
-  if (d.atmosphere) g.add(buildAtmosphere(d.radius * 1.05, d.atmosphere, d.haze ?? 1));
+  if (d.atmosphere) g.add(buildAtmosphere(d.radius * 1.05, d.atmosphere, d.haze ?? 1, 1 / 1.05));
   if (ring) g.add(ringMesh(d.radius, ring));
   return g;
 }

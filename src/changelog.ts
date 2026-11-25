@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.93.2',
+    date: '2026-11-25',
+    title: 'Planets in the right order',
+    notes: [
+      'The star no longer lets planets behind it show through (it sorted its depth differently from everything else); comet tails too',
+      'Planets\' glow of air is smooth and even all round, instead of lumpy and rippled at the edge',
+      'The star\'s outer glow draws again (it had stopped in an earlier update)',
+    ],
+    guide: [],
+  },
+  {
     version: '0.93.1',
     date: '2026-11-25',
     title: 'No hitch on your first building',
