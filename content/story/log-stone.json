@@ -1,0 +1,13 @@
+{
+  "title": "Not Me",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "The stone on the ridge uses my interlock. I've searched my memory for a time I was here before. There isn't one. That should be reassuring.",
+  "trigger": "flag",
+  "flag": "stone-found",
+  "delay": 45,
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

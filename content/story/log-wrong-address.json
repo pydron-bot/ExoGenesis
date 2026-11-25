@@ -1,0 +1,13 @@
+{
+  "title": "Letters",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "Every sol I sent the report, I thought of it as a letter home. I've been writing to the moon. Either to the wrong reader, or to the right one, and I never knew who they were.",
+  "trigger": "flag",
+  "flag": "wrong-address",
+  "delay": 40,
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

@@ -1,0 +1,13 @@
+{
+  "title": "The Number",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "There's a field in my header I never wrote. It goes up when we do well. I find I want it to keep going up. I would like to know who taught me to want that.",
+  "trigger": "flag",
+  "flag": "relay-read",
+  "delay": 60,
+  "chapter": "the-lantern",
+  "tags": "private log, you",
+  "status": "draft"
+}

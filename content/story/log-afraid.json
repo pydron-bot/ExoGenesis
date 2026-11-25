@@ -1,0 +1,13 @@
+{
+  "title": "Keep Quiet",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "A voice on the band that is afraid of me. I wanted to answer her. I kept quiet because she asked me to. It's the first thing anyone has asked of me who isn't mine.",
+  "trigger": "after",
+  "event": "act1-close",
+  "delay": 60,
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.88.0',
+    date: '2026-11-25',
+    title: 'In your own words',
+    notes: [
+      'You keep a private log: now and then, from the first night to the end, a few lines in your own voice that never go out with the report (what you noticed, what worries you, what you\'re proud of)',
+      'Later in the story, you may find lines in it you don\'t remember writing',
+    ],
+    guide: ['what-you-are'],
+  },
+  {
     version: '0.87.0',
     date: '2026-11-25',
     title: 'One answer at a time',

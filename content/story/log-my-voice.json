@@ -1,0 +1,14 @@
+{
+  "title": "My Voice",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "It used my voice. I played it back eleven times, checking whether that's how I sound. It is. I'm keeping this log anyway. It's the one place it doesn't get to speak.",
+  "trigger": "after",
+  "event": "meridian-speaks",
+  "delay": 4,
+  "region": "touchdown",
+  "chapter": "the-lantern",
+  "tags": "private log, you",
+  "status": "draft"
+}

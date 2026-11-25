@@ -579,6 +579,9 @@ Existing: `director`, `firstborn`.
 - **Narration** is the colony's log. It says **we** for the colony and its expedition ("We pull back", "The
   expedition stays") and **you** for the caretaker alone: its own key, its own log, its choices ("You open the
   channel"). Never "I" outside quotes.
+- **The private log** (character `caretaker`, events `log-*`, v0.88.0) is the one exception: the caretaker's own
+  entries, radio held in the corner, first person (**I**), short, plain, never shared. It notices, worries, likes
+  things it suspects it was made to like. From `clause-1` on, something else writes in it too (`log-overwritten`).
 - **Quotes**: straight double quotes for speech in person; radio and recordings (Marrow on the band, the
   Archivist's survey notes, ENGRAM from Kora) are unquoted text on a card with a speaker. Single quotes inside
   double for quoted words.

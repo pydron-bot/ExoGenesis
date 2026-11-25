@@ -1,0 +1,11 @@
+{
+  "name": "Portrait: the caretaker (your private log)",
+  "kind": "image",
+  "file": "portrait-caretaker.png",
+  "source": "hand-made",
+  "credit": "Drawn as SVG by Claude (2026-11-25) for Exo Genesis",
+  "notes": "Source tools/portraits/caretaker.svg; render with `node tools/portraits.mjs caretaker`.",
+  "scale": 1,
+  "yaw": 0,
+  "lift": 0
+}

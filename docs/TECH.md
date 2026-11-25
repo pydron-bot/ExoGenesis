@@ -2807,6 +2807,12 @@ key radio gone in seconds. Each release below is one fix.
   (`the-enclave`) tells what her people saw, not why. Her full account is `enclave-second-track`: at home, 60 s
   after `clause-5` (the Ledger laid beside our logs), with `survivors-met`; sets `clause-named`.
 
+- **The private log (v0.88.0).** Character `caretaker` ("Private log", the player's own glyph), 18 events
+  `content/story/log-*.json`: radio with `hold`, first person, on milestones from Sol 1 to Meridian (the first
+  colonist, the name, a birth, a death, a high report, the stone, the song, the moon, Marrow, the margin field, the
+  hulls, the Ledger, the Director's booth, the Clause overwriting an entry, telling the truth, Meridian's voice).
+  Content only.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

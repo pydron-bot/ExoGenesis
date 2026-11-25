@@ -1,0 +1,14 @@
+{
+  "title": "Warden",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "Warden. Someone who watches over a thing that isn't theirs. I've decided I like the second half best.",
+  "trigger": "flag",
+  "flag": "named-warden",
+  "delay": 60,
+  "region": "touchdown",
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

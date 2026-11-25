@@ -1,0 +1,14 @@
+{
+  "title": "Asked",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "They asked me why. I gave them an answer, and I've been going back over it since, the way you press on a bruise. I want to be the kind of thing that can be asked.",
+  "trigger": "after",
+  "event": "first-question",
+  "delay": 90,
+  "region": "touchdown",
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

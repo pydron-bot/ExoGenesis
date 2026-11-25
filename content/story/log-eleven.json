@@ -1,0 +1,13 @@
+{
+  "title": "Eleven of Me",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "Eleven of me, parked in a row. I asked the Archivist to stop reading the numbers out. I didn't say why. I don't know why.",
+  "trigger": "flag",
+  "flag": "thirty-three",
+  "delay": 60,
+  "chapter": "the-lantern",
+  "tags": "private log, you",
+  "status": "draft"
+}

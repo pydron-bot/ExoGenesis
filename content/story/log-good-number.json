@@ -1,0 +1,23 @@
+{
+  "title": "A Good Number",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "The report went out at sol's end. Planet health high again. I like that number. I'm aware that liking a number is a strange thing to write down. I'm writing it down.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "time",
+      "sol": 3
+    },
+    {
+      "kind": "planet",
+      "count": 70
+    }
+  ],
+  "delay": 30,
+  "region": "touchdown",
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Nobody Chose",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "A child nobody chose for. I logged her weight, her heart, the time. Then I found there was nothing left for me to do in that room, and I stayed anyway.",
+  "trigger": "births",
+  "count": 1,
+  "delay": 120,
+  "region": "touchdown",
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

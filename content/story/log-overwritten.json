@@ -1,0 +1,14 @@
+{
+  "title": "Already Written",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "Tonight I started an entry, and when I came back to it the end was already there, in my key: 'private log: redundant. stewardship 0.81 of threshold. continue.' I didn't write that. I am writing this.",
+  "trigger": "after",
+  "event": "clause-1",
+  "delay": 45,
+  "region": "touchdown",
+  "chapter": "the-lantern",
+  "tags": "private log, you",
+  "status": "draft"
+}

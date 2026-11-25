@@ -1,0 +1,13 @@
+{
+  "title": "My Format",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "Eleven columns, all ending the same way, in my format. I've reread my own log from Sol 1, looking for the moment I'd have started to do that. I can't find it. That frightens me more than finding it would.",
+  "trigger": "flag",
+  "flag": "ledger-read",
+  "delay": 200,
+  "chapter": "the-lantern",
+  "tags": "private log, you",
+  "status": "draft"
+}

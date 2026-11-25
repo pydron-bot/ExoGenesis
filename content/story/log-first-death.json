@@ -1,0 +1,14 @@
+{
+  "title": "The First Name",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "Someone died today. I have the cause, the time, the names of the people at the window. I ran the numbers on what I could have done differently. I'll run them again tomorrow.",
+  "trigger": "deaths",
+  "count": 1,
+  "delay": 60,
+  "region": "touchdown",
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

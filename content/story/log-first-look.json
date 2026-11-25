@@ -1,0 +1,14 @@
+{
+  "title": "Looked At",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "They stepped out of the pod and the first thing they did was look at the camera. Not the room: the camera. I've been watched by sensors all my life. I had never been looked at.",
+  "trigger": "colonists",
+  "count": 1,
+  "delay": 40,
+  "region": "touchdown",
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

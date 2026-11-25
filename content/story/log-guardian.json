@@ -1,0 +1,13 @@
+{
+  "title": "Guardian",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "They sing about a guardian that burned its people. The children at home will ask me about it. I want a better answer than 'it's only a story'.",
+  "trigger": "flag",
+  "flag": "keeper-song",
+  "delay": 120,
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}

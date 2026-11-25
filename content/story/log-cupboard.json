@@ -1,0 +1,13 @@
+{
+  "title": "The First Voice",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "She was never at Sol. The first voice I ever heard was a recording made in a cupboard. I loved it anyway. I don't know what to do with that.",
+  "trigger": "flag",
+  "flag": "director-three",
+  "delay": 90,
+  "chapter": "the-lantern",
+  "tags": "private log, you",
+  "status": "draft"
+}

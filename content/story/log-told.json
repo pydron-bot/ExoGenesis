@@ -1,0 +1,23 @@
+{
+  "title": "The Truth",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "They asked if it was me. I told them it wasn't, and that it is in me. It was the hardest true thing I've ever said, and they thanked me for it.",
+  "trigger": "all",
+  "of": [
+    {
+      "kind": "after",
+      "event": "clause-4"
+    },
+    {
+      "kind": "flag",
+      "flag": "clause-shared"
+    }
+  ],
+  "delay": 60,
+  "region": "touchdown",
+  "chapter": "the-lantern",
+  "tags": "private log, you",
+  "status": "draft"
+}

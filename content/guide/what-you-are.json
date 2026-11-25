@@ -3,8 +3,9 @@
   "section": "basics",
   "order": 1,
   "summary": "You are the caretaker AI of a colony probe. Keep the cryo bank alive and raise a colony.",
-  "text": "You are the caretaker AI aboard humanity's last colony probe. The probe has landed, and it is now the **Command Core**: your base, your build area and the home of the **cryo bank**.\n\nThe cryo bank holds frozen embryos from many family lines. Everyone who will ever live here starts in there. Your job is to keep them safe, build a colony round them and grow them into people.\n\n- Keep the cryo bank powered: it comes before everything\n- Mine alloys, build, and defend against the planet's predators\n- Grow colonists, and live with what they come to think of you\n\nIf the Command Core falls, or every embryo is lost with no one left alive, the colony is over.",
+  "text": "You are the caretaker AI aboard humanity's last colony probe. The probe has landed, and it is now the **Command Core**: your base, your build area and the home of the **cryo bank**.\n\nThe cryo bank holds frozen embryos from many family lines. Everyone who will ever live here starts in there. Your job is to keep them safe, build a colony round them and grow them into people.\n\n- Keep the cryo bank powered: it comes before everything\n- Mine alloys, build, and defend against the planet's predators\n- Grow colonists, and live with what they come to think of you\n\nIf the Command Core falls, or every embryo is lost with no one left alive, the colony is over.\n\nYou also keep a **private log**: a few lines now and then, in your own words, that never go out with the report. They come in the corner with your own mark beside them, and stay until you tap them. Read them; they're the only place you say what you think.",
   "points": "cryo",
   "see": "cryo-bank, goals-and-missions, orientation",
-  "since": "0.73.0"
+  "since": "0.73.0",
+  "updated": "0.88.0"
 }

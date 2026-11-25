@@ -1,0 +1,13 @@
+{
+  "title": "Sol 1",
+  "style": "radio",
+  "hold": true,
+  "character": "caretaker",
+  "text": "Not for the report. Sol 1 is over. A hundred and twenty of them, all still cold, all still there. I counted them four hundred times tonight. I don't know if counting is a feeling. It's what I did instead of sleeping.",
+  "trigger": "time",
+  "sol": 2,
+  "region": "touchdown",
+  "chapter": "the-planet",
+  "tags": "private log, you",
+  "status": "draft"
+}
