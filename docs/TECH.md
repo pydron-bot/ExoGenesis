@@ -2866,6 +2866,11 @@ key radio gone in seconds. Each release below is one fix.
   reads content live from GitHub but runs the code it was loaded with, so an old tab flagged v0.85.0's `hold` as an
   unknown field.
 
+- **Markers behind a planet (v0.93.3).** The system's body markers (the rings round moons and planets) draw without
+  depth so they stay findable, which drew them straight through a planet in front. `SolarSystem.inSight` fades a
+  marker as its body goes behind any planet or moon between it and the camera (the globe being played at its drawn
+  size R), eased over the edge (0.98–1.04 r), the same sphere test as the lens flare's.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

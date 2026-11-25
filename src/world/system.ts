@@ -43,6 +43,7 @@ const sunsetLight = new THREE.Color('#ffb070');
 let seed = 7;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 
+const sightDir = new THREE.Vector3(), sightOc = new THREE.Vector3();
 let markerTex: THREE.Texture | null = null;
 function markerSprite(color: string): THREE.Sprite {
   if (!markerTex) {
@@ -403,6 +404,30 @@ export class SolarSystem {
     return this.bodies.filter((b) => b !== this.here && b.kind !== 'comet' && b.radius >= 600);
   }
 
+  /**
+   * How much of `target` is in sight from `from` (0..1): 0 once a planet or moon (the globe being played at its drawn
+   * size R included) stands between, eased over the body's edge. For the map markers, which draw without depth.
+   */
+  private inSight(from: THREE.Vector3, target: Body): number {
+    const to = sightDir.subVectors(target.pos, from);
+    const dist = to.length();
+    if (dist < 1e-6) return 1;
+    to.divideScalar(dist);
+    let vis = 1;
+    for (const o of this.bodies) {
+      if (o === target || o.kind === 'comet') continue;
+      const r = o === this.here ? R : o.radius;
+      sightOc.subVectors(o.pos, from);
+      const along = sightOc.dot(to);
+      // only bodies between the camera and the target (a moon's own planet behind it doesn't count)
+      if (along <= 0 || along >= dist - target.radius) continue;
+      const miss = Math.sqrt(Math.max(0, sightOc.lengthSq() - along * along));
+      vis *= smoothstep(r * 0.98, r * 1.04, miss);
+      if (vis <= 0) return 0;
+    }
+    return vis;
+  }
+
   /** Big round things that can hide the sun (the lens flare's test): the globe being played and every planet and moon. */
   occluders(globeR: number): { pos: THREE.Vector3; radius: number }[] {
     const out = [{ pos: this.here.pos, radius: globeR }];
@@ -454,6 +479,8 @@ export class SolarSystem {
         k = smoothstep(0.1, 0.5, sys);
       }
       k *= 1 - away;
+      // the markers draw without depth (so they stay findable): hide one whose body is behind a planet or moon
+      if (k > 0.01) k *= this.inSight(camera.position, b);
       const m = b.marker!;
       m.visible = k > 0.01;
       m.position.copy(b.pos);

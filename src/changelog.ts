@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.93.3',
+    date: '2026-11-25',
+    title: 'Out of sight',
+    notes: [
+      'Fixed: the rings that mark moons and planets showed through a planet in front of them; they now hide behind it',
+    ],
+    guide: [],
+  },
+  {
     version: '0.93.2',
     date: '2026-11-25',
     title: 'Planets in the right order',
