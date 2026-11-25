@@ -73,9 +73,12 @@ export function addFog(mat: THREE.Material) {
         if (uFogOn > 0.001) {
           vec3 fd = normalize(vFogW);
           vec2 rp = uFogR * vec2(dot(fd, uFogE), dot(fd, uFogN)) / dot(fd, uFogU);
-          // only inside the region (the globe carries this too, and must stay lit elsewhere)
-          if (dot(fd, uFogU) > 0.5 && abs(rp.x) < uFogHalf && abs(rp.y) < uFogHalf) {
-            float fv = texture2D(uFogTex, (rp + uFogHalf) / (2.0 * uFogHalf)).r;
+          // the region's grid; past its edge the land is unexplored too, fading back to lit over most of a
+          // region's width (the globe carries this as well), so there's no hard square seen from above
+          if (dot(fd, uFogU) > 0.5) {
+            float fogOut = max(abs(rp.x), abs(rp.y)) - uFogHalf;
+            float fv = texture2D(uFogTex, (clamp(rp, -uFogHalf, uFogHalf) + uFogHalf) / (2.0 * uFogHalf)).r;
+            if (fogOut > 0.0) fv = mix(fv, 1.0, smoothstep(0.0, uFogHalf * 1.6, fogOut));
             gl_FragColor.rgb *= mix(1.0, mix(uFogDark, 1.0, fv), uFogOn);
           }
         }
@@ -83,6 +86,14 @@ export function addFog(mat: THREE.Material) {
   };
   mat.customProgramCacheKey = () => `${prevKey()}|fog`;
   mat.needsUpdate = true;
+}
+
+/**
+ * Seen from high up the fog thins (unexplored land lightens), so from orbit the region isn't a dark tile on a
+ * lit planet; at play distances it's as dark as ever. `dist`: the camera's distance from its focus.
+ */
+export function fogDistance(dist: number) {
+  fogUniforms.uFogDark.value = THREE.MathUtils.lerp(DARK, 0.8, THREE.MathUtils.smoothstep(dist, 180, 1200));
 }
 
 /** Eases the fog texture toward the sim's grid (cells brighten fast, darken slowly). */

@@ -84,6 +84,8 @@ export const waterUniforms = {
   uWaterShallow: { value: new THREE.Color('#2f8c8c') },
   uWaterE: { value: E.clone() },
   uWaterN: { value: N.clone() },
+  /** Where the sea round the region fades out (region units from the centre, Chebyshev): start, end. */
+  uWaterEdge: { value: new THREE.Vector2(1e9, 2e9) },
 };
 
 /** Per frame: the water's clock (game time) and the sky colour it reflects. */
@@ -123,6 +125,7 @@ function waterMaterial(detailed: boolean): THREE.MeshStandardMaterial {
         uniform sampler2D uRipple;
         uniform float uWaterTime;
         uniform vec3 uWaterSky, uWaterDeep, uWaterShallow, uWaterE, uWaterN;
+        uniform vec2 uWaterEdge;
         varying float vWDepth;
         varying float vWFoam;
         varying vec2 vWXZ;
@@ -176,6 +179,8 @@ function waterMaterial(detailed: boolean): THREE.MeshStandardMaterial {
           wF *= 1.0 - wFoam;
           reflectedLight.indirectSpecular += uWaterSky * wF * 0.85;
           diffuseColor.a = mix(diffuseColor.a, 1.0, wF);
+          // the far edge of the sea round the region fades into the globe's own ocean (no visible sheet edge from above)
+          diffuseColor.a *= 1.0 - smoothstep(uWaterEdge.x, uWaterEdge.y, max(abs(vWXZ.x), abs(vWXZ.y)));
         }`);
   };
   mat.customProgramCacheKey = () => `${prevKey()}|water`;
@@ -234,6 +239,7 @@ export function buildWater(detailed: boolean): THREE.Mesh | null {
   const cs = HALF / Math.max(1, Math.round(HALF / 10)), ring = Math.ceil(REACH / cs), cn = Math.round((HALF * 2) / cs) + ring * 2;
   grid(-HALF - ring * cs, -HALF - ring * cs, cn, cn, cs, 0.5, (x, z) => Math.abs(x) < HALF && Math.abs(z) < HALF);
   if (!idx.length) return null;
+  waterUniforms.uWaterEdge.value.set(HALF + REACH * 0.45, HALF + ring * cs - cs);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));

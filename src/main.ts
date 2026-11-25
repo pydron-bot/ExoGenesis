@@ -28,7 +28,7 @@ import { loadModel } from './assets/models';
 import { ColonyHud } from './colony-hud';
 import { StoryHud } from './story-hud';
 import { Inspector, LIVE_COLLECTIONS } from './inspector';
-import { FogView, addFog } from './world/fog';
+import { FogView, addFog, fogDistance } from './world/fog';
 import { SkyEnv, type SkyLook } from './world/envmap';
 import { atmosUniforms } from './world/atmos';
 import { PerfReport } from './perf-report';
@@ -1911,6 +1911,7 @@ function frame(now: number) {
     // fog shows once the landing has handed over (the descent keeps its vista)
     fogView.amount = (cine && !cine.world) || title ? 0 : 1;
     fogView.update(sim.cur.fog, dt);
+    fogDistance(cam.dist);
     if (sim.cur.players) army?.setTeamColors(sim.cur.players.map((p) => p.color));
     else if (sim.cur.factions) army?.setTeamColors(factionColors(sim.cur.factions));
     army?.update(asArmy(sim.prev), asArmy(sim.cur), alpha, syncArmySel(), dt, cam.dist);
