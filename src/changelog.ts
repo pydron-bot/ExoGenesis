@@ -23,14 +23,20 @@ export const CHANGELOG: Release[] = [
   {
     version: '0.80.0',
     date: '2026-11-25',
-    title: 'Touchdown, remastered',
+    title: 'Touchdown, remastered, and a new look round it',
     notes: [
       'The landing probe is rebuilt in detail: panelled shell, a tiled heat shield that glows red-hot through entry and cools after, hinge knuckles, thruster pods and proper engine bells that glow while they burn',
       'New retro-rocket flames: turbulent, soft-edged plumes with bright shock diamonds that reach down to the ground as the probe comes in',
       'The burn lights up the ground and the dust cloud, throws sparks, and leaves a scorch mark on the pad; touchdown sends a shock ring across the ground and kicks out rocks',
-      'Billowier, more natural dust, and the shell now breaks into glowing motes that drift into the Command Core as it is reclaimed',
+      'Billowier, more natural dust that fades softly into the ground instead of cutting off in hard bands, and the shell now breaks into glowing motes that drift into the Command Core as it is reclaimed',
+      'The Command Core is rebuilt in detail: ribbed walls, lit windows, radiator fins, a sensor deck with a dish and mast, glow rings in dark housings, braced landing legs and clamped cryo pods',
+      'The landing leaves a scorch mark round the Core that stays for the rest of the game',
+      'Stones and the odd boulder lie scattered in patches across open ground',
+      'A real sky from the ground: it deepens overhead, and clouds drift across it, lit by the sun, warm at sunrise and sunset, heavy and grey in rain or dust, dark at night',
+      'Zooming out, unexplored land no longer turns your region into a dark square on the planet: the fog thins as you climb and fades out past the region\'s edge, and the sea round the region no longer ends in a visible sheet',
+      'From orbit, a softer glow of air round the planet\'s day side, and clouds with more body',
     ],
-    guide: ['cinematics'],
+    guide: ['cinematics', 'weather-and-wear', 'camera-and-views'],
   },
   {
     version: '0.79.2',
@@ -85,7 +91,7 @@ export const CHANGELOG: Release[] = [
       'Destroyed buildings buckle and come down, leaving a smoking heap of rubble on scorched ground for a few minutes (building over it clears it)',
       'Colour grade: each world gets its own colour mood, nights a little bluer and sunrise and sunset warmer, with slightly darker corners. New options: Colour grade, Cloud shadows, and Tracks and wet ground',
     ],
-    guide: ['weather-and-wear', 'repairs'],
+    guide: ['repairs'],
   },
   {
     version: '0.77.2',

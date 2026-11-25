@@ -121,7 +121,20 @@ How content is stored and edited in general (one JSON record per file, schemas i
   (`groundDisc` + `decalMaterial`: per-vertex RGBA via its own attribute, since MeshBasicMaterial with
   4-component vertex colours drew nothing here), warms nearby dust, and throws sparks; touchdown adds a
   low shock ring of dust, sparks and ~70 instanced rocks; the dissolve sheds cyan motes into the core.
-  Dust puffs are billowy (noise edge, twist, lit top). Stills: `node tools/landing-shot.mjs --gpu --bloom`.
+  Dust puffs are billowy (noise edge, twist, lit top) and soft against the terrain: each pixel looks up the light
+  map's ground height and fades over the last 0.6-4 u (no depth pass). The scorch is the region's
+  (`RegionView.setScorch`, `src/world/decal.ts`): the landing burns it in and it stays. Stills:
+  `node tools/landing-shot.mjs --gpu --bloom`.
+- **v0.80.0 look round the landing**: the Command Core (`buildCore`) keeps its footprint, bay and named parts
+  (`hatch`, `lintel`, `ring`, `beacon`, `pod`) and merges its new decoration into one mesh per material, with
+  `addWear`. Stones (`src/world/pebbles.ts`): instanced, clustered by a coarse noise, ~1200 per 100² u on desktop
+  (380 on phones), off water and the pad, hidden on building pads by `relevel`. Sky (`skyDome` in
+  `src/world/sky.ts`, driven by `SolarSystem`): the horizon is the background colour (so the fog meets it), a
+  deeper zenith, a projected cloud sheet (5-octave value noise) lit from the sun, coverage from `overcast`; stars
+  draw first (renderOrder -3) so clouds cover them. Fog of war (`src/world/fog.ts`) continues past the region edge,
+  fading back to lit over 1.6 half-widths, and `fogDistance(cam.dist)` lightens unexplored land from 0.1 at 180 u
+  to 0.8 at 1200 u: before, zoomed out, the region was a dark square on a lit globe. The near sea fades out over
+  its outer band (`uWaterEdge`). Orbit: a day-side haze term in the atmosphere; clouds shaded by thickness.
 - **Cinematics** (v0.22.0): `content/cinematics/<id>.json` (Cinematics → any; `cinematicShape` in
   `src/content/defs.ts`): a length, camera keys, captions, **lines** (who says what and for how long: a
   character or a speaker name, `{first}` filled in), **sounds** (audio assets; `music` loops and fades out at
