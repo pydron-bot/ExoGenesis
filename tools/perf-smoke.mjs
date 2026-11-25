@@ -39,6 +39,7 @@ if (process.env.SHOW) console.log(report);
 check(/BENCHMARK/.test(report) && /as you have it/.test(report), 'the report has the benchmark');
 check(/Sun shadows off\n\s+waited: .*saves/.test(report) && /Sky reflections off\n\s+waited: .*saves/.test(report) && /all of those off/.test(report), 'each effect that was on is measured by itself, then all off');
 check((report.match(/running: avg \d/g) ?? []).length >= 3 && /sim updates \d+\/s/.test(report), 'each step is also measured running, with the sim updates');
+check(/as you have it, again\n\s+waited:/.test(report) && /(Steady run|⚠ The device)/.test(report), 'the first step is measured again at the end, and the report says whether the device drifted (heat)');
 check(/Graphics: /.test(report) && /SETTINGS/.test(report) && /Version: /.test(report), 'device, game and settings sections');
 check(!(await page.$('#perf-badge')), 'the badge is gone');
 const after = await page.evaluate(() => JSON.stringify(Object.keys(localStorage).filter((k) => k.startsWith('exo') && k !== 'exo.camera').sort().map((k) => [k, localStorage.getItem(k)])));

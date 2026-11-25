@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.79.2',
+    date: '2026-11-25',
+    title: 'Lighter reflections, heat-aware benchmark',
+    notes: [
+      'Sky reflections cost much less: the ground no longer takes them (they barely showed there), only metal, glass and the like (about 2.5 ms a frame saved on an iPhone)',
+      'Performance report: the benchmark measures your settings again at the end and warns if the device slowed down during the run (phones throttle when warm, which made late steps look far costlier than they are)',
+    ],
+    guide: [],
+  },
+  {
     version: '0.79.1',
     date: '2026-11-24',
     title: 'A sharper performance report',

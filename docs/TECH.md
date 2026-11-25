@@ -670,6 +670,11 @@ How content is stored and edited in general (one JSON record per file, schemas i
     yet 42 fps in play with the render scale stuck at 1.0–1.25: the cost is outside the GPU work, which is
     what the running part and the message timing are for. Headless Chromium doesn't throttle rAF to the GPU,
     so "running" reads 16.7 ms there whatever the load (meaningful on real devices only).
+    Second iPhone report (v0.79.1, scale 1.5): 60 fps running with everything on; waited 16 ms, saved by AO 3.6,
+    sun shadows 3.1, sky reflections 2.7, mist ~2; Glow ~0; sim messages 10/s, <0.1 ms. After ~1 min every step
+    got slower (a lens flare "costing" 24 ms): thermal throttling, which is also what the first report's 42 fps
+    was. v0.79.2: the benchmark ends with "as you have it, again" and flags >10% drift; the ground no longer
+    samples the sky reflection map (`GROUND_ENV` 0 → `SkyEnv.own` sets `envMap` null: no lookups), looks the same.
   - Sky reflections default off in automated browsers (like Glow): on SwiftShader they took frames from ~0.7 s
     to ~1.2 s and `skirmish-play-smoke` lost sight of its spawned enemies; screenshot scripts pass `?reflect=1`.
   - `tools/asset-smoke.mjs` had been checking `army.bodies[1]` for the asset model since before v0.14.0 moved

@@ -251,7 +251,9 @@ export class PerfReport {
     this.d.setSpeed(0);
     this.d.holdRes(true);
     const label = (id: string) => ts.find((x) => x.id === id)?.label ?? id;
-    this.phases = [phase('as you have it', []), ...on.map((id) => phase(`${label(id)} off`, [id])), ...(on.length > 1 ? [phase('all of those off', on)] : [])];
+    // and the first step again at the end: a phone that heats up slows down as the run goes on (seen on an iPhone:
+    // a lens flare "cost" 24 ms late in a run), and the two tell whether it did
+    this.phases = [phase('as you have it', []), ...on.map((id) => phase(`${label(id)} off`, [id])), ...(on.length > 1 ? [phase('all of those off', on)] : []), phase('as you have it, again', [])];
     this.pi = 0; this.fi = 0;
     this.d.msgTiming(this.onMsg);
     this.benchText = '';
@@ -286,6 +288,14 @@ export class PerfReport {
     const out = [`BENCHMARK (view held still, render scale ${this.d.resScale().toFixed(2)})`,
       `  Each step twice: "waited" = paused, each frame waits for the graphics chip to finish (${this.measure} frames: the frame's full cost);`,
       `  "running" = the game running, frame to frame as it normally plays (${this.live} frames), with the main thread's time on simulation updates.`];
+    // did the device slow down (heat) between the first step and the same step at the end?
+    const last = this.phases[this.phases.length - 1];
+    const drift = (a: number, b: number) => (a > 0 ? (b - a) / a : 0);
+    const dW = drift(base, stats(last.times).mean), dR = drift(baseLive, stats(last.live).mean);
+    if (Math.abs(dW) > 0.1 || Math.abs(dR) > 0.1) {
+      out.splice(1, 0, `  ⚠ The device ${dW > 0 || dR > 0 ? 'slowed down' : 'sped up'} during the run: the same settings took ${(dW * 100).toFixed(0)}% (waited) / ${(dR * 100).toFixed(0)}% (running) ${dW > 0 || dR > 0 ? 'longer' : 'less'} at the end than at the start (most likely heat: phones throttle when warm).`,
+        '    Steps late in the run look worse than they are. Let it cool and run again, or compare an effect only with the steps just before it.');
+    } else out.splice(1, 0, `  Steady run: the same settings at the start and end were within ${Math.max(Math.abs(dW), Math.abs(dR)) * 100 < 1 ? '1' : (Math.max(Math.abs(dW), Math.abs(dR)) * 100).toFixed(0)}%.`);
     for (const ph of this.phases) {
       const st = stats(ph.times), lv = stats(ph.live);
       const secs = ph.liveT / 1000;

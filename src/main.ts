@@ -1789,7 +1789,7 @@ wearUniforms.uWearDust.value.copy(envGround);
 /** How strongly the sky lights and reflects; the sky fill dims by part of it so the scene isn't brighter overall. */
 const ENV_STRENGTH = 0.65;
 /** …and for the ground. */
-const GROUND_ENV = 0.2;
+const GROUND_ENV = 0;
 const t0 = performance.now();
 let last = t0;
 let ready = false;
@@ -1869,7 +1869,8 @@ function frame(now: number) {
     au.uAtSunCol.value.copy(system.sunColor).lerp(skySunset, 0.35 + 0.4 * system.golden);
     au.uAtSunK.value = on * smoothstep(-0.08, 0.05, sunUp) * (0.3 + 0.55 * system.golden) * (1 - system.overcast * 0.75);
   }
-  // the ground takes much less of it than metal: keeps its hills' shading
+  // the ground takes none of it: a fifth looked much the same, and its lookups over most of the screen cost an
+  // iPhone ~2.7 ms a frame (v0.79.1 performance report)
   skyEnv.own(region.patch.material, GROUND_ENV * air);
   skyEnv.own(globe.material, GROUND_ENV * air);
   fog.near = air > 0.01 ? cam.dist * 2.2 * (1 - wl.haze * 0.7) : 1e9;

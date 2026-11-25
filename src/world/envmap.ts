@@ -90,7 +90,8 @@ export class SkyEnv {
     if (Array.isArray(mat)) { for (const m of mat) this.own(m, k); return; }
     const m = mat as THREE.MeshStandardMaterial;
     if (!m.isMeshStandardMaterial) return;
-    const tex = this.on ? this.rt?.texture ?? null : null;
+    // 0: no map at all (no per-pixel lookups: the ground is most of the screen, and they cost a phone ~2.5 ms)
+    const tex = this.on && k > 0 ? this.rt?.texture ?? null : null;
     if (m.envMap !== tex) m.envMap = tex;
     m.envMapIntensity = k;
   }
