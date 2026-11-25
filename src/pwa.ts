@@ -12,3 +12,26 @@ export function registerServiceWorker() {
   if (document.readyState === 'complete') setTimeout(go, 3000);
   else addEventListener('load', () => setTimeout(go, 3000), { once: true });
 }
+
+/**
+ * Is a newer release live than the one running? Compares the page's entry script (its name carries a content hash)
+ * with the one in a fresh copy of the page. False offline, in dev, or on any doubt.
+ */
+export async function newVersionReady(): Promise<boolean> {
+  if (!import.meta.env.PROD) return false;
+  const mine = document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]')?.getAttribute('src');
+  if (!mine) return false;
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}?check=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return false;
+    const html = await res.text();
+    const theirs = html.match(/<script[^>]+type="module"[^>]+src="([^"]*\/assets\/[^"]+)"/)?.[1] ?? html.match(/src="([^"]*\/assets\/main-[^"]+\.js)"/)?.[1];
+    return !!theirs && theirs !== mine;
+  } catch { return false; }
+}
+
+/** Load the newer release: refresh the service worker, then the page. */
+export async function updateNow() {
+  try { await (await navigator.serviceWorker?.getRegistration())?.update(); } catch { /* reload anyway */ }
+  location.reload();
+}

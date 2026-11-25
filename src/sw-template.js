@@ -60,7 +60,9 @@ async function cacheFirst(req) {
 
 async function networkFirst(req, page) {
   const cache = await caches.open(CACHE);
-  const net = fetch(req).then((res) => {
+  // revalidate with the server (an unchanged page costs a 304): the browser's own HTTP cache (GitHub Pages lets it
+  // keep a page 10 min) mustn't hand back an old release
+  const net = fetch(req, { cache: 'no-cache' }).then((res) => {
     if (res.ok && !req.headers.has('range')) cache.put(page ? './' : req, res.clone());
     return res;
   });

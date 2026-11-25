@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.80.3',
+    date: '2026-11-25',
+    title: 'Updates that arrive',
+    notes: [
+      'When a newer version is out, the title screen says so beside the version number: tap ↻ Update ready to load it (a phone could keep running an old copy for a long time)',
+      'The game always checks for a newer page when it starts, instead of sometimes reusing one the browser kept',
+    ],
+    guide: [],
+  },
+  {
     version: '0.80.2',
     date: '2026-11-25',
     title: 'Record from the start',

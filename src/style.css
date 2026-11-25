@@ -508,6 +508,7 @@ body.title #hud, body.title #labels, body.title #cine, body.title #help { displa
 #whatsnew ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.5; color: color-mix(in srgb, var(--text) 82%, transparent); }
 #whatsnew li + li { margin-top: 3px; }
 #title .t-ver { background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit; color: var(--cyan-dim); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+#title .t-upd { background: var(--amber); color: #05080d; border: 0; border-radius: 3px; padding: 1px 6px; font: inherit; letter-spacing: inherit; cursor: pointer; }
 #title .t-ver .badge, #title .t-item .badge { margin-left: 6px; font-size: 9px; color: #05080d; background: var(--amber); padding: 1px 4px; border-radius: 3px; text-decoration: none; display: inline-block; }
 #brand .ver { color: var(--cyan-dim); font-weight: 400; }
 

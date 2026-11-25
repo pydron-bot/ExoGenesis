@@ -53,7 +53,7 @@ import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';
 import { configureGuide, GuideTips, offerTour, openGuide, setTipsWanted, tipsWanted, toured, tourActive } from './guide';
-import { registerServiceWorker } from './pwa';
+import { newVersionReady, registerServiceWorker, updateNow } from './pwa';
 import { updateWater } from './world/water';
 import { ClimaxView, endingsReached, scrambleIn } from './climax-view';
 import type { FactionState, LogStyle } from './sim/types';
@@ -1728,6 +1728,19 @@ function showTitle() {
   if (params.get('tour') === '1') title.tour(true);
   const ver = title.root.querySelector<HTMLButtonElement>('.t-ver')!;
   ver.onclick = () => { audio.play('tap'); openWhatsNew(() => title?.root.querySelectorAll('.badge').forEach((b) => b.remove())); };
+  // a newer release live than this one (a phone can keep an old page in memory): offer it beside the version
+  const checkUpdate = async () => {
+    if (!title || title.root.querySelector('.t-upd') || !(await newVersionReady()) || !title) return;
+    const b = document.createElement('button');
+    b.className = 't-upd';
+    b.textContent = '↻ Update ready';
+    b.title = 'A newer version is out: tap to load it';
+    b.onclick = () => { audio.play('tap'); b.textContent = '↻ Updating…'; void updateNow(); };
+    ver.after(' · ', b);
+  };
+  void checkUpdate();
+  const onVis = () => { if (!title) document.removeEventListener('visibilitychange', onVis); else if (document.visibilityState === 'visible') void checkUpdate(); };
+  document.addEventListener('visibilitychange', onVis);
 }
 
 // ground shadows (in the light map): each building kind's body radius and a rough height
