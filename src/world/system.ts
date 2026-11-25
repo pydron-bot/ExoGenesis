@@ -9,7 +9,7 @@ import { smoothstep } from './noise';
 import type { BodyDef } from '../content/defs';
 import { addRockyDetail, bodyUniforms, cloudShell, giantMaterial, lookOf, ringMaterial } from './body-surface';
 import { CometLook } from './comet';
-import { milkyWay, skyGlow, starField } from './sky';
+import { milkyWay, skyDome, skyGlow, starField } from './sky';
 import { coronaMaterial, starMaterial, sunDim, sunUniforms } from './sun';
 import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
 
@@ -200,6 +200,11 @@ export class SolarSystem {
   /** The landing site's up (for the horizon glow). */
   skyUp = new THREE.Vector3(0, 1, 0);
   private glow: THREE.Mesh;
+  /** The sky's gradient and clouds (src/world/sky.ts skyDome). */
+  private dome: THREE.Mesh;
+  /** Set by the frame loop: the sky's colour at the horizon (the background), and whether this body has clouds. */
+  skyBg = new THREE.Color();
+  cloudy = true;
   /** The body being played: at the origin, drawn by the globe (not here). */
   private here: Body;
   /**
@@ -308,6 +313,10 @@ export class SolarSystem {
     scene.add(this.milky);
     this.glow = skyGlow();
     scene.add(this.glow);
+    this.dome = skyDome();
+    scene.add(this.dome);
+    // stars first: the sky's clouds draw over them
+    this.stars.renderOrder = -3;
     scene.add(this.stars);
   }
 
@@ -446,6 +455,18 @@ export class SolarSystem {
     gu.uGolden.value = this.golden;
     gu.uAir.value = this.skyAir * (1 - this.overcast * 0.8);
     gu.uDay.value = this.skyDay;
+    this.dome.visible = this.skyAir > 0.01;
+    this.dome.position.copy(camera.position);
+    const du = (this.dome.material as THREE.ShaderMaterial).uniforms;
+    du.uSun.value.copy(gu.uSun.value);
+    du.uUp.value.copy(this.skyUp);
+    du.uBg.value.copy(this.skyBg);
+    du.uAir.value = this.skyAir;
+    du.uDay.value = this.skyDay;
+    du.uGolden.value = this.golden;
+    du.uOvercast.value = this.overcast;
+    du.uTime.value = t;
+    du.uCloudy.value = this.cloudy ? 1 : 0;
     // warmer, a little dimmer sunlight low in the sky
     this.light.color.set('#fff4e4').lerp(sunsetLight, this.golden * this.skyAir * 0.6);
     this.sunIntensity = 3.2 * (1 - this.overcast * 0.6);

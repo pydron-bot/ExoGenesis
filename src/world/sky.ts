@@ -179,3 +179,73 @@ export function skyGlow(): THREE.Mesh {
   m.renderOrder = -1;
   return m;
 }
+
+/**
+ * The sky itself, seen from the ground on bodies with air (drawn over the flat background colour, under the
+ * sun's glow): a gradient from the horizon (exactly the background, so the fog it matches meets it seamlessly)
+ * to a deeper zenith, and a layer of drifting clouds lit from the sun's side, warm round sunrise and sunset, grey
+ * and thicker in bad weather (`uOvercast`), dark at night where they blot out the stars. Off from orbit.
+ */
+export function skyDome(): THREE.Mesh {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uSun: { value: new THREE.Vector3(1, 0, 0) }, uUp: { value: new THREE.Vector3(0, 1, 0) }, uBg: { value: new THREE.Color() },
+      uAir: { value: 0 }, uDay: { value: 0 }, uGolden: { value: 0 }, uOvercast: { value: 0 }, uTime: { value: 0 }, uCloudy: { value: 1 },
+    },
+    vertexShader: /* glsl */`
+      varying vec3 vDir;
+      void main() {
+        vDir = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */`
+      uniform vec3 uSun, uUp, uBg;
+      uniform float uAir, uDay, uGolden, uOvercast, uTime, uCloudy;
+      varying vec3 vDir;
+      float sH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(sH(i), sH(i + vec2(1, 0)), f.x), mix(sH(i + vec2(0, 1)), sH(i + vec2(1, 1)), f.x), f.y); }
+      float sF(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * sN(p); p = p * 2.03 + 1.7; a *= 0.5; } return s; }
+      void main() {
+        vec3 d = normalize(vDir);
+        float h = dot(d, uUp);
+        if (h < -0.05) discard;
+        // gradient: the horizon is the background (and the fog); higher up deeper and bluer, a pale band just above it
+        float up = smoothstep(0.0, 0.85, h);
+        vec3 zen = uBg * mix(vec3(0.62, 0.74, 0.92), vec3(0.75, 0.62, 0.7), uGolden);
+        vec3 col = mix(uBg, zen, up) + uBg * 0.12 * exp(-max(h, 0.0) * 18.0) * uDay;
+        float a = smoothstep(-0.05, 0.02, h) * uDay;
+        // clouds on a sheet overhead, drifting
+        if (uCloudy > 0.5 && h > 0.0) {
+          vec3 e = normalize(cross(uUp, abs(uUp.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+          vec3 n = cross(e, uUp);
+          vec2 p = vec2(dot(d, e), dot(d, n)) / max(h, 0.08) * 1.6 + vec2(uTime * 0.012, uTime * 0.005);
+          float cov = 0.58 - 0.22 * uOvercast;
+          float f = sF(p);
+          float c = smoothstep(cov, cov + 0.22, f) * smoothstep(0.02, 0.3, h);
+          if (c > 0.002) {
+            float toSun = max(dot(d, uSun), 0.0);
+            // thicker cores are darker underneath; the sun's side and the edges catch light
+            float body = smoothstep(cov + 0.05, cov + 0.4, f);
+            vec3 day = mix(vec3(1.0, 0.99, 0.97), vec3(0.72, 0.75, 0.8), body) * (0.85 + 0.3 * pow(toSun, 3.0));
+            day = mix(day, vec3(1.0, 0.62, 0.42) * (0.8 + 0.5 * pow(toSun, 2.0)), uGolden * 0.75);
+            vec3 night = uBg * 1.25 + vec3(0.01, 0.012, 0.016);
+            vec3 cc = mix(night, day * max(uBg * 1.6, vec3(0.55)), max(uDay, uGolden * 0.6));
+            cc *= 1.0 - 0.4 * uOvercast;
+            col = mix(col, cc, c * (0.85 + 0.15 * uOvercast));
+            a = max(a, c * (0.9 + 0.1 * uOvercast));
+          }
+        }
+        gl_FragColor = vec4(col, a * uAir);
+        #include <colorspace_fragment>
+      }`,
+    side: THREE.BackSide,
+    transparent: true,
+    depthWrite: false,
+    fog: false,
+  });
+  const m = new THREE.Mesh(new THREE.SphereGeometry(FAR * 0.8, 48, 24), mat);
+  m.frustumCulled = false;
+  m.renderOrder = -1.5;
+  return m;
+}

@@ -412,6 +412,7 @@ scene.add(globe);
 const surfaceOn = params.get('surface') !== '0';
 const clouds = buildClouds();
 const cloudy = bodyDef?.clouds ?? bodyId === 'home';
+system.cloudy = cloudy;
 if (surfaceOn) { addSurfaceDetail(globe.material as THREE.MeshStandardMaterial); if (cloudy) scene.add(clouds); }
 function startSurfaceBake() {
   if (!surfaceOn) return;
@@ -1841,6 +1842,7 @@ function frame(now: number) {
   if (airGlow && wl.tintK > 0) bg.lerp(tintTmp.copy(wl.tint).multiplyScalar(0.35 + 0.65 * smoothstep(-0.15, 0.25, sunUp)), wl.tintK).multiplyScalar(1 - wl.dark * 0.4);
   system.overcast = weather.amount * air;
   scene.background = bg.clone().lerp(space, 1 - air);
+  system.skyBg.copy(bg);
   updateWater(skirmish ? t : gameT, bg);
   fog.color.copy(bg);
   // the sky for reflections: as seen from the ground (it fades out climbing to orbit, where there's no sky round you)
