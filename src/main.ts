@@ -810,7 +810,7 @@ function restartGame() {
 }
 const hud = new ColonyHud({
   defs: content.buildings, units: content.units, research: content.research, inhabitants: content.inhabitants, story: content.story, missions: content.missions, rules: content.colony, people: content.people, ui, cam,
-  regions: content.regions, bodies: content.bodies, travel: (id) => void travelTo(id),
+  regions: content.regions, bodies: content.bodies, travel: (id) => void travelTo(id), sites: regionDef.sites,
   command: (c) => sim.command(c),
   setBuild,
   // (a skirmish: the same map and players again; an expedition lost: back home, the campaign goes on)

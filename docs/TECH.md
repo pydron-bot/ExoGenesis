@@ -2795,6 +2795,11 @@ key radio gone in seconds. Each release below is one fix.
   fired on / the scouts home, the Heights' bearing, the Proof's gate. Held: the landings' briefings, the survey
   notes, ENGRAM's asides. The fight's chatter (strikes, the Lantern) still times out.
 
+- **The camera goes to the find (v0.86.0).** When a story card first shows (`ContactCard.lookAtFind`), if its trigger
+  is a story site (`site` or `explored`, alone or in an `all` / `any` group, not negated) on this region
+  (`regionDef.sites`, passed down through ColonyHud's `sites`), the camera glides there (`ZoomCamera.glideTo`; a pan
+  cancels it). Once per card per page load.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

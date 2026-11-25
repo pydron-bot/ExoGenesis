@@ -29,6 +29,8 @@ interface Deps {
   pause(on: boolean): void;
   /** A card opened (a sound). */
   opened?(): void;
+  /** Story sites on this region: a card about one glides the camera there. */
+  sites?: { id: string; x: number; z: number }[];
 }
 
 export class ContactCard {
@@ -48,6 +50,8 @@ export class ContactCard {
   /** The conversation page showing (story card id, line). */
   private page = { id: '', n: 0 };
   private last: Snapshot | null = null;
+  /** Story cards the camera has already been turned for. */
+  private looked = new Set<string>();
   private first = '';
   /** Radio messages: the panel, the one showing and until when, and the one just closed. */
   private radioEl: HTMLElement;
@@ -79,6 +83,20 @@ export class ContactCard {
     const img = a?.kind === 'image' ? `<img class="por" src="${esc(mediaUrl(a))}" alt="">` : '';
     const color = ch?.color ?? '';
     return { html: `<div class="who"${color ? ` style="color:${esc(color)}"` : ''}>${img}<span>${esc(this.fill(name))}${ch?.role ? `<small>${esc(this.fill(ch.role))}</small>` : ''}</span></div>`, color };
+  }
+
+  /**
+   * A card about a place (its trigger is reaching a story site, alone or in a group) turns the camera to that
+   * place the first time it shows, so the find is on screen while you read about it.
+   */
+  private lookAtFind(id: string) {
+    if (this.looked.has(id)) return;
+    this.looked.add(id);
+    const ev = this.d.story[id] as StoryDef & { site?: string; of?: { kind?: string; site?: string; not?: boolean }[] };
+    const conds = [{ kind: ev.trigger as string, site: ev.site }, ...(ev.of ?? [])];
+    const c = conds.find((x) => (x.kind === 'site' || x.kind === 'explored') && x.site && !(x as { not?: boolean }).not);
+    const at = c && this.d.sites?.find((x) => x.id === c.site);
+    if (at) this.d.cam.glideTo(at.x, at.z);
   }
 
   /** A story card: its current page and buttons. */
@@ -163,6 +181,7 @@ export class ContactCard {
     } else if (inbox.length) {
       const id = inbox[0];
       pause = !!this.d.story[id].pause;
+      this.lookAtFind(id);
       ({ html, color } = this.storyHtml(id));
     } else if (this.story.length) {
       const i = this.story[0], c = camps[i], g = c && this.d.inhabitants[c.group];
@@ -236,7 +255,7 @@ export class ContactCard {
   /** New game / load: forget what was shown. */
   reset() {
     this.story = []; this.trusted.clear(); this.later.clear(); this.primed = false; this.answered = ''; this.reply = null;
-    this.page = { id: '', n: 0 }; this.radioId = ''; this.radioDone = ''; this.radioShown(false);
+    this.page = { id: '', n: 0 }; this.looked.clear(); this.radioId = ''; this.radioDone = ''; this.radioShown(false);
     if (this.paused) { this.paused = false; this.d.pause(false); }
     this.close();
   }

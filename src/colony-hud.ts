@@ -42,6 +42,8 @@ interface HudDeps {
   pause(on: boolean): void;
   /** A story or contact card opened. */
   cardOpened?(): void;
+  /** Story sites on the region being played (a card about one turns the camera to it). */
+  sites?: { id: string; x: number; z: number }[];
   log(text: string, level?: 'info' | 'warn' | 'bad'): void;
   /** A building was selected (tutorial `opened` conditions). */
   onSelect?(kind: string, role?: string): void;
@@ -87,7 +89,7 @@ export class ColonyHud {
       command: (c) => d.command(c), select: () => this.selected(),
     });
     this.tree = new ResearchHud({ research: d.research, defs: d.defs, units: d.units, people: d.people, command: (c) => d.command(c) });
-    this.contact = new ContactCard({ inhabitants: d.inhabitants, story: d.story, cam: d.cam, command: (c) => d.command(c), pause: (on) => d.pause(on), opened: () => d.cardOpened?.() });
+    this.contact = new ContactCard({ inhabitants: d.inhabitants, story: d.story, cam: d.cam, command: (c) => d.command(c), pause: (on) => d.pause(on), opened: () => d.cardOpened?.(), sites: d.sites });
     // phones start with just the current goal showing
     if (innerWidth < 640) this.el.goals.classList.add('min');
     this.el.goals.onclick = () => this.el.goals.classList.toggle('min');

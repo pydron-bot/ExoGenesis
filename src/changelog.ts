@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.86.0',
+    date: '2026-11-25',
+    title: 'See what you found',
+    notes: [
+      'When a story card is about a place you have just reached (a carved stone, a burned hull, a wall of code), the camera glides there so the find is on screen while you read about it',
+    ],
+    guide: ['camera-and-views'],
+  },
+  {
     version: '0.85.0',
     date: '2026-11-25',
     title: 'Messages that wait',
@@ -116,7 +125,7 @@ export const CHANGELOG: Release[] = [
       'Zooming out, unexplored land no longer turns your region into a dark square on the planet: the fog thins as you climb and fades out past the region\'s edge, and the sea round the region no longer ends in a visible sheet',
       'From orbit, a softer glow of air round the planet\'s day side, and clouds with more body',
     ],
-    guide: ['weather-and-wear', 'camera-and-views'],
+    guide: ['weather-and-wear'],
   },
   {
     version: '0.79.2',
