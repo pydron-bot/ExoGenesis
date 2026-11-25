@@ -17,12 +17,13 @@ export function registerServiceWorker() {
  * Is a newer release live than the one running? Compares the page's entry script (its name carries a content hash)
  * with the one in a fresh copy of the page. False offline, in dev, or on any doubt.
  */
-export async function newVersionReady(): Promise<boolean> {
+export async function newVersionReady(page = ''): Promise<boolean> {
   if (!import.meta.env.PROD) return false;
   const mine = document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]')?.getAttribute('src');
   if (!mine) return false;
   try {
-    const res = await fetch(`${import.meta.env.BASE_URL}?check=${Date.now()}`, { cache: 'no-store' });
+    // `page`: the page to compare with (the game's by default; the editor passes 'editor.html', its own entry)
+    const res = await fetch(`${import.meta.env.BASE_URL}${page}?check=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return false;
     const html = await res.text();
     const theirs = html.match(/<script[^>]+type="module"[^>]+src="([^"]*\/assets\/[^"]+)"/)?.[1] ?? html.match(/src="([^"]*\/assets\/main-[^"]+\.js)"/)?.[1];

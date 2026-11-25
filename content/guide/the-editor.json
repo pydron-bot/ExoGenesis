@@ -1,0 +1,10 @@
+{
+  "title": "The editor",
+  "section": "interface",
+  "order": 20,
+  "summary": "On a computer, the Editor makes units, buildings, maps, models and story. Keep it up to date.",
+  "text": "On a computer, the title screen's ✎ **Editor** opens the game's own editor: units, buildings, maps, models, the story and more. What you change can be play-tested straight away, and committed so everyone gets it.\n\nThe editor's version shows at the top, beside its name. The editor always reads the newest content, but it runs the code it was opened with, so an editor tab left open across an update can flag things the newer version understands. When a newer version is out, **↻ Newer version: reload** appears beside the name: commit or save what you're working on, then tap it.",
+  "see": "title-screen, whats-new",
+  "since": "0.93.0",
+  "updated": "0.93.0"
+}

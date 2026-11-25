@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.93.0',
+    date: '2026-11-25',
+    title: 'Which editor',
+    notes: [
+      'The editor shows its version at the top, beside its name',
+      'When a newer version of the game is out, the editor offers to reload, so an editor left open across an update doesn\'t flag content it doesn\'t understand yet',
+    ],
+    guide: ['the-editor'],
+  },
+  {
     version: '0.92.1',
     date: '2026-11-25',
     title: 'Paused means up to date',

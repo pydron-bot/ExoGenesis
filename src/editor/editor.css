@@ -38,6 +38,8 @@ code { color: var(--accent); }
 }
 #brand { font-weight: 700; letter-spacing: 0.14em; color: var(--accent); white-space: nowrap; }
 #brand span { color: var(--dim); font-weight: 400; letter-spacing: 0.06em; }
+#brand .ver { font-size: 0.85em; letter-spacing: 0.04em; }
+#brand .upd { margin-left: 8px; font-size: 11px; letter-spacing: 0.04em; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); background: transparent; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
 #git { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 #git-status { color: var(--dim); white-space: nowrap; cursor: help; }
 #git-status.pending { color: var(--amber); cursor: pointer; text-decoration: underline dotted; }

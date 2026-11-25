@@ -2846,6 +2846,13 @@ key radio gone in seconds. Each release below is one fix.
   the main thread's snapshot until play resumed: the answered card was still in `story.inbox` there.
   `tools/story-smoke.mjs` now waits for the inbox to drop the answered card and accepts the next card in its place.
 
+- **The editor's version (v0.93.0).** The editor's header shows `v<VERSION>` beside its name, and checks for a newer
+  release like the title screen does (`newVersionReady('editor.html')` in `src/pwa.ts` now takes the page to compare,
+  since the editor's entry script differs from the game's): on load, every 10 minutes and when the tab comes back, it
+  offers **↻ Newer version: reload** (the editor's beforeunload guard still protects unsaved edits). Why: the editor
+  reads content live from GitHub but runs the code it was loaded with, so an old tab flagged v0.85.0's `hold` as an
+  unknown field.
+
 ### Autopilot (spectator mode)
 
 The computer plays the campaign in the real game while you watch, for testing the story (v0.72.0).

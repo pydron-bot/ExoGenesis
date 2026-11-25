@@ -32,10 +32,37 @@ import { refsTo, renderBalance, renderReview, searchContent, type ReviewFile } f
 import { MapEditor } from './map';
 import { ACCEPT_ALL, AssetPanel, pickFiles, renderBuiltin, renderLibrary, uploadFiles, type AssetHost, type MediaInfo, type Usage } from './assets';
 import { BUILTINS } from '../assets/builtin';
-import { CHANGELOG } from '../changelog';
+import { CHANGELOG, VERSION } from '../changelog';
+import { newVersionReady } from '../pwa';
 import type { AssetDef, MusicDef, SoundRules } from '../content/defs';
 import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef, type ChapterDef, type BiomeDef, type WildlifeDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
+
+// ---------- the editor's version, and a newer one when it's out ----------
+// The editor reads content live from GitHub but runs the code it was loaded with: an old tab can flag content a
+// newer release understands. Say which version this is, and offer a reload once a newer one is live.
+{
+  const brand = document.getElementById('brand');
+  if (brand) {
+    const ver = document.createElement('span');
+    ver.className = 'ver';
+    ver.textContent = ` v${VERSION}`;
+    ver.title = `Editor version ${VERSION}`;
+    brand.append(ver);
+    const check = async () => {
+      if (brand.querySelector('.upd') || !(await newVersionReady('editor.html'))) return;
+      const b = document.createElement('button');
+      b.className = 'upd';
+      b.textContent = '↻ Newer version: reload';
+      b.title = 'A newer release is live. This tab runs older code, so it may flag content the newer one understands. Save or commit first, then reload.';
+      b.onclick = () => location.reload();
+      brand.append(b);
+    };
+    void check();
+    setInterval(() => void check(), 10 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void check(); });
+  }
+}
 
 /** Dev server on hive1, or the deployed site (GitHub-backed). */
 const WEB = !import.meta.env.DEV;
@@ -1783,3 +1810,4 @@ setInterval(() => void poll(), 4000);
 
 declare global { interface Window { __editor: unknown } }
 window.__editor = { get cur() { return cur; }, get map() { return mapEd; }, get preview() { return preview; }, get assetPanel() { return assetPanel; }, files, media, dirty, api };
+
