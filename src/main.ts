@@ -1676,6 +1676,11 @@ function showTitle() {
   ] : [];
   const titleOptions: OptionRow[] = [
     ...apRows,
+    {
+      id: 'perf:record', section: 'Performance report', label: 'Record from the start',
+      help: 'Records how the game runs from now on, the landing included: start or continue a game, then tap Stop on the ● Recording badge for the report (Copy report to send it). Same as opening the game with ?perf=record',
+      get: () => perf.recording, set: () => { perf.record(); document.getElementById('options')?.remove(); }, state: (on) => (on ? '● REC' : 'START ▸'),
+    },
     ...soundToggles,
     ...(regions.length > 1 ? regions.map((id): Toggle => ({
       id: `region:${id}`, section: 'Region: where New Game lands', label: regionLabel(id), help: bodyName(id),

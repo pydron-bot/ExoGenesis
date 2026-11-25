@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.80.2',
+    date: '2026-11-25',
+    title: 'Record from the start',
+    notes: [
+      'Options on the title screen: Performance report → Record from the start. It records from that moment, so the landing is in the report; tap Stop on the badge when you are done',
+    ],
+    guide: ['graphics'],
+  },
+  {
     version: '0.80.1',
     date: '2026-11-25',
     title: 'A smoother landing',
@@ -88,7 +97,7 @@ export const CHANGELOG: Release[] = [
       'Opening Options, Controls, the Field Guide and the rest from the menu keeps the game paused (it used to carry on behind them)',
       'With several kinds of unit selected, their ability buttons wrap onto a second row instead of overlapping',
     ],
-    guide: ['graphics', 'skirmish'],
+    guide: ['skirmish'],
   },
   {
     version: '0.78.0',

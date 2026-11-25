@@ -234,6 +234,7 @@ export class PerfReport {
 
   /** Start recording now (`?perf=record`: from the first frame, so the landing is in it). */
   record() { if (this.mode === 'idle') this.startRecord(); }
+  get recording() { return this.mode === 'record'; }
   private stopRecord() {
     this.mode = 'idle';
     this.d.msgTiming(null);
