@@ -54,7 +54,7 @@ import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
 import { voices } from './voice';
 import { TitleScreen, type TitleChoice } from './title';
-import { VERSION } from './changelog';
+import { VERSION } from './version';
 import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
-import { contentServer } from './devtools/content-server';
+import { contentServer } from './devtools/content-server.ts';
 
 /**
  * content-manifest.json: the content/ and public/media/ this build was made
@@ -45,6 +45,9 @@ function contentManifest(): Plugin {
  * The cache is named after a hash of those files, so each release gets its own
  * and the old one is dropped. Logic: src/sw-template.js.
  */
+/** Files only the editor uses: not precached for players (the editor is online-only). */
+const EDITOR_ONLY = /^editor\.html$|^assets\/(editor|balance-worker|playthrough-worker)-|^content-manifest\.json$|(^|\/)\.gitkeep$/;
+
 function serviceWorker(): Plugin {
   let outDir = 'dist';
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -58,14 +61,22 @@ function serviceWorker(): Plugin {
     closeBundle() {
       const files = walk(outDir)
         .map((abs) => path.relative(outDir, abs).split(path.sep).join('/'))
-        .filter((f) => f !== 'sw.js' && !/^editor\.html$|^assets\/editor-|^content-manifest\.json$|(^|\/)\.gitkeep$/.test(f))
+        .filter((f) => f !== 'sw.js' && !EDITOR_ONLY.test(f))
         .sort();
       const h = createHash('sha1');
-      for (const f of files) h.update(f).update(readFileSync(path.join(outDir, f)));
+      // per-file hashes for everything outside assets/ (media, icons, pages): a new release's worker copies
+      // an unchanged file from the old cache instead of downloading it again (assets/* names carry a hash already)
+      const hashes: Record<string, string> = {};
+      for (const f of files) {
+        const buf = readFileSync(path.join(outDir, f));
+        h.update(f).update(buf);
+        if (!f.startsWith('assets/') && f !== 'index.html') hashes[f] = createHash('sha1').update(buf).digest('hex').slice(0, 16);
+      }
       const precache = ['./', ...files.filter((f) => f !== 'index.html')];
       const src = readFileSync('src/sw-template.js', 'utf8')
         .replace('const CACHE = __CACHE__;', `const CACHE = ${JSON.stringify(`exo-${h.digest('hex').slice(0, 12)}`)};`)
-        .replace('const PRECACHE = __PRECACHE__;', `const PRECACHE = ${JSON.stringify(precache)};`);
+        .replace('const PRECACHE = __PRECACHE__;', `const PRECACHE = ${JSON.stringify(precache)};`)
+        .replace('const HASHES = __HASHES__;', `const HASHES = ${JSON.stringify(hashes)};`);
       writeFileSync(path.join(outDir, 'sw.js'), src);
     },
   };
@@ -87,7 +98,11 @@ export default defineConfig({
       // three.js in a chunk of its own: it only changes when three is upgraded, so its file name
       // (and the browser's / service worker's copy of it) survives releases. Without this it shares
       // a chunk with the content and changelog, which change every release.
-      output: { codeSplitting: { groups: [{ name: 'three', test: /[\\/]node_modules[\\/]three[\\/]/ }] } },
+      // The content JSON gets a named chunk too, so the file names say what they hold.
+      output: { codeSplitting: { groups: [
+        { name: 'three', test: /[\\/]node_modules[\\/]three[\\/]/ },
+        { name: 'content', test: /[\\/]content[\\/].*\.json$/ },
+      ] } },
     },
   },
 });

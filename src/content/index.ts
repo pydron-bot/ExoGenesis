@@ -12,7 +12,8 @@ const raw = import.meta.glob('/content/**/*.json', { eager: true, import: 'defau
 const files: Record<string, unknown> = {};
 for (const [k, v] of Object.entries(raw)) files[k.replace(/^\/content\//, '')] = v;
 
-const built = buildDb(files);
+// production skips validation: the build only succeeds when content:check passes
+const built = buildDb(files, { check: !import.meta.env.PROD });
 export const content = built.db;
 export const contentIssues: FileIssue[] = [...built.issues, ...requiredIssues(built.db)];
 

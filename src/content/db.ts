@@ -43,8 +43,13 @@ export interface FileIssue extends Issue {
   path: string;
 }
 
-/** `files` maps content-relative paths (e.g. "units/rover.json") to parsed JSON. */
-export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues: FileIssue[] } {
+/**
+ * `files` maps content-relative paths (e.g. "units/rover.json") to parsed JSON.
+ * `check: false` skips the per-field and cross-record validation (the production game:
+ * `npm run build` already ran it through content:check, and it costs 65-145 ms a thread).
+ */
+export function buildDb(files: Record<string, unknown>, opts: { check?: boolean } = {}): { db: ContentDb; issues: FileIssue[] } {
+  const check = opts.check ?? true;
   const issues: FileIssue[] = [];
   const recs: Record<string, Record<string, unknown>> = {};
   for (const name of Object.keys(COLLECTIONS)) recs[name] = {};
@@ -59,7 +64,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
 
   const ids: IdIndex = {};
   for (const [name, r] of Object.entries(recs)) ids[name] = new Set(Object.keys(r));
-  for (const w of where) {
+  if (check) for (const w of where) {
     for (const i of validate(COLLECTIONS[w.coll].shape, w.data, ids)) issues.push({ path: w.path, ...i });
   }
   for (const [name, c] of Object.entries(COLLECTIONS)) {
@@ -92,7 +97,7 @@ export function buildDb(files: Record<string, unknown>): { db: ContentDb; issues
     cinematics: recs.cinematics,
     landing: recs.cinematics.landing,
   } as unknown as ContentDb;
-  issues.push(...crossIssues(db0));
+  if (check) issues.push(...crossIssues(db0));
   return { db: db0, issues };
 }
 

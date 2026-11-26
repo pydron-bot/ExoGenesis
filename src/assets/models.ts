@@ -7,17 +7,38 @@
  */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mediaUrl, withVersion, type AssetDef } from '../content/defs';
 
-const loader = new GLTFLoader();
+// the shipped .glb files are meshopt-compressed (tools/compress-models.mjs); uncompressed ones load too
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const cache = new Map<string, Promise<THREE.Group>>();
+
+/**
+ * Compressed models store quantized (normalized integer, interleaved) attributes. Turn them back into plain
+ * float arrays, so code that bakes or slices geometry (flattenForInstancing, the editor) sees what it always did.
+ */
+export function dequantize<T extends THREE.Object3D>(root: T): T {
+  root.traverse((o) => {
+    const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+    if (!g?.attributes) return;
+    for (const [name, a] of Object.entries(g.attributes)) {
+      const attr = a as THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+      if (!('isInterleavedBufferAttribute' in attr && attr.isInterleavedBufferAttribute) && attr.array instanceof Float32Array) continue;
+      const n = attr.count, k = attr.itemSize, out = new Float32Array(n * k);
+      for (let i = 0; i < n; i++) for (let c = 0; c < k; c++) out[i * k + c] = attr.getComponent(i, c);
+      g.setAttribute(name, new THREE.BufferAttribute(out, k));
+    }
+  });
+  return root;
+}
 
 /** The raw glTF scene for a URL (cached; callers get clones). */
 function loadScene(url: string): Promise<THREE.Group> {
   let p = cache.get(url);
   if (!p) {
-    p = loader.loadAsync(url).then((g) => g.scene);
+    p = loader.loadAsync(url).then((g) => dequantize(g.scene));
     p.catch(() => cache.delete(url));
     cache.set(url, p);
   }

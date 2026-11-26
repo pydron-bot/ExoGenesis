@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.100.2',
+    date: '2026-11-26',
+    title: 'A lighter download',
+    notes: [
+      'The game downloads about half as much: voices and models are smaller, and the offline copy no longer includes the editor',
+      'Updates are much quicker for returning players: voices, models and pictures that haven’t changed are kept instead of downloaded again',
+      'The game starts a little faster, especially on phones',
+    ],
+    guide: [],
+  },
+  {
     version: '0.100.1',
     date: '2026-11-26',
     title: 'More voices',

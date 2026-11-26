@@ -6,6 +6,7 @@
  * Only add a field once the game actually reads it, so the editor never shows a
  * knob that does nothing.
  */
+import { ASSET_EXT, ASSET_KINDS, type AssetKind } from './asset-kinds';
 import { REGION_HALF } from '../sim/types';
 import { DRUMS, DRUM_HELP } from '../audio/drums';
 import { bool, choice, color, grid, int, list, num, ref, str, type ChoiceField, type Infer, type NumField, type RefField, type Shape, type StrField } from './schema';
@@ -484,14 +485,7 @@ export type MusicDef = Infer<typeof musicShape>;
 export type MusicChord = Infer<typeof musicChordShape>;
 export type MusicDrum = Infer<typeof musicDrumShape>;
 
-export const ASSET_KINDS = ['model', 'image', 'audio'] as const;
-export type AssetKind = (typeof ASSET_KINDS)[number];
-/** Allowed file extensions per kind (lowercase, no dot). */
-export const ASSET_EXT: Record<AssetKind, readonly string[]> = {
-  model: ['glb'],
-  image: ['png', 'jpg', 'jpeg', 'webp'],
-  audio: ['ogg', 'mp3', 'wav'],
-};
+export { ASSET_EXT, ASSET_KINDS, type AssetKind };
 /** Where an asset's file lives, relative to the site root (public/ in the repo). */
 /** Site base ('/' locally, '/ExoGenesis/' on deeek.org); undefined under plain node (content-check). */
 const BASE: string = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/';

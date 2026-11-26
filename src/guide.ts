@@ -13,7 +13,7 @@
  */
 import { content } from './content';
 import { GUIDE_SECTIONS, GUIDE_SECTION_NAMES, seeAlso, type GuideDef } from './content/defs';
-import { VERSION } from './changelog';
+import { VERSION } from './version';
 import { hintElement, type HintAction } from './story-hud';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);

@@ -25,7 +25,7 @@ import type { IncomingMessage } from 'node:http';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { Plugin } from 'vite';
-import { ASSET_EXT, type AssetKind } from '../src/content/defs';
+import { ASSET_EXT, type AssetKind } from '../src/content/asset-kinds.ts';
 
 const run = promisify(execFile);
 const MAX_BYTES = 1 << 20;

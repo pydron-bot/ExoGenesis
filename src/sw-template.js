@@ -10,6 +10,9 @@
  */
 const CACHE = __CACHE__;
 const PRECACHE = __PRECACHE__;
+// path -> content hash for files outside assets/ (media, icons, pages); kept in each cache under HASH_KEY
+const HASHES = __HASHES__;
+const HASH_KEY = 'exo-sw-hashes.json';
 const SLOW_MS = 5000;
 // one copy per URL: headers like Origin (module scripts send it) mustn't make a cached file miss
 const MATCH = { ignoreVary: true };
@@ -17,6 +20,14 @@ const MATCH = { ignoreVary: true };
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
+    // the previous release's cache and its file hashes: unchanged media is copied, not downloaded again
+    let prev = null, prevHashes = {};
+    for (const k of await caches.keys()) {
+      if (!k.startsWith('exo-') || k === CACHE) continue;
+      const c = await caches.open(k);
+      const h = await c.match(HASH_KEY).then((r) => r?.json()).catch(() => null);
+      if (h) { prev = c; prevHashes = h; break; }
+    }
     // one by one, past any failure: a missing file shouldn't stop the rest; `reload` skips the HTTP cache
     await Promise.all(PRECACHE.map(async (url) => {
       try {
@@ -25,11 +36,15 @@ self.addEventListener('install', (e) => {
         if (url.startsWith('assets/')) {
           const old = await caches.match(url, MATCH);
           if (old) { await cache.put(url, old); return; }
+        } else if (prev && HASHES[url] && prevHashes[url] === HASHES[url]) {
+          const old = await prev.match(url, MATCH);
+          if (old) { await cache.put(url, old); return; }
         }
         const res = await fetch(new Request(url, { cache: 'reload' }));
         if (res.ok) await cache.put(url, res);
       } catch { /* offline mid-install: cached on first use instead */ }
     }));
+    await cache.put(HASH_KEY, new Response(JSON.stringify(HASHES), { headers: { 'content-type': 'application/json' } }));
     await self.skipWaiting();
   })());
 });

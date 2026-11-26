@@ -102,6 +102,7 @@ node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores conte
 node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)
 node tools/pwa-smoke.mjs     # installable app: manifest, icons, service worker, offline boot (same /ExoGenesis/ preview)
 node tools/make-icons.mjs    # re-render the app icons from public/icons/icon.svg
+node tools/compress-models.mjs  # meshopt-compress new models in public/media/model (skips compressed ones)
 ```
 
 ## Installable app (PWA)

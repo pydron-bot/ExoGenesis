@@ -3355,3 +3355,25 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
 - Tests: `tools/domination-sim.mjs` (teams, fog, reveal, the computer's guess, victory by control, the history),
   `tools/domination-smoke.mjs` (the setup's new rows, "?" under fog, the player list's teams and rules, the 75%
   victory screen with its chart).
+
+### Download size and the offline cache (v0.100.2)
+
+- **Precache** (`vite.config.ts`, `EDITOR_ONLY`): the editor page, its chunk, and the editor-only `balance-worker` and
+  `playthrough-worker` (6 MB) are left out. 277 files / 45.5 MB → 278 / 22.6 MB.
+- **Media survives releases** (`src/sw-template.js`): the build writes a per-file sha1 (`HASHES`) for everything outside
+  `assets/`. Each cache stores its map under `exo-sw-hashes.json`; a new worker copies files whose hash didn't change from
+  the previous cache instead of fetching them. Measured: first install fetches 316 media files, the next release 0.
+- **Voices** (`public/media/voice`): 48 kbit/s mono MP3 instead of 128 (21 → 7.8 MB). `tools/voice/lines.mjs` re-encodes
+  new lines with ffmpeg (`VOICE_KBPS`); `index.json` lengths are unchanged.
+- **Models** (`public/media/model`): meshopt-compressed with quantized attributes (4.6 → 2.0 MB) by
+  `tools/compress-models.mjs` (skips files already compressed; run it after adding a model). `src/assets/models.ts` sets
+  `MeshoptDecoder` and `dequantize()`s every loaded scene back to float attributes, so `flattenForInstancing`,
+  `splitPart` and the editor see the same geometry as before. Gallery screenshots match the uncompressed set.
+- **No validation at runtime** (`src/content/index.ts`): production builds call `buildDb(files, { check: false })`, which
+  skips per-field and cross-record checks (65–145 ms per thread in Node; `npm run build` already ran `content:check`).
+  Dev, the editor and the tools still validate.
+- **Version without the changelog** (`src/version.ts`): the game imports `VERSION` from there; `src/changelog.ts` is
+  loaded only when What's new opens (its own 75 kB chunk). The content JSON gets a named chunk (`content-*.js`).
+- **Native config loading**: `vite.config.ts` → `devtools/content-server.ts` → `src/content/asset-kinds.ts` use
+  explicit `.ts` extensions (`allowImportingTsExtensions`) and have no other `src/` imports, so Vite's native config
+  loader no longer warns.

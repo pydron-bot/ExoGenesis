@@ -18,6 +18,20 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { api, readCast } from './eleven.mjs';
+import { execFileSync } from 'node:child_process';
+
+/** Speech doesn't need 128 kbit/s: re-encode to 48 kbit/s mono (about a third of the download). Needs ffmpeg. */
+export const VOICE_KBPS = 48;
+function shrinkVoice(file) {
+  const tmp = file + '.tmp.mp3';
+  try {
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', file, '-ac', '1', '-b:a', `${VOICE_KBPS}k`, tmp]);
+    fs.renameSync(tmp, file);
+  } catch {
+    fs.rmSync(tmp, { force: true });
+    console.warn(`  (ffmpeg not found or failed: ${path.basename(file)} stays at 128 kbit/s)`);
+  }
+}
 
 const argv = process.argv.slice(2);
 const arg = (k) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : undefined);
@@ -95,8 +109,9 @@ if (!flag('--dry-run')) {
     const old = ledger[l.key]?.f;
     if (old && old !== f) fs.rmSync(path.join(outDir, old), { force: true });
     fs.writeFileSync(path.join(outDir, f), buf);
-    // 128 kbit/s constant: the length from the size
+    // 128 kbit/s constant: the length from the size (before shrinking)
     const s = Math.round((buf.length * 8 / 128000) * 100) / 100;
+    shrinkVoice(path.join(outDir, f));
     ledger[l.key] = { who: l.who, text: l.text.trim(), voice: l.voice, model: MODEL, f, s, from: `${l.coll}/${l.id}` };
     console.log(`  ${l.key} ${l.cid.padEnd(10)} ${s.toFixed(1).padStart(5)} s  ${l.text.trim().slice(0, 70)}`);
   }

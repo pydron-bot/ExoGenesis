@@ -3,7 +3,8 @@
  * the version on the title screen or What's new in the game menu. Remembers the last version
  * the player opened it on, so a new release can show a NEW badge.
  */
-import { CHANGELOG, VERSION } from './changelog';
+import type { Release } from './changelog';
+import { VERSION } from './version';
 import { content } from './content';
 import { openGuide } from './guide';
 
@@ -21,7 +22,14 @@ function guideLinks(ids?: string[]) {
   return pages.length ? `<div class="wn-guide">Field Guide:${pages.map((id) => `<button data-guide="${esc(id)}">${esc(content.guide[id].title)}</button>`).join('')}</div>` : '';
 }
 
-export function openWhatsNew(onClose?: () => void) {
+let opening = false;
+/** The notes load on first open (a separate chunk: src/changelog.ts is ~85 kB). */
+export async function openWhatsNew(onClose?: () => void) {
+  if (document.getElementById('whatsnew') || opening) return;
+  let CHANGELOG: Release[];
+  opening = true;
+  try { ({ CHANGELOG } = await import('./changelog')); } catch { opening = false; return; }
+  opening = false;
   if (document.getElementById('whatsnew')) return;
   let seen: string | null = null;
   try { seen = localStorage.getItem(SEEN_KEY); localStorage.setItem(SEEN_KEY, VERSION); } catch { /* private mode */ }

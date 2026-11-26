@@ -8,7 +8,7 @@
 import '../style.css';
 import './dom.css';
 import { content } from '../content';
-import { VERSION } from '../changelog';
+import { VERSION } from '../version';
 import { delSave, getSave, putSave } from '../save';
 import { readSave, writeSave, type SaveMeta } from '../saves';
 import { openSaves } from '../saves-panel';
