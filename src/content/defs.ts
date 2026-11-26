@@ -1175,6 +1175,7 @@ export const bodyShape = {
   ringColor: color({ label: 'Ring colour', optional: true, default: '#d6c39c', when: on('ring', ['true'], false) }),
   ringOpacity: num({ label: 'Ring opacity', min: 0.02, max: 1, step: 0.02, optional: true, default: 0.4, when: on('ring', ['true'], false) }),
   ringTilt: num({ label: 'Ring tilt', min: -90, max: 90, step: 1, unit: '°', optional: true, default: 24, when: on('ring', ['true'], false) }),
+  areas: int({ label: 'Domination areas', min: 0, max: 12, optional: true, help: 'How many areas Domination splits it into (generated from its seed; 0 or empty = none). Big planets 5–7, moons 1–2. Not on a giant or comet.' }),
   description: str({ label: 'Notes', multiline: true, optional: true, help: 'For the editor.' }),
 } satisfies Shape;
 export type BodyDef = Infer<typeof bodyShape>;

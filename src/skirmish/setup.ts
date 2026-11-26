@@ -5,8 +5,10 @@
  *   players=2..4   size=small|medium|large   world=<body id>   water=none|some|lots   relief=flat|rolling|rugged
  *   alloys=<n>     fog=0                    packs=1            wildlife=0             ai=easy|normal|hard (all)
  *   teams=0011     (each player's side, in order; default: everyone for themselves)
+ *   area=<id>      a Domination area (src/sim/areas.ts): its world and site; its map size unless size= says
  */
 import type { SkirmishSetup } from '../sim/types';
+import { areaLabel, findArea } from '../sim/areas';
 import { generateSkirmishMap, type MapOptions, type MapRelief, type MapSize, type MapWater, type SkirmishMap } from './mapgen';
 
 /** Player colours, in order (player 0 is you). */
@@ -21,11 +23,14 @@ export function skirmishFromUrl(p: URLSearchParams, bodies: Record<string, unkno
   const seed = Math.max(1, Math.floor(Number(p.get('skirmish')) || 0)) || 1 + Math.floor(Math.random() * 99999);
   const players = Math.min(4, Math.max(2, Number(p.get('players')) || 2));
   const worldAsk = p.get('world');
+  // ?area=<id>: a Domination area's site on its world (src/sim/areas.ts)
+  const area = findArea(p.get('area'), bodies as Record<string, object>);
   const options: MapOptions = {
     seed,
     players,
-    size: pick<MapSize>(p.get('size'), ['small', 'medium', 'large'], 'medium'),
-    world: worldAsk && bodies[worldAsk] ? worldAsk : 'home',
+    size: pick<MapSize>(p.get('size'), ['small', 'medium', 'large'], area?.size ?? 'medium'),
+    world: area ? area.body : worldAsk && bodies[worldAsk] ? worldAsk : 'home',
+    site: area ? { lat: area.lat, lon: area.lon, name: areaLabel(area, bodies as Record<string, object>) } : undefined,
     water: pick<MapWater>(p.get('water'), ['none', 'some', 'lots'], 'some'),
     relief: pick<MapRelief>(p.get('relief'), ['flat', 'rolling', 'rugged'], 'rolling'),
   };

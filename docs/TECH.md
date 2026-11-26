@@ -3154,3 +3154,35 @@ panel), wired in `src/main.ts` ("save files").
 - Test: `tools/saves-smoke.mjs` (campaign save, rename, export, Ctrl+S over the file, NEW GAME then title LOAD brings
   it back, delete, import and a stray file refused, old slot moved, skirmish saved and loaded into the same map).
   `tools/skirmish-play-smoke.mjs` now expects Save & load in the skirmish menu.
+
+### Domination areas (v0.95.0)
+
+DESIGN §5.12 phase 2. `src/sim/areas.ts` (generation, pure: no DOM), `src/world/areas-view.ts` (the globe overlay),
+`SolarSystem.showAreas` (system view), the skirmish's `area` option (`src/skirmish/setup.ts`, the setup screen's Site).
+
+- **Content:** body field `areas` (0–12, editor: Worlds → "Domination areas"). Today 40: Home 7, Verdance 6, Rime 5,
+  Dunmore 4, Ash 3, Cinder / Maren / Io-T / Vess / Sela 2, Kora / Teth / Orrin / Pip / Talus 1. Giants and comets
+  never have any (orbital stations were in the plan; left for later).
+- **Generation** (`bodyAreas`, ~9 ms for all): 160 candidates on a Fibonacci sphere, jittered and turned by a random
+  rotation from the body's seed and id; off the site frame's poles (|lat| ≲ 68°); on a sea world only land with
+  `bodyHeight` ≥ 10. Farthest-point picking from a random first (Home: Touchdown, lat 0 lon 0, first). Sorted north to
+  south, then west to east, for ids `<body>-<n>`. Coordinates are the region site frame (`siteDir`), so an area plays
+  as a region sited there.
+- **Names:** a direction (North Polar, Northern, North-western, Central, Far Side, Far Southern…) from lat / lon, and a
+  landform for the body's surface look (`lookOf`: icy, volcanic, sulfur, dusty, verdant, cratered, smooth) and the
+  area's height in the body's own range (top, middle, bottom third). Duplicates take the next landform, then a numeral.
+- **Links:** the Gabriel graph of a body's areas on the sphere (no third area nearer their midpoint), so each body's
+  areas are connected; nothing between bodies yet (phase 3: launches).
+- **Maps:** `MapOptions.site` pins the skirmish generator's site (no random site search) and names the map after the
+  area. Small bodies (radius < 1,000) default to small maps. `?skirmish=<seed>&area=<id>` plays one; `size=` still wins.
+  `tools/areas-smoke.mjs` generates all 40 for 2 and 4 players: every one fair (bases dry, flat and connected).
+- **On the globe** (`AreaGlobe`, in a skirmish on an area or with `?areas=1` anywhere): a spherical Voronoi of the
+  areas' globe directions (`globeDirOfSite`: `siteDir` turned back by the region's site turn) over the globe's
+  triangles; seas belong to no area. Borders (pale amber), the area being played filled cyan, a label per area ("you
+  are here" on yours). Fades as the provinces do, scaled by the body's radius. The provinces are off (`Provinces.off`)
+  and the HUD's altitude line counts areas.
+- **System view:** each other body gets a `Points` child (fixed 7 px, depth-tested so its far side hides them) at
+  `siteDir × (radius × 1.03 + 60)`, shown once the body is 8–30 px across on screen; labels add "n areas" (the
+  played body's too).
+- **Setup screen:** World lists the six skirmish worlds then every other body with areas; Site lists Anywhere and the
+  world's areas (reset when the world changes); the preview generates the area's site.

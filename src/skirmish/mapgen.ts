@@ -34,6 +34,8 @@ export interface MapOptions {
   /** Seas on worlds that have them ('none' lifts the whole map onto dry land). */
   water: MapWater;
   relief: MapRelief;
+  /** A fixed site on the world (a Domination area, src/sim/areas.ts), instead of a random one. */
+  site?: { lat: number; lon: number; name?: string };
 }
 
 export interface SkirmishMap {
@@ -81,7 +83,7 @@ export function generateSkirmishMap(o: MapOptions, bodies: Record<string, unknow
   const ocean = !!(bodies[o.world] as { ocean?: unknown } | undefined)?.ocean;
   const keepSea = ocean && o.water !== 'none';
   const region: RegionDef = {
-    name: `Skirmish ${o.seed}`,
+    name: o.site?.name ?? `Skirmish ${o.seed}`,
     body: o.world === 'home' ? undefined : o.world,
     size: side,
     detail: o.relief === 'flat' ? 4 : o.relief === 'rolling' ? 9 : 18,
@@ -99,9 +101,9 @@ export function generateSkirmishMap(o: MapOptions, bodies: Record<string, unknow
   let landShare = 1;
   {
     let best = { lat: 0, lon: 0, score: -Infinity, land: 1 };
-    const tries = keepSea ? 18 : 1;
+    const tries = keepSea && !o.site ? 18 : 1;
     for (let k = 0; k < tries; k++) {
-      const lat = Math.round((rnd() - 0.5) * 110), lon = Math.round((rnd() - 0.5) * 360);
+      const lat = o.site ? o.site.lat : Math.round((rnd() - 0.5) * 110), lon = o.site ? o.site.lon : Math.round((rnd() - 0.5) * 360);
       region.siteLat = lat; region.siteLon = lon;
       setRegionTerrain(regionTerrain(region, bodies));
       let land = 0, n = 0;

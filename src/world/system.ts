@@ -11,7 +11,7 @@ import { addRockyDetail, bodyUniforms, cloudShell, giantMaterial, lookOf, ringMa
 import { CometLook } from './comet';
 import { milkyWay, skyDome, skyGlow, starField } from './sky';
 import { coronaMaterial, coronaRays, starMaterial, sunDim, sunNear, sunUniforms } from './sun';
-import { R, U, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
+import { R, U, siteDir, bodyFlora, bodyHeight, bodyTerrain, buildAtmosphere, currentBody, terrainColorFor, type BodyTerrain } from './planet';
 
 interface Body {
   id: string;
@@ -29,6 +29,8 @@ interface Body {
   kind: 'planet' | 'moon' | 'comet';
   label?: HTMLDivElement;
   marker?: THREE.Sprite;
+  /** Domination areas on it (`showAreas`): a dot each, turning with it. */
+  areaDots?: THREE.Points;
   comet?: CometLook;
   /** Position relative to the star. */
   abs: THREE.Vector3;
@@ -333,6 +335,31 @@ export class SolarSystem {
     scene.add(this.stars);
   }
 
+  /**
+   * Domination (DESIGN §5.12): a dot on every other body for each of its areas (they turn with it, hidden on its far
+   * side), shown once the body is big enough on screen; each label says how many it has.
+   */
+  showAreas(areas: { body: string; lat: number; lon: number }[]) {
+    for (const b of this.bodies) {
+      if (b === this.here) continue;
+      const mine = areas.filter((a) => a.body === b.id);
+      if (!mine.length) continue;
+      const pos = new Float32Array(mine.length * 3), d = new THREE.Vector3();
+      mine.forEach((a, i) => { siteDir(a.lat, a.lon, d).multiplyScalar(b.radius * 1.03 + 60); pos.set([d.x, d.y, d.z], i * 3); });
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      b.areaDots = new THREE.Points(g, new THREE.PointsMaterial({ color: '#ffe2a8', size: 7, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+      b.obj.add(b.areaDots);
+      const small = b.label?.querySelector('small');
+      const text = `${mine.length} area${mine.length > 1 ? 's' : ''}`;
+      if (small) small.textContent = `${small.textContent} · ${text}`;
+      else b.label?.insertAdjacentHTML('beforeend', `<small>${text}</small>`);
+    }
+    const here = areas.filter((a) => a.body === this.here.id).length;
+    const hs = this.homeLabel.querySelector('small');
+    if (here && hs) hs.textContent = `${hs.textContent} · ${here} area${here > 1 ? 's' : ''}`;
+  }
+
   private makeLabel(name: string, sub: string, kind: Body['kind']) {
     const el = document.createElement('div');
     el.className = `label ${kind}`;
@@ -481,6 +508,13 @@ export class SolarSystem {
       k *= 1 - away;
       // the markers draw without depth (so they stay findable): hide one whose body is behind a planet or moon
       if (k > 0.01) k *= this.inSight(camera.position, b);
+      if (b.areaDots) {
+        // on-screen radius in pixels: dots once the body is a disc, not a speck
+        const px = (b.radius / Math.max(1, camD)) * (height / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        const o = smoothstep(8, 30, px) * (1 - away);
+        (b.areaDots.material as THREE.PointsMaterial).opacity = o * 0.95;
+        b.areaDots.visible = o > 0.01;
+      }
       const m = b.marker!;
       m.visible = k > 0.01;
       m.position.copy(b.pos);

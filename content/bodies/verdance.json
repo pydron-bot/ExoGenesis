@@ -34,5 +34,6 @@
   "haze": 1.1,
   "sky": "#9cc4e0",
   "clouds": true,
-  "incl": -0.48
+  "incl": -0.48,
+  "areas": 6
 }

@@ -123,6 +123,15 @@ export function setRegionSite(lat = 0, lon = 0) {
   siteQ.setFromUnitVectors(U, siteDir(lat, lon));
   coreH = null;
 }
+/**
+ * The globe's (world) direction of a site `lat` degrees north and `lon` east of Touchdown, with the region being played
+ * where it is: the inverse of the turn `setRegionSite` makes (a Domination area on the globe, src/world/areas-view.ts).
+ */
+export function globeDirOfSite(lat: number, lon: number, out = new THREE.Vector3()) {
+  siteDir(lat, lon, out);
+  return siteTurned ? out.applyQuaternion(_siq.copy(siteQ).invert()) : out;
+}
+const _siq = new THREE.Quaternion();
 /** Planet-body direction of a site `lat` degrees north and `lon` east of Touchdown. */
 export function siteDir(lat: number, lon: number, out = new THREE.Vector3()) {
   const la = THREE.MathUtils.degToRad(lat), lo = THREE.MathUtils.degToRad(lon);

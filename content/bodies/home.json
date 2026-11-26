@@ -32,5 +32,6 @@
   "haze": 1.25,
   "sky": "#8fb0ad",
   "clouds": true,
-  "description": "The seed-probe's world: Touchdown and the Act 1 regions are here."
+  "description": "The seed-probe's world: Touchdown and the Act 1 regions are here.",
+  "areas": 7
 }

@@ -12,8 +12,10 @@ import { content, contentIssues, onContentHot, type RegionDef } from './content'
 import { ENDINGS, PREVIEW_KEY, expeditionOf, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
-import { buildAtmosphere, E, globeMesh, HALF, N, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
+import { bodyHasSea, buildAtmosphere, E, globeMesh, HALF, N, R, U, regionHeight, regionHeightRaw, regionTerrain, regionToWorld, setRegionTerrain, type GlobeArrays } from './world/planet';
 import { Provinces, type ProvinceData } from './world/provinces';
+import { AreaGlobe } from './world/areas-view';
+import { bodyAreas, findArea, systemAreas } from './sim/areas';
 import { RegionView, groundTextures } from './world/region';
 import { STAR_R, SolarSystem } from './world/system';
 import { SunFlare } from './world/flare';
@@ -428,6 +430,15 @@ function startSurfaceBake() {
 }
 await loadStep('Mapping regions…');
 const provinces = new Provinces(scene, globe, $('labels'), generated.prov);
+/**
+ * Domination areas (src/sim/areas.ts) on the globe and in the system view, instead of the provinces: in a skirmish on an
+ * area (`?area=<id>`), or anywhere with `?areas=1`.
+ */
+const areaHere = rts ? findArea(params.get('area'), content.bodies) : null;
+const areaGlobe = areaHere || params.get('areas') === '1'
+  ? new AreaGlobe(scene, globe, $('labels'), bodyAreas(bodyId, content.bodies[bodyId] ?? {}), areaHere?.id ?? null, bodyHasSea())
+  : null;
+if (areaGlobe) { provinces.off = true; system.showAreas(systemAreas(content.bodies)); }
 (window as unknown as { __genMs: Record<string, number> }).__genMs = generated.ms;
 // atmosphere glow: only seen from orbit — fade it out before the camera can enter the shell
 // (the body's own colour and strength: an airless body has none)
@@ -1404,7 +1415,7 @@ function updateHud(dt: number, now: number) {
   if (s && dailyTracker && !dailyDone) { if (s.over) finishDaily(s); else dailyTracker.sample(s); }
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
   el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
-    ? `${provinces.landCount} REGIONS · ALT ${fmtAlt(cam.altitude())}`
+    ? `${areaGlobe ? `${areaGlobe.count} AREAS` : `${provinces.landCount} REGIONS`} · ALT ${fmtAlt(cam.altitude())}`
     : `ALT ${fmtAlt(cam.altitude())}`;
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
@@ -1941,6 +1952,7 @@ function frame(now: number) {
   provinces.update(camera, cam.dist, innerWidth, viewH());
   if (surfaceOn) { updateSurface(dt, system.sunPos, cam.altitude(), t); if (cloudy) updateClouds(clouds, cam.altitude()); }
   if (title) provinces.hide(); // a clean planet behind the title, no map overlay
+  if (areaGlobe) { if (title) areaGlobe.hide(); else areaGlobe.update(camera, cam.dist, innerWidth, viewH()); }
 
   // sky: day/night at the landing site, fading to space as we climb
   const sunUp = system.sunPos.clone().normalize().dot(U);

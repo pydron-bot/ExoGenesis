@@ -1,0 +1,9 @@
+{
+  "title": "Areas of the system",
+  "section": "interface",
+  "order": 8,
+  "summary": "Every planet and moon you can land on is split into areas. Pick one as a skirmish's site; Domination, coming later, is a war for all of them.",
+  "text": "The solar system is split into **40 areas**: Home has 7, Verdance 6, Rime 5, Dunmore 4, and the smaller worlds, moons and the asteroid Talus between 1 and 3. Gas giants and comets have none. Each area has a name from where it lies and what its ground is like (**Northern Highlands**, **Eastern Dry Basin**), and on a world with seas it's always on land. Touchdown, where the campaign lands, is Home's first.\n\n**Playing on an area.** In the **SKIRMISH** setup, **Site** lists the areas of the world you pick (or **Anywhere** for a random spot). The moons and Talus are worlds you can pick too. A battle on an area is fought on that very place: the same ground every time you go there.\n\n**Seeing them.** In a battle on an area, zoom out to the planet: borders split the world into its areas, each with its name, and yours is tinted and marked *you are here*. Further out, in the system view, every world's label says how many areas it has, and close to a world its areas show as dots.\n\nAreas next to each other on the same world are linked overland. **Domination**, a long war for the whole system, is coming: you'll take areas one by one and win by wiping out the other players.",
+  "see": "skirmish",
+  "since": "0.95.0"
+}

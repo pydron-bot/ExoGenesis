@@ -1091,3 +1091,7 @@ body.cine .gd-note, body.skirmish .gd-note, body.title .gd-note { display: none 
 #options .sv-msg.bad { color: var(--crimson); border-color: var(--crimson); }
 #options .sv-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 8px 4px; border-top: 1px solid var(--line); margin-top: 6px; }
 #options .sv-foot small { flex: 1 1 200px; font-size: 11px; line-height: 1.4; color: color-mix(in srgb, var(--text) 48%, transparent); }
+
+/* ---------- Domination areas on the globe (src/world/areas-view.ts) ---------- */
+.label.area { color: #ffe2a8; font-size: 10px; }
+.label.area.here { color: var(--cyan); font-size: 11px; }

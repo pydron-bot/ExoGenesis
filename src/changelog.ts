@@ -21,6 +21,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.95.0',
+    date: '2026-11-26',
+    title: 'Areas of the system',
+    notes: [
+      'The solar system is split into 40 areas across its planets, moons and the asteroid Talus, each with a name from where it lies and what its ground is like. They are the map for Domination, coming later',
+      'Skirmish: a new Site choice plays a battle on one of the world\'s areas, the same ground every time; or Anywhere, as before',
+      'Skirmish: the moons and Talus can be picked as worlds',
+      'In a battle on an area, the planet view shows the world\'s areas with their borders and names; the system view says how many areas each world has',
+    ],
+    guide: ['areas'],
+  },
+  {
     version: '0.94.0',
     date: '2026-11-25',
     title: 'Save files',

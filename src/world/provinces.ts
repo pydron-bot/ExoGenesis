@@ -162,7 +162,11 @@ export class Provinces {
   /** Hide borders and fill for this frame (the next update() decides again). */
   hide() { this.borders.visible = this.fill.visible = false; }
 
+  /** Not drawn at all (Domination areas take their place: src/world/areas-view.ts). */
+  off = false;
+
   update(camera: THREE.PerspectiveCamera, dist: number, width: number, height: number) {
+    if (this.off) { this.hide(); for (const l of this.labels) l.el.style.opacity = '0'; return; }
     const k = smoothstep(900, 3500, dist) * (1 - smoothstep(40000, 160000, dist));
     (this.borders.material as THREE.LineBasicMaterial).opacity = k * 0.45;
     (this.fill.material as THREE.MeshBasicMaterial).opacity = k * 0.22;

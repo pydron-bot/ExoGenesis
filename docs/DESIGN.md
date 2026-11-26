@@ -345,8 +345,8 @@ A standard RTS skirmish outside the campaign: pick a map and players, then build
 A long skirmish across the whole solar system: take areas on planets and moons until the other players are wiped out.
 Meant to be played over many sittings, so it lives on named save files.
 
-- **The map is the system.** Every body is split into **areas** (about **40 to start**: big planets 6–8, mid moons 2–4,
-  small moons and asteroids 1, gas giants an orbital station or two). Areas are **generated** from a seed and the body's
+- **The map is the system.** Every body is split into **areas** (**40 to start**: big planets 4–7, smaller worlds and
+  moons 1–3, the asteroid Talus 1; gas giants and comets none for now, orbital stations maybe later). Areas are **generated** from a seed and the body's
   look (icy, volcanic, dusty…) with the skirmish map generator, not hand-made; a save keeps only what changed.
 - **Links.** Areas on one body connect overland to their neighbours (natural front lines). Leaving a body needs a
   Launch Gantry in the area you leave from, and the trip takes time.
@@ -364,8 +364,9 @@ Meant to be played over many sittings, so it lives on named save files.
 - **Saves:** named save files (several per browser, each with its name, place, game time and date), autosave,
   export and import as a file. The same save files serve the campaign and skirmish.
 - **Phases** (each its own release):
-  1. Named save files for the campaign and skirmish (the saves panel, export/import).
-  2. Areas on every body: generated, listed in content, drawn on the globes and in the system view.
+  1. Named save files for the campaign and skirmish (the saves panel, export/import). *(v0.94.0)*
+  2. Areas on every body: generated, listed in content, drawn on the globes and in the system view. *(v0.95.0;
+     playable now as a skirmish site.)*
   3. The strategy layer: who owns what, income, travel between areas and bodies, summary fights.
   4. Jumping into an area in full and back out (full state ⇄ summary).
   5. The computer's strategy brain, with difficulty levels; measured by AI-vs-AI runs.

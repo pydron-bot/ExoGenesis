@@ -27,5 +27,6 @@
   "atmosphere": "#e0b890",
   "haze": 0.35,
   "sky": "#c9a07a",
-  "incl": -0.39
+  "incl": -0.39,
+  "areas": 4
 }
