@@ -1,0 +1,9 @@
+{
+  "title": "Domination: the computer players",
+  "section": "interface",
+  "order": 11,
+  "summary": "What Easy, Normal and Hard computers do in a Domination war, how fights on the map are worked out, and why the starts are fair.",
+  "text": "The computer players in **DOMINATION** play by the same rules and the same orders you have, and see what you see.\n\n- **Easy** builds slowly, attacks only with a big edge and doesn't come to the help of its areas\n- **Normal** watches for armies on their way to its areas and sends help from next door or builds guns in time; it goes after the weakest player, and finishes off anyone down to their last areas\n- **Hard** does all that sooner, with less of an edge, earns a quarter more, and pulls an army out of a place it can't hold rather than lose it\n\nAll of them gather their armies into one strike force instead of spreading them thin, attack with armies that arrive together, and send enough to be sure, counting what the defender could bring from next door. Watch for a big army massing next to you.\n\n**Fights on the map** play out like the same battle fought in full: to wipe out an area's holder an attacker loses about what the holder is worth (its army, a bit more for its guns, and its Command Core). A holder much bigger than what comes at it loses little, so small attacks are wasted; a fight takes a minute or so.\n\n**Fair starts.** The worlds aren't the same size: Home has 7 areas, Verdance 6, Rime 5, Dunmore 4. So the smaller start worlds get extra alloys at the start, more with more players, tuned so each start wins about as often when the computers play each other.",
+  "see": "domination, domination-battles",
+  "since": "0.98.0"
+}

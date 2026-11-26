@@ -3205,18 +3205,18 @@ in `vite.config.ts`, precached by the service worker like the game). Title → D
 - **Moving** (`domSend`): to a linked area overland (25 s + 35 s per radian), or with a gantry to any area on another
   body by launch (50 s inside one planet's system, 90 s across the system). Nothing stops a move; arriving at your
   own area joins the garrison, anywhere else it becomes a visitor and fights.
-- **Fights** (`fight`, each second): every side (holder: army + guns, guns ×1.25 damage; or the natives; each visitor)
+- **Fights** *(v0.98.0 replaced this: "Domination: the computer's strategy")* (`fight`, each second): every side (holder: army + guns, guns ×1.25 damage; or the natives; each visitor)
   deals 0.08 × strength, split over its enemies by their strength; under 0.5 left is gone. When the holder has
   nothing and one visitor is left, it takes the area: its army stays, guns 0, level −1, no gantry, queue cleared. An
   empty area falls at once. A player with no areas is out (its moves and visitors vanish); the last one wins.
-- **Computer** (every 8 / 5 / 3 s for Easy / Normal / Hard): spends on developing safe areas while income is low,
+- **Computer** *(v0.98.0 replaced this)* (every 8 / 5 / 3 s for Easy / Normal / Hard): spends on developing safe areas while income is low,
   guns on borders that face an enemy (to 20, later 40), a gantry when its world is taken (and one per six areas after
   10 min), a gantry wherever an army is stranded on a world with nothing left to take, armies in front areas. Attacks:
   for each place to take, every army that can reach it (launches once its world is taken, its army is 40+, or it's at
   its army limit) joins in if together they beat its defence × a margin (Hard 1.25, Normal 1.4, Easy 1.7; × 0.8 at its
   army limit), sending only what's needed (× 1.3 + 10), biggest first; next to an enemy a third stays home. Armies with
   nothing next door step toward the nearest front (a BFS over its own areas).
-- **Balance** (`node tools/domination-sim.mjs`, Normal computers, seeds 1–5): every war ends; 2 players 15–55 min,
+- **Balance** *(as of v0.96.0)* (`node tools/domination-sim.mjs`, Normal computers, seeds 1–5): every war ends; 2 players 15–55 min,
   3 players 28–82 min, 4 players 38–66 min (game time at ×1). Hard beats Easy 5 / 5. The start worlds aren't equal
   (Crimson on Verdance wins most three-way wars): phase 5's job, with the pace.
 - **Page:** a flat map per world (longitude across, latitude up; links over the date line go out to the edge), redrawn
@@ -3260,9 +3260,50 @@ the hand-over in `src/domination/main.ts` (`fight`, `takeBattle`) and `src/main.
 - **Fixed on the way:** events from the sim that arrived before the page was ready were replayed through `log()`
   before `cine` was declared (a ReferenceError that stopped loading); `cine` is now declared first. Battles start
   fighting at once, which made it likely.
-- **Measured** (`node tools/domination-battle-sim.mjs`, computers both sides), against the map's own fight for the same
+- **Measured** *(v0.97.0, before the map's fights were refitted in v0.98.0)* (`node tools/domination-battle-sim.mjs`, computers both sides), against the map's own fight for the same
   numbers: 150 attacking 30 + 20 guns: the Core falls with 85 left (the map: 138 left); 40 attacking 60 + 40 guns at
   Touchdown: the attackers are wiped out, 42 and all 40 guns left (the map: 55 and 36). Full battles cost a big
   attacker far more than the map's fight does; worth evening out with phase 5's balancing.
 - Tests: `tools/domination-battle-sim.mjs` (headless), `tools/domination-battle-smoke.mjs` (both pages: leaving half
   way, and finishing).
+
+### Domination: the computer's strategy (v0.98.0)
+
+DESIGN §5.12 phase 5: the map's fights fitted to full battles, a new computer brain, fair starts. Measured with
+`tools/domination-calibrate.mjs` and `tools/domination-ai-sim.mjs`.
+
+- **Fights** (`fight` in `src/sim/domination.ts`). Battles fought in full (10 matchups, computers both sides) behave like
+  an exchange, not the square law the map used: an attacker loses about what the holder is worth, whatever its own
+  size (150 into 30 + 20 guns: 84 left in full, 138 on the old map). Now each side has a worth (a visitor its strength;
+  a holder `holderWorth`: army × 0.9 + guns + 15 for its Core, 0 when it has nothing; natives their number); every pair
+  exchanges `rate` (0.012) × the bigger one's worth × how much of their fire goes at each other, each second; a holder
+  bigger than what comes at it loses less (× √ of the odds: small attacks are wasteful, as in full). The holder's Core
+  share goes last. `node tools/domination-calibrate.mjs --check`: all 10 matchups pick the same winner as in full, with
+  what's left within 20% of the attacker (or 12); a fight takes 30–140 s (in full 37–61 s). Full battles are cached in
+  `tools/.cache/dom-calibrate.json` (`--fresh` plays them again).
+- **Computer** (`src/sim/domination-ai.ts`, `STYLES` per level; still every 8 / 5 / 3 s):
+  1. *Defend* (Normal, Hard): for each area with enemy armies on their way or fighting there, if they'd beat it
+     (× 1.15): guns if they'd be ready before the first arrives, and help from areas next door that would get there in
+     time (80% of their army). Hard pulls an army that can't be saved to its safest neighbour.
+  2. *Spend* (reserve 50, Easy 150): develop safe areas while income is under 1.6 / 2.2 / 2.6 × areas held; border guns
+     up to 10 + 0.3 × the enemy army next door; gantries for a stranded army, once its world is taken, one per six
+     areas after 10 min, and (alloys over 1,000) wherever an army of 30+ waits; armies in front areas.
+  3. *Attack*: for each place it can reach, the armies arriving within 40 s of the first; what it takes is the holder's
+     worth plus half of the holder's armies next door. It goes if they beat that × margin (1.7 / 1.35 / 1.2; × 0.85 at
+     its army limit) + 5, sending that × 1.5 + 20, biggest first. Score: min(3, have ÷ what it takes) × value ÷ (1 +
+     arrival / 150 s); value 1 + 0.3 a level, + 0.3 a player's, + 1 the weakest player's (Normal, Hard), + 2 a player
+     down to 2 areas, + 0.3 when its army has gone out. (The cap at 3 stops it churning weak spots for ever: 115 areas
+     changed hands in an hour of a stalled 4-player war before.)
+  4. *Gather*: armies with nothing to do (spare over 15) go to the strike force, its biggest army (counting armies on
+     their way there, so the choice holds) by an enemy or a gantry: overland step by step, or by launch.
+  What stays home: enough for what's on its way and 35% of the enemy army next door (less its guns), 10 by an enemy.
+- **Fair starts** (`DOM.startBonus`, by player count, start order Touchdown / Verdance / Rime / Dunmore): 2 players 0 /
+  50; 3: 0 / 200 / 420; 4: 0 / 200 / 600 / 900 alloys. Very sensitive in two-player wars (Home +250 won 98%).
+  (`startWorldNatives`, tougher natives on bigger start worlds, is there but 0: it didn't help.)
+- **Measured** (`node tools/domination-ai-sim.mjs --seeds 30 --check`): the new Normal beats the v0.97.0 brain 60 / 60;
+  Hard beats Normal 97%, Normal beats Easy 98% (60 games each, both seats). Wins by start, Normals everywhere: 2 players
+  50 / 50%; 3: 27 / 47 / 27%; 4: 30 / 20 / 37 / 13%. Every war ends; game minutes at ×1, shortest · median · longest:
+  2 players 28 · 54 · 113; 3: 40 · 63 · 118; 4: 60 · 97 · 189. `--only matchups|fairness|pace` runs one part; the
+  previous brain for the comparison is whatever is in `tools/.cache/dom-ai-baseline.ts`.
+- Tried and dropped: growing bolder as a war drags on (margin down to 0.8× by 3 h) made stalls worse (6 in 90).
+- `stepDomination` takes an optional brain per player (tests compare brains).

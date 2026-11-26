@@ -21,6 +21,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.98.0',
+    date: '2026-11-26',
+    title: 'Domination: smarter opponents',
+    notes: [
+      "Domination's computer players think ahead: they send help or build guns before an attack lands, gang up on the weakest player and finish off anyone down to their last areas",
+      "They gather one big strike force and attack with armies that arrive together; Hard also pulls out of places it can't hold. Easy, Normal and Hard now really differ",
+      "Fights on the strategy map now play out like the same battle fought in full, and take about as long",
+      "Fairer starts: the smaller start worlds get extra alloys, so each start wins about as often",
+    ],
+    guide: ['domination-opponents'],
+  },
+  {
     version: '0.97.0',
     date: '2026-11-26',
     title: 'Domination: fight it yourself',

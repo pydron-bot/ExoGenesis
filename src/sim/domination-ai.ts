@@ -48,9 +48,7 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
   const st = STYLES[pl.ai ?? 'normal'];
   // at its army limit an idle army is wasted: it settles for less of an edge
   const full = armyOf(s, p) + 10 > armyCap(s, p);
-  // and the longer the war, the bolder (stand-offs don't last for ever): from 90 minutes on, down to 0.8× by 3 hours
-  const weary = 1 - 0.2 * Math.min(1, Math.max(0, (s.t - 5400) / 5400));
-  const margin = st.margin * (full ? 0.85 : 1) * weary;
+  const margin = st.margin * (full ? 0.85 : 1);
   const mine = ownedBy(s, p);
   if (!mine.length) return;
   const links = (a: DomArea) => map.byId[a.id].links.map((l) => s.areas[l]);
@@ -164,12 +162,13 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
     let value = 1 + t.level * 0.3;
     if (t.owner >= 0) {
       value += 0.3;
-      if (t.owner === weakest) value += 0.5;
-      if (st.focus && alive[t.owner] <= 2) value += 1; // a player's last areas: finish them
+      if (t.owner === weakest) value += 1;
+      if (st.focus && alive[t.owner] <= 2) value += 2; // a player's last areas: finish them
       if (t.army < t.guns * 0.5) value += 0.3; // its army has gone out
     }
     const eta = together[together.length - 1].t;
-    return { to, together, def, have, score: (have / (def * margin + 1)) * value / (1 + eta / 150) };
+    // (past three times what it takes, easier doesn't count: what's worth taking decides, so it doesn't just churn weak spots)
+    return { to, together, def, have, score: Math.min(3, have / (def * margin + 1)) * value / (1 + eta / 150) };
   }).filter((x) => x.have >= st.minArmy * 0.5 && x.have > x.def * margin + 5).sort((a, b) => b.score - a.score || (a.to < b.to ? -1 : 1));
   for (const plan of plans) {
     const go = plan.together.filter((f) => !used.has(f.from.id) && spare(f.from) >= 1).sort((a, b) => spare(b.from) - spare(a.from));

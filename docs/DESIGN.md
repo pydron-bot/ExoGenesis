@@ -371,7 +371,8 @@ Meant to be played over many sittings, so it lives on named save files.
      page, `domination.html`, with a basic computer player so it can be played now.)*
   4. Jumping into an area in full and back out (full state ⇄ summary). *(v0.97.0: battles between players, fought as a
      skirmish on the area's map; the war waits meanwhile.)*
-  5. The computer's strategy brain, with difficulty levels; measured by AI-vs-AI runs.
+  5. The computer's strategy brain, with difficulty levels; measured by AI-vs-AI runs. *(v0.98.0; with the map's fights fitted to
+     full battles and fair starts.)*
   6. Setup screen, win/lose screen with stats, polish.
 
 ## 6. Technical architecture
