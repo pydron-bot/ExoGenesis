@@ -33,7 +33,7 @@ const seeds = process.argv.includes('--seeds') ? process.argv[process.argv.index
   check(D.domSend(map, s, 0, 'home-1', to, 40) === null && s.areas['home-1'].army === 0 && s.moves.length === 1, 'an army sets off');
   check(D.domSend(map, s, 0, 'home-1', 'rime-1', 1) !== null, 'no launch without an army');
   const eta = s.moves[0].t1 - s.t;
-  D.stepDomination(map, s, eta + 40);
+  D.stepDomination(map, s, eta + 150);
   check(s.areas[to].owner === 0 && s.areas[to].army > 0 && s.areas[to].army < 40, `it beats ${nat} natives and holds ${to} with ${s.areas[to].army}`);
   check(s.players[0].stats.taken === 1, 'counted as taken');
   // an undefended area falls at once; the last one lost puts a player out and ends the war

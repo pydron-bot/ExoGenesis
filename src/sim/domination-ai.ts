@@ -1,83 +1,179 @@
 /**
- * Domination's computer players (basic: DESIGN §5.12 phase 5 makes them smarter). Every few seconds, through the same
- * orders a player has (`domBuild`, `domSend`):
- *   - spend: develop the safest areas while income is low, guns on borders that face an enemy, a Launch Gantry once
- *     nothing on its own world is left to take, and armies in the area where they're massing;
- *   - move: armies in areas with no enemy next door walk to one that has; an army strong enough for the weakest place
- *     it can reach (natives, or an enemy's army and guns) goes for it; a big one launches for another world when its
- *     own has nothing left worth taking.
+ * Domination's computer players (DESIGN §5.12 phase 5; TECH.md "Domination: the computer's strategy"). Every few
+ * seconds, through the same orders a player has (`domBuild`, `domSend`), seeing what a player sees (everything: there's
+ * no fog yet):
+ *   1. **Defend** (not Easy): armies on their way to its areas, and fights going on in them. It sends help from areas
+ *      next door that can get there in time and queues guns where they'll be ready; Hard pulls an army out of a place
+ *      it can't hold rather than lose it.
+ *   2. **Spend:** develop safe areas while it pays back (Hard sooner), guns on borders sized to the enemy armies next
+ *      door, gantries where they're needed, armies where they're massing, nothing hoarded.
+ *   3. **Attack:** for each place it can reach, the armies that would arrive together (within 40 s of each other) join
+ *      in if they beat what holds it by its margin; sends only what it takes. It prefers the weakest enemy (a player's
+ *      last areas most of all, so wars end), places whose army has gone out, developed places, and near ones.
+ *   4. **Gather:** armies with nothing to do join its strike force (its biggest army by an enemy or a gantry),
+ *      overland or by launch, so it has one army big enough to break in rather than many small ones.
  * Deterministic: no randomness, ties broken by area order.
  */
-import { DOM, armyCap, armyOf, destinations, domBuild, domSend, jobCost, ownedBy, type DomArea, type DomMap, type DomState } from './domination';
+import {
+  DOM, armyCap, armyOf, destinations, domBuild, domSend, holderWorth, jobCost, ownedBy, travelTime,
+  type DomArea, type DomLevel, type DomMap, type DomState,
+} from './domination';
 
-/** What it takes to win an area, as the attacker sees it. */
+interface Style {
+  /** The edge it wants over what holds a place before it attacks. */
+  margin: number;
+  /** Least army it attacks with. */
+  minArmy: number;
+  /** Answers attacks on its areas. */
+  defends: boolean;
+  /** Pulls an army out of a place it can't hold. */
+  evacuates: boolean;
+  /** Goes for the weakest enemy, and a player's last areas. */
+  focus: boolean;
+  /** Develops while income is under this × areas held. */
+  develop: number;
+}
+export const STYLES: Record<DomLevel, Style> = {
+  easy: { margin: 1.7, minArmy: 35, defends: false, evacuates: false, focus: false, develop: 1.6 },
+  normal: { margin: 1.35, minArmy: 25, defends: true, evacuates: false, focus: true, develop: 2.2 },
+  hard: { margin: 1.2, minArmy: 20, defends: true, evacuates: true, focus: true, develop: 2.6 },
+};
+
+/** What it takes to win an area, as the attacker `p` sees it: its holder, and anyone else fighting there. */
 const defence = (a: DomArea, p: number) =>
-  (a.owner >= 0 ? a.army + a.guns * DOM.gunsBonus : a.natives) + Object.entries(a.visitors).reduce((m, [k, v]) => m + (Number(k) === p ? -v : v), 0);
+  holderWorth(a) + Object.entries(a.visitors).reduce((m, [k, v]) => m + (Number(k) === p ? -v : v), 0);
 
 export function domAiThink(map: DomMap, s: DomState, p: number) {
   const pl = s.players[p];
-  const level = pl.ai ?? 'normal';
-  // the edge it wants before attacking; at its army limit (an idle army is wasted) it settles for less
+  const st = STYLES[pl.ai ?? 'normal'];
+  // at its army limit an idle army is wasted: it settles for less of an edge
   const full = armyOf(s, p) + 10 > armyCap(s, p);
-  const margin = (level === 'hard' ? 1.25 : level === 'normal' ? 1.4 : 1.7) * (full ? 0.8 : 1);
+  const margin = st.margin * (full ? 0.85 : 1);
   const mine = ownedBy(s, p);
-  const enemyNext = (a: DomArea) => map.byId[a.id].links.some((l) => { const o = s.areas[l].owner; return o >= 0 && o !== p; });
-  const openNext = (a: DomArea) => map.byId[a.id].links.some((l) => s.areas[l].owner !== p);
+  if (!mine.length) return;
+  const links = (a: DomArea) => map.byId[a.id].links.map((l) => s.areas[l]);
+  const enemyNext = (a: DomArea) => links(a).some((o) => o.owner >= 0 && o.owner !== p);
+  const openNext = (a: DomArea) => links(a).some((o) => o.owner !== p);
   const worldOpen = (body: string) => map.list.some((x) => x.body === body && s.areas[x.id].owner !== p);
-
-  // ---- spend
-  const busy = (a: DomArea) => a.queue.length >= 2 || Object.keys(a.visitors).length > 0;
+  const fighting = (a: DomArea) => Object.entries(a.visitors).some(([k, v]) => Number(k) !== p && v > 0);
+  /** Enemy armies on their way to each of its areas (strength, earliest arrival). */
+  const incoming = new Map<string, { n: number; eta: number }>();
+  for (const m of s.moves) {
+    if (m.player === p || s.areas[m.to].owner !== p) continue;
+    const x = incoming.get(m.to) ?? { n: 0, eta: Infinity };
+    x.n += m.strength; x.eta = Math.min(x.eta, m.t1 - s.t);
+    incoming.set(m.to, x);
+  }
+  /** Enemy army next door to an area (what could come at it soon). */
+  const nearby = (a: DomArea) => links(a).reduce((n, o) => n + (o.owner >= 0 && o.owner !== p ? o.army : 0), 0);
+  const threat = (a: DomArea) => (incoming.get(a.id)?.n ?? 0) + Object.entries(a.visitors).reduce((n, [k, v]) => n + (Number(k) === p ? 0 : v), 0);
+  const used = new Set<string>();
+  const busy = (a: DomArea) => a.queue.length >= 2 || fighting(a);
   const spend = (a: DomArea | undefined, kind: Parameters<typeof domBuild>[3]) => !!a && !busy(a) && domBuild(s, p, a.id, kind) === null;
-  const safe = mine.filter((a) => !enemyNext(a)).sort((a, b) => a.level - b.level);
-  const borders = mine.filter(enemyNext).sort((a, b) => a.guns - b.guns);
-  // where armies are built: areas next to something to take, the biggest garrisons first
-  const fronts = mine.filter((a) => openNext(a) || a.gantry).sort((a, b) => (enemyNext(b) ? 1 : 0) - (enemyNext(a) ? 1 : 0) || b.army - a.army);
+
+  // ---- 1. defend
+  if (st.defends) {
+    const danger = mine.filter((a) => threat(a) > 0).sort((a, b) => threat(b) - threat(a));
+    for (const a of danger) {
+      const need = threat(a) * 1.15 - holderWorth(a);
+      if (need <= 0) continue;
+      const eta = incoming.get(a.id)?.eta ?? 0;
+      // guns, if they'd be ready in time
+      if (!fighting(a) && eta > DOM.jobs.guns.time && a.queue.length < 2) domBuild(s, p, a.id, 'guns');
+      // help from next door that gets there in time (or straight away into a fight going on)
+      let want = need;
+      const helpers = links(a).filter((o) => o.owner === p && !used.has(o.id) && !fighting(o) && o.army >= 5)
+        .map((o) => ({ o, t: travelTime(map, o.id, a.id, false) }))
+        .filter((h) => fighting(a) || h.t <= eta + 10)
+        .sort((x, y) => x.t - y.t);
+      const can = helpers.reduce((m, h) => m + h.o.army * (threat(h.o) > 0 ? 0 : 0.8), 0);
+      if (st.evacuates && can + holderWorth(a) < threat(a) * 0.8 && a.army >= 10 && !fighting(a)) {
+        // can't be held: save the army (to the safest neighbour) rather than lose it
+        const safe = links(a).filter((o) => o.owner === p && threat(o) === 0).sort((x, y) => nearby(x) - nearby(y))[0];
+        if (safe) { domSend(map, s, p, a.id, safe.id, Math.floor(a.army)); used.add(a.id); used.add(safe.id); }
+        continue;
+      }
+      for (const h of helpers) {
+        if (want <= 0 || threat(h.o) > 0) continue;
+        const n = Math.floor(Math.min(h.o.army * 0.8, want + 5));
+        if (n < 1) continue;
+        domSend(map, s, p, h.o.id, a.id, n);
+        used.add(h.o.id);
+        want -= n;
+      }
+    }
+  }
+
+  // ---- 2. spend
+  const income = mine.reduce((m, a) => m + DOM.income.base + a.level * DOM.income.perLevel, 0);
+  const safe = mine.filter((a) => !enemyNext(a) && !threat(a)).sort((a, b) => a.level - b.level || (a.id < b.id ? -1 : 1));
+  const borders = mine.filter(enemyNext).map((a) => ({ a, want: Math.min(DOM.jobs.guns.max, 10 + nearby(a) * 0.3) })).sort((x, y) => (x.a.guns - x.want) - (y.a.guns - y.want));
+  const fronts = mine.filter((a) => openNext(a) || a.gantry).sort((a, b) => (enemyNext(b) ? 1 : 0) - (enemyNext(a) ? 1 : 0) || b.army - a.army || (a.id < b.id ? -1 : 1));
   const staging = fronts[0] ?? mine[0];
-  for (let i = 0; i < 8; i++) {
-    const income = mine.reduce((m, a) => m + 1 + a.level, 0);
-    if (income < 6 + mine.length && safe[0] && safe[0].level < 2 && pl.alloys >= jobCost(safe[0], 'develop').cost + 100 && spend(safe[0], 'develop')) continue;
-    if (borders[0] && borders[0].guns < 20 && pl.alloys > 200 && spend(borders[0], 'guns')) continue;
-    const gantries = mine.filter((a) => a.gantry || a.queue.some((j) => j.kind === 'gantry'));
-    const stuck = mine.length && !mine.some((a) => worldOpen(map.byId[a.id].body));
-    // an army stranded on a world with nothing left to take (it launched there) needs a gantry to leave
-    const stranded = mine.find((a) => a.army >= 20 && !a.gantry && !a.queue.some((j) => j.kind === 'gantry') && !worldOpen(map.byId[a.id].body) && !map.byId[a.id].links.some((l) => s.areas[l].gantry));
+  const reserve = st === STYLES.easy ? 150 : 50;
+  for (let i = 0; i < 10; i++) {
+    const devAt = safe.find((a) => a.level < DOM.develop.max && !a.queue.some((j) => j.kind === 'develop'));
+    if (devAt && income < st.develop * mine.length && pl.alloys >= jobCost(devAt, 'develop').cost + reserve && spend(devAt, 'develop')) continue;
+    const gunAt = borders.find((x) => x.a.guns + x.a.queue.filter((j) => j.kind === 'guns').length * DOM.jobs.guns.gives < x.want);
+    if (gunAt && pl.alloys > reserve + 100 && spend(gunAt.a, 'guns')) continue;
+    // gantries: an army stranded on a world with nothing left to take; once its world is taken; one per six areas later
+    const stranded = mine.find((a) => a.army >= 20 && !a.gantry && !a.queue.some((j) => j.kind === 'gantry') && !worldOpen(map.byId[a.id].body) && !links(a).some((o) => o.gantry));
     if (stranded && spend(stranded, 'gantry')) continue;
-    if ((stuck || s.t > 600) && gantries.length < 1 + Math.floor(mine.length / 6) && staging && !staging.gantry && spend(staging, 'gantry')) continue;
-    if (fronts.some((a) => spend(a, 'army'))) continue;
-    if (safe.find((a) => a.level < DOM.develop.max) && pl.alloys > 500 && spend(safe.find((a) => a.level < DOM.develop.max), 'develop')) continue;
-    if (mine.some((a) => a.guns < 40 && enemyNext(a) && pl.alloys > 800 && spend(a, 'guns'))) continue;
+    // alloys to spare: a gantry wherever an army waits, so it can go anywhere (no stand-offs)
+    const waiting = pl.alloys > 1000 ? mine.find((a) => a.army >= 30 && !a.gantry && !a.queue.some((j) => j.kind === 'gantry')) : undefined;
+    if (waiting && spend(waiting, 'gantry')) continue;
+    const gantries = mine.filter((a) => a.gantry || a.queue.some((j) => j.kind === 'gantry')).length;
+    const stuck = !mine.some((a) => worldOpen(map.byId[a.id].body));
+    if ((stuck || s.t > 600) && gantries < 1 + Math.floor(mine.length / 6) && staging && !staging.gantry && spend(staging, 'gantry')) continue;
+    if (pl.alloys >= reserve && fronts.some((a) => spend(a, 'army'))) continue;
+    // nothing else to spend on (army at its limit): develop anywhere safe, then more guns
+    if (full && devAt && spend(devAt, 'develop')) continue;
     break;
   }
 
-  // ---- attack: for each place to take, every army that can reach it joins in if together they're enough
-  const minArmy = level === 'hard' ? 20 : level === 'normal' ? 25 : 35;
-  const ready = (a: DomArea) => a.army >= 1 && !Object.keys(a.visitors).length;
-  // next to an enemy, a garrison stays: a third of the army, at least 10
-  const spare = (a: DomArea) => a.army - (enemyNext(a) ? Math.max(10, a.army / 3) : 0);
-  const reach = new Map<string, { from: DomArea; launch: boolean }[]>();
+  // ---- 3. attack
+  const ready = (a: DomArea) => a.army >= 1 && !fighting(a) && !used.has(a.id);
+  // what stays home: enough for what's next door and on its way, at least 10 by an enemy
+  const keep = (a: DomArea) => Math.max(enemyNext(a) ? 10 : 0, Math.min(a.army, threat(a) * 1.1 + nearby(a) * 0.35 - a.guns));
+  const spare = (a: DomArea) => Math.max(0, a.army - keep(a));
+  const alive = s.players.map((x, i) => (x.out || i === p ? 0 : ownedBy(s, i).length));
+  const weakest = st.focus ? alive.reduce((b, n, i) => (n > 0 && (b < 0 || n < alive[b]) ? i : b), -1) : -1;
+  const reach = new Map<string, { from: DomArea; launch: boolean; t: number }[]>();
   for (const a of mine) {
-    if (!ready(a)) continue;
+    if (!ready(a) || spare(a) < 1) continue;
     for (const w of destinations(map, s, a.id)) {
-      if (s.areas[w.to].owner === p) continue;
-      // launches: once its world has nothing left to take, or with a big army
+      const to = s.areas[w.to];
+      if (to.owner === p) continue;
+      // launches: once its world has nothing left to take, or with a big army, or at its army limit
       if (w.launch && worldOpen(map.byId[a.id].body) && a.army < 40 && !full) continue;
       if (!reach.has(w.to)) reach.set(w.to, []);
-      reach.get(w.to)!.push({ from: a, launch: w.launch });
+      reach.get(w.to)!.push({ from: a, launch: w.launch, t: travelTime(map, a.id, w.to, w.launch) });
     }
   }
   const plans = [...reach.entries()].map(([to, from]) => {
-    const def = Math.max(0, defence(s.areas[to], p));
-    const have = from.reduce((m, f) => m + Math.max(0, spare(f.from)), 0);
-    // nearer and weaker first; an enemy's developed area is worth more
-    const worth = 1 + s.areas[to].level * 0.3 + (s.areas[to].owner >= 0 ? 0.3 : 0);
-    return { to, from, def, have, score: (have / (def * margin + 1)) * worth - (from.every((f) => f.launch) ? 0.3 : 0) };
-  }).filter((x) => x.have >= minArmy * 0.5 && x.have > x.def * margin).sort((a, b) => b.score - a.score || (a.to < b.to ? -1 : 1));
-  const used = new Set<string>();
+    const t = s.areas[to];
+    // what holds it, and half of what its holder could bring from next door before an attack lands
+    const help = t.owner >= 0 ? map.byId[to].links.reduce((n, l) => n + (s.areas[l].owner === t.owner ? s.areas[l].army : 0), 0) : 0;
+    const def = Math.max(0, defence(t, p)) + help * 0.5;
+    // the armies that arrive together: within 40 s of the first
+    from.sort((x, y) => x.t - y.t || (x.from.id < y.from.id ? -1 : 1));
+    const together = from.filter((f) => f.t <= from[0].t + 40);
+    const have = together.reduce((m, f) => m + spare(f.from), 0);
+    let value = 1 + t.level * 0.3;
+    if (t.owner >= 0) {
+      value += 0.3;
+      if (t.owner === weakest) value += 0.5;
+      if (st.focus && alive[t.owner] <= 2) value += 1; // a player's last areas: finish them
+      if (t.army < t.guns * 0.5) value += 0.3; // its army has gone out
+    }
+    const eta = together[together.length - 1].t;
+    return { to, together, def, have, score: (have / (def * margin + 1)) * value / (1 + eta / 150) };
+  }).filter((x) => x.have >= st.minArmy * 0.5 && x.have > x.def * margin + 5).sort((a, b) => b.score - a.score || (a.to < b.to ? -1 : 1));
   for (const plan of plans) {
-    const go = plan.from.filter((f) => !used.has(f.from.id) && spare(f.from) >= 1).sort((a, b) => spare(b.from) - spare(a.from));
-    if (go.reduce((m, f) => m + spare(f.from), 0) <= plan.def * margin) continue;
-    // only what it takes (with some to spare to hold it), the biggest first
-    let need = plan.def * margin * 1.3 + 10;
+    const go = plan.together.filter((f) => !used.has(f.from.id) && spare(f.from) >= 1).sort((a, b) => spare(b.from) - spare(a.from));
+    if (go.reduce((m, f) => m + spare(f.from), 0) <= plan.def * margin + 5) continue;
+    // enough to be sure (with some over to hold it), the biggest first
+    let need = plan.def * margin * 1.5 + 20;
     for (const f of go) {
       if (need <= 0) break;
       const n = Math.floor(Math.min(spare(f.from), need));
@@ -88,19 +184,25 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
     }
   }
 
-  // ---- armies with nothing to take next door step toward the front: the nearest area (over its own ground) that
-  // borders something to take, or has a gantry
-  const dist = new Map<string, number>();
-  const queue: string[] = [];
-  for (const a of mine) if (openNext(a) || a.gantry) { dist.set(a.id, 0); queue.push(a.id); }
+  // ---- 4. gather: armies with nothing to do join the strike force, the biggest army that can reach a fight (one by
+  // an enemy, or with a gantry); overland step by step, or by launch from another world
+  // (armies already on their way there count, so the choice holds steady while they gather)
+  const coming = (a: DomArea) => s.moves.reduce((n, m) => n + (m.player === p && m.to === a.id ? m.strength : 0), 0);
+  const strike = mine.filter((a) => (enemyNext(a) || a.gantry) && !fighting(a)).sort((a, b) => b.army + coming(b) - a.army - coming(a) || (a.id < b.id ? -1 : 1))[0];
+  if (!strike) return;
+  const dist = new Map<string, number>([[strike.id, 0]]);
+  const queue = [strike.id];
   while (queue.length) {
     const id = queue.shift()!;
     for (const l of map.byId[id].links) if (s.areas[l].owner === p && !dist.has(l)) { dist.set(l, dist.get(id)! + 1); queue.push(l); }
   }
   for (const a of mine) {
+    if (a === strike || !ready(a) || spare(a) < 15) continue;
     const d = dist.get(a.id);
-    if (used.has(a.id) || !ready(a) || a.army < 10 || d === undefined || d === 0) continue;
-    const next = map.byId[a.id].links.filter((l) => s.areas[l].owner === p && (dist.get(l) ?? 99) < d).sort()[0];
-    if (next) domSend(map, s, p, a.id, next, Math.floor(a.army));
+    const n = Math.floor(spare(a));
+    if (d !== undefined) {
+      const next = map.byId[a.id].links.filter((l) => (dist.get(l) ?? 99) < d).sort()[0];
+      if (next) domSend(map, s, p, a.id, next, n);
+    } else if (a.gantry && map.byId[a.id].body !== map.byId[strike.id].body) domSend(map, s, p, a.id, strike.id, n);
   }
 }

@@ -66,6 +66,13 @@ export interface DomState {
 /** The numbers (all in one place for balancing). */
 export const DOM = {
   startAlloys: 400,
+  /**
+   * Extra starting alloys by player count and start (`DOM_STARTS` order), making up for a smaller world to grow into: tuned so each
+   * start wins about as often with Normal computers everywhere (tools/domination-ai-sim.mjs --only fairness).
+   */
+  startBonus: { 2: [0, 50], 3: [0, 200, 420], 4: [0, 200, 600, 900] } as Record<number, number[]>,
+  /** Natives on a start world are this much tougher per area that world has over 5 (Home's 7 are worth more to win). */
+  startWorldNatives: 0,
   start: { army: 30, guns: 30, level: 1 },
   /** Alloys a second per area: base + per level. */
   income: { base: 1, perLevel: 1 },
@@ -82,9 +89,13 @@ export const DOM = {
   armyCap: { base: 80, perArea: 30 },
   /** Natives on an unclaimed area: min + up to `spread` more. */
   natives: { min: 10, spread: 16 },
-  /** Damage a second, per point of strength. */
-  rate: 0.08,
-  gunsBonus: 1.25,
+  /**
+   * Fights are an exchange, fitted to the same battles fought in full (tools/domination-calibrate.mjs): an attacker
+   * loses about what the holder is worth (army × 0.9 + guns + 15 for its Command Core) to wipe it out, whatever its own
+   * size; the losses each second are `rate` × the bigger side's worth (so a fight takes about as long as in full).
+   */
+  rate: 0.012,
+  worth: { army: 0.9, guns: 1, core: 15 },
   /** Travel: overland base + per radian of the way; launches within one planet's system, or across the system. */
   travel: { overland: 25, perRadian: 35, launchNear: 50, launchFar: 90 },
   /** The game's event list keeps this many. */
@@ -142,10 +153,17 @@ export function newDomination(map: DomMap, o: DomSetup): DomState {
   for (const a of map.list) {
     areas[a.id] = { id: a.id, owner: -1, army: 0, guns: 0, natives: Math.round(DOM.natives.min + rnd() * DOM.natives.spread), level: 0, gantry: false, queue: [], visitors: {} };
   }
+  // the start worlds' natives: tougher on the bigger ones (more there to take without a fight)
+  for (const id of DOM_STARTS.slice(0, n)) {
+    const body = map.byId[id]?.body, size = map.list.filter((x) => x.body === body).length;
+    for (const x of map.list) if (x.body === body) areas[x.id].natives = Math.round(areas[x.id].natives * Math.max(0.6, 1 + DOM.startWorldNatives * (size - 5)));
+  }
   for (let i = 0; i < n; i++) {
     const a = areas[DOM_STARTS[i]] ?? Object.values(areas).find((x) => x.owner < 0)!;
     Object.assign(a, { owner: i, army: DOM.start.army, guns: DOM.start.guns, level: DOM.start.level, natives: 0, gantry: true });
   }
+  // a start on a smaller world gets alloys to make up for it
+  players.forEach((pl, i) => { pl.alloys += DOM.startBonus[n]?.[i] ?? 0; });
   return { version: 1, seed: o.seed, t: 0, players, areas, moves: [], nextMove: 1, log: [{ t: 0, text: 'The war for the system begins', kind: 'info' }] };
 }
 
@@ -239,15 +257,18 @@ export function domSend(map: DomMap, s: DomState, p: number, from: string, to: s
 
 // ---------- the clock ----------
 /** Advance the war by `dt` game seconds (in steps of at most 1 s). */
-export function stepDomination(map: DomMap, s: DomState, dt: number) {
+/** A computer player's brain (tests can give a player another one: tools/domination-sim.mjs compares them). */
+export type DomBrain = (map: DomMap, s: DomState, p: number) => void;
+
+export function stepDomination(map: DomMap, s: DomState, dt: number, brains?: Record<number, DomBrain>) {
   while (dt > 1e-6 && !s.over) {
     const h = Math.min(1, dt);
-    tick(map, s, h);
+    tick(map, s, h, brains);
     dt -= h;
   }
 }
 
-function tick(map: DomMap, s: DomState, h: number) {
+function tick(map: DomMap, s: DomState, h: number, brains?: Record<number, DomBrain>) {
   s.t += h;
   // income and building
   s.players.forEach((pl, p) => { if (!pl.out) pl.alloys += incomeOf(s, p) * h; });
@@ -295,32 +316,48 @@ function tick(map: DomMap, s: DomState, h: number) {
   s.players.forEach((pl, p) => {
     if (!pl.ai || pl.out || (pl.think ?? 0) > s.t) return;
     pl.think = s.t + (pl.ai === 'hard' ? 3 : pl.ai === 'normal' ? 5 : 8);
-    domAiThink(map, s, p);
+    (brains?.[p] ?? domAiThink)(map, s, p);
   });
 }
 
+/** What wiping out an area's holder costs an attacker, in strength (natives: their number). */
+export function holderWorth(a: DomArea) {
+  if (a.owner < 0) return a.natives;
+  const n = a.army * DOM.worth.army + a.guns * DOM.worth.guns;
+  return n > 0 ? n + DOM.worth.core : 0;
+}
+
 /**
- * One second of fighting in an area: every side (the holder's army and guns, or the natives; each visiting army)
- * deals `rate` × its strength, split over its enemies by their size. When only one side is left it holds the area.
+ * One second of fighting in an area. Every pair of sides (the holder; each visiting army) exchanges losses: `rate` ×
+ * the bigger one's worth (each side's worth: a visitor its strength, the holder `holderWorth`), split by how much of
+ * each side's fire goes at the other. Each loses that much worth: the holder its army and guns in proportion. When
+ * only one side is left it holds the area.
  */
 function fight(map: DomMap, s: DomState, a: DomArea, h: number) {
-  const holder = a.owner >= 0 ? a.army + a.guns : a.natives;
-  const sides: { p: number; str: number; dmg: number }[] = [];
-  if (holder > 0) sides.push({ p: a.owner, str: holder, dmg: (a.owner >= 0 ? a.army + a.guns * DOM.gunsBonus : a.natives) * DOM.rate * h });
-  for (const [k, v] of Object.entries(a.visitors)) if (v > 0) sides.push({ p: Number(k), str: v, dmg: v * DOM.rate * h });
+  const sides: { p: number; worth: number }[] = [];
+  const hw = holderWorth(a);
+  if (hw > 0) sides.push({ p: a.owner, worth: hw });
+  for (const [k, v] of Object.entries(a.visitors)) if (v > 0) sides.push({ p: Number(k), worth: v });
   if (sides.length >= 2) {
-    const total = sides.reduce((m, x) => m + x.str, 0);
-    const taken = sides.map(() => 0);
-    sides.forEach((from, i) => {
-      const others = total - from.str;
-      sides.forEach((to, j) => { if (i !== j) taken[j] += from.dmg * (to.str / others); });
-    });
+    const total = sides.reduce((m, x) => m + x.worth, 0);
+    const lost = sides.map(() => 0);
+    for (let i = 0; i < sides.length; i++) for (let j = i + 1; j < sides.length; j++) {
+      const wi = sides[i].worth, wj = sides[j].worth;
+      const share = (wj / (total - wi) + wi / (total - wj)) / 2;
+      const e = DOM.rate * h * Math.max(wi, wj) * share;
+      // a holder bigger than what comes at it loses less (√ of the odds): small attacks are wasteful, as in full
+      const shelter = (k: number, o: number) => (sides[k].p === a.owner && a.owner >= 0 ? Math.min(1, Math.sqrt(sides[o].worth / sides[k].worth)) : 1);
+      lost[i] += e * shelter(i, j); lost[j] += e * shelter(j, i);
+    }
     sides.forEach((x, j) => {
-      const left = Math.max(0, x.str - taken[j]);
-      const keep = left < 0.5 ? 0 : left / x.str;
-      if (x.p === a.owner) {
-        if (a.owner >= 0) { a.army *= keep; a.guns *= keep; } else a.natives *= keep;
-      } else a.visitors[x.p] = x.str * keep;
+      const left = Math.max(0, x.worth - lost[j]);
+      if (x.p === a.owner && a.owner >= 0) {
+        // the Core's share goes last: army and guns keep what's left above it
+        const k = Math.max(0, left - DOM.worth.core) / Math.max(1e-9, x.worth - DOM.worth.core);
+        a.army = a.army * k < 0.5 ? 0 : a.army * k;
+        a.guns = a.guns * k < 0.5 ? 0 : a.guns * k;
+      } else if (x.p === a.owner) a.natives = left < 0.5 ? 0 : left;
+      else a.visitors[x.p] = left < 0.5 ? 0 : left;
     });
   }
   // the outcome
