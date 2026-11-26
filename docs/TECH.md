@@ -3307,3 +3307,51 @@ DESIGN §5.12 phase 5: the map's fights fitted to full battles, a new computer b
   previous brain for the comparison is whatever is in `tools/.cache/dom-ai-baseline.ts`.
 - Tried and dropped: growing bolder as a war drags on (margin down to 0.8× by 3 h) made stalls worse (6 in 90).
 - `stepDomination` takes an optional brain per player (tests compare brains).
+
+### Domination: teams, fog of war and victory (v0.99.0)
+
+DESIGN §5.12 phase 6. Rules in `src/sim/domination.ts` (`DomRules` on the state, absent in older saves = free for
+all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in `src/domination/main.ts`.
+
+- **Setup** (start panel): Players 2–4; Teams: Free for all, 2 v 2 (four players: sides 0011), You vs all (three or
+  four: 011 / 0111); Computer; Fog of war; Victory: Wipe them out, or Hold 75%. Remembered in `exo.dom-setup`.
+- **Teams** (`sideOf`, `allied`): allies never fight (`fight` only exchanges between foes; each side's fire is spread
+  over its foes there), can't be a destination (`destinations` leaves allies' areas out), and win together. An area
+  falls when all that's left in it is one side's: the biggest army holds it and its allies' armies join it. An army
+  that arrives at an area an ally took meanwhile goes home again (or joins the ally if home is gone). Battles fought
+  in full carry each side (`BattleSide.side` → the skirmish's `side`), so allies fight together there.
+- **Fog** (`visibleTo`, `movesSeenBy`): the numbers in your side's areas, the areas linked to them, and areas where
+  your side is fighting; every area of a player that has fallen to its last 3 (having held 6 or more: not at the
+  start, when everyone holds one). Owners are always public. Moves you see: your side's, and any to or from an area
+  you see. On the page: unseen areas are faded with "?", no guns or level marks; the card says "Out of sight". You're
+  still told when an enemy army sets off for one of your areas (once per area every 20 s).
+- **The computer under fog** (`fogView`): plans on a copy of the war where unseen areas carry what it last saw
+  (`DomPlayer.seen`, kept up each think) or a guess (natives 18; a player's area 30 army + 20 guns), with no queues or
+  fights it can know of, and only the moves it can see; areas it can see are the real ones. Orders go to the real war.
+  Allies are friends everywhere (no targets, no threats, the weakest player is the weakest enemy).
+- **Victory**: wipe out: the last side with a player in. Hold 75%: the first side to hold `controlNeed` (30 of 40)
+  areas, checked every second, or the last side left. `over` records the winning `side`, `winner` (you, if you're on
+  it) and `how`.
+- **End screen**: who won and how ("by holding 31 of 40 areas"), the war's length, a chart of areas held per player
+  over time (`DomState.history`, sampled every minute; a dashed line at 30 in a 75% war), and per player: most areas,
+  taken, lost, army built, when they were out, their team.
+- **Fair starts by setup** (`newDomination`): free for all `startBonus` as before; under fog `fogBonus` (3: 0 / 400 /
+  800; 4: 0 / 400 / 1000 / 1500) and natives on start worlds × (1 + 0.1 × (areas − 5)) (`fogWorldNatives`: Home's are
+  20% tougher); teams `teamBonus` by sides (0011: 0 / 0 / 50 / 100; with fog 0 / 0 / 250 / 400). Alloys alone didn't
+  balance fog: Home won 18 of 30 four-player fog wars even with 2,000 for Dunmore; tougher natives at 0.2 swung it to 3.
+- **Measured** (`node tools/domination-ai-sim.mjs --seeds 30`, Normals; winning side counts out of 30):
+
+  | Rules | Ended | Median | Wins by side |
+  |---|---|---|---|
+  | Fog, 4 players | 30 / 30 | 113 min | 11 / 7 / 9 / 3 |
+  | 2 v 2 | 30 / 30 | 66 min | 12 / 18 |
+  | 2 v 2 with fog | 30 / 30 | 83 min | 15 / 15 |
+  | You vs all, 3 players | 30 / 30 | 24 min | the computers 30 (two against one: a challenge) |
+  | Hold 75%, 4 players | 30 / 30 (all by control) | 82 min | 8 / 6 / 11 / 5 |
+  | Hold 75% with fog, 3 players | 30 / 30 (all by control) | 72 min | 13 / 7 / 10 |
+
+  Free for all without fog, matchups and pace are as in v0.98.0 (unchanged: those games don't use the new tables).
+  `--only rules --variant <text>` runs some of these; `--check` fails if any of them doesn't end.
+- Tests: `tools/domination-sim.mjs` (teams, fog, reveal, the computer's guess, victory by control, the history),
+  `tools/domination-smoke.mjs` (the setup's new rows, "?" under fog, the player list's teams and rules, the 75%
+  victory screen with its chart).

@@ -80,7 +80,9 @@ if (part('pace')) for (const n of [2, 3, 4]) {
 }
 
 // the setup's rules: every combination ends
-const VARIANTS = process.argv.includes('--variant') ? [] : [
+/** --variant <text>: only the variants whose name has it (tuning). */
+const pick = process.argv.includes('--variant') ? process.argv[process.argv.indexOf('--variant') + 1] : '';
+const VARIANTS = [
   ['fog, 4 players', 4, { fog: true }],
   ['2 v 2', 4, { side: [0, 0, 1, 1] }],
   ['2 v 2 with fog', 4, { side: [0, 0, 1, 1], fog: true }],
@@ -90,6 +92,7 @@ const VARIANTS = process.argv.includes('--variant') ? [] : [
 ];
 let variantsUnfinished = 0;
 if (part('rules')) {
+  for (let i = VARIANTS.length - 1; i >= 0; i--) if (!VARIANTS[i][0].includes(pick)) VARIANTS.splice(i, 1);
   console.log('rules (Normals everywhere): wars that end · median minutes · how they ended');
   for (const [name, n, rules] of VARIANTS) {
     const mins = [], how = {}, sides = {};

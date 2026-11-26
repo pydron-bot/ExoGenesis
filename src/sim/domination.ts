@@ -89,8 +89,10 @@ export const DOM = {
   startBonus: { 2: [0, 50], 3: [0, 200, 420], 4: [0, 200, 600, 900] } as Record<number, number[]>,
   /** The same under fog of war. */
   fogBonus: { 2: [0, 50], 3: [0, 400, 800], 4: [0, 400, 1000, 1500] } as Record<number, number[]>,
-  /** In team games, by the sides in order ('0011': you and Crimson against Amber and Violet). */
-  teamBonus: { '0011': [0, 0, 50, 100], '011': [0, 0, 0], '0111': [0, 0, 0, 0] } as Record<string, number[]>,
+  /** Under fog (free for all), natives on a start world are this much tougher per area that world has over 5. */
+  fogWorldNatives: 0.1,
+  /** In team games, by the sides in order ('0011': you and Crimson against Amber and Violet; ' fog' under fog). */
+  teamBonus: { '0011': [0, 0, 50, 100], '0011 fog': [0, 0, 250, 400], '011': [0, 0, 0], '0111': [0, 0, 0, 0] } as Record<string, number[]>,
   /** Natives on a start world are this much tougher per area that world has over 5 (Home's 7 are worth more to win). */
   startWorldNatives: 0,
   start: { army: 30, guns: 30, level: 1 },
@@ -180,7 +182,8 @@ export function newDomination(map: DomMap, o: DomSetup): DomState {
   // the start worlds' natives: tougher on the bigger ones (more there to take without a fight)
   for (const id of DOM_STARTS.slice(0, n)) {
     const body = map.byId[id]?.body, size = map.list.filter((x) => x.body === body).length;
-    for (const x of map.list) if (x.body === body) areas[x.id].natives = Math.round(areas[x.id].natives * Math.max(0.6, 1 + DOM.startWorldNatives * (size - 5)));
+    const k = o.rules?.fog && !(o.rules.side && new Set(o.rules.side.slice(0, n)).size < n) ? DOM.fogWorldNatives : DOM.startWorldNatives;
+    for (const x of map.list) if (x.body === body) areas[x.id].natives = Math.round(areas[x.id].natives * Math.max(0.6, 1 + k * (size - 5)));
   }
   for (let i = 0; i < n; i++) {
     const a = areas[DOM_STARTS[i]] ?? Object.values(areas).find((x) => x.owner < 0)!;
@@ -188,7 +191,8 @@ export function newDomination(map: DomMap, o: DomSetup): DomState {
   }
   // a start on a smaller world gets alloys to make up for it (tables by player count, teams and fog)
   const teams = !!o.rules?.side && new Set(o.rules.side.slice(0, n)).size < n;
-  const table = teams ? DOM.teamBonus[o.rules!.side!.slice(0, n).join('')] : o.rules?.fog ? DOM.fogBonus[n] : DOM.startBonus[n];
+  const key = o.rules?.side?.slice(0, n).join('') ?? '';
+  const table = teams ? (o.rules?.fog ? DOM.teamBonus[`${key} fog`] : undefined) ?? DOM.teamBonus[key] : o.rules?.fog ? DOM.fogBonus[n] : DOM.startBonus[n];
   players.forEach((pl, i) => { pl.alloys += table?.[i] ?? 0; });
   const rules: DomRules = { side: o.rules?.side?.slice(0, n) ?? players.map((_, i) => i), fog: !!o.rules?.fog, win: o.rules?.win ?? 'wipe' };
   while (rules.side.length < n) rules.side.push(rules.side.length);

@@ -29,6 +29,8 @@ A long war for the whole solar system on a strategy map of its 40 areas (DESIGN 
 editor; the war autosaves to IndexedDB (`domination`) and saves to the same named save files as the rest of the game.
 Rules and computer players: `src/sim/domination.ts`, `src/sim/domination-ai.ts` (`node tools/domination-sim.mjs`);
 the page: `src/domination/main.ts` (`node tools/domination-smoke.mjs`). `?load=<file id>` opens a save file.
+The setup has teams, fog of war and a "hold 75%" victory; `node tools/domination-ai-sim.mjs --check` plays computer
+wars under every rule and checks they end and are fair.
 
 ## Skirmish proof of concept (`?mode=skirmish`, or the ⚔ Skirmish button)
 
