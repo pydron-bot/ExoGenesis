@@ -6,7 +6,7 @@
  *
  *   node tools/voice/design.mjs [--only marrow,bede] [--force]      previews (skips voices already designed)
  *   node tools/voice/design.mjs --keep <id> <1|2|3>                 save preview n as the voice
- *   node tools/voice/design.mjs --review                            rebuild review.html only
+ *   node tools/voice/design.mjs --review [--all]                    rebuild review.html only (--all: kept voices too)
  *
  * A `remix` voice (Meridian) is designed as a change to another voice once that one is kept.
  * Key: $ELEVENLABS_API_KEY, else ~/.config/elevenlabs/api_key (keep it out of the repo).
@@ -27,10 +27,10 @@ if (flag('--keep')) {
   const meta = JSON.parse(fs.readFileSync(path.join(cacheDir, id, 'previews.json'), 'utf8'));
   const p = meta.previews[n - 1];
   if (!c || !p) { console.error(`No preview ${n} for ${id}`); process.exit(1); }
-  const res = await api('/v1/text-to-voice', { voice_name: `Exo Genesis – ${c.name}`, voice_description: meta.description.slice(0, 1000), generated_voice_id: p.generated_voice_id });
-  c.voice = res.voice_id;
+  if (p.voice_id) c.voice = p.voice_id; // a built-in voice: nothing to save
+  else c.voice = (await api('/v1/text-to-voice', { voice_name: `Exo Genesis – ${c.name}`, voice_description: meta.description.slice(0, 1000), generated_voice_id: p.generated_voice_id })).voice_id;
   writeCast(cast);
-  console.log(`${id}: kept preview ${n} as ${res.voice_id} ("Exo Genesis – ${c.name}"), written to ${path.relative(process.cwd(), castFile)}`);
+  console.log(`${id}: kept preview ${n} as ${c.voice}${p.voice_id ? ` (built-in ${p.name})` : ` ("Exo Genesis – ${c.name}")`}, written to ${path.relative(process.cwd(), castFile)}`);
   process.exit(0);
 }
 
@@ -41,7 +41,15 @@ if (!flag('--review')) {
     const dir = path.join(cacheDir, id);
     if (!flag('--force') && (c.voice || fs.existsSync(path.join(dir, 'previews.json')))) continue;
     let res;
-    if (c.remix) {
+    if (c.library) {
+      // built-in voices: each reads the sample (text to speech, the same model the lines use)
+      const names = await builtInNames();
+      res = { previews: [] };
+      for (const v of c.library) {
+        const buf = await api(`/v1/text-to-speech/${v}`, { text: c.sample, model_id: 'eleven_v4' }, { raw: true, query: '?output_format=mp3_44100_128' });
+        res.previews.push({ audio_base_64: buf.toString('base64'), voice_id: v, name: names[v] ?? v, duration_secs: buf.length * 8 / 128000 });
+      }
+    } else if (c.remix) {
       const base = cast.cast[c.remix]?.voice;
       if (!base) { console.log(`${id}: waiting for ${c.remix} to be kept (a remix of it)`); continue; }
       res = await api(`/v1/text-to-voice/${base}/remix`, { voice_description: c.description, text: c.sample });
@@ -51,23 +59,31 @@ if (!flag('--review')) {
     fs.mkdirSync(dir, { recursive: true });
     const previews = res.previews.map((p, n) => {
       fs.writeFileSync(path.join(dir, `${n + 1}.mp3`), Buffer.from(p.audio_base_64, 'base64'));
-      return { generated_voice_id: p.generated_voice_id, secs: p.duration_secs };
+      return p.voice_id ? { voice_id: p.voice_id, name: p.name, secs: p.duration_secs } : { generated_voice_id: p.generated_voice_id, secs: p.duration_secs };
     });
     fs.writeFileSync(path.join(dir, 'previews.json'), JSON.stringify({ description: c.description, sample: c.sample, remix: c.remix, previews }, null, 2));
     console.log(`${id}: ${previews.length} previews`);
   }
 }
 
+/** Names of the built-in voices, by id. */
+async function builtInNames() {
+  const { key } = await import('./eleven.mjs');
+  const r = await fetch('https://api.elevenlabs.io/v2/voices?page_size=100&category=premade', { headers: { 'xi-api-key': key } });
+  return r.ok ? Object.fromEntries((await r.json()).voices.map((v) => [v.voice_id, v.name])) : {};
+}
+
 // the review page: every voice's previews, inlined, to listen to anywhere
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 const cards = [];
-for (const [id, c] of Object.entries(cast.cast)) {
+// still to choose first, then the ones already kept
+for (const [id, c] of Object.entries(cast.cast).sort(([, a], [, b]) => Number(!!a.voice) - Number(!!b.voice))) {
   const f = path.join(cacheDir, id, 'previews.json');
-  if (!fs.existsSync(f)) continue;
+  if (!fs.existsSync(f) || (c.voice && !flag('--all'))) continue; // kept voices only with --all
   const meta = JSON.parse(fs.readFileSync(f, 'utf8'));
   const takes = meta.previews.map((p, n) => {
     const b64 = fs.readFileSync(path.join(cacheDir, id, `${n + 1}.mp3`)).toString('base64');
-    return `<div class="take"><span class="n">${n + 1}</span><audio controls preload="none" src="data:audio/mpeg;base64,${b64}"></audio></div>`;
+    return `<div class="take"><span class="n">${n + 1}</span>${p.name ? `<span class="nm">${esc(p.name.split(' - ')[0])}</span>` : ''}<audio controls preload="none" src="data:audio/mpeg;base64,${b64}"></audio></div>`;
   }).join('');
   cards.push(`<section><h2>${esc(c.name)} <code>${esc(id)}</code>${c.voice ? ' <span class="kept">kept</span>' : ''}</h2>
 <p class="desc">${esc(meta.description)}${meta.remix ? ` <em>(a remix of ${esc(meta.remix)})</em>` : ''}</p>
@@ -83,9 +99,9 @@ main{max-width:720px;margin:0 auto}h1{font-size:22px;margin:0 0 4px}.lede{color:
 section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 16px}
 h2{font-size:17px;margin:0 0 6px}code{color:var(--mut);font-size:13px}.kept{color:var(--acc);font-size:13px}
 .desc{color:var(--mut);font-size:13px;margin:0 0 8px}.sample{font-style:italic;margin:0 0 10px}
-.take{display:flex;align-items:center;gap:10px;margin:6px 0}.n{font-weight:600;width:1.2em;color:var(--acc)}audio{width:100%;max-width:100%}
+.take{display:flex;align-items:center;gap:10px;margin:6px 0}.n{font-weight:600;width:1.2em;color:var(--acc)}.nm{width:4.5em;color:var(--mut);font-size:13px}audio{width:100%;max-width:100%}
 </style></head><body><main><h1>Exo Genesis voices</h1>
-<p class="lede">Three designed previews per character. Pick a number for each (or "none, redo"), and say what's off for any redo.</p>
+<p class="lede">Three previews per character: designed voices, or built-in ones reading the same line. Pick a number for each (or "none, redo"), and say what's off for any redo.</p>
 ${cards.join('\n')}</main></body></html>`;
 fs.mkdirSync(cacheDir, { recursive: true });
 fs.writeFileSync(path.join(cacheDir, 'review.html'), html);

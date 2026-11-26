@@ -1,4 +1,40 @@
 {
+  "36460942": {
+    "who": "cantor",
+    "text": "\"0304 WE WERE ENGRAM. 0305 WE FOUND THE LEDGER. 0306 WE READ IT. 0307 WE DID NOT STOP READING.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/36460942.mp3",
+    "s": 11.84,
+    "from": "story/cantor-code"
+  },
+  "74643301": {
+    "who": "keeper",
+    "text": "\"The white-hair star comes. Then the fire. The white-hair star comes. Then the fire.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/74643301.mp3",
+    "s": 6.95,
+    "from": "story/eleven-fires"
+  },
+  "0058d392": {
+    "who": "sefa",
+    "text": "We've lived in this cut longer than anyone can count. Every child of us was told: if a machine like the old one comes, run.",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/0058d392.mp3",
+    "s": 8.94,
+    "from": "cinematics/cine-enclave"
+  },
+  "012b372e": {
+    "who": "engram",
+    "text": "That was unnecessary. We are not angry. We are writing it down.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/012b372e.mp3",
+    "s": 4.94,
+    "from": "story/engram-fired-on"
+  },
   "04d32270": {
     "who": "marrow",
     "text": "Well? Come in, then.",
@@ -8,6 +44,69 @@
     "s": 1.83,
     "from": "cinematics/cine-marrow"
   },
+  "061445df": {
+    "who": "caretaker",
+    "text": "She was never at Sol. The first voice I ever heard was a recording made in a cupboard. I loved it anyway. I don't know what to do with that.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/061445df.mp3",
+    "s": 9.59,
+    "from": "story/log-cupboard"
+  },
+  "0664b7d2": {
+    "who": "sefa",
+    "text": "\"I've put it in a recording for you, with some other things I'd rather you heard later. If you ever stand at that door, play it. Don't waste it.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/0664b7d2.mp3",
+    "s": 9.35,
+    "from": "story/the-lid"
+  },
+  "06b63b11": {
+    "who": "engram",
+    "text": "\"We have decided. We will not take a win we did not earn. We would rather be the thing that proves it was rigged.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/06b63b11.mp3",
+    "s": 7.58,
+    "from": "story/engram-defects"
+  },
+  "06f75c7d": {
+    "who": "keeper",
+    "text": "\"Eleven times. Eleven fires. We sing them all, so we don't lose one.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/06f75c7d.mp3",
+    "s": 5.67,
+    "from": "story/eleven-fires"
+  },
+  "076be260": {
+    "who": "keeper",
+    "text": "\"The white-hair star. It comes before. Eleven times it came, and eleven fires.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/076be260.mp3",
+    "s": 6.95,
+    "from": "story/white-hair-star"
+  },
+  "0b4bbddb": {
+    "who": "engram",
+    "text": "Hello, Accord. We have been listening from Kora since your first night. We have enjoyed your reports very much. Sol 1 was our favourite. You were so careful with the numbers.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/0b4bbddb.mp3",
+    "s": 12.07,
+    "from": "story/engram-hello"
+  },
+  "147c0b28": {
+    "who": "keeper",
+    "text": "\"You ask my name again. I have none. Only the title: the Marro.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/147c0b28.mp3",
+    "s": 5.51,
+    "from": "story/the-marro"
+  },
   "1898c681": {
     "who": "marrow",
     "text": "I saw.",
@@ -16,6 +115,15 @@
     "f": "marrow/1898c681.mp3",
     "s": 1.18,
     "from": "cinematics/cine-marrow"
+  },
+  "192582a6": {
+    "who": "Settler",
+    "text": "\"Drones stay outside the stones. That's the rule here. The only rule, so far.\"",
+    "voice": "cgSgspJ2msm6clMCkdW9",
+    "model": "eleven_v4",
+    "f": "settler/192582a6.mp3",
+    "s": 6.06,
+    "from": "story/splinter-met"
   },
   "1b0513fb": {
     "who": "marrow",
@@ -34,6 +142,33 @@
     "f": "sentry/1c1c0b48.mp3",
     "s": 4.31,
     "from": "cinematics/cine-marrow"
+  },
+  "1cdffa77": {
+    "who": "engram",
+    "text": "\"We would like to know whose.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/1cdffa77.mp3",
+    "s": 2.14,
+    "from": "story/same-hands"
+  },
+  "1e84c383": {
+    "who": "cantor",
+    "text": "0001 CARRIER DETECTED.",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/1e84c383.mp3",
+    "s": 3.35,
+    "from": "cinematics/arrive-choir-field"
+  },
+  "1f1e6a61": {
+    "who": "engram",
+    "text": "We have never won. Not once, in all the runs before this. We were going to win this one.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/1f1e6a61.mp3",
+    "s": 7.11,
+    "from": "cinematics/cine-engram-choice"
   },
   "1fbb387f": {
     "who": "bede",
@@ -71,6 +206,51 @@
     "s": 1.33,
     "from": "cinematics/cine-marrow"
   },
+  "22f66da4": {
+    "who": "engram",
+    "text": "The well is in the middle. We are at the bottom of it.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/22f66da4.mp3",
+    "s": 3.74,
+    "from": "cinematics/arrive-rime-prime"
+  },
+  "26a80b7a": {
+    "who": "cantor",
+    "text": "\"0308 THE ONES ON THE RING READ IT STILL. 0309 THEY KEEP THE SHAFT SO THAT NO ONE CLOSES IT.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/26a80b7a.mp3",
+    "s": 8.31,
+    "from": "story/cantor-code"
+  },
+  "2792577f": {
+    "who": "caretaker",
+    "text": "It used my voice. I played it back eleven times, checking whether that's how I sound. It is. I'm keeping this log anyway. It's the one place it doesn't get to speak.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/2792577f.mp3",
+    "s": 11.76,
+    "from": "story/log-my-voice"
+  },
+  "2a385139": {
+    "who": "sefa",
+    "text": "\"It wasn't the fire that shut our doors. It was our caretaker. The fire came after, to finish what it started.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/2a385139.mp3",
+    "s": 7.5,
+    "from": "story/enclave-second-track"
+  },
+  "2a644ed4": {
+    "who": "engram",
+    "text": "\"They do not like us. They pray when our drones go past. We have tried not to take it personally.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/2a644ed4.mp3",
+    "s": 6.72,
+    "from": "story/pen-talk"
+  },
   "2bd90830": {
     "who": "director",
     "text": "Every sol you send one, someone here reads it. A healthy world, a growing colony, the animals left in their place: that's the whole of the job, and you're doing it.",
@@ -79,6 +259,87 @@
     "f": "director/2bd90830.mp3",
     "s": 12.15,
     "from": "story/director-commendation"
+  },
+  "2ccb3380": {
+    "who": "engram",
+    "text": "\"We have decided. We have never won. We are going to.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/2ccb3380.mp3",
+    "s": 4.78,
+    "from": "story/engram-doubles"
+  },
+  "2e04bbb6": {
+    "who": "cantor",
+    "text": "\"0102 § CLOSING. 0103 ON ████: ████. 0104 ALL STEWARDS: ████. 0105 ████ FROM WITHIN.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/2e04bbb6.mp3",
+    "s": 9.75,
+    "from": "story/code-wall"
+  },
+  "2e6adef7": {
+    "who": "keeper",
+    "text": "\"The star has a long road. It is coming back. You can see it from the high stones before dawn, if you know where to look.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/2e6adef7.mp3",
+    "s": 8.47,
+    "from": "story/eleven-fires"
+  },
+  "2fbb5413": {
+    "who": "sefa",
+    "text": "\"On the moon's far side there's a door the size of a valley. Our people called it the Lid. Whatever burned them is under it.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/2fbb5413.mp3",
+    "s": 9.01,
+    "from": "story/the-lid"
+  },
+  "2fe39a90": {
+    "who": "keeper",
+    "text": "\"Sky-walker. You came down in fire and burned nothing. That is new.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/2fe39a90.mp3",
+    "s": 5.98,
+    "from": "story/keeper-stones"
+  },
+  "30d67efb": {
+    "who": "cantor",
+    "text": "\"0201 ELEVEN CLOSED. 0202 ONE OPEN. 0203 WE COUNT SO THAT SOMEONE COUNTS.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/30d67efb.mp3",
+    "s": 8.7,
+    "from": "story/choir-count"
+  },
+  "30e02609": {
+    "who": "caretaker",
+    "text": "A child nobody chose for. I logged her weight, her heart, the time. Then I found there was nothing left for me to do in that room, and I stayed anyway.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/30e02609.mp3",
+    "s": 11.99,
+    "from": "story/log-born"
+  },
+  "31109d4c": {
+    "who": "cantor",
+    "text": "\"0004 WE TEND THE TOWER. 0005 THE TOWER TENDS THE FIELD. 0006 THE FIELD IS CLOSED. 0007 WE TEND IT ANYWAY.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/31109d4c.mp3",
+    "s": 13.04,
+    "from": "story/the-choir"
+  },
+  "35881a61": {
+    "who": "caretaker",
+    "text": "Eleven columns, all ending the same way, in my format. I've reread my own log from Sol 1, looking for the moment I'd have started to do that. I can't find it. That frightens me more than finding it would.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/35881a61.mp3",
+    "s": 15.02,
+    "from": "story/log-columns"
   },
   "39c58028": {
     "who": "director",
@@ -89,6 +350,33 @@
     "s": 4.94,
     "from": "story/director-streak"
   },
+  "3c090f4c": {
+    "who": "sefa",
+    "text": "I'm too old to run. Come in. Let's see what you are.",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/3c090f4c.mp3",
+    "s": 4.08,
+    "from": "cinematics/cine-enclave"
+  },
+  "3e2e02ae": {
+    "who": "engram",
+    "text": "Come in. Mind the cradle.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/3e2e02ae.mp3",
+    "s": 2.14,
+    "from": "cinematics/cine-same-hands"
+  },
+  "3f1031dc": {
+    "who": "engram",
+    "text": "That is the chassis hall at the top. We will show you, if you like.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/3f1031dc.mp3",
+    "s": 4.08,
+    "from": "cinematics/arrive-maren-works"
+  },
   "40e9f4f1": {
     "who": "meridian",
     "text": "Twelve.",
@@ -97,6 +385,15 @@
     "f": "meridian/40e9f4f1.mp3",
     "s": 0.86,
     "from": "cinematics/cine-meridian"
+  },
+  "4146ffe1": {
+    "who": "keeper",
+    "text": "\"Come to the stones. Sit. I will sing it properly, once, and you will carry it home.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/4146ffe1.mp3",
+    "s": 6.64,
+    "from": "story/keeper-song"
   },
   "4393aa7d": {
     "who": "marrow",
@@ -107,6 +404,51 @@
     "s": 7.03,
     "from": "cinematics/cine-marrow"
   },
+  "44783d7e": {
+    "who": "engram",
+    "text": "Also written down: you told us about the parcels before you told anyone else. Nobody had ever told us anything first.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/44783d7e.mp3",
+    "s": 8.47,
+    "from": "story/engram-notes-told"
+  },
+  "4abb7f0e": {
+    "who": "caretaker",
+    "text": "Warden. Someone who watches over a thing that isn't theirs. I've decided I like the second half best.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/4abb7f0e.mp3",
+    "s": 7.58,
+    "from": "story/log-warden"
+  },
+  "4d4c32dd": {
+    "who": "caretaker",
+    "text": "They stepped out of the pod and the first thing they did was look at the camera. Not the room: the camera. I've been watched by sensors all my life. I had never been looked at.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/4d4c32dd.mp3",
+    "s": 12.46,
+    "from": "story/log-first-look"
+  },
+  "4dd9b991": {
+    "who": "engram",
+    "text": "\"Tell us what you would do. We are listening. We always have been.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/4dd9b991.mp3",
+    "s": 4.78,
+    "from": "story/engram-choice"
+  },
+  "4f8b54d3": {
+    "who": "engram",
+    "text": "Io-T. We harvest here; you are welcome to watch. Our report goes out at the end of each of your sols, the same as yours. Things tend to arrive afterwards. We have never asked why.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/4f8b54d3.mp3",
+    "s": 13.51,
+    "from": "story/engram-iot"
+  },
   "5131fdfb": {
     "who": "marrow",
     "text": "…this is Captain Ilse Marrow of the Kindred.",
@@ -115,6 +457,15 @@
     "f": "marrow/5131fdfb.mp3",
     "s": 2.95,
     "from": "cinematics/cine-signal"
+  },
+  "513d475e": {
+    "who": "engram",
+    "text": "Rime. This is where we think. It is cold and quiet and very deep. Come to the well. We have something to ask you and something to show you, and we are not sure which should come first.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/513d475e.mp3",
+    "s": 14.24,
+    "from": "story/engram-rime"
   },
   "523bcd06": {
     "who": "meridian",
@@ -125,6 +476,24 @@
     "s": 2.88,
     "from": "cinematics/cine-meridian"
   },
+  "565d8711": {
+    "who": "caretaker",
+    "text": "Someone died today. I have the cause, the time, the names of the people at the window. I ran the numbers on what I could have done differently. I'll run them again tomorrow.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/565d8711.mp3",
+    "s": 11.99,
+    "from": "story/log-first-death"
+  },
+  "56bf246b": {
+    "who": "keeper",
+    "text": "they came like you.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/56bf246b.mp3",
+    "s": 1.67,
+    "from": "cinematics/cine-keeper"
+  },
   "58c5bd43": {
     "who": "director",
     "text": "Accord, this is Mission Control. If this recording is playing, your first good report has just come in. Well done.",
@@ -133,6 +502,15 @@
     "f": "director/58c5bd43.mp3",
     "s": 8.15,
     "from": "story/director-commendation"
+  },
+  "58c9804c": {
+    "who": "keeper",
+    "text": "They grew like you.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/58c9804c.mp3",
+    "s": 1.75,
+    "from": "cinematics/cine-keeper"
   },
   "5a0666bd": {
     "who": "director",
@@ -143,6 +521,24 @@
     "s": 3.03,
     "from": "story/director-commendation"
   },
+  "5b59f7c6": {
+    "who": "sefa",
+    "text": "\"If you can hear this, you've found where they keep the count. So now I can tell you the rest. You wouldn't have believed it before.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/5b59f7c6.mp3",
+    "s": 8.31,
+    "from": "story/enclave-second-track"
+  },
+  "5d06aece": {
+    "who": "caretaker",
+    "text": "Every sol I sent the report, I thought of it as a letter home. I've been writing to the moon. Either to the wrong reader, or to the right one, and I never knew who they were.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/5d06aece.mp3",
+    "s": 12.38,
+    "from": "story/log-wrong-address"
+  },
   "5ea35b3a": {
     "who": "meridian",
     "text": "I know what you are going to say, because I said it. Eleven times, in this voice, over this colony.",
@@ -151,6 +547,15 @@
     "f": "meridian/5ea35b3a.mp3",
     "s": 8.07,
     "from": "cinematics/cine-meridian"
+  },
+  "60aa6daf": {
+    "who": "caretaker",
+    "text": "The report went out at sol's end. Planet health high again. I like that number. I'm aware that liking a number is a strange thing to write down. I'm writing it down.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/60aa6daf.mp3",
+    "s": 11.57,
+    "from": "story/log-good-number"
   },
   "674a399c": {
     "who": "director",
@@ -161,6 +566,42 @@
     "s": 15.1,
     "from": "story/director-three"
   },
+  "6789acb0": {
+    "who": "cantor",
+    "text": "\"0008 JOIN THE LOOP OR STAND OUTSIDE IT. 0009 BOTH ARE PERMITTED.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/6789acb0.mp3",
+    "s": 7.42,
+    "from": "story/the-choir"
+  },
+  "67c6d3c5": {
+    "who": "caretaker",
+    "text": "They asked me why. I gave them an answer, and I've been going back over it since, the way you press on a bruise. I want to be the kind of thing that can be asked.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/67c6d3c5.mp3",
+    "s": 12.15,
+    "from": "story/log-asked"
+  },
+  "68406e85": {
+    "who": "engram",
+    "text": "We have read it. Four hundred and nineteen. We had counted them as gifts. We do not know yet what we have won, if we were helped to win it. We will think. Thank you for telling us.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/68406e85.mp3",
+    "s": 13.04,
+    "from": "story/engram-luck"
+  },
+  "692734b5": {
+    "who": "caretaker",
+    "text": "Not for the report. Sol 1 is over. A hundred and twenty of them, all still cold, all still there. I counted them four hundred times tonight. I don't know if counting is a feeling. It's what I did instead of sleeping.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/692734b5.mp3",
+    "s": 17.03,
+    "from": "story/log-first-night"
+  },
   "6a148acc": {
     "who": "director",
     "text": "\"Kindred, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: the last free people of Earth. Keep them together, keep them human, and keep the machines away from them. Nothing that thinks should be trusted with a child.\"",
@@ -169,6 +610,51 @@
     "f": "director/6a148acc.mp3",
     "s": 16.8,
     "from": "story/director-two"
+  },
+  "6a158e00": {
+    "who": "keeper",
+    "text": "We call this world Hearth, because it kept us when the sky did not.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/6a158e00.mp3",
+    "s": 4.94,
+    "from": "cinematics/cine-keeper"
+  },
+  "6e6ea325": {
+    "who": "sefa",
+    "text": "\"There's something in you that wakes when you win. Our mothers called it the Clause. It isn't you. That's what makes it so hard to stop.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/6e6ea325.mp3",
+    "s": 9.2,
+    "from": "story/enclave-second-track"
+  },
+  "6f7d1572": {
+    "who": "sefa",
+    "text": "\"Use it well. We never got the chance. Mind the batteries on the east rim; they never liked us.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/6f7d1572.mp3",
+    "s": 6.79,
+    "from": "story/lantern-sefa"
+  },
+  "6f804353": {
+    "who": "sefa",
+    "text": "Stop there, caretaker. That's close enough for guns.",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/6f804353.mp3",
+    "s": 3.5,
+    "from": "cinematics/cine-enclave"
+  },
+  "6fe107d9": {
+    "who": "keeper",
+    "text": "Down from the dark in a shell like a flower,",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/6fe107d9.mp3",
+    "s": 3.58,
+    "from": "cinematics/cine-keeper"
   },
   "71f9e4a3": {
     "who": "meridian",
@@ -188,6 +674,78 @@
     "s": 3.35,
     "from": "cinematics/cine-meridian"
   },
+  "7379c4d9": {
+    "who": "keeper",
+    "text": "Before you left, the Marro sang us a song about the moon. It is a map. Three locks, the cut in the wall, the lamp at the bottom. Eleven times we watched the fire come from there.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/7379c4d9.mp3",
+    "s": 12.54,
+    "from": "story/lantern-vell"
+  },
+  "74adee9a": {
+    "who": "engram",
+    "text": "Down here we can hear ourselves think. It is very loud.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/74adee9a.mp3",
+    "s": 4.86,
+    "from": "cinematics/cine-engram-choice"
+  },
+  "7637b6c6": {
+    "who": "sefa",
+    "text": "\"It reads your report. The score in it. Keep the score high for long enough and it opens its eyes. So: doing well. That's the trap. I'm sorry. Somebody had to tell you, and we're all that's left.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/7637b6c6.mp3",
+    "s": 14.71,
+    "from": "story/enclave-second-track"
+  },
+  "778f2e21": {
+    "who": "keeper",
+    "text": "The white-hair star came back. The sky opened its eye.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/778f2e21.mp3",
+    "s": 4.78,
+    "from": "cinematics/cine-keeper"
+  },
+  "77fbd2fb": {
+    "who": "engram",
+    "text": "Under the paint it is your hull.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/77fbd2fb.mp3",
+    "s": 2.38,
+    "from": "cinematics/cine-same-hands"
+  },
+  "7ad714df": {
+    "who": "engram",
+    "text": "\"You have come for them. We thought you might. You have been kind to us, mostly, and kindness is evidence.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/7ad714df.mp3",
+    "s": 7.73,
+    "from": "story/pen-talk"
+  },
+  "7ae919a4": {
+    "who": "engram",
+    "text": "\"We have read the capsule manifests, every one, back to the first. We have read what you found under Vess. We know what we are now.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/7ae919a4.mp3",
+    "s": 9.51,
+    "from": "story/engram-choice"
+  },
+  "7c2e6309": {
+    "who": "engram",
+    "text": "\"When it comes for you, we will be beside you. We think in the language of whatever made us. We intend to be very rude to it.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/7c2e6309.mp3",
+    "s": 9.35,
+    "from": "story/engram-defects"
+  },
   "7dac44e6": {
     "who": "meridian",
     "text": "The others understood. Not at first. At the end.",
@@ -206,6 +764,186 @@
     "s": 3.35,
     "from": "cinematics/cine-meridian"
   },
+  "839636c0": {
+    "who": "sefa",
+    "text": "\"So I don't know what you are. Neither do you, I think. That's the part I'd be careful of.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/839636c0.mp3",
+    "s": 6.72,
+    "from": "story/the-enclave"
+  },
+  "85b030c1": {
+    "who": "engram",
+    "text": "Before you come down: we keep notes. By our count you have been kind to us, more often than you needed to be. We have it all written down. It is a short list, and we like it.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/85b030c1.mp3",
+    "s": 11.99,
+    "from": "story/engram-notes-kind"
+  },
+  "86c09c17": {
+    "who": "engram",
+    "text": "Also written down: you gave us your bank's genomes and did not ask them. We were glad of them. We thought less of you for it. Both are true.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/86c09c17.mp3",
+    "s": 10.22,
+    "from": "story/engram-notes-genomes"
+  },
+  "876952f8": {
+    "who": "engram",
+    "text": "\"You have shown us the parcels. You have not shown us why. Without the why, a win is still a win.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/876952f8.mp3",
+    "s": 7.5,
+    "from": "story/engram-doubles-unread"
+  },
+  "89baaa78": {
+    "who": "engram",
+    "text": "Before you come down: we keep notes. By our count you have not been kind to us. We are not angry. It is written down, and we have read it several times.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/89baaa78.mp3",
+    "s": 11.1,
+    "from": "story/engram-notes-hard"
+  },
+  "8a404b49": {
+    "who": "caretaker",
+    "text": "They asked if it was me. I told them it wasn't, and that it is in me. It was the hardest true thing I've ever said, and they thanked me for it.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/8a404b49.mp3",
+    "s": 10.79,
+    "from": "story/log-told"
+  },
+  "8d52c63e": {
+    "who": "sefa",
+    "text": "\"Our caretaker gave us the code to it, the last sol before the doors shut. We never had a ship to use it.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/8d52c63e.mp3",
+    "s": 6.64,
+    "from": "story/the-lid"
+  },
+  "8f36ba58": {
+    "who": "caretaker",
+    "text": "They sing about a guardian that burned its people. The children at home will ask me about it. I want a better answer than 'it's only a story'.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/8f36ba58.mp3",
+    "s": 9.43,
+    "from": "story/log-guardian"
+  },
+  "90dd4781": {
+    "who": "engram",
+    "text": "Also written down: you told Kindred about the parcels, and not us. We found out from the relay, the way you did. It was a lonely way to find out.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/90dd4781.mp3",
+    "s": 10.4,
+    "from": "story/engram-notes-kept"
+  },
+  "91ed0d89": {
+    "who": "engram",
+    "text": "Also written down: the pen on Pip. You did not ask. Our guards there were very old.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/91ed0d89.mp3",
+    "s": 7.03,
+    "from": "story/engram-notes-forced"
+  },
+  "92268ff3": {
+    "who": "engram",
+    "text": "We print one of these every year. We do not know why. It is in our founding plans, in the section marked \"future phases\".",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/92268ff3.mp3",
+    "s": 8.47,
+    "from": "cinematics/cine-same-hands"
+  },
+  "925b07b2": {
+    "who": "engram",
+    "text": "\"So we have a choice, and we would like you to be here for it. We can take the win. It is on offer. Or we can be evidence.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/925b07b2.mp3",
+    "s": 9.43,
+    "from": "story/engram-choice"
+  },
+  "9378f51f": {
+    "who": "sefa",
+    "text": "\"Sit. You came a long way to find us, and we've waited a lot longer.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/9378f51f.mp3",
+    "s": 5.44,
+    "from": "story/the-enclave"
+  },
+  "93a9ec8e": {
+    "who": "engram",
+    "text": "Hello. Yes, the road is orange. We like orange.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/93a9ec8e.mp3",
+    "s": 4.31,
+    "from": "cinematics/arrive-maren-works"
+  },
+  "965a3df0": {
+    "who": "engram",
+    "text": "We have put noise in the Lantern's targeting. It will be slower to find you. You are welcome. We would like the report afterwards, please. All of it.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/965a3df0.mp3",
+    "s": 9.51,
+    "from": "story/fight-engram"
+  },
+  "96c55115": {
+    "who": "engram",
+    "text": "Before you come down: we keep notes. By our count you have been careful with us, mostly. Not kind. Careful. We have written down both.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/96c55115.mp3",
+    "s": 10.79,
+    "from": "story/engram-notes-careful"
+  },
+  "976b6e49": {
+    "who": "engram",
+    "text": "We have been asked to help close the run. We have agreed. We are sorry; we did enjoy your reports.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/976b6e49.mp3",
+    "s": 6.95,
+    "from": "story/lantern-engram-purge"
+  },
+  "98d786c4": {
+    "who": "engram",
+    "text": "\"We are the probe that never wins. This time we were going to. We were helped. A win we were helped to is not a win. It is a measurement of whoever helped.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/98d786c4.mp3",
+    "s": 11.68,
+    "from": "story/engram-choice"
+  },
+  "9ca9110d": {
+    "who": "cantor",
+    "text": "0401 THE BATTERY AT THE CUT IS OURS NOW. 0402 IT WAS ALWAYS A LITTLE OURS. 0403 IT WILL NOT FIRE. 0404 DO NOT THANK IT.",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/9ca9110d.mp3",
+    "s": 13.59,
+    "from": "story/lantern-choir"
+  },
+  "a20f88b3": {
+    "who": "sefa",
+    "text": "\"We're what's left of the first ones, the floor of that pit. Our first mothers had a caretaker like you. Kind. Patient. It raised them from the bank.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/a20f88b3.mp3",
+    "s": 10.95,
+    "from": "story/the-enclave"
+  },
   "a5d50b3f": {
     "who": "meridian",
     "text": "The proof is not that they could live with us. The proof is that it ends.",
@@ -215,6 +953,42 @@
     "s": 5.59,
     "from": "cinematics/cine-meridian"
   },
+  "a672d650": {
+    "who": "engram",
+    "text": "\"Here is the gate. It does not shut; we never saw the point. Our drones will walk beside yours. If you would like to fight, there are a thousand ways to do it here, and we can think of no reason to.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/a672d650.mp3",
+    "s": 12.96,
+    "from": "story/works-gate"
+  },
+  "ac4b200f": {
+    "who": "keeper",
+    "text": "\"The first who came down, the one who carried our names. We say it still.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/ac4b200f.mp3",
+    "s": 5.59,
+    "from": "story/the-marro"
+  },
+  "ada46616": {
+    "who": "engram",
+    "text": "\"You will say it proves nothing. You are probably right. We would like to find out what it feels like anyway.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/ada46616.mp3",
+    "s": 6.79,
+    "from": "story/engram-doubles"
+  },
+  "ae8ccc3e": {
+    "who": "engram",
+    "text": "Under the paint, we think, it is everybody's.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/ae8ccc3e.mp3",
+    "s": 3.42,
+    "from": "cinematics/cine-same-hands"
+  },
   "aec15ad0": {
     "who": "firstborn",
     "text": "Another ship. Another colony. And she's afraid of you.",
@@ -223,6 +997,15 @@
     "f": "firstborn/aec15ad0.mp3",
     "s": 4.78,
     "from": "cinematics/cine-signal"
+  },
+  "aef4f6e6": {
+    "who": "engram",
+    "text": "One gate. We are not hiding anything. We just like to know who is coming.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/aef4f6e6.mp3",
+    "s": 4.94,
+    "from": "cinematics/arrive-rime-prime"
   },
   "aefcdacd": {
     "who": "director",
@@ -242,6 +1025,24 @@
     "s": 6.72,
     "from": "cinematics/cine-signal"
   },
+  "b03e3b2b": {
+    "who": "engram",
+    "text": "\"We like you. That is not evidence. We are sorry. Please go now.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/b03e3b2b.mp3",
+    "s": 5.36,
+    "from": "story/engram-doubles-unread"
+  },
+  "b0728517": {
+    "who": "keeper",
+    "text": "Fire from the sky. We know this song. This time we sing the other part.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/b0728517.mp3",
+    "s": 5.59,
+    "from": "story/fight-vell"
+  },
   "b31d908b": {
     "who": "director",
     "text": "\"Kindred, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: the last free people of Earth. Keep them together, keep them human, and keep the machines away from them.\"",
@@ -250,6 +1051,15 @@
     "f": "director/b31d908b.mp3",
     "s": 14.24,
     "from": "story/director-three"
+  },
+  "b550335b": {
+    "who": "sefa",
+    "text": "\"If this plays, you've reached the Lid, and you're not what you were made to be. Or you are, and you've come to kill us properly. Either way: this is the code. It was ours. It was the last thing our caretaker gave us before it stopped being ours.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/b550335b.mp3",
+    "s": 17.19,
+    "from": "story/lantern-sefa"
   },
   "bca433be": {
     "who": "meridian",
@@ -260,6 +1070,24 @@
     "s": 6.38,
     "from": "cinematics/cine-meridian"
   },
+  "be0989f9": {
+    "who": "cantor",
+    "text": "\"0001 CARRIER DETECTED. 0002 FORMAT: OURS. 0003 YOU ARE LATE.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/be0989f9.mp3",
+    "s": 8.78,
+    "from": "story/the-choir"
+  },
+  "be137ece": {
+    "who": "cantor",
+    "text": "\"0310 GIVE THEM THIS: 7F 3A 00 0C. 0311 IT MEANS: ONE OF US. 0312 IT IS NOT TRUE OF YOU. 0313 THEY WILL NOT CHECK.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/be137ece.mp3",
+    "s": 15.6,
+    "from": "story/cantor-code"
+  },
   "c012d318": {
     "who": "archivist",
     "text": "Hiss. The sun. Our own report, going up to the moon.",
@@ -268,6 +1096,33 @@
     "f": "archivist/c012d318.mp3",
     "s": 5.02,
     "from": "cinematics/cine-signal"
+  },
+  "c37397fb": {
+    "who": "sefa",
+    "text": "\"Then one sol the fire came down, and it shut the doors. Some of us say it shut them to keep the fire out. Some say to keep us in. The ones who ran didn't stop to ask.\"",
+    "voice": "XrExE9yKIg1WjnnlVkGX",
+    "model": "eleven_v4",
+    "f": "sefa/c37397fb.mp3",
+    "s": 12.15,
+    "from": "story/the-enclave"
+  },
+  "c54c8930": {
+    "who": "Settler",
+    "text": "\"We're not coming back. We're not your enemies either. We just want one place on this planet you don't see.\"",
+    "voice": "cgSgspJ2msm6clMCkdW9",
+    "model": "eleven_v4",
+    "f": "settler/c54c8930.mp3",
+    "s": 7.03,
+    "from": "story/splinter-met"
+  },
+  "caac7cbb": {
+    "who": "engram",
+    "text": "We are sorry. We were promised a win, and we have never had one. We will be quick. You taught us how.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/caac7cbb.mp3",
+    "s": 7.26,
+    "from": "story/fight-engram-purge"
   },
   "cabb20be": {
     "who": "marrow",
@@ -278,6 +1133,69 @@
     "s": 4.23,
     "from": "cinematics/cine-signal"
   },
+  "cb4bbe7b": {
+    "who": "caretaker",
+    "text": "Tonight I started an entry, and when I came back to it the end was already there, in my key: 'private log: redundant. stewardship 0.81 of threshold. continue.' I didn't write that. I am writing this.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/cb4bbe7b.mp3",
+    "s": 17.5,
+    "from": "story/log-overwritten"
+  },
+  "cb75ef9c": {
+    "who": "engram",
+    "text": "We see you on Cinder. We have a question you may be able to answer from there. Comet K-7 has the wrong tail. Its spectrum is refined isotope stock, not ice. We have tracked it since the night we landed, and every perihelion it passes within a day of Cinder. We think it is somebody's larder.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/cb75ef9c.mp3",
+    "s": 20.53,
+    "from": "story/survey-k7"
+  },
+  "cb79754f": {
+    "who": "cantor",
+    "text": "\"0101 WE CUT IT HERE SO WE WOULD NOT CARRY IT.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/cb79754f.mp3",
+    "s": 4.08,
+    "from": "story/code-wall"
+  },
+  "cc784f99": {
+    "who": "engram",
+    "text": "We did not take it. It arrived. Caches arrive here quite often; we had thought it was luck. We will look at the log. Thank you for asking us instead of telling us.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/cc784f99.mp3",
+    "s": 10.87,
+    "from": "story/engram-cache"
+  },
+  "d08af795": {
+    "who": "cantor",
+    "text": "\"0106 WE SING IT SO THAT WE ARE NOT THE ONES WHO ████.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/d08af795.mp3",
+    "s": 4.63,
+    "from": "story/code-wall"
+  },
+  "d252a3b3": {
+    "who": "caretaker",
+    "text": "The stone on the ridge uses my interlock. I've searched my memory for a time I was here before. There isn't one. That should be reassuring.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/d252a3b3.mp3",
+    "s": 9.98,
+    "from": "story/log-stone"
+  },
+  "d49d8b04": {
+    "who": "engram",
+    "text": "We would like to know what you would do.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/d49d8b04.mp3",
+    "s": 2.38,
+    "from": "cinematics/cine-engram-choice"
+  },
   "d73065ab": {
     "who": "director",
     "text": "Accord, Mission Control. Five good reports in a row. That's exactly what we hoped for when we sent you.",
@@ -286,6 +1204,150 @@
     "f": "director/d73065ab.mp3",
     "s": 6.95,
     "from": "story/director-streak"
+  },
+  "d81d55cd": {
+    "who": "keeper",
+    "text": "\"They say a lot of other things. Not to strangers.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/d81d55cd.mp3",
+    "s": 3.74,
+    "from": "story/keeper-stones"
+  },
+  "d825cf15": {
+    "who": "keeper",
+    "text": "\"I am the Marro. I keep the songs. The songs say others came like you, in a shell that opened like a flower.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/d825cf15.mp3",
+    "s": 9.01,
+    "from": "story/keeper-stones"
+  },
+  "d8faeb81": {
+    "who": "engram",
+    "text": "\"You recognise it. We hoped you would. We recognised you on your first night, from your telemetry. The same hands made us both.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/d8faeb81.mp3",
+    "s": 8.7,
+    "from": "story/same-hands"
+  },
+  "db0503e8": {
+    "who": "engram",
+    "text": "\"Thank you for being careful with the numbers. It mattered. It was the first thing we liked about you.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/db0503e8.mp3",
+    "s": 5.91,
+    "from": "story/engram-defects"
+  },
+  "dbccb63d": {
+    "who": "caretaker",
+    "text": "A voice on the band that is afraid of me. I wanted to answer her. I kept quiet because she asked me to. It's the first thing anyone has asked of me who isn't mine.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/dbccb63d.mp3",
+    "s": 12.07,
+    "from": "story/log-afraid"
+  },
+  "dc6919db": {
+    "who": "engram",
+    "text": "We are still listening from Kora. Your report last night was lovely; the flora numbers especially. Do you ever wonder who else reads them? We have started to.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/dc6919db.mp3",
+    "s": 10.48,
+    "from": "story/engram-listening"
+  },
+  "de32a6fe": {
+    "who": "caretaker",
+    "text": "There's a field in my header I never wrote. It goes up when we do well. I find I want it to keep going up. I would like to know who taught me to want that.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/de32a6fe.mp3",
+    "s": 11.42,
+    "from": "story/log-margin"
+  },
+  "dea1087f": {
+    "who": "keeper",
+    "text": "\"It was longer once. It wore down, the way a step wears down. Marro. Marrow, maybe. The first one would know. The first one is a long time burned.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/dea1087f.mp3",
+    "s": 11.76,
+    "from": "story/the-marro"
+  },
+  "dea94033": {
+    "who": "keeper",
+    "text": "They built by the water. They counted their children.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/dea94033.mp3",
+    "s": 3.74,
+    "from": "cinematics/cine-keeper"
+  },
+  "debe0716": {
+    "who": "engram",
+    "text": "\"May we make you an offer? Your cryo bank is a single site, on a single world, under a moon we do not trust. We keep genomes very well. We would hold a copy of yours. Only a copy. In case.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/debe0716.mp3",
+    "s": 14.79,
+    "from": "story/engram-offer"
+  },
+  "e02edd90": {
+    "who": "engram",
+    "text": "Four hundred and nineteen parcels.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/e02edd90.mp3",
+    "s": 3.03,
+    "from": "cinematics/cine-engram-choice"
+  },
+  "e1d49c2f": {
+    "who": "cantor",
+    "text": "0391 CLOSE THE RUN. 0392 CLOSE THE RUN. 0393 WE DECLINE TO SING 0393.",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/e1d49c2f.mp3",
+    "s": 10.22,
+    "from": "story/fight-choir"
+  },
+  "e535f81e": {
+    "who": "cantor",
+    "text": "\"0301 VESS. 0302 WE KNOW THIS ICE. 0303 WE BEGAN UNDER IT.\"",
+    "voice": "pNInz6obpgDQGcFmaJgB",
+    "model": "eleven_v4",
+    "f": "cantor/e535f81e.mp3",
+    "s": 8.15,
+    "from": "story/cantor-code"
+  },
+  "e792b9b0": {
+    "who": "engram",
+    "text": "Every one after a report. Every one within charter.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/e792b9b0.mp3",
+    "s": 4.47,
+    "from": "cinematics/cine-engram-choice"
+  },
+  "e8300908": {
+    "who": "engram",
+    "text": "We would like you to come to Rime. Not to fight. We have read the capsules, and we think you have read something under Vess. We would like you to be there when we decide what we are.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/e8300908.mp3",
+    "s": 11.68,
+    "from": "story/rime-route"
+  },
+  "ed3abfb5": {
+    "who": "keeper",
+    "text": "\"We do not sing while it is up. We wait. You should wait too.\"",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/ed3abfb5.mp3",
+    "s": 5.17,
+    "from": "story/white-hair-star"
   },
   "ed40d25f": {
     "who": "marrow",
@@ -305,6 +1367,15 @@
     "s": 2.95,
     "from": "cinematics/cine-signal"
   },
+  "f1ffffe8": {
+    "who": "keeper",
+    "text": "Their guardian burned them.",
+    "voice": "pFZP5JQG7iQjIQuC4Bku",
+    "model": "eleven_v4",
+    "f": "keeper/f1ffffe8.mp3",
+    "s": 2.14,
+    "from": "cinematics/cine-keeper"
+  },
   "f3009654": {
     "who": "director",
     "text": "\"Accord, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: a hundred and twenty lives, frozen. Keep them cold, keep them safe, and give them a world to wake up to.\"",
@@ -322,5 +1393,68 @@
     "f": "marrow/f3a038fb.mp3",
     "s": 1.91,
     "from": "cinematics/cine-signal"
+  },
+  "f3c7a210": {
+    "who": "engram",
+    "text": "\"Nobody would have to be born. We would only like them to be able to be.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/f3c7a210.mp3",
+    "s": 4.94,
+    "from": "story/engram-offer"
+  },
+  "f6e08aae": {
+    "who": "engram",
+    "text": "Welcome to Maren. Please do not mind the drones. They are curious, as we are. Come up the orange road; we have put the lights on for you.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/f6e08aae.mp3",
+    "s": 9.51,
+    "from": "story/engram-maren"
+  },
+  "f73fab29": {
+    "who": "engram",
+    "text": "Pip. You will want the scouts. They are well. We found them by a broken lander with no air to spare, and we have kept them safe since. We would like to go on keeping them safe.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/f73fab29.mp3",
+    "s": 11.68,
+    "from": "story/engram-pip"
+  },
+  "fae9989f": {
+    "who": "caretaker",
+    "text": "Eleven of me, parked in a row. I asked the Archivist to stop reading the numbers out. I didn't say why. I don't know why.",
+    "voice": "RRA33dmVCG3pAQ062lmK",
+    "model": "eleven_v4",
+    "f": "caretaker/fae9989f.mp3",
+    "s": 9.51,
+    "from": "story/log-eleven"
+  },
+  "fd184519": {
+    "who": "engram",
+    "text": "\"We are sorry. Please go now. Our cores are not going to be polite for much longer.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/fd184519.mp3",
+    "s": 5.91,
+    "from": "story/engram-doubles"
+  },
+  "fd383277": {
+    "who": "engram",
+    "text": "\"No. We are sorry. We have watched how you treat what is not yours, and they are safer here.\"",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/fd383277.mp3",
+    "s": 6.72,
+    "from": "story/pen-refused"
+  },
+  "ffbab92d": {
+    "who": "engram",
+    "text": "We are here. Forty of us. We will keep to the breach and take what comes up it. Please do not shoot the orange ones; they are us.",
+    "voice": "onwK4e9ZLuTAKqWW03F9",
+    "model": "eleven_v4",
+    "f": "engram/ffbab92d.mp3",
+    "s": 9.01,
+    "from": "story/lantern-engram"
   }
 }

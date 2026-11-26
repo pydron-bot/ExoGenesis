@@ -10,6 +10,7 @@
  *   node tools/voice/lines.mjs --all [--dry-run]       everything voiced; --dry-run counts the credits first
  *   node tools/voice/lines.mjs --redo <key,key>        a new take of these lines (keys from lines.json)
  *   node tools/voice/lines.mjs --prune                 delete files of lines no longer in the story
+ *   add --fit to retime the cinematics a run touches to their recordings (then check them in the editor)
  *
  * Each character has a fixed seed, so the same words come out the same way (the Director's three briefings).
  * Key: $ELEVENLABS_API_KEY, else ~/.config/elevenlabs/api_key.
@@ -119,8 +120,34 @@ if (!flag('--dry-run')) {
   fs.writeFileSync(path.join(outDir, 'index.json'), JSON.stringify(Object.fromEntries(Object.entries(sorted).map(([k, e]) => [k, { f: e.f, s: e.s }]))) + '\n');
 }
 
-// cinematic timing: a recording that runs into the next line, or past its subtitle
-for (const id of cines ?? []) {
+// cinematic timing (the ones named, and any this run voiced): a recording that runs into the next line, or past its subtitle
+// --fit: retime those cinematics to their recordings: a line starts at least 0.4 s after the voice before it ends,
+// and its subtitle shows until its voice is done (plus 0.4 s). Lines without a recording keep their times.
+if (flag('--fit') && !flag('--dry-run')) {
+  const ids = new Set([...(cines ?? []), ...todo.filter((l) => l.coll === 'cinematics').map((l) => l.id),
+    ...all.filter((l) => l.coll === 'cinematics' && (whos?.includes(castOf(l.who)[0]))).map((l) => l.id)]);
+  for (const id of ids) {
+    const file = path.join(root, 'content/cinematics', `${id}.json`), d = JSON.parse(fs.readFileSync(file, 'utf8'));
+    let end = 0, moved = 0;
+    for (const l of d.lines ?? []) {
+      const e = ledger[voiceKey(l.character ?? l.speaker ?? '', l.text ?? '')];
+      const at = Math.round(Math.max(l.at, end + (end ? 0.4 : 0)) * 20) / 20;
+      if (at !== l.at) { l.at = at; moved++; }
+      if (e) {
+        const f = Math.round((e.s + 0.4) * 10) / 10;
+        if (l.for !== undefined && l.for < f) { l.for = f; moved++; }
+        end = l.at + e.s;
+      } else end = 0;
+    }
+    if (!moved) continue;
+    fs.writeFileSync(file, JSON.stringify(d, null, 2) + '\n');
+    const over = end - (d.length - (d.fadeOut ?? 0));
+    console.log(`  fitted ${id}${over > 0 ? `: the last line now runs ${over.toFixed(1)} s into the fade-out (length ${d.length} s)` : ''}`);
+  }
+}
+
+const touched = new Set([...(cines ?? []), ...todo.filter((l) => l.coll === 'cinematics').map((l) => l.id)]);
+for (const id of touched) {
   const ls = all.filter((l) => l.coll === 'cinematics' && l.id === id).sort((a, b) => a.at - b.at);
   ls.forEach((l, i) => {
     const e = ledger[voiceKey(l.who, l.text)];

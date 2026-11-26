@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.100.1',
+    date: '2026-11-26',
+    title: 'More voices',
+    notes: [
+      'Your private log is spoken now, in your own voice',
+      'ENGRAM, the Marro, the Cantor and Sefa of the Enclave have voices, and so does the settler who walks out',
+      'Their cinematics are retimed so no one talks over anyone',
+    ],
+    guide: [],
+  },
+  {
     version: '0.100.0',
     date: '2026-11-26',
     title: 'Voices',

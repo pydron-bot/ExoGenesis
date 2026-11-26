@@ -47,16 +47,23 @@ script` in the editor counts it), so it goes in batches.
 
 ## Cast
 
-| Id | Voice | Lines so far |
+| Id | Voice | Voiced so far |
 |---|---|---|
-| `caretaker` | The caretaker (the private log; the player's voice) | — |
-| `director` | The Director (Sol Mission Control's recordings) | all |
-| `marrow` | Captain Ilse Marrow | the Signal, the council hall |
-| `bede` | Dr Femi Bede | the council hall |
-| `archivist` | The Archivist | the Signal |
-| `firstborn` | The Firstborn | the Signal |
-| `sentry` | Kindred sentry | the council hall |
-| `meridian` | Meridian (a remix of the caretaker) | not chosen yet |
+| `caretaker` | The caretaker (the private log; the player's voice), designed | all |
+| `director` | The Director (Sol Mission Control's recordings), designed | all |
+| `meridian` | Meridian, a remix of the caretaker | all |
+| `marrow` | Captain Ilse Marrow, designed | the Signal, the council hall |
+| `bede` | Dr Femi Bede, designed | the council hall |
+| `archivist` | The Archivist, designed | the Signal |
+| `firstborn` | The Firstborn, designed | the Signal |
+| `sentry` | Kindred sentry, designed | all |
+| `engram` | ENGRAM, built-in Daniel | all |
+| `keeper` | The Marro, built-in Lily | all |
+| `cantor` | The Cantor, built-in Adam | all |
+| `sefa` | Sefa of the Enclave, built-in Matilda | all |
+| `settler` | Settler, built-in Jessica | all |
 
-Still to design: ENGRAM, the Marro, the Cantor, Sefa. The Clause writes in the caretaker's log format and may stay
-text.
+Designed voices take one of the plan's 10 custom-voice slots (8 used); the side characters use ElevenLabs' built-in
+voices (`library` in cast.json: auditioned like designed ones, no slot). Still text: the Clause, the logs and
+manifests, Column 01–12, the Biosphere Report and other narration. `node tools/voice/lines.mjs --all --dry-run` shows
+what's left.

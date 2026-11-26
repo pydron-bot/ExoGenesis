@@ -1,5 +1,5 @@
 {
-  "notes": "Who speaks with which ElevenLabs voice (docs/VOICE.md). `description` is the Voice Design prompt (eleven_ttv_v3), written from content/characters/<id>.json and STORY.md §18; `sample` is the text the previews read. `voice` is the saved voice id once a preview is chosen (`node tools/voice/design.mjs --keep <id> <generated_voice_id>`). `remix` designs this voice as a change to another one's saved voice.",
+  "notes": "Who speaks with which ElevenLabs voice (docs/VOICE.md). `description` is the Voice Design prompt (eleven_ttv_v3), written from content/characters/<id>.json and STORY.md §18; `sample` is the text the previews read. `voice` is the saved voice id once a preview is chosen (`node tools/voice/design.mjs --keep <id> <generated_voice_id>`). `remix` designs this voice as a change to another one's saved voice. `library` lists built-in ElevenLabs voices to audition instead of designing one (no custom-voice slot): their previews read the sample, and keeping one sets `voice` to it.",
   "cast": {
     "caretaker": {
       "name": "The caretaker",
@@ -50,6 +50,62 @@
       "description": "A young man in his early twenties on guard duty, nervous and keeping his voice down, trying to sound steady and not managing it. Natural, slightly breathy.",
       "sample": "Captain. It's on the ramp. It's just walking. Nobody's touching it, Captain, it's just coming up the ramp, slow.",
       "voice": "yaOktbPc7KpaA2jyNF8t"
+    },
+    "engram": {
+      "name": "ENGRAM",
+      "library": [
+        "SAz9YHcvj6GT2YYXdXww",
+        "Xb7hH8MSUJpSbSDYk0k2",
+        "onwK4e9ZLuTAKqWW03F9"
+      ],
+      "description": "Built-in voice. A collective mind that says 'we': courteous, curious, precise, fond of your reports.",
+      "sample": "We did not take it. It arrived. Caches arrive here quite often; we had thought it was luck. We will look at the log. Thank you for asking us instead of telling us.",
+      "voice": "onwK4e9ZLuTAKqWW03F9"
+    },
+    "keeper": {
+      "name": "The Marro",
+      "library": [
+        "pqHfZKP75CvOlQylNhV4",
+        "JBFqnCBsd6RMkjVDRZzb",
+        "pFZP5JQG7iQjIQuC4Bku"
+      ],
+      "description": "Built-in voice. The Vell's song-keeper: song-fragments and short plain sentences.",
+      "sample": "I am the Marro. I keep the songs. The songs say others came like you, in a shell that opened like a flower.",
+      "voice": "pFZP5JQG7iQjIQuC4Bku"
+    },
+    "cantor": {
+      "name": "The Cantor",
+      "library": [
+        "nPczCjzI2devNBz1zQrb",
+        "pNInz6obpgDQGcFmaJgB",
+        "N2lVS1w4EtoT3dr4eOWO"
+      ],
+      "description": "Built-in voice. The Choir's elder machine: Earth code recited as liturgy, numbered lines.",
+      "sample": "0401 THE BATTERY AT THE CUT IS OURS NOW. 0402 IT WAS ALWAYS A LITTLE OURS. 0403 IT WILL NOT FIRE. 0404 DO NOT THANK IT.",
+      "voice": "pNInz6obpgDQGcFmaJgB"
+    },
+    "sefa": {
+      "name": "Sefa of the Enclave",
+      "library": [
+        "pFZP5JQG7iQjIQuC4Bku",
+        "XrExE9yKIg1WjnnlVkGX",
+        "CwhRBWXzGAHq8TQ4Fs17"
+      ],
+      "description": "Built-in voice. Speaker of the Survivors: old-fashioned, wry, unafraid of you, afraid for you.",
+      "sample": "It wasn't the fire that shut our doors. It was our caretaker. The fire came after, to finish what it started.",
+      "voice": "XrExE9yKIg1WjnnlVkGX"
+    },
+    "settler": {
+      "name": "Settler",
+      "speaker": "Settler",
+      "library": [
+        "bIHbv24MWmeRgasZH58o",
+        "iP95p4xoKVk53GoZ742B",
+        "cgSgspJ2msm6clMCkdW9"
+      ],
+      "description": "Built-in voice. A colonist walking out with the Autonomists.",
+      "sample": "We're not coming back. We're not your enemies either. We just want one place on this planet you don't see.",
+      "voice": "cgSgspJ2msm6clMCkdW9"
     }
   }
 }

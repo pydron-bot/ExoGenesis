@@ -66,10 +66,10 @@
       "at": 3,
       "character": "keeper",
       "text": "Down from the dark in a shell like a flower,",
-      "for": 3.5
+      "for": 4
     },
     {
-      "at": 6.8,
+      "at": 7,
       "character": "keeper",
       "text": "they came like you.",
       "for": 3
@@ -78,10 +78,10 @@
       "at": 10,
       "character": "keeper",
       "text": "They built by the water. They counted their children.",
-      "for": 3.8
+      "for": 4.1
     },
     {
-      "at": 14,
+      "at": 14.15,
       "character": "keeper",
       "text": "They grew like you.",
       "for": 3
@@ -90,10 +90,10 @@
       "at": 17.3,
       "character": "keeper",
       "text": "The white-hair star came back. The sky opened its eye.",
-      "for": 4
+      "for": 5.2
     },
     {
-      "at": 21.6,
+      "at": 22.5,
       "character": "keeper",
       "text": "Their guardian burned them.",
       "for": 3.4
@@ -102,7 +102,7 @@
       "at": 25.3,
       "character": "keeper",
       "text": "We call this world Hearth, because it kept us when the sky did not.",
-      "for": 5
+      "for": 5.3
     }
   ],
   "tags": "act 1, expedition, hearthsmoke, vell, E5, song",

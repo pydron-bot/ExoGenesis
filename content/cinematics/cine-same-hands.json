@@ -21,7 +21,7 @@
       "lift": 4,
       "dist": 80,
       "pitch": 0.5,
-      "yaw": 0.0
+      "yaw": 0
     },
     {
       "at": 14,
@@ -73,10 +73,10 @@
       "at": 8,
       "character": "engram",
       "text": "We print one of these every year. We do not know why. It is in our founding plans, in the section marked \"future phases\".",
-      "for": 6.5
+      "for": 8.9
     },
     {
-      "at": 16,
+      "at": 16.85,
       "character": "engram",
       "text": "Under the paint it is your hull.",
       "for": 3.5

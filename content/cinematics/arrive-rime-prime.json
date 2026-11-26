@@ -13,7 +13,7 @@
       "lift": 0,
       "dist": 170,
       "pitch": 1.15,
-      "yaw": 0.0
+      "yaw": 0
     },
     {
       "at": 6,
@@ -60,13 +60,13 @@
       "at": 7,
       "character": "engram",
       "text": "One gate. We are not hiding anything. We just like to know who is coming.",
-      "for": 4.5
+      "for": 5.3
     },
     {
       "at": 13,
       "character": "engram",
       "text": "The well is in the middle. We are at the bottom of it.",
-      "for": 4
+      "for": 4.1
     }
   ],
   "trigger": "start",

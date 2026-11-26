@@ -59,7 +59,7 @@
       "at": 6.5,
       "character": "cantor",
       "text": "0001 CARRIER DETECTED.",
-      "for": 3
+      "for": 3.8
     }
   ],
   "trigger": "start",

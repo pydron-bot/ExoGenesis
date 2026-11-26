@@ -7,7 +7,7 @@ export const castFile = path.join(import.meta.dirname, 'cast.json');
 export const readCast = () => JSON.parse(fs.readFileSync(castFile, 'utf8'));
 export const writeCast = (c) => fs.writeFileSync(castFile, JSON.stringify(c, null, 2) + '\n');
 
-let key = process.env.ELEVENLABS_API_KEY;
+export let key = process.env.ELEVENLABS_API_KEY;
 const keyFile = path.join(os.homedir(), '.config/elevenlabs/api_key');
 if (!key && fs.existsSync(keyFile)) key = fs.readFileSync(keyFile, 'utf8').trim();
 
