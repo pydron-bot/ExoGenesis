@@ -26,7 +26,9 @@ import type { CameraKeyDef, CharacterDef, CinematicDef, RegionDef } from '../con
 import { REGION_HALF as HALF } from '../sim/types';
 import { probePath } from '../world/probe-path';
 import { R, U, regionColor, regionDir, regionHeight, regionTerrain, regionToWorld, setGroundPads, setRegionTerrain, terrainColor, worldToRegion } from '../world/planet';
-import { buildCore, orient } from '../world/region';
+import { buildCore } from '../world/building-models';
+import { orient } from '../world/region';
+import { clamp } from '../util/math';
 
 const STEP = 2;
 /** Terrain samples per side for the region's size (set per region). */
@@ -47,7 +49,6 @@ let freeFor = '';
 let guides: Guides = 'off';
 try { guides = (localStorage.getItem(GUIDES_KEY) as Guides) || 'off'; } catch { /* private mode */ }
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 /** Round to a step without float dust (0.1 → 12.3, not 12.299999). */
 const rnd = (v: number, s: number) => Number((Math.round(v / s) * s).toFixed(Math.max(0, Math.ceil(-Math.log10(s)))));
 /** The yaw (as the camera sees it, any turn) nearest the neighbouring keys', inside the schema's ±6.3, so the curve turns the short way. */

@@ -2,14 +2,20 @@
 
 > What's in the game, how each part works and how it's tested, feature by feature. `DESIGN.md` says
 > what the game should be; this file records what was built and measured. Moved out of `DESIGN.md`
-> (§6.4, §7, §9) on 2026-11-17; newer entries go at the end of their section.
+> (§6.4, §7, §9) on 2026-11-17; newer entries go at the end of their section (§6–11 are grouped by
+> subsystem, oldest first within each, since 2026-11-26).
 
 - [1. Content and the editor](#1-content-and-the-editor)
 - [2. Models, rendering and lights](#2-models-rendering-and-lights)
 - [3. M1 — one region](#3-m1--one-region)
 - [4. M2 — people](#4-m2--people)
 - [5. Proof of concept and performance](#5-proof-of-concept-and-performance)
-- [6. Roster additions](#6-roster-additions)
+- [6. Units, buildings and research](#6-units-buildings-and-research)
+- [7. The world: regions, sky and effects](#7-the-world-regions-sky-and-effects)
+- [8. Interface, controls and saves](#8-interface-controls-and-saves)
+- [9. Colony, story and campaign](#9-colony-story-and-campaign)
+- [10. Skirmish and Domination](#10-skirmish-and-domination)
+- [11. Delivery, tests and safety nets](#11-delivery-tests-and-safety-nets)
 
 ## 1. Content and the editor
 
@@ -1228,6 +1234,9 @@ are just an output surge for now), aged colonists' retirement.
 
 ## 5. Proof of concept and performance
 
+> The horde proof of concept (`?mode=skirmish`, its worker, input and HUD) was retired in v0.101.1: the real
+> skirmish (§10) replaced it. Its army renderer, models and effects live on in `src/world/army/`.
+
 First results 2026-11-15; later measurements added below them.
 
 - **M0 tech demo:** continuous zoom surface ↔ orbit ↔ system, worker sim, IndexedDB saves — 60 fps on
@@ -1306,7 +1315,9 @@ First results 2026-11-15; later measurements added below them.
     - "Threat shown in the resource bar": the turrets could kill the pack before the check. A watcher now
       records the bar from the wave on.
     - `tools/skirmish-smoke.mjs` order drag: it now finds the moving unit again before each attempt.
-## 6. Roster additions
+## 6. Units, buildings and research
+
+### Roster batches A and B
 
 From `docs/ROSTER.md` (batches A and B, 2026-11-18). Smoke test: `tools/roster-a-smoke.mjs`.
 
@@ -1468,6 +1479,173 @@ destination in `stepMedevac` (`src/sim/core.ts`), cards in `src/colony-hud.ts`. 
   each; out of Range they die as before; switched off it does nothing; a Medevac takes its riders to the Med Bay over a
   nearer home, fully treated; comfort reasons in and out of Range; grief fades faster with a Memorial.
 
+### Unit movement round buildings (v0.49.1)
+
+`tools/path-bench.mjs` (headless, ~20 s): a packed base (rings round the core, as tight as placement allows), a
+base on a grid with 3 / 5 / 8 u lanes, and a walled yard with one gate; groups of every ground / hover combat unit
+ordered across, into the middle, onto a building and through the gate (12, 20 or 30 at a time). A unit passes if it
+ends within 4 u of its spot, or of the nearest point its path can reach when the spot is walled off. Exit 1 on any
+failure.
+
+- **Found:** 31 of 576 units gave up 15–45 u short going into the packed base. `goTo`'s stall check measured
+  straight-line distance to the goal, so a detour round the base (farther first) read as stuck: 9 s without getting
+  closer and it gave up. Scouts also took twice as long as needed, circling waypoints (turn radius 13 / 6 = 2.2 u
+  is wider than the 1.5 u "reached it" radius).
+- **Fixes (`src/sim/core.ts`):**
+  - Progress is the length left along the path (to the next waypoint plus the rest), still re-planned every `STALL`
+    ticks without progress and dropped after three times that.
+  - A waypoint counts as passed within 1.5 u, or within 4 u once the unit is past it along the next leg.
+  - When the path ends short of the goal (walled off, or inside a building), the unit stops on reaching its end.
+  - `steer(…, brake)`: units (not fauna) slow to as little as 25% into a sharp turn.
+  - `order`: a formation spot inside a building (or off-limits ground) moves to the nearest open ground at least
+    0.8 × `SPREAD` from spots already handed out, so a group sent onto a building spreads round it.
+- **After:** 976 / 976 (with the 30-unit and onto-a-building cases added); travel times unchanged except Scouts into
+  the packed base, 28.4 → 14.0 s. `tools/units-smoke.mjs` passes.
+
+### Matter Printer and alerts (v0.55.0)
+
+- **Matter Printer** (`content/buildings/printer.json`, role `printer`, campaign and skirmish): 160 alloys + 20
+  isotopes, needs Isotope Cells, draws 8 MW and makes `mineRate` 0.4 alloys/s while powered (staff multiply it as for
+  depots; `stats.printed`). It's last in line for power (rank 4, after depots) and live power only, never the
+  battery, so it runs on surplus: geothermal, fusion, or solar on a good afternoon. A depot makes 1.2/s for 2 MW, so
+  deposits stay ten times better per MW; the printer is the late-game floor when they run dry, and makes no scars
+  (planet health). Card: "Printing · +0.4 alloys/s" or "Waiting for spare power". Model `buildPrinter()` (in the
+  asset library as built-in `printer`). Computer players build one after 15 min, two once the deposits their depots
+  reach hold under 2,500; their power planning counts its draw. With printers the four-way Normal free-for-all
+  ended at 45 min (57 before); campaign balance outcomes unchanged.
+- **Alerts** (`Sim.underAttack`): when an enemy player's shot or a predator's bite hits one of your buildings, units
+  or drones: "Under attack: <what>, <compass> of the Core" (or "at the Core"), at most every 20 s for the same place
+  (6 s for a place 60 u away). Events can carry a place now (`EventSink(text, level, cue, at)`, the worker's `event`
+  message has `at`): alerts, your buildings destroyed, other players' buildings destroyed, predator contact. Such a
+  log line is tappable (◎) and takes the camera there; the minimap pings it (a ring that grows and fades over 4 s,
+  red for trouble, cyan for news); **H** goes to the latest alert.
+- Tests: `tools/skirmish-sim.mjs` checks the printer (waits with no spare power, never touches the battery, 0.4/s on
+  spare power); `tools/skirmish-play-smoke.mjs` checks a tappable alert and H. `tools/balance.mjs` shows at most 60
+  events per run, so the new alerts push some old lines out of its listing; compare outcomes (`===`, `end:`, tables).
+
+### Research tree (v0.58.0)
+
+DESIGN §5.9's compact Act 1 tree: 4 projects became 32, in four branches, gated C&C-style and by the colony's people and
+finds. Code: `src/sim/mods.ts` (pure, shared by sim and HUD), `Sim.mod` in `src/sim/core.ts`, `src/research-hud.ts`.
+Test: `tools/tree-smoke.mjs` (`--headless-only`; the browser half wants a dev server, default `:5176`).
+
+- **Content** (`researchShape`): `branch` (economy, defence, people, relic = the tree's tabs), `requires` and a second
+  prerequisite `also`, `building` (a finished one must stand), `specialist` (an adult colonist with that specialty),
+  `flag` + `flagText` (a discovery: `wreck-found`, `stone-found`, `relic-woke`, `relic-opened`, `nest-destroyed`,
+  `inhabitants-met`, or any story flag) and `effects`, a list of **modifiers** (`modShape`: `stat` from `MOD_STATS`,
+  `amount`). Content checks: prerequisites can't loop, a flag gate needs its words. Inhabitants now set `contact-<group>`,
+  `trust-<group>` and `inhabitants-met`; the editor's Story flow knows those (and `relic-*`) as the game's own flags.
+- **Modifiers** (`MOD_STATS`, words in `modText`): a sum over finished research plus running story boosts
+  (`StoryState.mods`, used by later features). `Sim.mod(stat)` memoises the sum once per tick (or when research or the
+  boosts change). Read where each stat is used: depot / deep mine / printer output, solar, battery capacity, power draw,
+  drone work (`Sim.droneWork`), drone and unit caps (`maxDrones`, `unitCap`; snapshot `droneCap`, `unitCap`), turret
+  damage, damage buildings take (`buildingHarm`), repair pads, shield recharge, damage to relics (`strike`), research
+  speed, cache payouts, salvage, nest regrowth (`nestRegrowSecs`); in `people.ts` biomass grown, food eaten, pod speed,
+  how long the injured last, wellbeing (reason "Colony projects"), stance drift, sabotage, grief fading, staff bonus; in
+  `planet.ts` mining scars and Seed Bank healing; in `inhabitants.ts` regard recovery and encroachment. `warning`:
+  a powered radar with Seismic Listening announces the next pack that many seconds before it sets out (`waves.warned`).
+  `trade` and `fortify` are abilities for the later features. The snapshot carries the totals (`mods`).
+- **Gates** (`researchNeeds` / `researchBlocked`): the sim refuses a project with its first unmet need ("Fire Control
+  needs a Security officer in the colony"); the tree shows every need ticked or not, from the same function.
+- **The tree:** 10 economy (Refined Drills, Tracking Arrays, Swarm Logic, Vertical Farms, Low-Scar Extraction, Seam
+  Harmonics, Deep-Cycle Cells, Matter Compiler + Deep Survey, Isotope Cells), 7 defence (Hardened Plating, Fire Control,
+  Field Repair, Seismic Listening, Lattice Tuning, Logistics Grid + Shield Lattice), 7 people (Colony Medicine,
+  Accelerated Pods, Nutrition Science, Open Ledger, Rites of Remembrance, Commons Design, Translation Matrix), 8
+  precursor (Hull Forensics, Ruin Stratigraphy, Fauna Genomics, Handshake Codes, Cache Keys, Precursor Alloys, Firmware
+  Archaeology + Relic Studies). Three finish with a story card: Layers (Stratigraphy), Designer Marks (Fauna Genomics,
+  STORY.md E9), Lineage Report (Firmware Archaeology). The four old projects keep their numbers. Skirmish computer
+  players still research only their three; nothing they use has a new gate.
+- **HUD** (`ResearchHud`): the Tech Lab card shows the project under way and "N of 32 done · M ready", plus **Research
+  tree**. The tree is one scrolling column (`#research`, full width under 640 px): branch tabs with done counts (● on the
+  one under way), then each project indented under the one it follows, with its effects in green, its needs (✓ / ✗),
+  cost and time, description, and Research (or Cancel) when it can start. It opens on the branch with something to do.
+- **Measured** (headless, `tools/tree-smoke.mjs`): Refined Drills mines ×1.200; Deep-Cycle Cells 600 → 900 MJ; a
+  Brute's blow on a Solar Array 24 → 20.4 (Hardened Plating) → 18.0 (+ Precursor Alloys); Nutrition Science food ×0.85;
+  Low-Scar scars ×0.60; Tracking Arrays takes 35 s at an unstaffed lab. Also: each gate refuses then allows, modifiers
+  survive a save, and at 390 × 780 the tree fills the width with no sideways scroll and starts a project from a node.
+
+### Units that feel different: abilities and counters (v0.59.0)
+
+Every armed Accord unit has one ability the player triggers, on a cooldown; computer players use theirs too.
+
+- **Data** (`content/units/*.json`, schema `unitShape`): `ability` (a kind), `abilityName`, `abilityPower`,
+  `abilitySeconds`, `abilityRadius`, `abilityCooldown` (empty = 30 s), plus `vsBuildings` (damage to buildings ×).
+  Kinds (`ABILITIES` in `src/content/defs.ts`): **overdrive** (fire rate × power), **boost** (speed × power), **siege**
+  (dug in: can't move, range and damage × power, takes 70% damage; a move order ends it), **charge** (the next shot ×
+  power), **pulse** (power damage to every enemy within the radius, flyers too), **mend** (power hp to everything of
+  ours within the radius), **shield** (our units within the radius take power less damage).
+
+  | Unit | Ability | Numbers |
+  |---|---|---|
+  | Rover | Overdrive | 2× fire rate, 4 s, every 20 s |
+  | Scout Skimmer | Afterburner | 1.8× speed, 6 s, every 25 s |
+  | Tank | Dig in | siege 1.35× (range 22 → 29.7, past a turret's 28), 12 s, every 30 s |
+  | Arc Caster | Discharge | 60 damage within 9 u, every 20 s |
+  | Artillery | Barrage | 3× fire rate, 6 s, every 40 s; 2× damage to buildings |
+  | Lancer | Overcharge | next slug 3× (330), within 10 s, every 20 s |
+  | Field Engineer | Patch up | +120 hp within 10 u, every 30 s |
+  | Aegis Crawler | Hardlight | half damage within 10 u, 6 s, every 35 s |
+  | Hover Skiff / Medevac | Skim / Sirens | 1.6× speed, 5–6 s |
+  | Gunship | Strafe | 2× fire rate, 5 s |
+  | Gunboat | Anchor | siege 1.3×, 10 s |
+
+- **Sim** (`src/sim/core.ts`): `Unit.ab` (cooldown left), `abT` (effect left), `abFire` (an instant kind armed).
+  Command `{ type: 'ability', ids }` uses each listed unit's ability if ready ("Not ready yet" if none was).
+  `armour()` scales every hit on a unit (`strike`, splash, chains and predator bites): siege and shield auras
+  (`auras`, rebuilt each tick). Commands run inside the player's own view (`withTeam`), so **pulse and mend only arm
+  there and go off in the shared fight** (`fireAbility` at the top of `stepUnits`): first written to strike directly,
+  a Discharge killed other players' units from inside one player's view and left the lists wrong (it was why Hard
+  started losing to Easy, 0 / 3). The snapshot carries `abCd` and `abOn` per unit.
+- **Computer players** (`abilities()` in `src/sim/ai.ts`, Normal and Hard): guns in a fight use overdrive and charge;
+  tanks dig in out on the attack, against a building; a discharge with three or more in reach or a flyer; a shield
+  in a fight or with hurt friends near; repairs when a friend is under 60%; a speed boost on a drive over 50 u.
+- **Controls:** the unit card has a wide ⚡ button per kind of selected unit (ready, "· 4 s" while on, "· 12 s" while
+  cooling down) and an Ability row; **G** uses the ability of everything selected; the Controls panel lists it.
+- **Counters** (`tools/unit-duel.mjs`: each ground combat unit against each other at 700 alloys a side on a
+  skirmish map, no fog, abilities used as the computer players use them, units holding to shoot once in range; then
+  each against three Defense Turrets and a Siege Cannon). Before, with or without abilities, the **Tank beat every
+  other unit** (6–0). Changes: Tank 110 → 120 alloys; Lancer 220 → 250 hp, 100 → 110 damage. After (W–L): Tank 5–1
+  and Lancer 5–1 (Lancer beats Tank, Rover beats Lancer, Tank beats Rover), Rover 4–2, Arc 4–2, Artillery 2–4 (but
+  takes the gun line with 84% left, the best of any), Skiff 1–5, Scout 0–6 (it scouts). The gun line holds against
+  Scouts, Skiffs and Arc Casters; Rovers (with Overdrive), Tanks, Lancers and Artillery break it.
+- **AI vs AI** (`tools/ai-sim.mjs`): `--check` passes (each level beats an idle player; Hard beats Easy 3 / 3 at
+  22–32 min; the four-way Normal free-for-all ends at 38.7 min; its limit is now 80 min, as one ordering ran 69).
+  New AI against the last release's (`--match old:normal,normal` and swapped, 3 seeds each): 4–1 with a draw. New
+  options: `--no-abilities`, `--seed`, `--size`.
+- **Test:** `tools/ability-smoke.mjs` (headless: each kind measured on the real sim, the cooldown, a Discharge killing
+  another player's Scouts cleanly, a computer player using Overdrive; browser, desktop and phone: a button per kind,
+  touch-sized, it fires only that kind, counts down, and G). `tools/unit-duel.mjs --check`.
+- Known: `tools/roster-smoke.mjs` "packs bring spitters and burrowers" fails before this change too (the test clears
+  every hostile, nests included, so later packs have no open spawn).
+
+### Turrets that turn (v0.60.1)
+
+Units used to be one rigid mesh, and the sim turns a hull toward its target only while standing still
+(and fires without waiting for the turn), so a tank driving past a fight shot out of its side.
+
+- **Sim:** a unit's `aim` (world yaw to its target, unset without one) goes out in the army snapshot as
+  `F.AIM` (STRIDE is now 9; the hull's heading when there's no target, and for hostiles and the old
+  skirmish worker). It is drawn only: firing rules are unchanged.
+- **Models:** a model part named `turret` is drawn as its own instanced mesh (`splitPart()` in
+  `src/assets/models.ts`), pivoting on that object's origin. In `blender/build.py` that's
+  `join(parts, "turret", pivot=...)` beside the body. Built-ins give `turret: { geo, pivot }` in
+  `BUILTIN_UNITS` (`wholeGeo()` seats it for the editor's previews). Tank, Gunboat, Skiff and Rover
+  have one (v0.61.0).
+- **View:** `ArmyView` keeps each slot's turret yaw and swings it toward `F.AIM` at `TURRET_SLEW`
+  (6 rad/s), placed at the pivot transformed by the hull's matrix; it takes the hull's colour (hit flash
+  included). A shot starts `muzzle` u toward its target (per built-in look: the gun's end; it faces
+  the target, by turret or by turning the hull), passed to `BattleFx.spawn` as `reach`.
+
+**Fixed guns (v0.61.0).** A unit with `fixedGun` (Lancer, Artillery) fires only when its target is within
+`FIXED_GUN_ARC` (0.3 rad) of its heading: standing still it turns to face first (8 rad/s, as before);
+driving, it fires only at what's ahead, except that within `FIXED_GUN_HALT` (8 u) of its move's end, with
+a target in range, it arrives there and fights (needed: a crowd sent to one spot never quite arrives, and
+the AI's siege lines stalled; the four-way normal free-for-all in `tools/ai-sim.mjs --check` ran past 80 min
+without it, ends at 49.9 min with it, 38.7 min with free guns). Measured (3 v 3 Brutes, headless): standing, no change (Lancers
+5.5 s → 5.6 s to clear; Artillery 16.9 s both); ordered to drive past the pack, Lancers 8.4 s → 13.6 s
+and Artillery 10.4 s → 24.1 s, with no extra losses.
+
+## 7. The world: regions, sky and effects
 
 ### Act 1 regions on Home (v0.39.0)
 
@@ -1526,47 +1704,6 @@ and the editor's Worlds preview. The body being played is unchanged (its globe h
 - **Clouds**: a body with `clouds` that isn't the one being played (Verdance; Home when playing elsewhere) gets a lit,
   drifting cloud shell (`cloudShell`).
 - Checked with full-disk and close-up renders of all 22 bodies (no shader errors), the title tour and the system view.
-
-### Title screen: Region and Sound in Options (v0.40.1)
-
-The title's REGION and SOUND choices moved into Options (`openOptions` takes extra rows from the title: `Toggle` gained
-`section`, a heading where it changes, and `state`, the text in place of ON / OFF). Sound is a toggle; each region is a
-row (HERE on the current one) that reloads into it (`goRegion`). The in-game ⋯ Options stays graphics only. Tests:
-`tools/region-smoke.mjs` (pick a region in Options), `tools/options-smoke.mjs` (sound and regions first, graphics last).
-
-
-### Title tour and softer columns (v0.75.0)
-
-- **Tour** (title icon 🪐, or `?tour=1`): `TitleScreen.tour(on)` toggles `#title.touring`. CSS fades out the
-  column, foot and scanlines (the foot gets `visibility: hidden`, because its entry animation holds its opacity),
-  keeps only the radial vignette, and centres the planet (no view offset). The camera runs the same trip and dwell
-  logic, but the first departure comes after 2.5 s and the stay at home is capped at 12 s. A Screen Wake Lock is
-  requested where the browser has one. A `pointerdown` on the root, or any keydown, ends the tour. `pointerdown`
-  is used so the click that started the tour can't end it. `hide()` ends the tour too.
-- **Steam and exhaust** (`steamCone` in `src/world/region.ts`): the Deep-Core Mine plume and the vent/Geothermal
-  steam are open cones with an RGBA vertex-colour alpha. Alpha ramps in over the first 1/6, then falls as
-  (1-t)^1.6 to nothing at the wide top. Opacity is 0.2 / 0.18 (it was a flat 0.22 / 0.2). From the high camera
-  the flat cones read as solid beams.
-- **Heat shimmer** (`DistortShader` in `src/world/post.ts`): amplitude 0.0016 → 0.0009 uv, and the column ends
-  at 0.7–1.8× source size instead of 1.2–3.2×. From the top-down phone camera, the tall column showed as a long
-  wavy stripe.
-- Checked with `tools/lights-shot.mjs` at a phone size (before and after) and a Playwright run of the tour
-  (title → Tour → trip to Verdance → tap returns the menu, no page errors). The options, guide and region smokes
-  pass.
-
-### Sun shafts only from a visible sun (v0.75.1)
-
-The shaft pass smeared *any* bright pixel toward the sun's screen point, and `main.ts` only checked that the sun
-projected in front of the camera. At night the sun under the ground still did that for a downward-looking camera,
-so every glowing building (Core, tanks, reactors) threw a long ray up the screen (`look.shafts` was 0.55 at
-midnight). The fixes:
-- `main.ts`: the strength is multiplied by `lerp(sunInSight(), smoothstep(-0.02, 0.08, sunUp), air)`.
-  `sunInSight()` is a ray test from the camera to the sun against `system.occluders(R)`.
-- `ShaftShader`: each sample is weighted by `1 / (1 + 10·d²)`, where d is the sample's aspect-corrected distance
-  from the sun, so only light near the sun feeds the rays.
-
-Measured with a 390×844 night colony: shafts at 0, 4 and 12 o'clock are 0 (was 0.548 at 0). A low camera swept
-round at 7:36 still finds them at 0.70.
 
 ### Biomes and wildlife (v0.41.0)
 
@@ -1631,621 +1768,19 @@ base colour at the root to its tip colour at the top), `leaf`, `glow`.
 - Editor: the Nature preview loads the models too, so a species or biome shows as the game draws it.
 - Checked: in-game renders of Touchdown as verdant and arid, editor previews of a shell, ray, serpent and the lush biome.
 
-### Unit movement round buildings (v0.49.1)
+### Sun shafts only from a visible sun (v0.75.1)
 
-`tools/path-bench.mjs` (headless, ~20 s): a packed base (rings round the core, as tight as placement allows), a
-base on a grid with 3 / 5 / 8 u lanes, and a walled yard with one gate; groups of every ground / hover combat unit
-ordered across, into the middle, onto a building and through the gate (12, 20 or 30 at a time). A unit passes if it
-ends within 4 u of its spot, or of the nearest point its path can reach when the spot is walled off. Exit 1 on any
-failure.
+The shaft pass smeared *any* bright pixel toward the sun's screen point, and `main.ts` only checked that the sun
+projected in front of the camera. At night the sun under the ground still did that for a downward-looking camera,
+so every glowing building (Core, tanks, reactors) threw a long ray up the screen (`look.shafts` was 0.55 at
+midnight). The fixes:
+- `main.ts`: the strength is multiplied by `lerp(sunInSight(), smoothstep(-0.02, 0.08, sunUp), air)`.
+  `sunInSight()` is a ray test from the camera to the sun against `system.occluders(R)`.
+- `ShaftShader`: each sample is weighted by `1 / (1 + 10·d²)`, where d is the sample's aspect-corrected distance
+  from the sun, so only light near the sun feeds the rays.
 
-- **Found:** 31 of 576 units gave up 15–45 u short going into the packed base. `goTo`'s stall check measured
-  straight-line distance to the goal, so a detour round the base (farther first) read as stuck: 9 s without getting
-  closer and it gave up. Scouts also took twice as long as needed, circling waypoints (turn radius 13 / 6 = 2.2 u
-  is wider than the 1.5 u "reached it" radius).
-- **Fixes (`src/sim/core.ts`):**
-  - Progress is the length left along the path (to the next waypoint plus the rest), still re-planned every `STALL`
-    ticks without progress and dropped after three times that.
-  - A waypoint counts as passed within 1.5 u, or within 4 u once the unit is past it along the next leg.
-  - When the path ends short of the goal (walled off, or inside a building), the unit stops on reaching its end.
-  - `steer(…, brake)`: units (not fauna) slow to as little as 25% into a sharp turn.
-  - `order`: a formation spot inside a building (or off-limits ground) moves to the nearest open ground at least
-    0.8 × `SPREAD` from spots already handed out, so a group sent onto a building spreads round it.
-- **After:** 976 / 976 (with the 30-unit and onto-a-building cases added); travel times unchanged except Scouts into
-  the packed base, 28.4 → 14.0 s. `tools/units-smoke.mjs` passes.
-
-### Game menu and a slimmer HUD (v0.50.0)
-
-- **Bottom bar:** Build · ❚❚ ▶ ⏩ · Surface / Planet / System · ☰ Menu (8 buttons; was ~20 plus two sliders, with a ⋯
-  overflow on phones). Save, Load, New game, Look, Lights, Options, Skirmish, the version and Sound are gone from it.
-- **Game menu** (`openMenu` in `src/options.ts`, `openGameMenu` in `main.ts`): ☰ Menu, or Esc when nothing is selected,
-  nothing is being placed and no panel is open (a capture-phase listener, so the input's own Esc still deselects
-  first). Pauses while open and puts the speed back on close. Resume · Save · Load · Options · What's new · Skirmish ·
-  Title screen · New game (two taps: the button turns amber and says what will be lost). Options and What's new come
-  back to the menu when closed. It shares the options overlay (`#options.menu`), so only one panel is ever up.
-- **Options rows** can be `Slider`s (`kind: 'slider'`, 0–100): Volume and Music volume. New rows: Interface →
-  Performance stats (`exo-stats`, or `?stats`), Graphics → Terrain look (reloads; flushes the autosave first).
-- **Top:** `#brand` is hidden in game; `#tele` (view, altitude, fps, draws) only with `body.stats`, and the minimap moves
-  up into its place on desktop; `.r.dim` resource chips (nothing to show yet) are hidden, except the colonists chip,
-  which opens the Colony panel.
-- Tests: `tools/options-smoke.mjs` checks the menu (bar size, pauses, Options round trip, Esc behaviour, two-tap New
-  game) on desktop and phone; `smoke.mjs`, `sound-smoke.mjs` and `music-smoke.mjs` go through the menu now.
-  Headless desktop screenshots can catch the panel mid-fade (swiftshader holds the CSS animation for ~2 s).
-
-### Skirmish phase 1: players in the sim (v0.50.1)
-
-DESIGN §5.11. `src/sim/core.ts` runs any number of players on one map; the campaign is the one-player case and is
-unchanged (`tools/balance.mjs`, all nine strategies, output byte-identical before and after).
-
-- **Ownership:** `team` on `Building`, `Drone`, `Unit` (unset = player 0). `SimState.players` (absent in the campaign):
-  name, side (same side = allies), colour, `ai`, `out`, `home`, and for players ≥ 1 an `econ` (alloys, isotopes,
-  battery, research, drone fabrication, stats). Player 0 keeps its economy in the top-level fields, so the HUD,
-  saves and the campaign read it as before. `SimState.skirmish`: `{ fog, packs }`.
-- **`withTeam(t, fn)`:** runs `fn` as player `t` sees the world: the lists hold only `t`'s buildings, drones and
-  units; its econ is swapped into the top-level fields; `power`, `vis` and `exp` are its own. On the way out the
-  lists merge back (what `fn` added becomes `t`'s, what it removed is gone) and the econ swaps back. Placement sees
-  other players' buildings through `PlaceWorld.others` (spacing only: they don't extend your build area).
-- **Tick (skirmish):** each live player's economy in its own view (power, drones, fabrication, factories, research,
-  mining, repair pads), then one shared fight (turrets, units, shields, fauna, nests, packs if on), eliminations, fog
-  per player every 5 ticks. No cryo bank, people, planet, inhabitants, story, missions or encounters.
-- **Combat:** shooters pick from `foes(team)`: fauna plus every unit, drone and building of a player on another side
-  (the campaign's `foes(0)` is `s.hostiles` itself). Anything that moves comes before a building unless the building
-  is 10 u closer (`BUILDING_LAST`). `strike` splashes and chains over the shooter's foes; `kill` dispatches by kind.
-  Visibility is per shooter (`visibleTo`). Idle units also answer enemy units among their own buildings (`raiders`).
-  Field Engineers mend only their own side. Turret ties still go to the later target (as before: a `<` here changed
-  three balance runs).
-- **Commands:** `command(c, team)` runs in that player's view, so a player can only spend its own alloys and order
-  its own drones and units. Events from other players' views are dropped (`emit` passes only player 0's); enemy
-  buildings destroyed are reported to player 0.
-- **Defeat:** a Command Core destroyed queues its player (`falling`); at the end of the tick it's out and everything
-  of theirs goes. One side left: `end('won')` if player 0 is on it, otherwise `over = 'core'` with "Defeat: … won".
-- **Setup:** `newSkirmish({ seed, players, alloys, wildlife?, packs?, fog?, homes?, deposits? })`; `skirmishHomes(n,
-  limit)` spreads start spots round a ring at 62% of the way out, each moved to dry flat ground. Story locks are
-  cleared. Saves keep player 0's fog (`explored`); other players' fog is worked out again on load.
-- **Test:** `tools/skirmish-sim.mjs` (headless, 30 checks): separate economies and stats, commands limited to their
-  owner, per-player building and mining, turrets and units fighting across players, a Core falling takes its player
-  out and the last one wins, save/load, a four-player free-for-all, and allies holding fire. Sim cost (sim-bench):
-  3.2 → ~3.3 ms/tick, within its ±10% noise.
-
-### Skirmish phase 2: generated maps (v0.52.0)
-
-DESIGN §5.11. `src/skirmish/mapgen.ts` `generateSkirmishMap(options, content.bodies)` → a region record (never saved
-to content), the start spots, and a report. ~90 ms median, 150 ms worst on hive1.
-
-- **Options:** seed, players (2–4), size (small / medium / large = 240 / 320 / 400 u, +40 for 3–4 players), world
-  (`SKIRMISH_WORLDS`: Home, Verdance, Dunmore, Rime, Cinder, Ash), water (none / some / lots: only Home and Verdance
-  have seas; `none` lets the usual site lift raise the map onto dry land, otherwise `keepSea` and the site is picked
-  from 18 random ones for a land share near 75% / 50%), relief (flat / rolling / rugged: local relief 4 / 9 / 18 u).
-- **Layout:** bases evenly round a ring at 60% of the half-size, turned by a random angle. Round each base, turned to
-  face the middle, the same layout (`LAYOUT`): two 3,000 deposits at 27 u, a 2,500 one at 62 u, a 600 isotope seam at
-  40 u, a geothermal vent at 34 u. Between each pair of neighbours a 5,000 contested deposit, a predator spawn out by
-  the edge and a herd partway; a 1,200 seam by the middle. 90-second grace for packs if they're on.
-- **Sculpt** (the region's height grid, target − generated): each base flat to 34 u at its own mean height (≥ 2 u),
-  easing out to 62 u; a small pad under every deposit, seam and vent outside a base (at the base's height when it's
-  near one, so it doesn't pull the base's rim); land roads raised from every base to the middle. Checked after: each
-  base dry (≥ 0.8 u) and flat (≤ 3 u over 28 u), every base reaching base 1 by land (`PathGrid.reaches`). Up to four
-  tries, raising and widening the roads each time.
-- **In the game:** `?skirmish=<seed>` plus options (`src/skirmish/setup.ts` lists them: players, size, world, water,
-  relief, alloys, fog, packs, wildlife, ai, teams). The page generates the map, plays it as region `skirmish` (no
-  autosave, no title or landing, the camera on your Core), and hands the record and a `SkirmishSetup` to the sim
-  worker (`init.skirmish` → `newSkirmish`; a restart starts it again). Snapshots carry `players` and each unit's and
-  drone's `team`. Skirmish Cores are drawn as buildings where they stand (`buildForRole('core')`); the campaign's
-  stays the landed probe at the origin.
-- **Test:** `tools/mapgen-check.mjs [--maps N] [--sheet file.png]`, headless (one module graph via
-  `tools/sim-entry.ts`: separate `runnerImport`s each get their own region state): every world × 2–4 players × size ×
-  water × relief; per map, the generator's checks, then in the sim each player can place a Solar Array by its Core, a
-  depot on each of its deposits, a Deep-Core Mine on its seam and a geothermal plant on its vent, and walks by land to
-  the middle and to the nearest enemy are within 25% of each other. 54 / 54 pass. `--sheet` draws them all.
-- Not yet (phase 3): enemy buildings and units in team colours and hidden in fog, the HUD's campaign counters.
-- Found on the way: `tools/build-smoke.mjs` fails its wall-line steps on v0.49.0 too (the opening story card sits
-  over the taps); `tools/region-smoke.mjs` expected no world name between a region and HERE in Options (fixed).
-
-### Skirmish phase 3: setup, colours, fog and the end screen (v0.53.0)
-
-DESIGN §5.11. A skirmish is now reached from the title (SKIRMISH) and played with its own HUD. The computer players
-don't play yet (phase 4): they sit at their Cores.
-
-- **Setup** (`src/skirmish/setup-screen.ts`, title SKIRMISH or the game menu's Skirmish): players 2–4, teams (free for
-  all, you vs all, 2 v 2 with four), computer difficulty, world, size, sea (only worlds with seas offer any), ground,
-  map seed (🎲 rerolls), starting alloys (400 / 600 / 1,500), fog, wildlife, predator packs. A live preview generates
-  the map in its own worker (`src/skirmish/map-worker.ts`: the title's planet keeps its terrain state) and draws the
-  ground, sea, deposits, seams and each player's base in their colour. START builds the `?skirmish=` link
-  (`skirmishLink`) and goes there. Choices are remembered (`exo-skirmish-setup`), the seed is new each time.
-- **What you can know** (sim `snapshot`): other players' units and drones only while in sight; their buildings once
-  seen (`Building.seen`, then shown as they are). Radar blips stay fauna only.
-- **Colours:** players are `PLAYER_COLORS` (cyan you, crimson, amber, violet). Units: the army buffer has an owner
-  (`F.TEAM`, `STRIDE` 8); another player's are drawn in their colour (body and glow strips), get red bars and can't be
-  selected. Buildings and drones: a ring in the owner's colour under each (`RegionView.teamRing`), and other players'
-  buildings glow in their colour. Minimap: everything in its owner's colour, Cores outlined white.
-- **Can't command theirs:** the input only offers your own units, buildings and drones (`buildings()` / `units()` filter
-  on `team`, drones carry `team` in `RegionView.drones`); placement sees theirs only as too-close (`PlaceWorld.others`).
-  The sim refuses anything else anyway (`command(c, team)`).
-- **HUD** (`body.rts`): no cryo, biomass, planet health, colonists or goals; the clock is game time; the map shows from
-  the start (no radar needed). Game menu: Resume, Options, Rematch, New skirmish, Surrender, What's new, Title screen
-  (no Save / Load: skirmishes aren't saved).
-- **End:** VICTORY / DEFEAT with each player's units built, kills of other players' things, units and buildings lost
-  and alloys mined (`players[].stats` in the snapshot). Rematch restarts the same map and players; New skirmish opens
-  the setup. You're out when your Core falls or you surrender (`{ type: 'surrender' }`); your game ends then even if
-  computer players go on fighting each other.
-- `SimClient.command(cmd, team)` acts as another player (tests now, the AI later).
-- **Test:** `tools/skirmish-play-smoke.mjs` (desktop and phone): title → setup (choices, preview, START) → the game
-  (skirmish HUD, map, fog hiding the others' bases and out-of-sight units, theirs in sight shown, not selectable) →
-  skirmish menu → victory screen → Rematch → surrender → defeat.
-
-### Skirmish phase 4: computer players (v0.54.0)
-
-DESIGN §5.11. `src/sim/ai.ts`, run by the sim for every player with `ai` set, in that player's own view
-(`withTeam`) every `period` ticks (staggered by team). It plays only through ordinary commands, sees only through
-its own fog, and knows where every player started (as most RTS computers do). Its memory (`PlayerState.brain`: waves
-sent, the raid under way, its rally point) is in the save.
-
-- **Building** (one site per drone at a time; `spot` searches rings round a centre from a preferred direction and
-  keeps a 3 u lane round every building): the first Solar Array; depots on its two home deposits; solar (or the
-  geothermal vent) whenever daytime generation is under the full load × 1.1 + 1; a Vehicle Bay; turrets toward the
-  middle; the geothermal vent; batteries until they carry 60% of the load through half a sol on what the night
-  makes; depots on any deposit it can reach; Relay Towers toward the nearest free deposit on its side of the map; a
-  Tech Lab; a second bay; more guns (cannons late); a Deep-Core Mine on a seam; a Fusion Cell once it has isotopes.
-  Drones topped up to its level's count; research Deep Survey → Isotope Cells → Shield Lattice.
-- **Army:** factories kept busy (two queued each) while alloys stay above a reserve; early rovers and tanks, later
-  tanks, lancers, rovers, artillery and arc (more arc if the enemy flies), a deterministic rotation through the mix.
-  New units gather at a rally point 30 u in front of the base. Anything hostile among its buildings brings everyone
-  not on a raid home (and a raid that's barely left turns back for a big attack). When the group reaches the wave
-  size (bigger each wave) and the first-attack time has passed, it all leaves for the nearest enemy's Core;
-  reinforcements join in fours; a wave down to a third falls back to the rally point.
-- **Levels** (`LEVELS`): Easy thinks every 5 s, 2 drones, 1 turret, no tech, first wave at 9 min (6 units, +1 a wave);
-  Normal every 2.5 s, 3 drones, 2 turrets, tech, 2 relays, first wave at 6.5 min (10, +2); Hard every 1.2 s,
-  4 drones, 3 relays, first wave at 5.5 min (12, +3) and +0.5 alloys a second.
-- **Skirmish rules changed with it:** no cryo-bank draw on power (it was taking 4 MW from every player); each player
-  may have 40 combat units (`unitCap`, shown on the bay card); a computer player 0 (tests) doesn't end the game when
-  it's knocked out.
-- **Test:** `tools/ai-sim.mjs` plays games headless on generated maps (`--match normal,idle`, `--trace` for a
-  minute-by-minute timeline per player). `--check`: each level beats a player who does nothing (Easy ~9.5 min, Normal
-  ~7.5, Hard ~9: its first wave waits until it's bigger), Hard beats Easy (3 / 3, 28–32 min), and a four-way
-  free-for-all of Normals ends (40 min on seed 100: the winner had 9 depots, a Deep-Core Mine and a Fusion Cell).
-  In the browser a Hard computer built its base, expanded through a relay and took out an idle player's Core at 7.5 min.
-
-### Matter Printer and alerts (v0.55.0)
-
-- **Matter Printer** (`content/buildings/printer.json`, role `printer`, campaign and skirmish): 160 alloys + 20
-  isotopes, needs Isotope Cells, draws 8 MW and makes `mineRate` 0.4 alloys/s while powered (staff multiply it as for
-  depots; `stats.printed`). It's last in line for power (rank 4, after depots) and live power only, never the
-  battery, so it runs on surplus: geothermal, fusion, or solar on a good afternoon. A depot makes 1.2/s for 2 MW, so
-  deposits stay ten times better per MW; the printer is the late-game floor when they run dry, and makes no scars
-  (planet health). Card: "Printing · +0.4 alloys/s" or "Waiting for spare power". Model `buildPrinter()` (in the
-  asset library as built-in `printer`). Computer players build one after 15 min, two once the deposits their depots
-  reach hold under 2,500; their power planning counts its draw. With printers the four-way Normal free-for-all
-  ended at 45 min (57 before); campaign balance outcomes unchanged.
-- **Alerts** (`Sim.underAttack`): when an enemy player's shot or a predator's bite hits one of your buildings, units
-  or drones: "Under attack: <what>, <compass> of the Core" (or "at the Core"), at most every 20 s for the same place
-  (6 s for a place 60 u away). Events can carry a place now (`EventSink(text, level, cue, at)`, the worker's `event`
-  message has `at`): alerts, your buildings destroyed, other players' buildings destroyed, predator contact. Such a
-  log line is tappable (◎) and takes the camera there; the minimap pings it (a ring that grows and fades over 4 s,
-  red for trouble, cyan for news); **H** goes to the latest alert.
-- Tests: `tools/skirmish-sim.mjs` checks the printer (waits with no spare power, never touches the battery, 0.4/s on
-  spare power); `tools/skirmish-play-smoke.mjs` checks a tappable alert and H. `tools/balance.mjs` shows at most 60
-  events per run, so the new alerts push some old lines out of its listing; compare outcomes (`===`, `end:`, tables).
-
-### Smarter computer players (v0.56.0)
-
-AI only (`src/sim/ai.ts`): no unit or building numbers changed.
-
-- **Memory** (`AiBrain.known`, `armies`): enemy buildings it has seen (forgotten once it sees the spot empty) and the
-  strongest army it has seen of each player lately. It scouts with its fastest unit at the start, and again whenever
-  what it knows is over 2.5 min old; a scout that finds no army at the base records that too.
-- **Strength:** a force is √(total dps × total hp) (Lanchester-style). The defence of a target is the guns it knows
-  within 70 u plus that player's army: as seen, grown a third every 100 s since; never seen, assumed as strong as its
-  own. It sets off when its army is at least ¾ of the wave size and ours ≥ theirs × nerve (Easy 1.6, Normal 1.3, Hard
-  1.15), or when it's 1.6× the wave size or at the unit cap.
-- **Gather, then push:** the wave forms up at a staging point short of the target, beyond its known guns' reach, and
-  goes in when 80% are there (or after 75 s). Artillery takes a siege line just inside its own range of the nearest
-  known gun (artillery 46 u outranges turrets 28 u and cannons 44 u); the rest push on to the Core; reinforcements
-  join in fours. A wave down to a third falls back.
-- **Raids** (Normal, Hard, after 4 min): three or four of its fastest units after the nearest known enemy depot,
-  deep-core mine or printer that no known gun covers, only while at least six others stay home.
-- **Defence:** answers a raid with about 1.5× its strength from the nearest free units; a bigger attack also recalls
-  a wave that's still forming up or only just left.
-- **Production** answers what it has seen: more artillery the more guns it knows, more lancers against heavy units
-  (400+ hp), arcs against flyers, rovers while it has few fast units.
-- Hard's first wave is 10 (was 12).
-- **Measured** (`tools/ai-sim.mjs --match new,old:<level>` plays the last release's AI, from git, against the new one;
-  `Sim.thinkers` is the test hook): new vs old, three seeds each way: Easy 6–0, Normal 6–0, Hard 3–2 with a draw (4–2
-  with a first wave of 12). `--check` passes: each level beats a player who does nothing (~10 min: it scouts and
-  forms up first), Hard beats Easy 3 / 3 (23–34 min), and the four-way Normal free-for-all ends at 34 min (45 before).
-
-### Smoother controls (v0.57.0)
-
-Quality of life in the colony (and the skirmish built on it; the old `?mode=skirmish` battlefield keeps its own input).
-
-- **Keys** (`src/input.ts` `key`): camera keys go by `e.code` (layout-proof) into a held set; `Input.update(dt, active)`
-  runs each frame from `main.ts` and pans 700 px/s (1,500 with Shift) and turns 1.8 rad/s, so a held key is smooth
-  instead of riding the OS key repeat. `active` is false under the title, cinematics, the menu and panels (the set
-  clears; window blur clears it too). `F`/`Home` centre, `.` next idle drone, `[` `]` speed (0 / 1 / 3), `?`
-  Controls (`H` stays the latest alert), `Ctrl+S` save (`Ctrl+A` all combat units). Digits 4–9 are control groups (1–3 stay the views): Ctrl or
-  Shift + digit saves the selected units, the digit recalls (dead ones dropped), twice within 400 ms glides there.
-  Typing in an input, textarea, select or contenteditable is never a shortcut.
-- **Camera** (`src/camera.ts`): `glideTo(x, z)` eases the focus there (a pan cancels it); `lookAtGround` jumps.
-  Wheel zoom toward the cursor (option, desktop): the ground point under the pointer stays put
-  (focus = g + (focus − g) · k for the zoom factor k), only near the ground (`cam.a < 0.15`). Edge scrolling (option,
-  off): the mouse within 10 px of the canvas edge pans.
-- **Mouse:** a right-click without a drag stops placing, or sends the selected drone or units (`rightTap`); a right-drag
-  still turns the camera.
-- **HUD:** `#r-drones` (desktop) counts your worker drones and the idle ones; a click (or `.`) cycles idle drones, all
-  of them when none are idle. `#paused` shows only when the player paused (`userPaused`: button, Space, `[`, or the
-  background pause), not for story cards or the menu; tapping it resumes. `#place-hint` follows the mouse while placing
-  with `placeProblem`'s reason. The radar map takes a drag (pointer capture). Recycle arms on the first tap
-  (`recycleArmed`, 4 s, the button shows the refund) instead of `confirm()`. Esc closes the build menu first.
-- **Options → Interface:** Pause in the background (`exo.bgpause`, on: `visibilitychange` hidden pauses a deployed,
-  running game; coming back logs it; never under webdriver), Zoom to the cursor (`exo.zoomcursor`, on), Edge scrolling
-  (`exo.edgescroll`, off). The last two are desktop only. `?bgpause=`, `?zoomcursor=`, `?edgescroll=` override.
-- **Controls panel** (`openInfo` in `src/options.ts`): every key and gesture; touch devices list touch first. From
-  `?` or the menu's Controls (closing it goes back to the menu).
-- **Fix:** the selection card read the HUD's snapshot, which is refreshed by the frame loop and can be a frame behind
-  the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
-- **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.
-
-### Selecting several units (v0.77.0)
-
-`src/input.ts`. Before this, several units could be selected only by Shift-click, double-tap/hold (all of a type on
-screen), the ⚔ chip, Ctrl+A or a control group. Both gestures come from the skirmish prototype (`src/skirmish/input.ts`).
-
-- **Box** (desktop): Ctrl/Cmd + left-drag on the surface, checked before Shift-drag (which turns the camera), so a plain
-  left-drag still pans. On release, every combat unit whose screen point (`unitScreen`) is inside the box is selected;
-  Shift held adds to the selection. A Ctrl-click without a drag goes on as a normal click.
-- **Paint** (touch and mouse): a press on empty ground (no drone or unit under it, not placing, zoomed in to where units
-  can be picked, at least one combat unit) starts a `HOLD_MS` (420 ms) timer. If the pointer hasn't moved more than
-  `TAP_PX` by then, it buzzes and the drag paints: units within `BRUSH_PX` (30 px) of each new stroke segment join the
-  selection as they are crossed (Shift at the start adds to the old selection). Moving first pans, as before. As with
-  hold on a unit, a move whose event time is before the hold time (delivered late by a slow frame) turns it back into a
-  pan. A second finger cancels it, back to the selection before.
-- The box and the stroke are drawn on `#sk-overlay` (the skirmish's overlay canvas, otherwise unused in the colony).
-- Shown in Controls (`showControls` in `main.ts`), the unit card's Select row and the Field Guide's *Selecting and giving
-  orders*.
-- **Test:** `tools/select-smoke.mjs`: paint with the mouse and with touch (6 of 6), painting doesn't pan, a quick drag
-  pans and keeps the selection, a Ctrl-drag box (6 of 6) doesn't pan, Ctrl+Shift adds. `units-smoke` and `qol-smoke`
-  still pass.
-- **Fix in the same release: cloud streaks from orbit.** The cloud shells (`buildClouds` in `world/surface.ts`, and
-  `cloudShell` in `world/body-surface.ts` for other bodies) turned at a speed that depended on latitude
-  (`t · 0.004 · (1 + 0.4 y)`). That difference built up without limit, and `t` is seconds since the page loaded, so after
-  half an hour or so the clouds were sheared into thin white streaks along the lines of latitude. Now the shell turns as
-  one (`mod(t · 0.004, 2π)`, which also keeps it precise in a long session) plus a bounded sway between latitudes
-  (`0.35 · y · sin(t · 0.0023)`). Checked by pinning `uSurfTime` at 0, 4,000, 5,400, 7,200 and 36,000 s.
-
-### Research tree (v0.58.0)
-
-DESIGN §5.9's compact Act 1 tree: 4 projects became 32, in four branches, gated C&C-style and by the colony's people and
-finds. Code: `src/sim/mods.ts` (pure, shared by sim and HUD), `Sim.mod` in `src/sim/core.ts`, `src/research-hud.ts`.
-Test: `tools/tree-smoke.mjs` (`--headless-only`; the browser half wants a dev server, default `:5176`).
-
-- **Content** (`researchShape`): `branch` (economy, defence, people, relic = the tree's tabs), `requires` and a second
-  prerequisite `also`, `building` (a finished one must stand), `specialist` (an adult colonist with that specialty),
-  `flag` + `flagText` (a discovery: `wreck-found`, `stone-found`, `relic-woke`, `relic-opened`, `nest-destroyed`,
-  `inhabitants-met`, or any story flag) and `effects`, a list of **modifiers** (`modShape`: `stat` from `MOD_STATS`,
-  `amount`). Content checks: prerequisites can't loop, a flag gate needs its words. Inhabitants now set `contact-<group>`,
-  `trust-<group>` and `inhabitants-met`; the editor's Story flow knows those (and `relic-*`) as the game's own flags.
-- **Modifiers** (`MOD_STATS`, words in `modText`): a sum over finished research plus running story boosts
-  (`StoryState.mods`, used by later features). `Sim.mod(stat)` memoises the sum once per tick (or when research or the
-  boosts change). Read where each stat is used: depot / deep mine / printer output, solar, battery capacity, power draw,
-  drone work (`Sim.droneWork`), drone and unit caps (`maxDrones`, `unitCap`; snapshot `droneCap`, `unitCap`), turret
-  damage, damage buildings take (`buildingHarm`), repair pads, shield recharge, damage to relics (`strike`), research
-  speed, cache payouts, salvage, nest regrowth (`nestRegrowSecs`); in `people.ts` biomass grown, food eaten, pod speed,
-  how long the injured last, wellbeing (reason "Colony projects"), stance drift, sabotage, grief fading, staff bonus; in
-  `planet.ts` mining scars and Seed Bank healing; in `inhabitants.ts` regard recovery and encroachment. `warning`:
-  a powered radar with Seismic Listening announces the next pack that many seconds before it sets out (`waves.warned`).
-  `trade` and `fortify` are abilities for the later features. The snapshot carries the totals (`mods`).
-- **Gates** (`researchNeeds` / `researchBlocked`): the sim refuses a project with its first unmet need ("Fire Control
-  needs a Security officer in the colony"); the tree shows every need ticked or not, from the same function.
-- **The tree:** 10 economy (Refined Drills, Tracking Arrays, Swarm Logic, Vertical Farms, Low-Scar Extraction, Seam
-  Harmonics, Deep-Cycle Cells, Matter Compiler + Deep Survey, Isotope Cells), 7 defence (Hardened Plating, Fire Control,
-  Field Repair, Seismic Listening, Lattice Tuning, Logistics Grid + Shield Lattice), 7 people (Colony Medicine,
-  Accelerated Pods, Nutrition Science, Open Ledger, Rites of Remembrance, Commons Design, Translation Matrix), 8
-  precursor (Hull Forensics, Ruin Stratigraphy, Fauna Genomics, Handshake Codes, Cache Keys, Precursor Alloys, Firmware
-  Archaeology + Relic Studies). Three finish with a story card: Layers (Stratigraphy), Designer Marks (Fauna Genomics,
-  STORY.md E9), Lineage Report (Firmware Archaeology). The four old projects keep their numbers. Skirmish computer
-  players still research only their three; nothing they use has a new gate.
-- **HUD** (`ResearchHud`): the Tech Lab card shows the project under way and "N of 32 done · M ready", plus **Research
-  tree**. The tree is one scrolling column (`#research`, full width under 640 px): branch tabs with done counts (● on the
-  one under way), then each project indented under the one it follows, with its effects in green, its needs (✓ / ✗),
-  cost and time, description, and Research (or Cancel) when it can start. It opens on the branch with something to do.
-- **Measured** (headless, `tools/tree-smoke.mjs`): Refined Drills mines ×1.200; Deep-Cycle Cells 600 → 900 MJ; a
-  Brute's blow on a Solar Array 24 → 20.4 (Hardened Plating) → 18.0 (+ Precursor Alloys); Nutrition Science food ×0.85;
-  Low-Scar scars ×0.60; Tracking Arrays takes 35 s at an unstaffed lab. Also: each gate refuses then allows, modifiers
-  survive a save, and at 390 × 780 the tree fills the width with no sideways scroll and starts a project from a node.
-
-### Colony dilemmas (v0.58.0)
-
-Small choices that come out of what the colony is going through, each leaving something behind. They are ordinary
-story events (`content/story/`, the story HUD) with a few additions. Code: `src/sim/story.ts`, `src/sim/conditions.ts`,
-`People.castFor` / `carryIn` in `src/sim/people.ts`. Test: `tools/dilemma-smoke.mjs` (`--headless-only`; the browser
-half wants a dev server, default `:5176`).
-
-- **Story fields:** `dilemma` (waits its turn), `again` (seconds after its answer that a dilemma can fire again, its
-  trigger met again; `StoryState.again` re-arms it by taking it off `fired`), and `cast` (`CASTS`: adult, a bloc, the
-  unhappiest, someone injured, a parent, a specialty): who the card is about, picked when it fires
-  (`StoryState.cast`); `{who}` and `{whoLine}` in its title, text, choices and replies are their name and family line
-  (the sim fills log lines, the card fills from `StorySnap.who`). With no one to fit, the event waits.
-- **Throttle** (`Story.dilemmaOk`): none before the colony rules' `dilemmaFrom` (900 s after landing), none within
-  `dilemmaGap` (200 s) of the last one being answered, none while another card waits (radio aside) or a dilemma waits out
-  a delay, and at most one per check. The card carries a small "Colony dilemma" tag.
-- **New conditions:** `cryoBelow` (a brownout draws the bank's buffer down), `biomassBelow`, `embryosBelow`, `injured`,
-  `children`, `autonomists`, `devoted`, `striking`, `linesGone`, `regard` / `regardBelow` (a group's camp).
-- **New effects:** `boost` (a colony modifier from the research system, `stat` × `amount`, for `seconds` or for good,
-  named by its text; `StoryState.mods`, shown in the Colony panel under **In force** with its time left, logged
-  "…: over" when it ends), `policy` (`hours:short`…), `favourLine` (the next growth pod takes the cast's line, once:
-  `PeopleState.favour`), `rescue` (the cast, lying injured, is carried in to the nearest home). `stance` and
-  `wellbeing` gain `one` (just the cast) and `bloc` (just that bloc's adults). Content checks: `one`, `favourLine`,
-  `rescue` and `{who}` need a cast; a boost needs its stat; a policy is `key:value`; only dilemmas come again.
-- **The dilemmas** (13, chapter Firstborn, tag "dilemma"): Brownout (dim the homes / slow the mines / put it to the
-  colony → The Vote), Lean Months (rations), Who Wakes Next (a promised family line → Kin), The Watchers (surveillance
-  logs), What the Children Learn (education → The Children's Question), A Quarrel (a dispute), Hurt (someone injured:
-  stay in / carry them / talk them through), The Vell Ask (food → A Debt Repaid: a guide's find), The Cantor's Request
-  (power for the Choir's tower → The Tower Speaks: earlier warnings for good), Down Tools (strikers), The Last Name (a
-  line gone), The Petition (Devoted on the sensor net → Two Voices), Night Shift (an armed watch). Six follow-ups.
-- **Measured:** a 60-minute headless playthrough (people bot, no predators, random answers) met Who Wakes Next at
-  21:55, A Quarrel 27:55, Brownout 35:39 (The Vote a minute later), What the Children Learn 44:08 and its follow-up
-  50:09: one every 6–8 minutes once the colony has people. The test also checks the gap, one card at a time, boosts
-  running out, a promised line reaching the next pod, a rescue, a policy change, coming again, saves, and (browser) the
-  card naming its colonist and the Colony panel listing the boost.
-
-### Inhabitant relations (v0.58.0)
-
-Past first contact, the Vell and the Choir are neighbours to deal with: trade, favours, fighting beside us, and
-grudges. Data-driven in `content/inhabitants/` (`inhabitantShape`); code in `src/sim/inhabitants.ts`
-(`tradeProblem`, `ask`, `hunt`, `fight`, `mined`, `nestCleared`), `Sim.nativeStrike` in `src/sim/core.ts`, the
-Neighbours tab in `src/people-hud.ts`. Test: `tools/relations-smoke.mjs` (`--headless-only`; browser half on `:5176`).
-
-- **Trade** (`trades`: label, give / giveAmount, get / getAmount, minimum regard; `tradeEvery`): once they trust us,
-  or once we can speak their language (the `trade` ability: Translation Matrix). Each trade adds 1 regard; the camp
-  then needs `tradeEvery` before the next (`Camp.tradeAt`). The Vell: alloy tools for dried stores (40), food for
-  scavenged hull plate (50), medicine for glow-stone isotopes (65). The Choir: power cells for isotope dust,
-  isotopes for circuitry.
-- **Favours** (a trusted camp; each costs regard; `helpEvery` between asks, `Camp.helpAt`): **guides** reveal their
-  land (`guideReveal`); **lookouts** (`Camp.watchUntil`, a sol) warn of every pack like a trusted camp and add a story
-  boost `warning` +30 s (so frontier threats come sooner too); **hunters** (`hunters`, `hunterSeconds`,
-  `hunterDamage`, `hunterRange`, `hunterCooldown`, `hunterWeapon`): that many of the camp's walkers set out
-  (`Native.hunt` = until), go to the predator nearest our buildings (or stand by the Core) and strike it
-  (`Sim.nativeStrike`: never relics, nests, burrowers underground or flyers), then walk home. Predators still ignore
-  them, so they can't be lost.
-- **Joint defence** (`defends`): a trusted camp strikes predators on its land (double hunter damage, its cooldown,
-  `Camp.dcd`), our buildings there included.
-- **Consequences:** depots mining a deposit on their land cost `mineHarm` regard per 100 alloys on top of encroaching;
-  a loud building (one with `lure`, the Deep-Core Mine) counts three times; destroying a nest within their land + 20 u
-  earns `nestHelp`. At regard 22 or less a dilemma comes, Grievance (the Vell) or Broken Loop (the Choir): pay for the
-  land (−100 alloys, −40 biomass, +18 regard) or not (−6, flag `<group>-grievance`, which later threats read).
-  Earlier dilemmas (The Vell Ask, The Cantor's Request, What the Children Learn) move regard too.
-- **Neighbours tab:** regard, what wears it down, who is with us now (lookouts, hunters), each trade as a button
-  (give → get, why not yet), and the favours with their regard cost once they trust us (before that, what trust brings).
-  Snapshot `CampSnap`: `tradeIn`, `helpIn`, `watch`, `hunting`, `canTrade`.
-- **Measured** (headless): two Brutes at a lone Solar Array far from the Core lost 600 hp to four Vell hunters inside
-  a minute (both killed); a trusted Vell camp killed the swarmers that came onto its land; a depot on the Vell's deposit
-  cost 3.1 regard a quarter sol (108 alloys) against 1.5 for encroaching alone.
-
-### The frontier: threats to held territory (v0.58.0)
-
-DESIGN §4 "Persistent territory" within the region being played (the campaign plays one region at a time; there is no
-second held region to go back to yet): the colony's outlying **holdings** come under escalating, telegraphed threats,
-so the player has to go back out to them, and **standing orders** let a holding partly look after itself. Code:
-`src/sim/frontier.ts` (`Frontier`, owned by the Sim, checked once a second, campaign only), `Sim.surge`,
-`buildingHarm` and turret damage in `src/sim/core.ts`, Evacuate in `People.decide`, the building card in
-`src/colony-hud.ts`. Numbers: threat rules `frontierFrom` (1,500 s), `frontierEvery` (420 s) ± `frontierJitter` (90),
-`frontierWarn` (90 s), `frontierSize` (6), `frontierGrowth` (3), `holdFrom` (55 u). Test: `tools/frontier-smoke.mjs`
-(`--headless-only`; browser half on `:5176`).
-
-- **Holdings:** every finished building (walls, gates and the Core aside) at least `holdFrom` from the Core, grouped by
-  compass sector ("the east holding"). Snapshot `frontier.holdings` (sector, centre, building ids, standing order).
-- **The director** (`SimState.frontier`: `n`, `next`, `threat`, `orders`): once `next` comes and a holding exists, it
-  picks the holding furthest from our combat units (a little at random) and a threat:
-  - **migration**: `frontierSize + frontierGrowth × n` predators (× the region's pack scale; a Brute in five, a Spitter
-    in six) from the region's edge beyond the holding;
-  - **relic surge** (regions with relic grids, from the second threat): 1–4 awake sentinels (`relic: 'surge'`, no grid)
-    break the surface 16 u or more from the holding, on free ground;
-  - **raid** (a camp we've met with regard under 30 or a grievance flag): not a fight. If combat units are within 35 u or
-    a powered turret within 40 u they turn back (−3 regard); if not they take 60 + 20n alloys and 40 biomass and
-    wreck 35% of a building there (+4 regard: the grudge partly settled).
-  Each is **telegraphed**: a log line with where (it jumps the camera), a countdown under GOALS (story countdown
-  `frontier`) and a marker on the holding (story mark `frontier`, ground and minimap), `frontierWarn` + the `warning`
-  modifier ahead (Seismic Listening +45, Firmware Archaeology +30, the Vell's lookouts +30 for a sol, the Choir's sweeps
-  +30). Over when the migration's pack or the surge's sentinels are gone ("the east holding held", +1 stance, or "is
-  lost"); the next comes `frontierEvery` ± jitter later, bigger. Peaceful play tests hold the frontier off.
-- **Standing orders** (`{ type: 'standing', sector, order }`, on the card of any building in a holding, with the threat
-  on it if there is one): **Hold** (nothing extra), **Muster** (idle combat units are ordered out to it when the warning
-  comes), **Fortify** (needs the `fortify` ability, research **Garrison Doctrine**: while a threat is on it, its
-  buildings take 60% damage and its turrets do 125%), **Evacuate** (while a threat is on it, nobody goes to work there
-  and the people who live there go to the Core).
-- **Measured** (headless): the first migration (6) arrives 90 s after its warning from the east edge; with Seismic
-  Listening the warning is 135 s; Fortify takes a holding's damage to 60%; Muster sends 3 idle rovers out; an
-  unguarded holding loses 80 alloys to a Vell raid, a powered turret turns the raid back; a surge's sentinels open fire
-  on the holding. The balance bots still lose Touchdown before 25 min with predators on, so the frontier (from 25 min)
-  doesn't change those runs.
-
-### Colonists as people (v0.58.0)
-
-Named colonists get a backstory, a voice, their own grief, and moments where one of them matters. Content:
-`content/voices/<id>.json` (new collection, editor: Story → Colonist voices; `voiceShape`): `on` (a moment from
-`VOICE_EVENTS`), optional filters (`bloc`, `trait`, `specialty`, `origin`) and `lines` (`{name}`, `{other}`,
-`{building}`). Code: the voices section of `src/sim/people.ts` (`say`, `bio`, `struck`, `heroGuard`, `moments`),
-hooks in `core.ts`, `inhabitants.ts`, `frontier.ts`; the colonist card and Colony panel in `src/people-hud.ts`.
-Test: `tools/voices-smoke.mjs` (`--headless-only`; browser half on `:5176`).
-
-- **Backstory** (`Colonist.bio`): "Okafor line, donor stock from the Niger delta." (`LINEAGE_FROM` in `names.ts`) or
-  "Born in the colony to Ada and Kofi.", then a line from the `bio` voices that fit their trait or origin, picked by
-  their id (no random draw, so an older save loading gets the same story). On the colonist card under the name.
-- **Remarks** (`People.say(on, who?, vars, force)`): an adult (the one it concerns, or anyone) says a line that fits
-  them (the most specific matching records 60% of the time, else any that match). Logged as `Name: “…”`, kept in
-  `PeopleState.voices` (last 30), on the speaker's card for a sol, and the last five in the Colony panel under
-  **Voices** (tap to find them). Throttled: one every 45 s and each kind every 150 s (`VOICE_GAP`,
-  `VOICE_KIND_GAP`), except a death, a birth and a hero. Moments: first words out of the pod, a birth (a parent), a
-  death (who loved them), a pack beaten, a building lost, a brownout, hunger, a strike starting, research done (a
-  Technician first), first contact, trust, a frontier threat and a holding held, a hero, someone rescued, and on a
-  quiet day (after 5 quiet minutes, about one in 150 s). 35 records, 93 lines.
-- **Mourning:** when someone dies, the people who loved them grieve on their own (`Colonist.sorrow`: a partner 30, a
-  parent or child 20, a housemate 12; reason "Mourning", fading over a couple of sols); the closest says something, and
-  the memorial records who mourned them (`Memorial.by`, "Mourned by …" in the Memorial tab).
-- **A hero** (`People.struck`, called when a predator's blow lands on a building): a building torn below half with
-  adults inside gets one of them to hold it (a Security officer first, then Autonomists, the stoic, the happiest):
-  logged, a line of their own, the building takes half damage for 25 s (`heroGuard`, in `buildingHarm`), their card
-  says "Holding the …". If it stands, the deed is theirs ("Held the Civilian Center when it was under attack, Sol 6",
-  shown with ★ on their card), +10 wellbeing for them and +3 for everyone; if it falls, "Stayed in the … until it
-  fell". One hero per building per fight (180 s).
-- **Measured** (headless): every colonist has a different backstory; one remark, then nothing within the gap; a quiet
-  sol gives 0–2 remarks; a partner's death: sorrow 30, a line, "mourned by" three names; a Brute's blow on a held
-  Civilian Center 48 → 24.
-### Opening pace: the first 20 minutes (v0.59.0)
-
-DESIGN §7's M1 exit test. Measured headless with `tools/opening.mjs`: the story playthrough bot (strategy `opening`, a
-first-timer's build with a turret by each depot) plays Touchdown at a human pace (`pace`: one build step every 8 s,
-`BalanceOptions.pace`), chasing each mission's objectives, and records when things first happen. A second is **dead
-waiting** when nothing is being built, no fight is on, no card or objective landed in the last 15 s and the bot can't
-afford its next step.
-
-- **What was wrong:** 200 starting alloys went on a solar, a battery and the second drone, and the depot came at ~2:45,
-  just as the first night stopped it (depots run on live power only), so alloys crawled in at the Core's 0.4/s until
-  ~5:30. Two waits of 91 s and 104 s before the first pack at 5:10. The tutorial colony never got its first colonist:
-  the pod takes a sol (6 min) and most runs fell to the third or fourth pack at 10–17 min.
-- **Changes** (content only, plus one rule):
-  - Touchdown region: `startAlloys` 360 (was 200 from the colony rules), `graceSeconds` 240 (300), `packScale` 0.8,
-    `waveInterval` 130 (110). Other regions and the skirmish keep the global numbers.
-  - Missions: Touchdown pays 50 alloys; Groundwork asks for **two** depots and pays 120 (60); First Night pays 150 (80).
-    Each finished tutorial mission puts up a hint (a `hint` reward) saying what comes next: depots on the deposits,
-    a turret by each depot, then Hydroponics and a Civilian Center.
-  - People rules `firstPodSols` 0.5: the colony's first pod (`Pod.first`, only while no one has been grown, born or
-    lost) matures in half a sol. Later pods take the full sol.
-- **Before → after** (5 seeds, pace 8 s):
-
-  | | before | after |
-  |---|---|---|
-  | first building up | 0:09 | 0:09 |
-  | Groundwork done | 2:43 | 0:57 |
-  | first fight / first kill | 5:10 / 5:25 | 4:05 / 4:08 |
-  | First Night done | 7:36 (3 of 5) | 4:10 |
-  | first pod (imprint choice) | 9:35–10:05 (2 of 5) | 4:35 |
-  | first colonist (Firstborn done) | never | 7:47 |
-  | first story choice | 5:23–9:07 (2 of 5) | 8:05 |
-  | longest wait | 1:44–1:50 | 1:06–1:46 |
-  | waiting in the first 10 min | 3:16–5:21 (most runs dead by 10–11 min) | ~4:05 (all alive) |
-  | standing at 20 min | 0 of 5 (fell at 10–17 min) | 5 of 5 |
-
-  The waits left are the first night (~3:15–5:45, when depots stop) and, after the tutorial, alloys for the bot's
-  next step while a human would be exploring for Beyond the Ridge.
-- **Balance harness** (`tools/balance.mjs`, Touchdown, 20 min): with seeds 1337 / 7 / 42, `balanced` and `mixed`
-  survive 3 / 3, `opening` 2 / 3, `people` falls at 17–20 min (was 16).
-- **Test:** `tools/opening-smoke.mjs` (headless: the tutorial beats in time, only the first pod primed; browser,
-  desktop and phone: the opening alloys, Touchdown's payout and hint, Groundwork's goals). `mission-smoke` follows the
-  new Groundwork. Smoke tools touched here take `PORT` (or `--url`).
-
-### Units that feel different: abilities and counters (v0.59.0)
-
-Every armed Accord unit has one ability the player triggers, on a cooldown; computer players use theirs too.
-
-- **Data** (`content/units/*.json`, schema `unitShape`): `ability` (a kind), `abilityName`, `abilityPower`,
-  `abilitySeconds`, `abilityRadius`, `abilityCooldown` (empty = 30 s), plus `vsBuildings` (damage to buildings ×).
-  Kinds (`ABILITIES` in `src/content/defs.ts`): **overdrive** (fire rate × power), **boost** (speed × power), **siege**
-  (dug in: can't move, range and damage × power, takes 70% damage; a move order ends it), **charge** (the next shot ×
-  power), **pulse** (power damage to every enemy within the radius, flyers too), **mend** (power hp to everything of
-  ours within the radius), **shield** (our units within the radius take power less damage).
-
-  | Unit | Ability | Numbers |
-  |---|---|---|
-  | Rover | Overdrive | 2× fire rate, 4 s, every 20 s |
-  | Scout Skimmer | Afterburner | 1.8× speed, 6 s, every 25 s |
-  | Tank | Dig in | siege 1.35× (range 22 → 29.7, past a turret's 28), 12 s, every 30 s |
-  | Arc Caster | Discharge | 60 damage within 9 u, every 20 s |
-  | Artillery | Barrage | 3× fire rate, 6 s, every 40 s; 2× damage to buildings |
-  | Lancer | Overcharge | next slug 3× (330), within 10 s, every 20 s |
-  | Field Engineer | Patch up | +120 hp within 10 u, every 30 s |
-  | Aegis Crawler | Hardlight | half damage within 10 u, 6 s, every 35 s |
-  | Hover Skiff / Medevac | Skim / Sirens | 1.6× speed, 5–6 s |
-  | Gunship | Strafe | 2× fire rate, 5 s |
-  | Gunboat | Anchor | siege 1.3×, 10 s |
-
-- **Sim** (`src/sim/core.ts`): `Unit.ab` (cooldown left), `abT` (effect left), `abFire` (an instant kind armed).
-  Command `{ type: 'ability', ids }` uses each listed unit's ability if ready ("Not ready yet" if none was).
-  `armour()` scales every hit on a unit (`strike`, splash, chains and predator bites): siege and shield auras
-  (`auras`, rebuilt each tick). Commands run inside the player's own view (`withTeam`), so **pulse and mend only arm
-  there and go off in the shared fight** (`fireAbility` at the top of `stepUnits`): first written to strike directly,
-  a Discharge killed other players' units from inside one player's view and left the lists wrong (it was why Hard
-  started losing to Easy, 0 / 3). The snapshot carries `abCd` and `abOn` per unit.
-- **Computer players** (`abilities()` in `src/sim/ai.ts`, Normal and Hard): guns in a fight use overdrive and charge;
-  tanks dig in out on the attack, against a building; a discharge with three or more in reach or a flyer; a shield
-  in a fight or with hurt friends near; repairs when a friend is under 60%; a speed boost on a drive over 50 u.
-- **Controls:** the unit card has a wide ⚡ button per kind of selected unit (ready, "· 4 s" while on, "· 12 s" while
-  cooling down) and an Ability row; **G** uses the ability of everything selected; the Controls panel lists it.
-- **Counters** (`tools/unit-duel.mjs`: each ground combat unit against each other at 700 alloys a side on a
-  skirmish map, no fog, abilities used as the computer players use them, units holding to shoot once in range; then
-  each against three Defense Turrets and a Siege Cannon). Before, with or without abilities, the **Tank beat every
-  other unit** (6–0). Changes: Tank 110 → 120 alloys; Lancer 220 → 250 hp, 100 → 110 damage. After (W–L): Tank 5–1
-  and Lancer 5–1 (Lancer beats Tank, Rover beats Lancer, Tank beats Rover), Rover 4–2, Arc 4–2, Artillery 2–4 (but
-  takes the gun line with 84% left, the best of any), Skiff 1–5, Scout 0–6 (it scouts). The gun line holds against
-  Scouts, Skiffs and Arc Casters; Rovers (with Overdrive), Tanks, Lancers and Artillery break it.
-- **AI vs AI** (`tools/ai-sim.mjs`): `--check` passes (each level beats an idle player; Hard beats Easy 3 / 3 at
-  22–32 min; the four-way Normal free-for-all ends at 38.7 min; its limit is now 80 min, as one ordering ran 69).
-  New AI against the last release's (`--match old:normal,normal` and swapped, 3 seeds each): 4–1 with a draw. New
-  options: `--no-abilities`, `--seed`, `--size`.
-- **Test:** `tools/ability-smoke.mjs` (headless: each kind measured on the real sim, the cooldown, a Discharge killing
-  another player's Scouts cleanly, a computer player using Overdrive; browser, desktop and phone: a button per kind,
-  touch-sized, it fires only that kind, counts down, and G). `tools/unit-duel.mjs --check`.
-- Known: `tools/roster-smoke.mjs` "packs bring spitters and burrowers" fails before this change too (the test clears
-  every hostile, nests included, so later packs have no open spawn).
-
-### Daily Planet (v0.59.0)
-
-DESIGN §5.10 A. `src/daily.ts`, wired in `main.ts` (`daily`, `finishDaily`, `dailyChoice`). No server.
-
-- **Today's planet** (`dailyRules(date)`): everything follows from the UTC date (FNV hash of `exo-daily:<date>`): the
-  skirmish seed, the world (one of `SKIRMISH_WORLDS`), one or two computer rivals, map size, sea (only worlds with
-  one), ground, starting alloys (400 / 600 / 800); predator packs on; rivals Normal on weekdays and Hard at weekends.
-  Numbered from #1 on 2026-11-20; a new one at midnight UTC. It plays as an ordinary skirmish link with
-  `daily=<date>` (`dailyLink`), so the generator, the computer players and the end screen are the skirmish's own;
-  the seeded sim makes it the same planet for everyone (14 days checked: each map generates, twice over the same).
-- **One scored try:** opening today's link claims the day in `localStorage` (`exo-daily`: date → `{ started,
-  result }`, last 60 days). A reload, a Rematch, an old date or `practice=1` is practice (the log says which). A try
-  left unfinished stays unscored.
-- **Score** (`dailyScore`): a win 1,000 plus speed (2,400 s − time) / 4; a loss the time held / 3 (to 40 min); +5 a kill
-  of a rival's unit, drone or building; + alloys mined / 20; −8 a unit lost, −20 a building lost; never below 0.
-- **The shared line** (`DailyTracker`, fed every frame): one square per 2 minutes of play, 🟩 quiet, 🟨 a fight (any
-  loss or kill), 🟥 heavy (two buildings or six units lost), folded to at most 15 squares, then 🏆 or 💀. Share text:
-  `Exo Genesis · Daily Planet #N`, the world, rivals and level, the line, "Victory at mm:ss · N pts", the game's link:
-  nothing about the map. Share uses the Web Share sheet on touch devices and the clipboard elsewhere (a hidden
-  textarea copy as the last resort).
-- **Where:** title → **DAILY PLANET** ("#N · world · rivals · one scored try a day"; once played "Today: victory /
-  fell · N pts · tap to share", which opens the card with Share, the streak and a practice button). The end screen
-  adds the score card (score, line, how it was made, Share, days in a row) under the skirmish table.
-- **Test:** `tools/daily-smoke.mjs` (headless: same date same planet, next day another, numbering, weekends, the UTC
-  day boundary, links, a fortnight of maps, score order, the timeline and folding, the share text; browser, desktop
-  and phone: the title entry, claiming the try, surrender → the card and Share copying the text, the result kept, a
-  reload is practice, the title's look back).
-
-### The Chronicle (v0.59.0)
-
-DESIGN §5.10 C. A colony history from what the campaign already tracks. The skirmish end screen already has its
-battle summary (each player's units built, kills, losses, buildings lost and alloys mined), so the Chronicle is
-campaign only.
-
-- **Record** (`src/sim/chronicle.ts`, `SimState.chronicle`, saved with the game): once a second (`recordChronicle`,
-  from `Sim.step` while deployed) it diffs the colonists: anyone new is added (name, lineage, pod or born, imprint,
-  parents, when they appeared, partner); anyone gone gets an end, *died* with the memorial's cause and age, or *walked
-  out* (a walkout's memorial line, or no line at all). Every 30 s a sample of Partners / Autonomists / Devoted
-  (adults, by stance), children and embryos (480 kept; a long game keeps every other). Key moments: player 0's log
-  lines by cue (`chronicleEvent` in `Sim.emit`: births and pods, deaths and lines gone, partners and comings of age,
-  contact and discoveries, research done, the first pack beaten, nests, relic grids, Breakthroughs, the end), plus
-  missions done, story events fired, a change of leading bloc and walkouts, found by diffing. 600 moments kept
-  (everyday ones dropped first). No hooks in the people system, and no random numbers: balance runs are unchanged.
-  A save from before this starts its record when loaded (everyone living then counts from that moment).
-- **Page** (`src/chronicle.ts`: `chronicleModel` from a `sim.save()` copy, `openChronicle`): title and outcome; the
-  numbers (lived, grown, born, living, died, walked out, lines left of 24, generations, embryos); **how the blocs
-  shifted** (stacked areas on a canvas, sol ticks); the **family tree** (`treeLayout`: a row per generation, pod-grown
-  first in the order they came out with partners side by side, children under their parents, a curve to each parent;
-  borders cyan living, red died, amber walked out; an SVG that scrolls sideways on its own); **key moments** grouped by
-  sol with the time of day; the **memorial** (named dead, with cause and when; unnamed pod losses as one line), lines
-  that ended and walkouts. Game menu → **Chronicle** at any time (the game stays paused), and **Read the Chronicle**,
-  the first button on a campaign's end screen. Esc or × closes it (back to the end screen). It doesn't open by itself:
-  over the end screen it hid New game and Load (`smoke.mjs` caught it).
-- **Save image** (`chronicleCanvas`, `saveChronicleImage`): the same on one 1200 px wide canvas (the tree scaled to
-  fit, the last 18 key moments, 14 names) as `exo-chronicle-sol-N.png`; on a touch device that can share files, the
-  share sheet, otherwise a download.
-- **Test:** `tools/chronicle-smoke.mjs` (headless: a 55-minute peaceful colony recorded, children with both parents,
-  samples, moments, a death with its cause, a walkout, a save, the model's totals, the tree's rows and links, the
-  memorial; browser, desktop and phone: that colony loaded, the menu's page with tree, chart, moments and memorial,
-  fitting the screen, Save image as a 1200 px PNG, ×, and after a fallen Core the end screen's button).
+Measured with a 390×844 night colony: shafts at 0, 4 and 12 o'clock are 0 (was 0.548 at 0). A low camera swept
+round at 7:36 still finds them at 0.70.
 
 ### Battle effects and combat sound (v0.60.0)
 
@@ -2283,33 +1818,6 @@ landing boom 0.5 s later. In the mixer, world sounds get a distance factor `far`
 gain: a low-pass from 16 kHz down to ~1.1 kHz and a larger send to a shared **echo** (a convolver on a
 generated 1.4 s stereo impulse with four early slaps, low-passed, into the Combat category). Combat
 voice caps rose to 10 (14 overall) since tails are longer.
-
-### Turrets that turn (v0.60.1)
-
-Units used to be one rigid mesh, and the sim turns a hull toward its target only while standing still
-(and fires without waiting for the turn), so a tank driving past a fight shot out of its side.
-
-- **Sim:** a unit's `aim` (world yaw to its target, unset without one) goes out in the army snapshot as
-  `F.AIM` (STRIDE is now 9; the hull's heading when there's no target, and for hostiles and the old
-  skirmish worker). It is drawn only: firing rules are unchanged.
-- **Models:** a model part named `turret` is drawn as its own instanced mesh (`splitPart()` in
-  `src/assets/models.ts`), pivoting on that object's origin. In `blender/build.py` that's
-  `join(parts, "turret", pivot=...)` beside the body. Built-ins give `turret: { geo, pivot }` in
-  `BUILTIN_UNITS` (`wholeGeo()` seats it for the editor's previews). Tank, Gunboat, Skiff and Rover
-  have one (v0.61.0).
-- **View:** `ArmyView` keeps each slot's turret yaw and swings it toward `F.AIM` at `TURRET_SLEW`
-  (6 rad/s), placed at the pivot transformed by the hull's matrix; it takes the hull's colour (hit flash
-  included). A shot starts `muzzle` u toward its target (per built-in look: the gun's end; it faces
-  the target, by turret or by turning the hull), passed to `BattleFx.spawn` as `reach`.
-
-**Fixed guns (v0.61.0).** A unit with `fixedGun` (Lancer, Artillery) fires only when its target is within
-`FIXED_GUN_ARC` (0.3 rad) of its heading: standing still it turns to face first (8 rad/s, as before);
-driving, it fires only at what's ahead, except that within `FIXED_GUN_HALT` (8 u) of its move's end, with
-a target in range, it arrives there and fights (needed: a crowd sent to one spot never quite arrives, and
-the AI's siege lines stalled; the four-way normal free-for-all in `tools/ai-sim.mjs --check` ran past 80 min
-without it, ends at 49.9 min with it, 38.7 min with free guns). Measured (3 v 3 Brutes, headless): standing, no change (Lancers
-5.5 s → 5.6 s to clear; Artillery 16.9 s both); ordered to drive past the pack, Lancers 8.4 s → 13.6 s
-and Artillery 10.4 s → 24.1 s, with no extra losses.
 
 ### Comets, lens flare and keeping the screen on (v0.68.0)
 
@@ -2468,6 +1976,445 @@ All look only: the sim, saves and balance are untouched. Checked by `tools/weath
   flat, remembered on the next visit). `tools/region-smoke.mjs` now checks that picking a region doesn't
   reload and that NEW GAME lands in Touchdown with a save in another region.
 
+## 8. Interface, controls and saves
+
+### Title screen: Region and Sound in Options (v0.40.1)
+
+The title's REGION and SOUND choices moved into Options (`openOptions` takes extra rows from the title: `Toggle` gained
+`section`, a heading where it changes, and `state`, the text in place of ON / OFF). Sound is a toggle; each region is a
+row (HERE on the current one) that reloads into it (`goRegion`). The in-game ⋯ Options stays graphics only. Tests:
+`tools/region-smoke.mjs` (pick a region in Options), `tools/options-smoke.mjs` (sound and regions first, graphics last).
+
+### Title tour and softer columns (v0.75.0)
+
+- **Tour** (title icon 🪐, or `?tour=1`): `TitleScreen.tour(on)` toggles `#title.touring`. CSS fades out the
+  column, foot and scanlines (the foot gets `visibility: hidden`, because its entry animation holds its opacity),
+  keeps only the radial vignette, and centres the planet (no view offset). The camera runs the same trip and dwell
+  logic, but the first departure comes after 2.5 s and the stay at home is capped at 12 s. A Screen Wake Lock is
+  requested where the browser has one. A `pointerdown` on the root, or any keydown, ends the tour. `pointerdown`
+  is used so the click that started the tour can't end it. `hide()` ends the tour too.
+- **Steam and exhaust** (`steamCone` in `src/world/region.ts`): the Deep-Core Mine plume and the vent/Geothermal
+  steam are open cones with an RGBA vertex-colour alpha. Alpha ramps in over the first 1/6, then falls as
+  (1-t)^1.6 to nothing at the wide top. Opacity is 0.2 / 0.18 (it was a flat 0.22 / 0.2). From the high camera
+  the flat cones read as solid beams.
+- **Heat shimmer** (`DistortShader` in `src/world/post.ts`): amplitude 0.0016 → 0.0009 uv, and the column ends
+  at 0.7–1.8× source size instead of 1.2–3.2×. From the top-down phone camera, the tall column showed as a long
+  wavy stripe.
+- Checked with `tools/lights-shot.mjs` at a phone size (before and after) and a Playwright run of the tour
+  (title → Tour → trip to Verdance → tap returns the menu, no page errors). The options, guide and region smokes
+  pass.
+
+### Game menu and a slimmer HUD (v0.50.0)
+
+- **Bottom bar:** Build · ❚❚ ▶ ⏩ · Surface / Planet / System · ☰ Menu (8 buttons; was ~20 plus two sliders, with a ⋯
+  overflow on phones). Save, Load, New game, Look, Lights, Options, Skirmish, the version and Sound are gone from it.
+- **Game menu** (`openMenu` in `src/options.ts`, `openGameMenu` in `main.ts`): ☰ Menu, or Esc when nothing is selected,
+  nothing is being placed and no panel is open (a capture-phase listener, so the input's own Esc still deselects
+  first). Pauses while open and puts the speed back on close. Resume · Save · Load · Options · What's new · Skirmish ·
+  Title screen · New game (two taps: the button turns amber and says what will be lost). Options and What's new come
+  back to the menu when closed. It shares the options overlay (`#options.menu`), so only one panel is ever up.
+- **Options rows** can be `Slider`s (`kind: 'slider'`, 0–100): Volume and Music volume. New rows: Interface →
+  Performance stats (`exo-stats`, or `?stats`), Graphics → Terrain look (reloads; flushes the autosave first).
+- **Top:** `#brand` is hidden in game; `#tele` (view, altitude, fps, draws) only with `body.stats`, and the minimap moves
+  up into its place on desktop; `.r.dim` resource chips (nothing to show yet) are hidden, except the colonists chip,
+  which opens the Colony panel.
+- Tests: `tools/options-smoke.mjs` checks the menu (bar size, pauses, Options round trip, Esc behaviour, two-tap New
+  game) on desktop and phone; `smoke.mjs`, `sound-smoke.mjs` and `music-smoke.mjs` go through the menu now.
+  Headless desktop screenshots can catch the panel mid-fade (swiftshader holds the CSS animation for ~2 s).
+
+### Smoother controls (v0.57.0)
+
+Quality of life in the colony (and the skirmish built on it; the old `?mode=skirmish` battlefield keeps its own input).
+
+- **Keys** (`src/input.ts` `key`): camera keys go by `e.code` (layout-proof) into a held set; `Input.update(dt, active)`
+  runs each frame from `main.ts` and pans 700 px/s (1,500 with Shift) and turns 1.8 rad/s, so a held key is smooth
+  instead of riding the OS key repeat. `active` is false under the title, cinematics, the menu and panels (the set
+  clears; window blur clears it too). `F`/`Home` centre, `.` next idle drone, `[` `]` speed (0 / 1 / 3), `?`
+  Controls (`H` stays the latest alert), `Ctrl+S` save (`Ctrl+A` all combat units). Digits 4–9 are control groups (1–3 stay the views): Ctrl or
+  Shift + digit saves the selected units, the digit recalls (dead ones dropped), twice within 400 ms glides there.
+  Typing in an input, textarea, select or contenteditable is never a shortcut.
+- **Camera** (`src/camera.ts`): `glideTo(x, z)` eases the focus there (a pan cancels it); `lookAtGround` jumps.
+  Wheel zoom toward the cursor (option, desktop): the ground point under the pointer stays put
+  (focus = g + (focus − g) · k for the zoom factor k), only near the ground (`cam.a < 0.15`). Edge scrolling (option,
+  off): the mouse within 10 px of the canvas edge pans.
+- **Mouse:** a right-click without a drag stops placing, or sends the selected drone or units (`rightTap`); a right-drag
+  still turns the camera.
+- **HUD:** `#r-drones` (desktop) counts your worker drones and the idle ones; a click (or `.`) cycles idle drones, all
+  of them when none are idle. `#paused` shows only when the player paused (`userPaused`: button, Space, `[`, or the
+  background pause), not for story cards or the menu; tapping it resumes. `#place-hint` follows the mouse while placing
+  with `placeProblem`'s reason. The radar map takes a drag (pointer capture). Recycle arms on the first tap
+  (`recycleArmed`, 4 s, the button shows the refund) instead of `confirm()`. Esc closes the build menu first.
+- **Options → Interface:** Pause in the background (`exo.bgpause`, on: `visibilitychange` hidden pauses a deployed,
+  running game; coming back logs it; never under webdriver), Zoom to the cursor (`exo.zoomcursor`, on), Edge scrolling
+  (`exo.edgescroll`, off). The last two are desktop only. `?bgpause=`, `?zoomcursor=`, `?edgescroll=` override.
+- **Controls panel** (`openInfo` in `src/options.ts`): every key and gesture; touch devices list touch first. From
+  `?` or the menu's Controls (closing it goes back to the menu).
+- **Fix:** the selection card read the HUD's snapshot, which is refreshed by the frame loop and can be a frame behind
+  the sim; selecting units made that very frame dropped the selection. `select` now hands the HUD `sim.cur` first.
+- **Test:** `tools/qol-smoke.mjs` (desktop): each of the above end to end.
+
+### Selecting several units (v0.77.0)
+
+`src/input.ts`. Before this, several units could be selected only by Shift-click, double-tap/hold (all of a type on
+screen), the ⚔ chip, Ctrl+A or a control group. Both gestures come from the skirmish prototype (`src/skirmish/input.ts`).
+
+- **Box** (desktop): Ctrl/Cmd + left-drag on the surface, checked before Shift-drag (which turns the camera), so a plain
+  left-drag still pans. On release, every combat unit whose screen point (`unitScreen`) is inside the box is selected;
+  Shift held adds to the selection. A Ctrl-click without a drag goes on as a normal click.
+- **Paint** (touch and mouse): a press on empty ground (no drone or unit under it, not placing, zoomed in to where units
+  can be picked, at least one combat unit) starts a `HOLD_MS` (420 ms) timer. If the pointer hasn't moved more than
+  `TAP_PX` by then, it buzzes and the drag paints: units within `BRUSH_PX` (30 px) of each new stroke segment join the
+  selection as they are crossed (Shift at the start adds to the old selection). Moving first pans, as before. As with
+  hold on a unit, a move whose event time is before the hold time (delivered late by a slow frame) turns it back into a
+  pan. A second finger cancels it, back to the selection before.
+- The box and the stroke are drawn on `#sk-overlay` (the skirmish's overlay canvas, otherwise unused in the colony).
+- Shown in Controls (`showControls` in `main.ts`), the unit card's Select row and the Field Guide's *Selecting and giving
+  orders*.
+- **Test:** `tools/select-smoke.mjs`: paint with the mouse and with touch (6 of 6), painting doesn't pan, a quick drag
+  pans and keeps the selection, a Ctrl-drag box (6 of 6) doesn't pan, Ctrl+Shift adds. `units-smoke` and `qol-smoke`
+  still pass.
+- **Fix in the same release: cloud streaks from orbit.** The cloud shells (`buildClouds` in `world/surface.ts`, and
+  `cloudShell` in `world/body-surface.ts` for other bodies) turned at a speed that depended on latitude
+  (`t · 0.004 · (1 + 0.4 y)`). That difference built up without limit, and `t` is seconds since the page loaded, so after
+  half an hour or so the clouds were sheared into thin white streaks along the lines of latitude. Now the shell turns as
+  one (`mod(t · 0.004, 2π)`, which also keeps it precise in a long session) plus a bounded sway between latitudes
+  (`0.35 · y · sin(t · 0.0023)`). Checked by pinning `uSurfTime` at 0, 4,000, 5,400, 7,200 and 36,000 s.
+
+### Field Guide (v0.73.0)
+
+New players get lost, so the game carries its own manual: a page on each of its ideas, a first-game look round the
+screen, and tips the first time something comes up. And it stays current: **every release updates it**, and the
+build fails if it doesn't.
+
+- **Content** (`content/guide/<id>.json`, the `guide` collection in `src/content/defs.ts`, editor: Story → Field
+  Guide): `title`; `section` (`GUIDE_SECTIONS`: basics, economy, power, defence, army, people, research, story,
+  travel, factions, interface, shown in that order as Basics, Alloys & building, Power & night, Defence, Units &
+  fighting, Colonists, Research, Story & choices, Travel & other worlds, Factions, Interface); `order` within the
+  section; `summary` (one line: the list and the tip); `text` (paragraphs at blank lines; `**bold**` and lines
+  starting `- ` as bullets, nothing else: `renderText` escapes everything first); `points` (a hint target: Show me,
+  and Read from a tip, point at it; not `buildItem`); `trigger` with the story's condition fields (optional, `all` /
+  `any` groups too; the content check reads them like a story trigger's); `see` (comma-separated page ids, See also;
+  each must exist and not be the page itself); `since` (the release that added it, x.y.z) and `updated` (the release
+  it last changed meaningfully in; empty = `since`); `tour` (at most 14 `{ target, text }`, only on `orientation`).
+  `orientation` is required (the code plays its tour).
+- **Hint targets** gained five (`HINT_TARGETS`, `src/story-hud.ts` `TARGETS`, usable by story hints too): `menu`
+  (`#b-menu`), `log` (`#log`), `drones` (`#r-drones`), `planet` (`#r-planet`), `isotopes` (`#r-iso`).
+- **The panel** (`src/guide.ts` `openGuide`; the `#guide` overlay above the other panels, z 62): from the game menu
+  (Field Guide), the title screen (FIELD GUIDE), the Controls panel (a button at the top) and What's new (under each
+  release, a link to each page its `guide` field lists; the guide opens over the panel). Sections with headings,
+  pages by `order`; a search box (every word in the title, summary, text or section); a page with its section,
+  See also links and Back (Esc goes back a page, then closes). NEW / UPDATED badges: a page whose `updated ?? since`
+  is newer than the version the guide was last opened at (`exo.guide.seen`; none on a first look, so the first visit
+  isn't a wall of badges). In a game, Show me around (the tour) and Show me (`points`): the guide closes and the
+  element pulses with the hint bubble for 9 s. From the menu it goes back to the menu, unless it closed to show
+  something or tour (then the game carries on); from a tip's Read it holds the game paused while open. `panelOpen()`
+  counts it, so Esc, the autopilot and camera keys leave it alone.
+- **The orientation** (`GuideTour`): on a player's very first game (no campaign or region save at boot, never toured:
+  `exo.guide.toured`, home region, not a skirmish, play test or scratch game, the autopilot off), once the colony is
+  deployed, 4 s in and no story card waiting or on screen (Touchdown's briefing comes first), a note offers
+  "First time? A two-minute look around." [Show me around] [Skip]. The tour pauses the game (`hold`), and shows each
+  step of `orientation.json`'s `tour` with the story hint bubble on its element (`StoryHud.point`: a hint of the
+  renderer's own that takes the bubble while set, with Back / Next / Skip buttons; the story's own hint waits
+  underneath and comes back after, so Touchdown's Build hint shows once the tour is done). Steps whose element isn't
+  on screen yet (the battery, threat and radar chips at landing) are skipped. Enter / → next, ← back, Esc skips.
+  At the end the game runs at the speed it had. Replayable from the guide.
+- **Tips** (`GuideTips`): the renderer sends the sim the pages to watch (`{ type: 'guide', watch }`: pages with a
+  trigger not yet tipped, only while tips are on, the autopilot off and a colony deployed); `Story.step` checks
+  their conditions once a second with `conditionMet` (read-only) and lists the pages that held in the story
+  snapshot's `tips`. The watch list and hits live on the `Story` object, not in the saved state, and nothing else
+  reads them: a headless run never sends the command, so `tools/balance.mjs` output is byte-identical and the
+  playthrough / autopilot timings unchanged (checked against v0.72.0). Each tip shows once per player
+  (`exo.guide.tipped`, marked when shown): "Field Guide · title · summary" [Read] [×] under the top bar, 12 s.
+  One at a time, queued: only while the screen is free (no story card on screen or waiting, cinematic, panel, menu,
+  tour, hint of the guide's or the tour offer), 4 s after it last wasn't (`TIP_CALM`: a card closing doesn't throw a
+  tip straight up), and at least 45 s of play after the last one (`TIP_GAP`). When several wait, the most urgent
+  section goes first (`pickTip`: power, defence, colonists, alloys, units, research, story, travel, factions, then
+  basics and interface), then the one waiting longest; a tip still waiting 180 s of play
+  after its trigger held is dropped unmarked (`TIP_STALE`: a later game offers it). Options → Interface → Field
+  Guide tips (`exo.guide.tips`, on; off by default in the editor's play tests). Automated browsers (smoke tests) get
+  neither the offer nor tips unless the test sets `exo.guide.auto` = `on` in localStorage (no URL option).
+- **Keeping it current** (`tools/guide-check.mjs`, in `npm run build` after the version check; `npm run
+  guide:check`): `Release.guide` in `src/changelog.ts` lists the pages a release added or changed. Rules: every id a
+  release lists exists; every page's `since` / `updated` is a release in the changelog, not before 0.73.0, and
+  `updated` is not older than `since`; every release from 0.73.0 on has a `guide` field, and a minor or major
+  release lists at least one page (a patch may say `guide: []`, but must say it); a page listed in release V has
+  `updated ?? since` === V, and every page whose `updated ?? since` is V is listed in V. The launch (0.73.0) is the
+  one exception to that last direction: it lists `orientation`, and every page added in it counts as listed. Each
+  error says what to add where. **To add or change a page**: write or edit `content/guide/<id>.json` (a new page:
+  `"since": "<new version>"`; a meaningful change: `"updated": "<new version>"`), add its id to the new release's
+  `guide` list, and run `npm run build`. A typo fix needn't bump `updated`.
+- **Tests**: `tools/guide-smoke.mjs` (`--headless` for the first half). Headless: the check's rules on good and bad
+  fixtures (missing field, a feature with none, a patch with `[]`, missing page, either direction, versions that
+  aren't releases or predate the guide); the shipped changelog passes; `renderText` escapes HTML and does bold,
+  bullets and paragraphs; sections in order; search; badges; a tip trigger fires once and the game state with and
+  without watching is identical; the opening's tips (below); no faction tip at Touchdown (`faction` conditions are
+  false with no factions). Browser (dev server :5176): the guide from the title (sections, search, a page with
+  bold and bullets and nothing else, See also and Back, Esc), a fresh first game (no offer over the briefing card;
+  the offer; the tour paused, ← back, each step pulsing its element, the game running after, remembered), the menu's
+  guide and Esc back to the menu, Controls' button, Show me around from the menu, Esc skipping the tour, a tip
+  (alone, Read opens its page with the game held, Show me pulses its element), remembered and not watched again,
+  the next not straight after, and a 375 px phone with no horizontal scroll in the list or a page.
+- **The opening, measured** (the smoke, Touchdown, the autopilot as a quick player, cards answered at once): 44 of
+  the 76 pages have tips; 18 triggers hold in the first 10 minutes of game time (power 29 s, deposits-and-depots
+  39 s, batteries 45 s, turrets 74 s, worker-drones 100 s, defence 126 s, vehicle-bay 140 s, abilities 157 s,
+  day-and-night 160 s, story-cards 181 s, biomass 280 s, cryo-bank 327 s, planet-health 360 s, wrecks-and-salvage
+  413 s, growth-pods 433 s, geothermal 468 s, radar-and-sensors 502 s, nests 534 s). Shown 45 s apart, most urgent
+  first: 13 in those 10 minutes (power 33 s, batteries 78, turrets 123, day-and-night 168, defence 213, worker-drones
+  258, biomass 303, cryo-bank 348, planet-health 393, growth-pods 438, geothermal 483, radar-and-sensors 528, nests
+  573). First in, first out at 60 s (the first version) put the packs page at 393 s, after the first pack (240 s),
+  and dropped day-and-night as stale; the packs page's trigger is now sol 1.35 (was 1.6). The rest wait their turn
+  or, gone stale (deposits-and-depots, which Groundwork teaches anyway), a later game.
+  A human playing slower meets fewer triggers per minute.
+
+### Save files (v0.94.0)
+
+DESIGN §5.12 phase 1 (Domination will use the same files). `src/saves.ts` (the store), `src/saves-panel.ts` (the
+panel), wired in `src/main.ts` ("save files").
+
+- **Records.** Each file is two IndexedDB records in the existing `saves` store: `filemeta:<id>` (`SaveMeta`: name, kind,
+  place, game time, `savedAt`, size; all the list reads) and `file:<id>` (`SaveBody`). Ids are time + random, base 36.
+- **Campaign file:** `records` holds every `region:<id>` autosave on disk, this region's taken fresh from the sim, and a
+  `campaign` record pointing here with `sharedOf(state)` (`campaignRecords`). Loading (`restoreCampaign`) stops this
+  region's autosave, wipes the campaign (`wipeCampaign`), writes the records back stamped now (so no newer campaign
+  record lays old shared state over them), writes the region's camera to its `exo.camera…` key, and goes there like
+  campaign travel (`goTravel`: `?region=<id>&travel=1`).
+- **Skirmish file:** the sim state and `url`, the address that set the battle up (the map is generated again from it;
+  `load`, `title`, `new` and `travel` dropped). Loading goes to that address with `?load=<id>`; on start the skirmish
+  reads the file, `sim.load`s it, puts the camera back and drops `load` from the address.
+- **Not saved:** play tests (`?preview=1`, `?scratch=1`), the old horde mode (`?mode=skirmish`) and the Daily Planet
+  (`?daily=`: one attempt a day). The menu has no Save & load there and Ctrl+S says so.
+- **Ctrl+S** (`quickSave`) saves over the file this game was last saved to or loaded from (`exo.file` in
+  sessionStorage, per tab, cleared when the kind changes), else a new file named "<Region> · Sol n, hh:mm" or
+  "Skirmish on <World> · n min".
+- **Panel** (the options overlay, class `saves`): name + SAVE (in a game only); the files newest first with LOAD,
+  SAVE HERE (same kind only), RENAME (inline, Enter/blur keeps, Esc drops), EXPORT (`exo-save-<name>.json`,
+  `{ exoSave: 1, meta, body }`), DELETE; IMPORT FILE… (checks the shape, gives the file a new id). Overwrite, Delete
+  and a Load that would replace something (a campaign in this browser; a battle under way) ask twice on the button.
+  Opened from the game menu (campaign and skirmish), the campaign end screen's Load, and the title's **LOAD** (shown
+  when there are files: count and latest name).
+- **The old single slot** (`slot1`, one region's sim) becomes a file "Saved game (older version)" the first time the
+  list is read; it's `partial`: loading it puts back only its region (the rest of the campaign stays).
+- Test: `tools/saves-smoke.mjs` (campaign save, rename, export, Ctrl+S over the file, NEW GAME then title LOAD brings
+  it back, delete, import and a stray file refused, old slot moved, skirmish saved and loaded into the same map).
+  `tools/skirmish-play-smoke.mjs` now expects Save & load in the skirmish menu.
+
+## 9. Colony, story and campaign
+
+### Colony dilemmas (v0.58.0)
+
+Small choices that come out of what the colony is going through, each leaving something behind. They are ordinary
+story events (`content/story/`, the story HUD) with a few additions. Code: `src/sim/story.ts`, `src/sim/conditions.ts`,
+`People.castFor` / `carryIn` in `src/sim/people.ts`. Test: `tools/dilemma-smoke.mjs` (`--headless-only`; the browser
+half wants a dev server, default `:5176`).
+
+- **Story fields:** `dilemma` (waits its turn), `again` (seconds after its answer that a dilemma can fire again, its
+  trigger met again; `StoryState.again` re-arms it by taking it off `fired`), and `cast` (`CASTS`: adult, a bloc, the
+  unhappiest, someone injured, a parent, a specialty): who the card is about, picked when it fires
+  (`StoryState.cast`); `{who}` and `{whoLine}` in its title, text, choices and replies are their name and family line
+  (the sim fills log lines, the card fills from `StorySnap.who`). With no one to fit, the event waits.
+- **Throttle** (`Story.dilemmaOk`): none before the colony rules' `dilemmaFrom` (900 s after landing), none within
+  `dilemmaGap` (200 s) of the last one being answered, none while another card waits (radio aside) or a dilemma waits out
+  a delay, and at most one per check. The card carries a small "Colony dilemma" tag.
+- **New conditions:** `cryoBelow` (a brownout draws the bank's buffer down), `biomassBelow`, `embryosBelow`, `injured`,
+  `children`, `autonomists`, `devoted`, `striking`, `linesGone`, `regard` / `regardBelow` (a group's camp).
+- **New effects:** `boost` (a colony modifier from the research system, `stat` × `amount`, for `seconds` or for good,
+  named by its text; `StoryState.mods`, shown in the Colony panel under **In force** with its time left, logged
+  "…: over" when it ends), `policy` (`hours:short`…), `favourLine` (the next growth pod takes the cast's line, once:
+  `PeopleState.favour`), `rescue` (the cast, lying injured, is carried in to the nearest home). `stance` and
+  `wellbeing` gain `one` (just the cast) and `bloc` (just that bloc's adults). Content checks: `one`, `favourLine`,
+  `rescue` and `{who}` need a cast; a boost needs its stat; a policy is `key:value`; only dilemmas come again.
+- **The dilemmas** (13, chapter Firstborn, tag "dilemma"): Brownout (dim the homes / slow the mines / put it to the
+  colony → The Vote), Lean Months (rations), Who Wakes Next (a promised family line → Kin), The Watchers (surveillance
+  logs), What the Children Learn (education → The Children's Question), A Quarrel (a dispute), Hurt (someone injured:
+  stay in / carry them / talk them through), The Vell Ask (food → A Debt Repaid: a guide's find), The Cantor's Request
+  (power for the Choir's tower → The Tower Speaks: earlier warnings for good), Down Tools (strikers), The Last Name (a
+  line gone), The Petition (Devoted on the sensor net → Two Voices), Night Shift (an armed watch). Six follow-ups.
+- **Measured:** a 60-minute headless playthrough (people bot, no predators, random answers) met Who Wakes Next at
+  21:55, A Quarrel 27:55, Brownout 35:39 (The Vote a minute later), What the Children Learn 44:08 and its follow-up
+  50:09: one every 6–8 minutes once the colony has people. The test also checks the gap, one card at a time, boosts
+  running out, a promised line reaching the next pod, a rescue, a policy change, coming again, saves, and (browser) the
+  card naming its colonist and the Colony panel listing the boost.
+
+### Inhabitant relations (v0.58.0)
+
+Past first contact, the Vell and the Choir are neighbours to deal with: trade, favours, fighting beside us, and
+grudges. Data-driven in `content/inhabitants/` (`inhabitantShape`); code in `src/sim/inhabitants.ts`
+(`tradeProblem`, `ask`, `hunt`, `fight`, `mined`, `nestCleared`), `Sim.nativeStrike` in `src/sim/core.ts`, the
+Neighbours tab in `src/people-hud.ts`. Test: `tools/relations-smoke.mjs` (`--headless-only`; browser half on `:5176`).
+
+- **Trade** (`trades`: label, give / giveAmount, get / getAmount, minimum regard; `tradeEvery`): once they trust us,
+  or once we can speak their language (the `trade` ability: Translation Matrix). Each trade adds 1 regard; the camp
+  then needs `tradeEvery` before the next (`Camp.tradeAt`). The Vell: alloy tools for dried stores (40), food for
+  scavenged hull plate (50), medicine for glow-stone isotopes (65). The Choir: power cells for isotope dust,
+  isotopes for circuitry.
+- **Favours** (a trusted camp; each costs regard; `helpEvery` between asks, `Camp.helpAt`): **guides** reveal their
+  land (`guideReveal`); **lookouts** (`Camp.watchUntil`, a sol) warn of every pack like a trusted camp and add a story
+  boost `warning` +30 s (so frontier threats come sooner too); **hunters** (`hunters`, `hunterSeconds`,
+  `hunterDamage`, `hunterRange`, `hunterCooldown`, `hunterWeapon`): that many of the camp's walkers set out
+  (`Native.hunt` = until), go to the predator nearest our buildings (or stand by the Core) and strike it
+  (`Sim.nativeStrike`: never relics, nests, burrowers underground or flyers), then walk home. Predators still ignore
+  them, so they can't be lost.
+- **Joint defence** (`defends`): a trusted camp strikes predators on its land (double hunter damage, its cooldown,
+  `Camp.dcd`), our buildings there included.
+- **Consequences:** depots mining a deposit on their land cost `mineHarm` regard per 100 alloys on top of encroaching;
+  a loud building (one with `lure`, the Deep-Core Mine) counts three times; destroying a nest within their land + 20 u
+  earns `nestHelp`. At regard 22 or less a dilemma comes, Grievance (the Vell) or Broken Loop (the Choir): pay for the
+  land (−100 alloys, −40 biomass, +18 regard) or not (−6, flag `<group>-grievance`, which later threats read).
+  Earlier dilemmas (The Vell Ask, The Cantor's Request, What the Children Learn) move regard too.
+- **Neighbours tab:** regard, what wears it down, who is with us now (lookouts, hunters), each trade as a button
+  (give → get, why not yet), and the favours with their regard cost once they trust us (before that, what trust brings).
+  Snapshot `CampSnap`: `tradeIn`, `helpIn`, `watch`, `hunting`, `canTrade`.
+- **Measured** (headless): two Brutes at a lone Solar Array far from the Core lost 600 hp to four Vell hunters inside
+  a minute (both killed); a trusted Vell camp killed the swarmers that came onto its land; a depot on the Vell's deposit
+  cost 3.1 regard a quarter sol (108 alloys) against 1.5 for encroaching alone.
+
+### The frontier: threats to held territory (v0.58.0)
+
+DESIGN §4 "Persistent territory" within the region being played (the campaign plays one region at a time; there is no
+second held region to go back to yet): the colony's outlying **holdings** come under escalating, telegraphed threats,
+so the player has to go back out to them, and **standing orders** let a holding partly look after itself. Code:
+`src/sim/frontier.ts` (`Frontier`, owned by the Sim, checked once a second, campaign only), `Sim.surge`,
+`buildingHarm` and turret damage in `src/sim/core.ts`, Evacuate in `People.decide`, the building card in
+`src/colony-hud.ts`. Numbers: threat rules `frontierFrom` (1,500 s), `frontierEvery` (420 s) ± `frontierJitter` (90),
+`frontierWarn` (90 s), `frontierSize` (6), `frontierGrowth` (3), `holdFrom` (55 u). Test: `tools/frontier-smoke.mjs`
+(`--headless-only`; browser half on `:5176`).
+
+- **Holdings:** every finished building (walls, gates and the Core aside) at least `holdFrom` from the Core, grouped by
+  compass sector ("the east holding"). Snapshot `frontier.holdings` (sector, centre, building ids, standing order).
+- **The director** (`SimState.frontier`: `n`, `next`, `threat`, `orders`): once `next` comes and a holding exists, it
+  picks the holding furthest from our combat units (a little at random) and a threat:
+  - **migration**: `frontierSize + frontierGrowth × n` predators (× the region's pack scale; a Brute in five, a Spitter
+    in six) from the region's edge beyond the holding;
+  - **relic surge** (regions with relic grids, from the second threat): 1–4 awake sentinels (`relic: 'surge'`, no grid)
+    break the surface 16 u or more from the holding, on free ground;
+  - **raid** (a camp we've met with regard under 30 or a grievance flag): not a fight. If combat units are within 35 u or
+    a powered turret within 40 u they turn back (−3 regard); if not they take 60 + 20n alloys and 40 biomass and
+    wreck 35% of a building there (+4 regard: the grudge partly settled).
+  Each is **telegraphed**: a log line with where (it jumps the camera), a countdown under GOALS (story countdown
+  `frontier`) and a marker on the holding (story mark `frontier`, ground and minimap), `frontierWarn` + the `warning`
+  modifier ahead (Seismic Listening +45, Firmware Archaeology +30, the Vell's lookouts +30 for a sol, the Choir's sweeps
+  +30). Over when the migration's pack or the surge's sentinels are gone ("the east holding held", +1 stance, or "is
+  lost"); the next comes `frontierEvery` ± jitter later, bigger. Peaceful play tests hold the frontier off.
+- **Standing orders** (`{ type: 'standing', sector, order }`, on the card of any building in a holding, with the threat
+  on it if there is one): **Hold** (nothing extra), **Muster** (idle combat units are ordered out to it when the warning
+  comes), **Fortify** (needs the `fortify` ability, research **Garrison Doctrine**: while a threat is on it, its
+  buildings take 60% damage and its turrets do 125%), **Evacuate** (while a threat is on it, nobody goes to work there
+  and the people who live there go to the Core).
+- **Measured** (headless): the first migration (6) arrives 90 s after its warning from the east edge; with Seismic
+  Listening the warning is 135 s; Fortify takes a holding's damage to 60%; Muster sends 3 idle rovers out; an
+  unguarded holding loses 80 alloys to a Vell raid, a powered turret turns the raid back; a surge's sentinels open fire
+  on the holding. The balance bots still lose Touchdown before 25 min with predators on, so the frontier (from 25 min)
+  doesn't change those runs.
+
+### Colonists as people (v0.58.0)
+
+Named colonists get a backstory, a voice, their own grief, and moments where one of them matters. Content:
+`content/voices/<id>.json` (new collection, editor: Story → Colonist voices; `voiceShape`): `on` (a moment from
+`VOICE_EVENTS`), optional filters (`bloc`, `trait`, `specialty`, `origin`) and `lines` (`{name}`, `{other}`,
+`{building}`). Code: the voices section of `src/sim/people.ts` (`say`, `bio`, `struck`, `heroGuard`, `moments`),
+hooks in `core.ts`, `inhabitants.ts`, `frontier.ts`; the colonist card and Colony panel in `src/people-hud.ts`.
+Test: `tools/voices-smoke.mjs` (`--headless-only`; browser half on `:5176`).
+
+- **Backstory** (`Colonist.bio`): "Okafor line, donor stock from the Niger delta." (`LINEAGE_FROM` in `names.ts`) or
+  "Born in the colony to Ada and Kofi.", then a line from the `bio` voices that fit their trait or origin, picked by
+  their id (no random draw, so an older save loading gets the same story). On the colonist card under the name.
+- **Remarks** (`People.say(on, who?, vars, force)`): an adult (the one it concerns, or anyone) says a line that fits
+  them (the most specific matching records 60% of the time, else any that match). Logged as `Name: “…”`, kept in
+  `PeopleState.voices` (last 30), on the speaker's card for a sol, and the last five in the Colony panel under
+  **Voices** (tap to find them). Throttled: one every 45 s and each kind every 150 s (`VOICE_GAP`,
+  `VOICE_KIND_GAP`), except a death, a birth and a hero. Moments: first words out of the pod, a birth (a parent), a
+  death (who loved them), a pack beaten, a building lost, a brownout, hunger, a strike starting, research done (a
+  Technician first), first contact, trust, a frontier threat and a holding held, a hero, someone rescued, and on a
+  quiet day (after 5 quiet minutes, about one in 150 s). 35 records, 93 lines.
+- **Mourning:** when someone dies, the people who loved them grieve on their own (`Colonist.sorrow`: a partner 30, a
+  parent or child 20, a housemate 12; reason "Mourning", fading over a couple of sols); the closest says something, and
+  the memorial records who mourned them (`Memorial.by`, "Mourned by …" in the Memorial tab).
+- **A hero** (`People.struck`, called when a predator's blow lands on a building): a building torn below half with
+  adults inside gets one of them to hold it (a Security officer first, then Autonomists, the stoic, the happiest):
+  logged, a line of their own, the building takes half damage for 25 s (`heroGuard`, in `buildingHarm`), their card
+  says "Holding the …". If it stands, the deed is theirs ("Held the Civilian Center when it was under attack, Sol 6",
+  shown with ★ on their card), +10 wellbeing for them and +3 for everyone; if it falls, "Stayed in the … until it
+  fell". One hero per building per fight (180 s).
+- **Measured** (headless): every colonist has a different backstory; one remark, then nothing within the gap; a quiet
+  sol gives 0–2 remarks; a partner's death: sorrow 30, a line, "mourned by" three names; a Brute's blow on a held
+  Civilian Center 48 → 24.
+
+### Opening pace: the first 20 minutes (v0.59.0)
+
+DESIGN §7's M1 exit test. Measured headless with `tools/opening.mjs`: the story playthrough bot (strategy `opening`, a
+first-timer's build with a turret by each depot) plays Touchdown at a human pace (`pace`: one build step every 8 s,
+`BalanceOptions.pace`), chasing each mission's objectives, and records when things first happen. A second is **dead
+waiting** when nothing is being built, no fight is on, no card or objective landed in the last 15 s and the bot can't
+afford its next step.
+
+- **What was wrong:** 200 starting alloys went on a solar, a battery and the second drone, and the depot came at ~2:45,
+  just as the first night stopped it (depots run on live power only), so alloys crawled in at the Core's 0.4/s until
+  ~5:30. Two waits of 91 s and 104 s before the first pack at 5:10. The tutorial colony never got its first colonist:
+  the pod takes a sol (6 min) and most runs fell to the third or fourth pack at 10–17 min.
+- **Changes** (content only, plus one rule):
+  - Touchdown region: `startAlloys` 360 (was 200 from the colony rules), `graceSeconds` 240 (300), `packScale` 0.8,
+    `waveInterval` 130 (110). Other regions and the skirmish keep the global numbers.
+  - Missions: Touchdown pays 50 alloys; Groundwork asks for **two** depots and pays 120 (60); First Night pays 150 (80).
+    Each finished tutorial mission puts up a hint (a `hint` reward) saying what comes next: depots on the deposits,
+    a turret by each depot, then Hydroponics and a Civilian Center.
+  - People rules `firstPodSols` 0.5: the colony's first pod (`Pod.first`, only while no one has been grown, born or
+    lost) matures in half a sol. Later pods take the full sol.
+- **Before → after** (5 seeds, pace 8 s):
+
+  | | before | after |
+  |---|---|---|
+  | first building up | 0:09 | 0:09 |
+  | Groundwork done | 2:43 | 0:57 |
+  | first fight / first kill | 5:10 / 5:25 | 4:05 / 4:08 |
+  | First Night done | 7:36 (3 of 5) | 4:10 |
+  | first pod (imprint choice) | 9:35–10:05 (2 of 5) | 4:35 |
+  | first colonist (Firstborn done) | never | 7:47 |
+  | first story choice | 5:23–9:07 (2 of 5) | 8:05 |
+  | longest wait | 1:44–1:50 | 1:06–1:46 |
+  | waiting in the first 10 min | 3:16–5:21 (most runs dead by 10–11 min) | ~4:05 (all alive) |
+  | standing at 20 min | 0 of 5 (fell at 10–17 min) | 5 of 5 |
+
+  The waits left are the first night (~3:15–5:45, when depots stop) and, after the tutorial, alloys for the bot's
+  next step while a human would be exploring for Beyond the Ridge.
+- **Balance harness** (`tools/balance.mjs`, Touchdown, 20 min): with seeds 1337 / 7 / 42, `balanced` and `mixed`
+  survive 3 / 3, `opening` 2 / 3, `people` falls at 17–20 min (was 16).
+- **Test:** `tools/opening-smoke.mjs` (headless: the tutorial beats in time, only the first pod primed; browser,
+  desktop and phone: the opening alloys, Touchdown's payout and hint, Groundwork's goals). `mission-smoke` follows the
+  new Groundwork. Smoke tools touched here take `PORT` (or `--url`).
+
+### The Chronicle (v0.59.0)
+
+DESIGN §5.10 C. A colony history from what the campaign already tracks. The skirmish end screen already has its
+battle summary (each player's units built, kills, losses, buildings lost and alloys mined), so the Chronicle is
+campaign only.
+
+- **Record** (`src/sim/chronicle.ts`, `SimState.chronicle`, saved with the game): once a second (`recordChronicle`,
+  from `Sim.step` while deployed) it diffs the colonists: anyone new is added (name, lineage, pod or born, imprint,
+  parents, when they appeared, partner); anyone gone gets an end, *died* with the memorial's cause and age, or *walked
+  out* (a walkout's memorial line, or no line at all). Every 30 s a sample of Partners / Autonomists / Devoted
+  (adults, by stance), children and embryos (480 kept; a long game keeps every other). Key moments: player 0's log
+  lines by cue (`chronicleEvent` in `Sim.emit`: births and pods, deaths and lines gone, partners and comings of age,
+  contact and discoveries, research done, the first pack beaten, nests, relic grids, Breakthroughs, the end), plus
+  missions done, story events fired, a change of leading bloc and walkouts, found by diffing. 600 moments kept
+  (everyday ones dropped first). No hooks in the people system, and no random numbers: balance runs are unchanged.
+  A save from before this starts its record when loaded (everyone living then counts from that moment).
+- **Page** (`src/chronicle.ts`: `chronicleModel` from a `sim.save()` copy, `openChronicle`): title and outcome; the
+  numbers (lived, grown, born, living, died, walked out, lines left of 24, generations, embryos); **how the blocs
+  shifted** (stacked areas on a canvas, sol ticks); the **family tree** (`treeLayout`: a row per generation, pod-grown
+  first in the order they came out with partners side by side, children under their parents, a curve to each parent;
+  borders cyan living, red died, amber walked out; an SVG that scrolls sideways on its own); **key moments** grouped by
+  sol with the time of day; the **memorial** (named dead, with cause and when; unnamed pod losses as one line), lines
+  that ended and walkouts. Game menu → **Chronicle** at any time (the game stays paused), and **Read the Chronicle**,
+  the first button on a campaign's end screen. Esc or × closes it (back to the end screen). It doesn't open by itself:
+  over the end screen it hid New game and Load (`smoke.mjs` caught it).
+- **Save image** (`chronicleCanvas`, `saveChronicleImage`): the same on one 1200 px wide canvas (the tree scaled to
+  fit, the last 18 key moments, 14 names) as `exo-chronicle-sol-N.png`; on a touch device that can share files, the
+  share sheet, otherwise a download.
+- **Test:** `tools/chronicle-smoke.mjs` (headless: a 55-minute peaceful colony recorded, children with both parents,
+  samples, moments, a death with its cause, a walkout, a save, the model's totals, the tree's rows and links, the
+  memorial; browser, desktop and phone: that colony loaded, the menu's page with tree, chart, moments and memorial,
+  fitting the screen, Save image as a 1200 px PNG, ×, and after a fallen Core the end screen's button).
+
 ### Factions and the climax
 
 STORY.md §13–17. What Act 2 and the climax need in play: other powers on a region (Kindred's colony, Engram's works,
@@ -2544,6 +2491,7 @@ the Lantern's sentinels), the Lantern's strikes, the Clause's interference and t
 - Not yet: factions have no economy or AI beyond guarding, patrolling and attacking (no building, no waves); allied
   factions can't be commanded; nothing in content uses any of this yet (the Act 2 regions and the climax missions are
   still to be written).
+
 ### Campaign travel
 
 The story plays across many regions and bodies (STORY.md §13). The home colony (Touchdown,
@@ -3037,123 +2985,194 @@ The computer plays the campaign in the real game while you watch, for testing th
   is sensitive: moving guns ahead of the plan or letting cheap steps jump an expensive one made every seed worse.
   It doesn't pick among several expeditions by any order but the missions' (and optional ones last).
 
-### Field Guide (v0.73.0)
+## 10. Skirmish and Domination
 
-New players get lost, so the game carries its own manual: a page on each of its ideas, a first-game look round the
-screen, and tips the first time something comes up. And it stays current: **every release updates it**, and the
-build fails if it doesn't.
+### Skirmish phase 1: players in the sim (v0.50.1)
 
-- **Content** (`content/guide/<id>.json`, the `guide` collection in `src/content/defs.ts`, editor: Story → Field
-  Guide): `title`; `section` (`GUIDE_SECTIONS`: basics, economy, power, defence, army, people, research, story,
-  travel, factions, interface, shown in that order as Basics, Alloys & building, Power & night, Defence, Units &
-  fighting, Colonists, Research, Story & choices, Travel & other worlds, Factions, Interface); `order` within the
-  section; `summary` (one line: the list and the tip); `text` (paragraphs at blank lines; `**bold**` and lines
-  starting `- ` as bullets, nothing else: `renderText` escapes everything first); `points` (a hint target: Show me,
-  and Read from a tip, point at it; not `buildItem`); `trigger` with the story's condition fields (optional, `all` /
-  `any` groups too; the content check reads them like a story trigger's); `see` (comma-separated page ids, See also;
-  each must exist and not be the page itself); `since` (the release that added it, x.y.z) and `updated` (the release
-  it last changed meaningfully in; empty = `since`); `tour` (at most 14 `{ target, text }`, only on `orientation`).
-  `orientation` is required (the code plays its tour).
-- **Hint targets** gained five (`HINT_TARGETS`, `src/story-hud.ts` `TARGETS`, usable by story hints too): `menu`
-  (`#b-menu`), `log` (`#log`), `drones` (`#r-drones`), `planet` (`#r-planet`), `isotopes` (`#r-iso`).
-- **The panel** (`src/guide.ts` `openGuide`; the `#guide` overlay above the other panels, z 62): from the game menu
-  (Field Guide), the title screen (FIELD GUIDE), the Controls panel (a button at the top) and What's new (under each
-  release, a link to each page its `guide` field lists; the guide opens over the panel). Sections with headings,
-  pages by `order`; a search box (every word in the title, summary, text or section); a page with its section,
-  See also links and Back (Esc goes back a page, then closes). NEW / UPDATED badges: a page whose `updated ?? since`
-  is newer than the version the guide was last opened at (`exo.guide.seen`; none on a first look, so the first visit
-  isn't a wall of badges). In a game, Show me around (the tour) and Show me (`points`): the guide closes and the
-  element pulses with the hint bubble for 9 s. From the menu it goes back to the menu, unless it closed to show
-  something or tour (then the game carries on); from a tip's Read it holds the game paused while open. `panelOpen()`
-  counts it, so Esc, the autopilot and camera keys leave it alone.
-- **The orientation** (`GuideTour`): on a player's very first game (no campaign or region save at boot, never toured:
-  `exo.guide.toured`, home region, not a skirmish, play test or scratch game, the autopilot off), once the colony is
-  deployed, 4 s in and no story card waiting or on screen (Touchdown's briefing comes first), a note offers
-  "First time? A two-minute look around." [Show me around] [Skip]. The tour pauses the game (`hold`), and shows each
-  step of `orientation.json`'s `tour` with the story hint bubble on its element (`StoryHud.point`: a hint of the
-  renderer's own that takes the bubble while set, with Back / Next / Skip buttons; the story's own hint waits
-  underneath and comes back after, so Touchdown's Build hint shows once the tour is done). Steps whose element isn't
-  on screen yet (the battery, threat and radar chips at landing) are skipped. Enter / → next, ← back, Esc skips.
-  At the end the game runs at the speed it had. Replayable from the guide.
-- **Tips** (`GuideTips`): the renderer sends the sim the pages to watch (`{ type: 'guide', watch }`: pages with a
-  trigger not yet tipped, only while tips are on, the autopilot off and a colony deployed); `Story.step` checks
-  their conditions once a second with `conditionMet` (read-only) and lists the pages that held in the story
-  snapshot's `tips`. The watch list and hits live on the `Story` object, not in the saved state, and nothing else
-  reads them: a headless run never sends the command, so `tools/balance.mjs` output is byte-identical and the
-  playthrough / autopilot timings unchanged (checked against v0.72.0). Each tip shows once per player
-  (`exo.guide.tipped`, marked when shown): "Field Guide · title · summary" [Read] [×] under the top bar, 12 s.
-  One at a time, queued: only while the screen is free (no story card on screen or waiting, cinematic, panel, menu,
-  tour, hint of the guide's or the tour offer), 4 s after it last wasn't (`TIP_CALM`: a card closing doesn't throw a
-  tip straight up), and at least 45 s of play after the last one (`TIP_GAP`). When several wait, the most urgent
-  section goes first (`pickTip`: power, defence, colonists, alloys, units, research, story, travel, factions, then
-  basics and interface), then the one waiting longest; a tip still waiting 180 s of play
-  after its trigger held is dropped unmarked (`TIP_STALE`: a later game offers it). Options → Interface → Field
-  Guide tips (`exo.guide.tips`, on; off by default in the editor's play tests). Automated browsers (smoke tests) get
-  neither the offer nor tips unless the test sets `exo.guide.auto` = `on` in localStorage (no URL option).
-- **Keeping it current** (`tools/guide-check.mjs`, in `npm run build` after the version check; `npm run
-  guide:check`): `Release.guide` in `src/changelog.ts` lists the pages a release added or changed. Rules: every id a
-  release lists exists; every page's `since` / `updated` is a release in the changelog, not before 0.73.0, and
-  `updated` is not older than `since`; every release from 0.73.0 on has a `guide` field, and a minor or major
-  release lists at least one page (a patch may say `guide: []`, but must say it); a page listed in release V has
-  `updated ?? since` === V, and every page whose `updated ?? since` is V is listed in V. The launch (0.73.0) is the
-  one exception to that last direction: it lists `orientation`, and every page added in it counts as listed. Each
-  error says what to add where. **To add or change a page**: write or edit `content/guide/<id>.json` (a new page:
-  `"since": "<new version>"`; a meaningful change: `"updated": "<new version>"`), add its id to the new release's
-  `guide` list, and run `npm run build`. A typo fix needn't bump `updated`.
-- **Tests**: `tools/guide-smoke.mjs` (`--headless` for the first half). Headless: the check's rules on good and bad
-  fixtures (missing field, a feature with none, a patch with `[]`, missing page, either direction, versions that
-  aren't releases or predate the guide); the shipped changelog passes; `renderText` escapes HTML and does bold,
-  bullets and paragraphs; sections in order; search; badges; a tip trigger fires once and the game state with and
-  without watching is identical; the opening's tips (below); no faction tip at Touchdown (`faction` conditions are
-  false with no factions). Browser (dev server :5176): the guide from the title (sections, search, a page with
-  bold and bullets and nothing else, See also and Back, Esc), a fresh first game (no offer over the briefing card;
-  the offer; the tour paused, ← back, each step pulsing its element, the game running after, remembered), the menu's
-  guide and Esc back to the menu, Controls' button, Show me around from the menu, Esc skipping the tour, a tip
-  (alone, Read opens its page with the game held, Show me pulses its element), remembered and not watched again,
-  the next not straight after, and a 375 px phone with no horizontal scroll in the list or a page.
-- **The opening, measured** (the smoke, Touchdown, the autopilot as a quick player, cards answered at once): 44 of
-  the 76 pages have tips; 18 triggers hold in the first 10 minutes of game time (power 29 s, deposits-and-depots
-  39 s, batteries 45 s, turrets 74 s, worker-drones 100 s, defence 126 s, vehicle-bay 140 s, abilities 157 s,
-  day-and-night 160 s, story-cards 181 s, biomass 280 s, cryo-bank 327 s, planet-health 360 s, wrecks-and-salvage
-  413 s, growth-pods 433 s, geothermal 468 s, radar-and-sensors 502 s, nests 534 s). Shown 45 s apart, most urgent
-  first: 13 in those 10 minutes (power 33 s, batteries 78, turrets 123, day-and-night 168, defence 213, worker-drones
-  258, biomass 303, cryo-bank 348, planet-health 393, growth-pods 438, geothermal 483, radar-and-sensors 528, nests
-  573). First in, first out at 60 s (the first version) put the packs page at 393 s, after the first pack (240 s),
-  and dropped day-and-night as stale; the packs page's trigger is now sol 1.35 (was 1.6). The rest wait their turn
-  or, gone stale (deposits-and-depots, which Groundwork teaches anyway), a later game.
-  A human playing slower meets fewer triggers per minute.
+DESIGN §5.11. `src/sim/core.ts` runs any number of players on one map; the campaign is the one-player case and is
+unchanged (`tools/balance.mjs`, all nine strategies, output byte-identical before and after).
 
-### Save files (v0.94.0)
+- **Ownership:** `team` on `Building`, `Drone`, `Unit` (unset = player 0). `SimState.players` (absent in the campaign):
+  name, side (same side = allies), colour, `ai`, `out`, `home`, and for players ≥ 1 an `econ` (alloys, isotopes,
+  battery, research, drone fabrication, stats). Player 0 keeps its economy in the top-level fields, so the HUD,
+  saves and the campaign read it as before. `SimState.skirmish`: `{ fog, packs }`.
+- **`withTeam(t, fn)`:** runs `fn` as player `t` sees the world: the lists hold only `t`'s buildings, drones and
+  units; its econ is swapped into the top-level fields; `power`, `vis` and `exp` are its own. On the way out the
+  lists merge back (what `fn` added becomes `t`'s, what it removed is gone) and the econ swaps back. Placement sees
+  other players' buildings through `PlaceWorld.others` (spacing only: they don't extend your build area).
+- **Tick (skirmish):** each live player's economy in its own view (power, drones, fabrication, factories, research,
+  mining, repair pads), then one shared fight (turrets, units, shields, fauna, nests, packs if on), eliminations, fog
+  per player every 5 ticks. No cryo bank, people, planet, inhabitants, story, missions or encounters.
+- **Combat:** shooters pick from `foes(team)`: fauna plus every unit, drone and building of a player on another side
+  (the campaign's `foes(0)` is `s.hostiles` itself). Anything that moves comes before a building unless the building
+  is 10 u closer (`BUILDING_LAST`). `strike` splashes and chains over the shooter's foes; `kill` dispatches by kind.
+  Visibility is per shooter (`visibleTo`). Idle units also answer enemy units among their own buildings (`raiders`).
+  Field Engineers mend only their own side. Turret ties still go to the later target (as before: a `<` here changed
+  three balance runs).
+- **Commands:** `command(c, team)` runs in that player's view, so a player can only spend its own alloys and order
+  its own drones and units. Events from other players' views are dropped (`emit` passes only player 0's); enemy
+  buildings destroyed are reported to player 0.
+- **Defeat:** a Command Core destroyed queues its player (`falling`); at the end of the tick it's out and everything
+  of theirs goes. One side left: `end('won')` if player 0 is on it, otherwise `over = 'core'` with "Defeat: … won".
+- **Setup:** `newSkirmish({ seed, players, alloys, wildlife?, packs?, fog?, homes?, deposits? })`; `skirmishHomes(n,
+  limit)` spreads start spots round a ring at 62% of the way out, each moved to dry flat ground. Story locks are
+  cleared. Saves keep player 0's fog (`explored`); other players' fog is worked out again on load.
+- **Test:** `tools/skirmish-sim.mjs` (headless, 30 checks): separate economies and stats, commands limited to their
+  owner, per-player building and mining, turrets and units fighting across players, a Core falling takes its player
+  out and the last one wins, save/load, a four-player free-for-all, and allies holding fire. Sim cost (sim-bench):
+  3.2 → ~3.3 ms/tick, within its ±10% noise.
 
-DESIGN §5.12 phase 1 (Domination will use the same files). `src/saves.ts` (the store), `src/saves-panel.ts` (the
-panel), wired in `src/main.ts` ("save files").
+### Skirmish phase 2: generated maps (v0.52.0)
 
-- **Records.** Each file is two IndexedDB records in the existing `saves` store: `filemeta:<id>` (`SaveMeta`: name, kind,
-  place, game time, `savedAt`, size; all the list reads) and `file:<id>` (`SaveBody`). Ids are time + random, base 36.
-- **Campaign file:** `records` holds every `region:<id>` autosave on disk, this region's taken fresh from the sim, and a
-  `campaign` record pointing here with `sharedOf(state)` (`campaignRecords`). Loading (`restoreCampaign`) stops this
-  region's autosave, wipes the campaign (`wipeCampaign`), writes the records back stamped now (so no newer campaign
-  record lays old shared state over them), writes the region's camera to its `exo.camera…` key, and goes there like
-  campaign travel (`goTravel`: `?region=<id>&travel=1`).
-- **Skirmish file:** the sim state and `url`, the address that set the battle up (the map is generated again from it;
-  `load`, `title`, `new` and `travel` dropped). Loading goes to that address with `?load=<id>`; on start the skirmish
-  reads the file, `sim.load`s it, puts the camera back and drops `load` from the address.
-- **Not saved:** play tests (`?preview=1`, `?scratch=1`), the old horde mode (`?mode=skirmish`) and the Daily Planet
-  (`?daily=`: one attempt a day). The menu has no Save & load there and Ctrl+S says so.
-- **Ctrl+S** (`quickSave`) saves over the file this game was last saved to or loaded from (`exo.file` in
-  sessionStorage, per tab, cleared when the kind changes), else a new file named "<Region> · Sol n, hh:mm" or
-  "Skirmish on <World> · n min".
-- **Panel** (the options overlay, class `saves`): name + SAVE (in a game only); the files newest first with LOAD,
-  SAVE HERE (same kind only), RENAME (inline, Enter/blur keeps, Esc drops), EXPORT (`exo-save-<name>.json`,
-  `{ exoSave: 1, meta, body }`), DELETE; IMPORT FILE… (checks the shape, gives the file a new id). Overwrite, Delete
-  and a Load that would replace something (a campaign in this browser; a battle under way) ask twice on the button.
-  Opened from the game menu (campaign and skirmish), the campaign end screen's Load, and the title's **LOAD** (shown
-  when there are files: count and latest name).
-- **The old single slot** (`slot1`, one region's sim) becomes a file "Saved game (older version)" the first time the
-  list is read; it's `partial`: loading it puts back only its region (the rest of the campaign stays).
-- Test: `tools/saves-smoke.mjs` (campaign save, rename, export, Ctrl+S over the file, NEW GAME then title LOAD brings
-  it back, delete, import and a stray file refused, old slot moved, skirmish saved and loaded into the same map).
-  `tools/skirmish-play-smoke.mjs` now expects Save & load in the skirmish menu.
+DESIGN §5.11. `src/skirmish/mapgen.ts` `generateSkirmishMap(options, content.bodies)` → a region record (never saved
+to content), the start spots, and a report. ~90 ms median, 150 ms worst on hive1.
+
+- **Options:** seed, players (2–4), size (small / medium / large = 240 / 320 / 400 u, +40 for 3–4 players), world
+  (`SKIRMISH_WORLDS`: Home, Verdance, Dunmore, Rime, Cinder, Ash), water (none / some / lots: only Home and Verdance
+  have seas; `none` lets the usual site lift raise the map onto dry land, otherwise `keepSea` and the site is picked
+  from 18 random ones for a land share near 75% / 50%), relief (flat / rolling / rugged: local relief 4 / 9 / 18 u).
+- **Layout:** bases evenly round a ring at 60% of the half-size, turned by a random angle. Round each base, turned to
+  face the middle, the same layout (`LAYOUT`): two 3,000 deposits at 27 u, a 2,500 one at 62 u, a 600 isotope seam at
+  40 u, a geothermal vent at 34 u. Between each pair of neighbours a 5,000 contested deposit, a predator spawn out by
+  the edge and a herd partway; a 1,200 seam by the middle. 90-second grace for packs if they're on.
+- **Sculpt** (the region's height grid, target − generated): each base flat to 34 u at its own mean height (≥ 2 u),
+  easing out to 62 u; a small pad under every deposit, seam and vent outside a base (at the base's height when it's
+  near one, so it doesn't pull the base's rim); land roads raised from every base to the middle. Checked after: each
+  base dry (≥ 0.8 u) and flat (≤ 3 u over 28 u), every base reaching base 1 by land (`PathGrid.reaches`). Up to four
+  tries, raising and widening the roads each time.
+- **In the game:** `?skirmish=<seed>` plus options (`src/skirmish/setup.ts` lists them: players, size, world, water,
+  relief, alloys, fog, packs, wildlife, ai, teams). The page generates the map, plays it as region `skirmish` (no
+  autosave, no title or landing, the camera on your Core), and hands the record and a `SkirmishSetup` to the sim
+  worker (`init.skirmish` → `newSkirmish`; a restart starts it again). Snapshots carry `players` and each unit's and
+  drone's `team`. Skirmish Cores are drawn as buildings where they stand (`buildForRole('core')`); the campaign's
+  stays the landed probe at the origin.
+- **Test:** `tools/mapgen-check.mjs [--maps N] [--sheet file.png]`, headless (one module graph via
+  `tools/sim-entry.ts`: separate `runnerImport`s each get their own region state): every world × 2–4 players × size ×
+  water × relief; per map, the generator's checks, then in the sim each player can place a Solar Array by its Core, a
+  depot on each of its deposits, a Deep-Core Mine on its seam and a geothermal plant on its vent, and walks by land to
+  the middle and to the nearest enemy are within 25% of each other. 54 / 54 pass. `--sheet` draws them all.
+- Not yet (phase 3): enemy buildings and units in team colours and hidden in fog, the HUD's campaign counters.
+- Found on the way: `tools/build-smoke.mjs` fails its wall-line steps on v0.49.0 too (the opening story card sits
+  over the taps); `tools/region-smoke.mjs` expected no world name between a region and HERE in Options (fixed).
+
+### Skirmish phase 3: setup, colours, fog and the end screen (v0.53.0)
+
+DESIGN §5.11. A skirmish is now reached from the title (SKIRMISH) and played with its own HUD. The computer players
+don't play yet (phase 4): they sit at their Cores.
+
+- **Setup** (`src/skirmish/setup-screen.ts`, title SKIRMISH or the game menu's Skirmish): players 2–4, teams (free for
+  all, you vs all, 2 v 2 with four), computer difficulty, world, size, sea (only worlds with seas offer any), ground,
+  map seed (🎲 rerolls), starting alloys (400 / 600 / 1,500), fog, wildlife, predator packs. A live preview generates
+  the map in its own worker (`src/skirmish/map-worker.ts`: the title's planet keeps its terrain state) and draws the
+  ground, sea, deposits, seams and each player's base in their colour. START builds the `?skirmish=` link
+  (`skirmishLink`) and goes there. Choices are remembered (`exo-skirmish-setup`), the seed is new each time.
+- **What you can know** (sim `snapshot`): other players' units and drones only while in sight; their buildings once
+  seen (`Building.seen`, then shown as they are). Radar blips stay fauna only.
+- **Colours:** players are `PLAYER_COLORS` (cyan you, crimson, amber, violet). Units: the army buffer has an owner
+  (`F.TEAM`, `STRIDE` 8); another player's are drawn in their colour (body and glow strips), get red bars and can't be
+  selected. Buildings and drones: a ring in the owner's colour under each (`RegionView.teamRing`), and other players'
+  buildings glow in their colour. Minimap: everything in its owner's colour, Cores outlined white.
+- **Can't command theirs:** the input only offers your own units, buildings and drones (`buildings()` / `units()` filter
+  on `team`, drones carry `team` in `RegionView.drones`); placement sees theirs only as too-close (`PlaceWorld.others`).
+  The sim refuses anything else anyway (`command(c, team)`).
+- **HUD** (`body.rts`): no cryo, biomass, planet health, colonists or goals; the clock is game time; the map shows from
+  the start (no radar needed). Game menu: Resume, Options, Rematch, New skirmish, Surrender, What's new, Title screen
+  (no Save / Load: skirmishes aren't saved).
+- **End:** VICTORY / DEFEAT with each player's units built, kills of other players' things, units and buildings lost
+  and alloys mined (`players[].stats` in the snapshot). Rematch restarts the same map and players; New skirmish opens
+  the setup. You're out when your Core falls or you surrender (`{ type: 'surrender' }`); your game ends then even if
+  computer players go on fighting each other.
+- `SimClient.command(cmd, team)` acts as another player (tests now, the AI later).
+- **Test:** `tools/skirmish-play-smoke.mjs` (desktop and phone): title → setup (choices, preview, START) → the game
+  (skirmish HUD, map, fog hiding the others' bases and out-of-sight units, theirs in sight shown, not selectable) →
+  skirmish menu → victory screen → Rematch → surrender → defeat.
+
+### Skirmish phase 4: computer players (v0.54.0)
+
+DESIGN §5.11. `src/sim/ai.ts`, run by the sim for every player with `ai` set, in that player's own view
+(`withTeam`) every `period` ticks (staggered by team). It plays only through ordinary commands, sees only through
+its own fog, and knows where every player started (as most RTS computers do). Its memory (`PlayerState.brain`: waves
+sent, the raid under way, its rally point) is in the save.
+
+- **Building** (one site per drone at a time; `spot` searches rings round a centre from a preferred direction and
+  keeps a 3 u lane round every building): the first Solar Array; depots on its two home deposits; solar (or the
+  geothermal vent) whenever daytime generation is under the full load × 1.1 + 1; a Vehicle Bay; turrets toward the
+  middle; the geothermal vent; batteries until they carry 60% of the load through half a sol on what the night
+  makes; depots on any deposit it can reach; Relay Towers toward the nearest free deposit on its side of the map; a
+  Tech Lab; a second bay; more guns (cannons late); a Deep-Core Mine on a seam; a Fusion Cell once it has isotopes.
+  Drones topped up to its level's count; research Deep Survey → Isotope Cells → Shield Lattice.
+- **Army:** factories kept busy (two queued each) while alloys stay above a reserve; early rovers and tanks, later
+  tanks, lancers, rovers, artillery and arc (more arc if the enemy flies), a deterministic rotation through the mix.
+  New units gather at a rally point 30 u in front of the base. Anything hostile among its buildings brings everyone
+  not on a raid home (and a raid that's barely left turns back for a big attack). When the group reaches the wave
+  size (bigger each wave) and the first-attack time has passed, it all leaves for the nearest enemy's Core;
+  reinforcements join in fours; a wave down to a third falls back to the rally point.
+- **Levels** (`LEVELS`): Easy thinks every 5 s, 2 drones, 1 turret, no tech, first wave at 9 min (6 units, +1 a wave);
+  Normal every 2.5 s, 3 drones, 2 turrets, tech, 2 relays, first wave at 6.5 min (10, +2); Hard every 1.2 s,
+  4 drones, 3 relays, first wave at 5.5 min (12, +3) and +0.5 alloys a second.
+- **Skirmish rules changed with it:** no cryo-bank draw on power (it was taking 4 MW from every player); each player
+  may have 40 combat units (`unitCap`, shown on the bay card); a computer player 0 (tests) doesn't end the game when
+  it's knocked out.
+- **Test:** `tools/ai-sim.mjs` plays games headless on generated maps (`--match normal,idle`, `--trace` for a
+  minute-by-minute timeline per player). `--check`: each level beats a player who does nothing (Easy ~9.5 min, Normal
+  ~7.5, Hard ~9: its first wave waits until it's bigger), Hard beats Easy (3 / 3, 28–32 min), and a four-way
+  free-for-all of Normals ends (40 min on seed 100: the winner had 9 depots, a Deep-Core Mine and a Fusion Cell).
+  In the browser a Hard computer built its base, expanded through a relay and took out an idle player's Core at 7.5 min.
+
+### Smarter computer players (v0.56.0)
+
+AI only (`src/sim/ai.ts`): no unit or building numbers changed.
+
+- **Memory** (`AiBrain.known`, `armies`): enemy buildings it has seen (forgotten once it sees the spot empty) and the
+  strongest army it has seen of each player lately. It scouts with its fastest unit at the start, and again whenever
+  what it knows is over 2.5 min old; a scout that finds no army at the base records that too.
+- **Strength:** a force is √(total dps × total hp) (Lanchester-style). The defence of a target is the guns it knows
+  within 70 u plus that player's army: as seen, grown a third every 100 s since; never seen, assumed as strong as its
+  own. It sets off when its army is at least ¾ of the wave size and ours ≥ theirs × nerve (Easy 1.6, Normal 1.3, Hard
+  1.15), or when it's 1.6× the wave size or at the unit cap.
+- **Gather, then push:** the wave forms up at a staging point short of the target, beyond its known guns' reach, and
+  goes in when 80% are there (or after 75 s). Artillery takes a siege line just inside its own range of the nearest
+  known gun (artillery 46 u outranges turrets 28 u and cannons 44 u); the rest push on to the Core; reinforcements
+  join in fours. A wave down to a third falls back.
+- **Raids** (Normal, Hard, after 4 min): three or four of its fastest units after the nearest known enemy depot,
+  deep-core mine or printer that no known gun covers, only while at least six others stay home.
+- **Defence:** answers a raid with about 1.5× its strength from the nearest free units; a bigger attack also recalls
+  a wave that's still forming up or only just left.
+- **Production** answers what it has seen: more artillery the more guns it knows, more lancers against heavy units
+  (400+ hp), arcs against flyers, rovers while it has few fast units.
+- Hard's first wave is 10 (was 12).
+- **Measured** (`tools/ai-sim.mjs --match new,old:<level>` plays the last release's AI, from git, against the new one;
+  `Sim.thinkers` is the test hook): new vs old, three seeds each way: Easy 6–0, Normal 6–0, Hard 3–2 with a draw (4–2
+  with a first wave of 12). `--check` passes: each level beats a player who does nothing (~10 min: it scouts and
+  forms up first), Hard beats Easy 3 / 3 (23–34 min), and the four-way Normal free-for-all ends at 34 min (45 before).
+
+### Daily Planet (v0.59.0)
+
+DESIGN §5.10 A. `src/daily.ts`, wired in `main.ts` (`daily`, `finishDaily`, `dailyChoice`). No server.
+
+- **Today's planet** (`dailyRules(date)`): everything follows from the UTC date (FNV hash of `exo-daily:<date>`): the
+  skirmish seed, the world (one of `SKIRMISH_WORLDS`), one or two computer rivals, map size, sea (only worlds with
+  one), ground, starting alloys (400 / 600 / 800); predator packs on; rivals Normal on weekdays and Hard at weekends.
+  Numbered from #1 on 2026-11-20; a new one at midnight UTC. It plays as an ordinary skirmish link with
+  `daily=<date>` (`dailyLink`), so the generator, the computer players and the end screen are the skirmish's own;
+  the seeded sim makes it the same planet for everyone (14 days checked: each map generates, twice over the same).
+- **One scored try:** opening today's link claims the day in `localStorage` (`exo-daily`: date → `{ started,
+  result }`, last 60 days). A reload, a Rematch, an old date or `practice=1` is practice (the log says which). A try
+  left unfinished stays unscored.
+- **Score** (`dailyScore`): a win 1,000 plus speed (2,400 s − time) / 4; a loss the time held / 3 (to 40 min); +5 a kill
+  of a rival's unit, drone or building; + alloys mined / 20; −8 a unit lost, −20 a building lost; never below 0.
+- **The shared line** (`DailyTracker`, fed every frame): one square per 2 minutes of play, 🟩 quiet, 🟨 a fight (any
+  loss or kill), 🟥 heavy (two buildings or six units lost), folded to at most 15 squares, then 🏆 or 💀. Share text:
+  `Exo Genesis · Daily Planet #N`, the world, rivals and level, the line, "Victory at mm:ss · N pts", the game's link:
+  nothing about the map. Share uses the Web Share sheet on touch devices and the clipboard elsewhere (a hidden
+  textarea copy as the last resort).
+- **Where:** title → **DAILY PLANET** ("#N · world · rivals · one scored try a day"; once played "Today: victory /
+  fell · N pts · tap to share", which opens the card with Share, the streak and a practice button). The end screen
+  adds the score card (score, line, how it was made, Share, days in a row) under the skirmish table.
+- **Test:** `tools/daily-smoke.mjs` (headless: same date same planet, next day another, numbering, weekends, the UTC
+  day boundary, links, a fortnight of maps, score order, the timeline and folding, the share text; browser, desktop
+  and phone: the title entry, claiming the try, surrender → the card and Share copying the text, the result kept, a
+  reload is practice, the title's look back).
 
 ### Domination areas (v0.95.0)
 
@@ -3356,6 +3375,8 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
   `tools/domination-smoke.mjs` (the setup's new rows, "?" under fog, the player list's teams and rules, the 75%
   victory screen with its chart).
 
+## 11. Delivery, tests and safety nets
+
 ### Download size and the offline cache (v0.100.2)
 
 - **Precache** (`vite.config.ts`, `EDITOR_ONLY`): the editor page, its chunk, and the editor-only `balance-worker` and
@@ -3429,3 +3450,23 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
   have changed again since). `npm run release` takes a page it updates off the older release that listed it.
 - Test: `tools/recovery-smoke.mjs` (page-error note, Copy details, a malformed `load` throws in the worker → the card,
   ticks stop, Keep watching, NEW GAME files from the title and the menu with the newest-3 limit, Reload resumes).
+
+### Code layout (v0.101.1)
+
+- **Shared helpers** (`src/util/`): `esc` and `$` (`html.ts`; `esc` now escapes `'` too, safe in single-quoted
+  attributes), `mulberry32` (`rng.ts`; was copied into areas, domination, mapgen, playthrough, music and flora — same
+  sequence, checked over 7 seeds × 1000 draws), `clamp` (`math.ts`, the sim's `Math.min(hi, Math.max(lo, v))` order).
+  The editor's element builder is `h()` in `src/editor/dom.ts` (was 16 copies).
+- **`src/world/building-models.ts`**: the procedural building meshes (`buildCore` … `buildForRole`, `KIND_MODELS`),
+  out of `region.ts` (2208 → 1434 lines).
+- **`src/world/army/`** (`types`, `view`, `models`, `fx`): the army renderer and its data contract, used by the sim
+  and every mode; was `src/skirmish/`, which now holds only the real skirmish's setup and map generation.
+- **`src/sim/commands.ts`** (`runCommand`, the 330-line command switch) and **`src/sim/grazers.ts`** out of
+  `core.ts` (3346 → ~2900 lines). Module-level helpers they need (`DEFS`, `limit`, `REGION`…) are exported from
+  core.ts; the import cycle is call-time only. Golden hashes unchanged.
+- **`src/boot.ts`** `planBoot()`: which region the page plays (address, campaign, a lost expedition falling back
+  home, travel, play test, skirmish), pure and tested headless by `tools/boot-smoke.mjs` (in `npm test`).
+- `three/examples/jsm/…` imports are `three/addons/…` everywhere.
+- Still to split: `editor/main.ts` (its sections share module state: needs a store module first), core.ts's fauna and
+  players, and main.ts's options and frame loop.
+

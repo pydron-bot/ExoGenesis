@@ -10,13 +10,8 @@
  */
 import type { Beat, ChoicePolicy, Coverage, PlaythroughResult } from '../sim/playthrough';
 import { STRATEGIES } from '../sim/strategies';
+import { h } from './dom';
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 const POLICY_HELP: Record<ChoicePolicy, string> = { first: 'always the first choice', last: 'always the last choice', random: 'a random choice', honest: 'the honest-sounding choice (truth, tell…), else the first' };

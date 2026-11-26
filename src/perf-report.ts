@@ -12,6 +12,7 @@
  */
 import * as THREE from 'three';
 import type { Toggle } from './options';
+import { esc } from './util/html';
 
 export interface PerfDeps {
   renderer: THREE.WebGLRenderer;
@@ -51,7 +52,6 @@ function stats(a: number[]): Stats {
 }
 const ms = (v: number) => `${v.toFixed(1)} ms`;
 const line = (st: Stats) => `avg ${ms(st.mean)} (${st.mean ? (1000 / st.mean).toFixed(0) : '–'} fps) · median ${ms(st.p50)} · 90% ${ms(st.p90)} · 99% ${ms(st.p99)} · worst ${ms(st.max)}`;
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 interface Phase { label: string; off: string[]; times: number[]; calls: number; tris: number; live: number[]; msgMs: number; msgN: number; liveT: number }
 const phase = (label: string, off: string[]): Phase => ({ label, off, times: [], calls: 0, tris: 0, live: [], msgMs: 0, msgN: 0, liveT: 0 });

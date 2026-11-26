@@ -18,8 +18,7 @@ import { content } from './content';
 import { mediaUrl, shownChoices, type InhabitantDef, type StoryDef } from './content/defs';
 import type { Command, ContactChoice, Snapshot } from './sim/types';
 import { voices, type VoiceFx } from './voice';
-
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+import { esc } from './util/html';
 
 interface Deps {
   inhabitants: Record<string, InhabitantDef>;

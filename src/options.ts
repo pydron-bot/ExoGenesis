@@ -36,7 +36,8 @@ export interface Slider {
 export type OptionRow = Toggle | Slider;
 const isSlider = (r: OptionRow): r is Slider => (r as Slider).kind === 'slider';
 
-export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+import { esc } from './util/html';
+export { esc };
 
 /** The shared overlay: one panel at a time; Esc or a tap outside closes it. */
 export function panel(title: string, body: string, onClose?: () => void) {

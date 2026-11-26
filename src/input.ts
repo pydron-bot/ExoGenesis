@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import type { ZoomCamera, ViewName } from './camera';
 import type { RegionUi, RegionView } from './world/region';
 import type { Building, UnitSnap } from './sim/types';
-import type { ArmyView } from './skirmish/view';
+import type { ArmyView } from './world/army/view';
 
 export type UiState = RegionUi;
 

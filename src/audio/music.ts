@@ -24,6 +24,7 @@ import type { MusicChord, MusicDef } from '../content/defs';
 import { midiHz, noteMidi, parseNotes } from './notes';
 import { HITS, parseSteps } from './drums';
 import { noise } from './synth';
+import { mulberry32 } from '../util/rng';
 
 /**
  * Where random choices come from: Math.random, or, while a written score is being scheduled, that
@@ -31,17 +32,8 @@ import { noise } from './synth';
  */
 let random: () => number = Math.random;
 const rand = (a: number, b: number) => a + random() * (b - a);
-/** A small seeded random source (mulberry32): the same seed, the same numbers. */
-function seeded(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** A small seeded random source (mulberry32, src/util/rng.ts): the same seed, the same numbers. */
+const seeded = mulberry32;
 /** A mood number, or `d` while it's blank or half-typed in the editor. */
 const fin = (v: number | undefined, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 

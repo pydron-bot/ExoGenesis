@@ -8,8 +8,7 @@
 import type { ChronicleEvent, ChroniclePerson, ChronicleSample } from './sim/chronicle';
 import { LINEAGES } from './sim/names';
 import type { SimState } from './sim/types';
-
-const esc = (t: string) => t.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+import { esc } from './util/html';
 const lineName = (l: number) => LINEAGES[l % LINEAGES.length];
 const C = { cyan: '#5ff3ff', amber: '#ffb547', crimson: '#ff4d5e', violet: '#c08bff', text: '#d6f6ff', dim: '#6f8f9c', panel: '#060e16', kids: '#7d93a0' };
 export const BLOC_COLORS = { partner: C.cyan, autonomist: C.amber, devoted: C.violet };

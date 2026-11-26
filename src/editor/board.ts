@@ -1,3 +1,4 @@
+import { h } from './dom';
 /**
  * Story board (Story → Story board): every story record (missions, story
  * events, cinematics, characters, inhabitants, story bible entries) as a card,
@@ -52,12 +53,6 @@ export const KINDS: { coll: string; label: string; one: string; color: string }[
 ];
 const RANK = Object.fromEntries(KINDS.map((k, i) => [k.coll, i]));
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  for (const k of kids) if (k !== null) e.append(k);
-  return e;
-};
 
 const PREFS = 'exo.board';
 const prefs = { hide: [] as string[], tag: '', who: '', q: '', status: '' };

@@ -10,6 +10,7 @@ import { loadModel } from '../assets/models';
 import { recolorModel, type Slots } from '../world/recolor';
 import { ARCHETYPES, Mesher, floraMaterial, floraUniforms, mulberry, palette } from '../world/flora';
 import { buildCreatureLook, creatureMaterial } from '../world/fauna-models';
+import { h } from './dom';
 
 let renderer: THREE.WebGLRenderer | null = null;
 
@@ -21,12 +22,6 @@ export interface NatureSource {
   asset(id: string): AssetDef | undefined;
 }
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string)[]) => {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  e.append(...kids);
-  return e;
-};
 
 interface Walker { obj: THREE.Mesh; r: number; speed: number; a: number; flyer: boolean; height: number; hop: boolean; sx: number }
 

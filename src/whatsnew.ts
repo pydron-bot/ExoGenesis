@@ -7,14 +7,13 @@ import type { Release } from './changelog';
 import { VERSION } from './version';
 import { content } from './content';
 import { openGuide } from './guide';
+import { esc } from './util/html';
 
 const SEEN_KEY = 'exo.seenVersion';
 
 export function hasUnseen(): boolean {
   try { return localStorage.getItem(SEEN_KEY) !== VERSION; } catch { return false; }
 }
-
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 /** "Field Guide:" and a link to each page a release lists (the ones that still exist). */
 function guideLinks(ids?: string[]) {

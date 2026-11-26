@@ -19,8 +19,8 @@ import { conditionMet } from './conditions';
 import type { Sim } from './core';
 import { TICK_HZ, type StoryState } from './types';
 import { blocOf, type PolicyKey } from './people-types';
+import { clamp } from '../util/math';
 
-const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 /** Hints that clear themselves when the player uses what they point at (others stay until an unhint or the next hint). */
 const HINT_DONE: Record<string, string> = { build: 'build', people: 'people', mood: 'mood', army: 'army', goals: 'goals', minimap: 'minimap', pause: 'speed', fast: 'speed' };
 

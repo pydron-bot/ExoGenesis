@@ -8,6 +8,7 @@
  */
 import { REPORT_COUNTERS } from '../sim/grade';
 import { conditionsIn, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef } from '../content/defs';
+import { h } from './dom';
 
 export interface LedgerRow {
   coll: 'missions' | 'story';
@@ -96,12 +97,6 @@ export function buildLedger(missions: Record<string, MissionDef>, story: Record<
 }
 
 // ---------- the page ----------
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 const label = (m: string) => (m.startsWith('counter:') ? `# ${m.slice(8)}` : m.startsWith('regard:') ? `regard ${m.slice(7)}` : m);
 
 export function renderLedger(main: HTMLElement, aside: HTMLElement, host: { missions: Record<string, MissionDef>; story: Record<string, StoryDef>; open(coll: 'missions' | 'story', id: string): void }) {

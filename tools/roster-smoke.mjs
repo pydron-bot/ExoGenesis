@@ -14,7 +14,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const { module: core } = await runnerImport(path.join(root, 'src/sim/core.ts'));
 const { module: rules } = await runnerImport(path.join(root, 'src/sim/rules.ts'));
 const { module: C } = await runnerImport(path.join(root, 'src/content/index.ts'));
-const { module: T } = await runnerImport(path.join(root, 'src/skirmish/types.ts'));
+const { module: T } = await runnerImport(path.join(root, 'src/world/army/types.ts'));
 const { content } = C;
 const U = content.units, B = content.buildings;
 const VENTS = content.regions.touchdown.vents;

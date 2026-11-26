@@ -10,7 +10,7 @@ import { content } from '../content';
 import { biomeOf, herdCount, herdSpecies, wildlifeIds } from '../content/nature';
 import { expeditionOf, type BuildingDef, type ModStat, type RegionDef, type UnitDef, type Weapon } from '../content/defs';
 import { HOME_REGION, newCampaign } from './campaign';
-import { F, FX, STRIDE, unitType } from '../skirmish/types';
+import { F, FX, STRIDE, unitType } from '../world/army/types';
 import { regionHeightRaw, regionTerrain, setRegionTerrain } from '../world/planet';
 import { chronicleEvent, recordChronicle } from './chronicle';
 import { daylight } from './daylight';
@@ -23,21 +23,24 @@ import { Planet } from './planet';
 import { Story } from './story';
 import { Missions } from './missions';
 import { Frontier } from './frontier';
-import { modTotals, researchBlocked, type ResearchWorld } from './mods';
+import { modTotals, type ResearchWorld } from './mods';
 import { blocOf, type Colonist } from './people-types';
-import { compass, depositFor, factoryMakes, gateSnap, isBarrier, linePoints, placeProblem, seamFor, wallsUnderGate, type PlaceWorld } from './rules';
+import { compass, depositFor, isBarrier, placeProblem, seamFor, type PlaceWorld } from './rules';
 import {
   FOG_CELL, FOG_N, MAX_HOSTILES, REGION_HALF, TICK_HZ,
   type Building, type Command, type EventCue, type PlaySetup, type Drone, type DroneSnap, type Hostile, type SimState, type Snapshot, type Unit, type UnitSnap,
   type Econ, type PlayerState, type SimStats, type SkirmishSetup, type FactionState, type CampaignInfo,
 } from './types';
+import { clamp } from '../util/math';
+import { runCommand } from './commands';
+import { stepGrazers } from './grazers';
 
 /** The Clause's colour: units it has turned are drawn in it (team 1). */
 const CLAUSE_COLOR = '#c13cff';
 /** Combat units each skirmish player may have. */
 const SKIRMISH_UNITS = 40;
 /** Anything a player's guns can shoot: fauna, or another player's unit, drone or building. */
-type Foe = Hostile | Unit | Building | Drone;
+export type Foe = Hostile | Unit | Building | Drone;
 const isHostile = (f: Foe): f is Hostile => 'pack' in f;
 const isBuilding = (f: Foe): f is Building => 'kind' in f;
 const isUnit = (f: Foe): f is Unit => 'order' in f && !('pack' in f);
@@ -80,11 +83,11 @@ export function skirmishHomes(n: number, lim: number): { x: number; z: number }[
   return out;
 }
 
-const RULES = content.colony;
+export const RULES = content.colony;
 const THREATS = content.threats;
-const DEFS = content.buildings;
-let REGION_ID = 'touchdown';
-let REGION: RegionDef = content.regions.touchdown;
+export const DEFS = content.buildings;
+export let REGION_ID = 'touchdown';
+export let REGION: RegionDef = content.regions.touchdown;
 let VENTS: NonNullable<RegionDef['vents']> = [];
 /**
  * Pick the region the sim plays on (content/regions/<id>.json); unknown ids fall
@@ -110,7 +113,7 @@ const waveInterval = () => REGION.waveInterval ?? THREATS.waveInterval;
 const FIXED_GUN_ARC = 0.3;
 /** …and one this close to the end of its move, with a target in range, halts there to turn and fire (u). */
 const FIXED_GUN_HALT = 8;
-const DT = 1 / TICK_HZ;
+export const DT = 1 / TICK_HZ;
 const WALK = 2.2;
 const RUN = 7.5;
 const FLEE_R = 14;
@@ -119,7 +122,7 @@ const WILD_IDS = wildlifeIds(content);
 const WILD_INDEX = new Map(WILD_IDS.map((id, i) => [id, i]));
 interface WildMove { idx: number; behavior: string; speed: number; run: number; flee: number; spread: number }
 const WILD_MOVES = new Map<string, WildMove>();
-function wildMove(id: string | undefined): WildMove {
+export function wildMove(id: string | undefined): WildMove {
   const key = id && content.wildlife[id] ? id : content.wildlife.grazer ? 'grazer' : WILD_IDS[0];
   let w = WILD_MOVES.get(key);
   if (!w) {
@@ -134,10 +137,10 @@ const regionHerdSpecies = () => {
   const biome = biomeOf(content, REGION);
   return REGION.herds.map((hd, i) => herdSpecies(content, biome, hd, i, REGION.floraSeed ?? 1));
 };
-const CORE_KEEP_OUT = 24;
+export const CORE_KEEP_OUT = 24;
 /** How far from the centre things may go (read per use: the region's size is set per region). */
-const limit = () => REGION_HALF - 6;
-const PANIC_R = 115;
+export const limit = () => REGION_HALF - 6;
+export const PANIC_R = 115;
 const DRONE_REACH = 5;
 /** Shooters with nothing in range draw this fraction of their power. */
 const STANDBY = 0.15;
@@ -147,7 +150,7 @@ const HOT_ZONE = 18;
 /** Idle combat units drop a chase once the target is this many aggro radii from their guard post. */
 const LEASH = 1.8;
 /** Spacing between units sent to the same point. */
-const SPREAD = 3.4;
+export const SPREAD = 3.4;
 /** Path grid keeps units this far from building bodies (the biggest unit radius). */
 const PATH_PAD = 1.4;
 /** Re-plan a followed path this often (ticks), so chases and new buildings are picked up. */
@@ -185,10 +188,9 @@ function crosses(px: number, pz: number, qx: number, qz: number, ax: number, az:
 export type Level = 'info' | 'warn' | 'bad';
 export type EventSink = (text: string, level: Level, cue?: EventCue, at?: { x: number; z: number }, style?: 'clause') => void;
 
-const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
-const def = (b: Building): BuildingDef => DEFS[b.kind];
-const bodyR = (b: Building) => def(b).clearance / 2;
-const maxHp = (b: Building) => def(b).hp;
+export const def = (b: Building): BuildingDef => DEFS[b.kind];
+export const bodyR = (b: Building) => def(b).clearance / 2;
+export const maxHp = (b: Building) => def(b).hp;
 /** Walls and gates: predators collide with them and chew through; gates let units by. */
 const barrier = (b: Building) => isBarrier(def(b).role);
 /** Each chain jump does this fraction of the previous hit. */
@@ -243,11 +245,11 @@ export class Sim {
   private fx: number[] = [];
   /** Spatial buckets (reused every tick): hostiles by index; buildings by index, rebuilt when the set changes. */
   private hostileBuckets = new Buckets<number>(6);
-  private scaryBuckets = new Buckets<number>(FLEE_R);
+  scaryBuckets = new Buckets<number>(FLEE_R);
   private bldBuckets = new Buckets<number>(8);
   private bldKey = '';
-  private found: number[] = [];
-  private seen = new Set<number>();
+  found: number[] = [];
+  seen = new Set<number>();
   /** Colonists' paths: every building blocks (they walk round gates too). */
   private grid = new PathGrid(limit());
   /** Combat units' paths, per movement type (built on first use): buildings but not gates block. */
@@ -322,12 +324,12 @@ export class Sim {
   /** Whose view the economy steps and commands are running in (0 = the local player; the campaign is always 0). */
   team = 0;
   /** The whole lists while one player's view is swapped in (placement still has to see everyone's buildings). */
-  private all: { buildings: Building[]; drones: Drone[]; units: Unit[] } | null = null;
+  all: { buildings: Building[]; drones: Drone[]; units: Unit[] } | null = null;
   /** Each player's power result and fog (index = team; [0] is the local player's, `power` / `vis` / `exp` outside a swap). */
   private powers: Sim['power'][] = [];
   private fogs: { vis: Uint8Array<ArrayBuffer>; exp: Uint8Array<ArrayBuffer> }[] = [];
   /** Players whose Command Core fell this tick (taken off the map at the end of the tick). */
-  private falling: number[] = [];
+  falling: number[] = [];
   /** Foes per team this tick (see `foes`). */
   private foeCache = new Map<number, Foe[]>();
   private foeTick = -1;
@@ -1016,7 +1018,7 @@ export class Sim {
   get deployed() { return this.s.phase === 'deployed'; }
   get units(): Unit[] { return (this.s.units ??= []); }
   /** What placement rules see. */
-  private get world(): PlaceWorld {
+  get world(): PlaceWorld {
     const others = this.all ? this.all.buildings.filter((b) => (b.team ?? 0) !== this.team) : undefined;
     return { buildings: this.s.buildings, others, deposits: this.s.deposits, vents: VENTS, seams: this.s.seams, campSites: campSites(this.s.camps ?? []) };
   }
@@ -1250,7 +1252,7 @@ export class Sim {
   }
 
   // ---------- drones ----------
-  private approach(o: { x: number; z: number; heading: number }, tx: number, tz: number, sp: number, turn: number) {
+  approach(o: { x: number; z: number; heading: number }, tx: number, tz: number, sp: number, turn: number) {
     const dx = tx - o.x, dz = tz - o.z;
     const d = Math.hypot(dx, dz);
     if (d < 1e-3) return 0;
@@ -1548,7 +1550,7 @@ export class Sim {
    * Commands run inside the player's own view, so the instant kinds (pulse, mend) only arm here and go off in
    * the shared fight (stepUnits), where they can reach everyone's things.
    */
-  private useAbility(u: Unit): boolean {
+  useAbility(u: Unit): boolean {
     const d = content.units[u.unit];
     if (!d?.ability || (u.ab ?? 0) > 0 || u.ride !== undefined) return false;
     u.ab = d.abilityCooldown ?? ABILITY_CD;
@@ -1715,7 +1717,7 @@ export class Sim {
   }
 
   /** Send a loaded transport to land its cargo at (x, z) on land: it makes for the nearest water to it. */
-  private sendToLand(t: Unit, x: number, z: number) {
+  sendToLand(t: Unit, x: number, z: number) {
     const w = this.unitGrid('water').openNear(x, z, 140, t);
     if (!w) return false;
     t.drop = { x, z, wx: w.x, wz: w.z };
@@ -1733,7 +1735,7 @@ export class Sim {
    * Buildings by index, each in every cell its body (a wall: its whole segment) touches, plus a margin
    * for the biggest body pushed against it. Rebuilt only when buildings come or go.
    */
-  private buildingBuckets() {
+  buildingBuckets() {
     const bs = this.s.buildings;
     let sum = 0;
     for (const b of bs) sum = (sum * 31 + b.id) | 0;
@@ -1767,12 +1769,12 @@ export class Sim {
   }
 
   /** Building bodies onto the path grids these units use (gates are open to units: not obstacles). */
-  private setUnitBodies(us: Unit[]) {
+  setUnitBodies(us: Unit[]) {
     const bodies = this.s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) }));
     const moves = new Set(us.map((u) => moveOf(content.units[u.unit])));
     for (const m of moves) if (m !== 'air') this.unitGrid(m).setBodies(bodies, PATH_PAD);
   }
-  private unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
+  unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
   private faunaGrid(m: Move) { return (this.faunaGrids[m] ??= new PathGrid(limit(), m)); }
 
   /**
@@ -2585,7 +2587,7 @@ export class Sim {
     this.emit(text || (how === 'won' ? 'The colony has won through.' : 'The colony is lost.'), how === 'won' ? 'info' : 'bad', how === 'won' ? 'victory' : 'defeat');
   }
 
-  private destroyBuilding(b: Building) {
+  destroyBuilding(b: Building) {
     const s = this.s;
     // (inside the colony's own view a faction's building is only in the whole list)
     const list = b.team && this.all && !s.buildings.includes(b) ? this.all.buildings : s.buildings;
@@ -2621,7 +2623,7 @@ export class Sim {
   }
 
   /** The editor's play test setup (see PlaySetup): a colony as it might be later in the game. */
-  private playSetup(p: PlaySetup) {
+  playSetup(p: PlaySetup) {
     const s = this.s, done: string[] = [];
     if (p.sol && p.sol > 1) {
       // move the clock on; what's scheduled moves with it (the next pack keeps its countdown)
@@ -2789,123 +2791,14 @@ export class Sim {
     if (w.held !== undefined) { w.next = w.held; delete w.held; } // a story pack while waves were held off: held again
   }
 
-  private freeSlot() {
+  freeSlot() {
     const used = new Set([...this.s.hostiles, ...(this.all?.units ?? this.units)].map((h) => h.slot));
     for (let i = 0; i < MAX_HOSTILES; i++) if (!used.has(i)) { this.slotsUsed = Math.max(this.slotsUsed, i + 1); return i; }
     return -1;
   }
 
-  // ---------- grazers (ambient) ----------
-  private herdSpot(h: number) {
-    const s = this.s;
-    const home = REGION.herds[h] ?? { x: s.herds[h].x, z: s.herds[h].z, roam: 60 };
-    if (home.roam <= 0) return { x: home.x, z: home.z };
-    for (let tries = 0; tries < 20; tries++) {
-      const a = this.rnd() * Math.PI * 2, r = Math.sqrt(this.rnd()) * home.roam;
-      const x = home.x + Math.cos(a) * r, z = home.z + Math.sin(a) * r;
-      if (Math.abs(x) < limit() - 15 && Math.abs(z) < limit() - 15 && Math.hypot(x, z) > 50) return { x, z };
-    }
-    return { x: home.x, z: home.z };
-  }
-
-  private stepGrazers() {
-    const s = this.s;
-    const panic = s.panic > 0;
-    if (panic) s.panic--;
-    if (s.herds.length && this.rnd() < 0.004) {
-      const h = Math.floor(this.rnd() * s.herds.length);
-      s.herds[h] = { ...this.herdSpot(h), sp: s.herds[h].sp };
-    }
-    const scary = [...s.drones, ...this.units, ...s.hostiles.filter((h) => !h.under)];
-    // what's near each creature, in list order (as a check against everything would go)
-    const sb = this.scaryBuckets, found = this.found;
-    sb.clear();
-    scary.forEach((o, i) => sb.add(i, o.x, o.z));
-    const blds = this.buildingBuckets(), seen = this.seen;
-    for (const f of s.fauna) {
-      const w = wildMove(f.sp);
-      const beh = w.behavior;
-      const c = s.herds[f.herd] ?? { x: f.x, z: f.z };
-      if (f.wait) f.wait--;
-      // the nearest threat: the landing's engine noise, or something within the species' wariness
-      let thx = 0, thz = 0, threat = false;
-      const rc0 = Math.hypot(f.x, f.z);
-      if (panic && rc0 < PANIC_R && rc0 > 1e-3) { thx = f.x / rc0; thz = f.z / rc0; threat = true; }
-      else if (this.deployed && w.flee > 0) {
-        sb.near(f.x, f.z, w.flee, found);
-        found.sort((p, q) => p - q);
-        for (const k of found) {
-          const o = scary[k];
-          const dx = f.x - o.x, dz = f.z - o.z, dd = Math.hypot(dx, dz);
-          if (dd < w.flee && dd > 1e-3) { thx = dx / dd; thz = dz / dd; threat = true; break; }
-        }
-      }
-      let tx = f.tx, tz = f.tz, sp = w.speed, turn = 2.5;
-      const hidden = f.st === 2;
-      f.st = 0;
-      const newTarget = (r: number) => {
-        f.tx = clamp(c.x + (this.rnd() - 0.5) * 2 * r, -limit(), limit());
-        f.tz = clamp(c.z + (this.rnd() - 0.5) * 2 * r, -limit(), limit());
-        tx = f.tx; tz = f.tz;
-      };
-      if (beh === 'flyer') {
-        // circle the herd's ground; wider and faster when disturbed. Flyers pass over buildings.
-        const rad = w.spread * (threat ? 1.6 : 0.6) + (f.herd % 3) * 3;
-        sp = threat ? w.run : w.speed;
-        f.ang = ((f.ang ?? 0) + (sp / Math.max(4, rad)) * DT) % (Math.PI * 2);
-        tx = clamp(c.x + Math.cos(f.ang) * rad, -limit(), limit());
-        tz = clamp(c.z + Math.sin(f.ang) * rad, -limit(), limit());
-        if (threat) f.st = 1;
-        this.approach(f, tx, tz, sp, 1.6);
-        continue;
-      }
-      if (beh === 'burrow') {
-        // duck underground and wait it out
-        if (threat) { f.st = 2; f.wait = Math.round((3 + this.rnd() * 4) * TICK_HZ); continue; }
-        if (hidden && f.wait) { f.st = 2; continue; }
-      }
-      if (threat && beh === 'lumber' && !panic) {
-        // stand and stare
-        const want = Math.atan2(-thx, -thz);
-        let dh = want - f.heading;
-        dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-        f.heading += clamp(dh, -1.2 * DT, 1.2 * DT);
-        continue;
-      }
-      let fled = false;
-      if (threat) {
-        tx = f.x + thx * 20; tz = f.z + thz * 20; sp = w.run; fled = true; f.st = 1; f.wait = 0;
-        turn = 9;
-      } else if (beh === 'skittish') {
-        // dash, pause, dash
-        if (f.wait) continue;
-        if (Math.hypot(f.tx - f.x, f.tz - f.z) < 1) {
-          f.wait = Math.round((0.8 + this.rnd() * 3) * TICK_HZ);
-          const a = this.rnd() * Math.PI * 2, r = 3 + this.rnd() * 8;
-          let nx = f.x + Math.cos(a) * r, nz = f.z + Math.sin(a) * r;
-          // drift back toward the herd's centre when strayed
-          if (Math.hypot(nx - c.x, nz - c.z) > w.spread) { nx = (nx + c.x) / 2; nz = (nz + c.z) / 2; }
-          f.tx = clamp(nx, -limit(), limit()); f.tz = clamp(nz, -limit(), limit());
-          continue;
-        }
-        sp = w.run * 0.6; turn = 12;
-      }
-      if (!fled && beh !== 'skittish' && (Math.hypot(f.tx - f.x, f.tz - f.z) < 1.5 || this.rnd() < 0.003)) newTarget(w.spread);
-      // keep out of the base
-      seen.clear();
-      blds.near(f.x, f.z, CORE_KEEP_OUT, found, seen);
-      found.sort((p, q) => p - q);
-      for (const k of found) {
-        const b = s.buildings[k];
-        const r = b.kind === 'core' ? CORE_KEEP_OUT : bodyR(b) + 4;
-        const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
-        if (d < r && d > 1e-3) { tx = b.x + (dx / d) * (r + 8); tz = b.z + (dz / d) * (r + 8); }
-      }
-      if (Math.hypot(tx - f.x, tz - f.z) > 0.4) this.approach(f, tx, tz, sp, sp > w.speed * 1.5 ? Math.max(turn, 9) : turn);
-      f.x = clamp(f.x, -limit(), limit());
-      f.z = clamp(f.z, -limit(), limit());
-    }
-  }
+  // ---------- grazers (ambient): ./grazers.ts ----------
+  private stepGrazers() { stepGrazers(this); }
 
   // ---------- commands ----------
   /** A player's command (skirmish: `team` says whose; it acts only on that player's things and alloys). */
@@ -2914,336 +2807,10 @@ export class Sim {
     if (!this.s.players) this.withTeam(0, () => this.run(c)); // (campaign factions: only our own things take orders)
   }
 
-  private run(c: Command) {
-    const s = this.s;
-    if (c.type === 'landing') { this.landing(c.stage); return; }
-    if (!this.deployed || s.over) return;
-    switch (c.type) {
-      case 'move': {
-        const d = s.drones.find((x) => x.id === c.drone) ?? s.drones[0];
-        if (!d) return;
-        d.task = { kind: 'move', x: clamp(c.x, -limit(), limit()), z: clamp(c.z, -limit(), limit()) };
-        d.manual = true;
-        return;
-      }
-      case 'build': {
-        const dd = DEFS[c.kind];
-        if (!dd || !dd.buildable) return;
-        if (this.story.locked(c.kind)) { this.emit(`${dd.name} isn't available yet`, 'warn', 'deny'); return; }
-        if (!this.researched(dd.research)) { this.emit(`${dd.name} needs research: ${content.research[dd.research!]?.name}`, 'warn', 'deny'); return; }
-        if (s.alloys < dd.cost) { this.emit(`Not enough alloys for a ${dd.name} (${dd.cost} needed)`, 'warn', 'deny'); return; }
-        if ((s.isotopes ?? 0) < (dd.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${dd.name} (${dd.isotopes} needed)`, 'warn', 'deny'); return; }
-        let { x, z } = c, yaw = c.yaw ?? 0;
-        // a gate dropped by a wall snaps onto its line
-        const sn = dd.role === 'gate' ? gateSnap(this.world, DEFS, x, z) : null;
-        if (sn) ({ x, z, yaw } = sn);
-        const why = placeProblem(this.world, DEFS, RULES, c.kind, x, z);
-        if (why) { this.emit(`Can't build there: ${why}`, 'warn', 'deny'); return; }
-        s.alloys -= dd.cost;
-        s.isotopes = (s.isotopes ?? 0) - (dd.isotopes ?? 0);
-        let swapped = 0;
-        if (dd.role === 'gate') {
-          for (const w of wallsUnderGate(s.buildings, DEFS, dd, x, z, yaw)) {
-            s.alloys += def(w).cost * 0.5 * (w.progress >= 1 ? w.hp / maxHp(w) : 1);
-            s.buildings.splice(s.buildings.indexOf(w), 1);
-            swapped++;
-          }
-        }
-        s.buildings.push({ id: s.nextId++, kind: c.kind, x, z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
-        this.story.placed(c.kind);
-        this.emit(`${dd.name} placed${swapped ? ` · replaces ${swapped} wall segment${swapped > 1 ? 's' : ''}` : ''}${s.drones.length ? '' : ' · waiting for a drone'}`, 'info', 'placed');
-        return;
-      }
-      case 'buildLine': {
-        const dd = DEFS[c.kind];
-        if (!dd || !dd.buildable || this.story.locked(c.kind)) return;
-        const { pts, yaw } = linePoints(dd, c.x1, c.z1, c.x2, c.z2);
-        let placed = 0, skipped = 0, poor = false;
-        for (const p of pts) {
-          if (s.alloys < dd.cost) { poor = true; break; }
-          if (placeProblem(this.world, DEFS, RULES, c.kind, p.x, p.z)) { skipped++; continue; }
-          s.alloys -= dd.cost;
-          s.buildings.push({ id: s.nextId++, kind: c.kind, x: p.x, z: p.z, yaw, progress: 0, hp: Math.max(1, dd.hp * 0.1), on: true, powered: false });
-          placed++;
-        }
-        if (placed) this.story.placed(c.kind);
-        if (placed) this.emit(`${placed} ${dd.name} segment${placed > 1 ? 's' : ''} placed${skipped ? ` · ${skipped} spots blocked` : ''}${poor ? ' · ran out of alloys' : ''}`, 'info', 'placed');
-        else this.emit(poor ? `Not enough alloys for a ${dd.name} (${dd.cost} each)` : `Can't build a ${dd.name} there`, 'warn', 'deny');
-        return;
-      }
-      case 'repair': {
-        const b = s.buildings.find((x) => x.id === c.id);
-        if (!b || b.progress < 1 || b.hp >= maxHp(b)) return;
-        let best: Drone | null = null, bd = Infinity;
-        for (const d of s.drones) {
-          const dist = Math.hypot(d.x - b.x, d.z - b.z) + (d.task.kind === 'idle' ? 0 : 1000);
-          if (dist < bd) { bd = dist; best = d; }
-        }
-        if (best) { best.task = { kind: 'repair', id: b.id }; best.manual = true; }
-        return;
-      }
-      case 'power': {
-        const b = s.buildings.find((x) => x.id === c.id);
-        if (b && b.kind !== 'core') b.on = c.on;
-        return;
-      }
-      case 'grow': case 'unpod': case 'policy':
-        this.people.command(c);
-        return;
-      case 'demolish': {
-        const b = s.buildings.find((x) => x.id === c.id);
-        if (!b || b.kind === 'core') return;
-        const dd = def(b);
-        if (s.people?.pods.some((p) => p.b === b.id)) { this.emit(`Can't recycle the ${dd.name}: its growth pods are running`, 'warn', 'deny'); return; }
-        const queued = (b.queue ?? []).reduce((m, k) => m + (content.units[k]?.cost ?? 0), 0);
-        const refund = queued + (b.progress < 1 ? dd.cost * (1 - b.progress * 0.5) : dd.cost * 0.5 * (b.hp / dd.hp));
-        s.alloys += refund;
-        s.buildings.splice(s.buildings.indexOf(b), 1);
-        this.people.buildingLost(b, false);
-        this.emit(`${dd.name} ${b.progress < 1 ? 'cancelled' : 'recycled'} · +${Math.floor(refund)} alloys`, 'info', 'recycle');
-        return;
-      }
-      case 'standing': this.frontier.command(c.sector, c.order); return;
-      case 'neighbour': this.inhabitants.ask(c.camp, c.act, c.n ?? 0); return;
-      case 'contact':
-        this.inhabitants.command(c.camp, c.choice);
-        return;
-      case 'story':
-        this.story.answer(c.id, c.choice);
-        return;
-      case 'cinematic':
-        this.story.cineDone(c.id);
-        return;
-      case 'ui':
-        this.story.opened(c.what);
-        return;
-      case 'guide':
-        this.story.watchGuide(c.watch);
-        return;
-      case 'travelled':
-        delete s.travel;
-        return;
-      case 'inspect': {
-        const st = this.story.s;
-        if (c.flag && !st.flags.includes(c.flag)) st.flags.push(c.flag);
-        if (c.unflag) st.flags = st.flags.filter((f) => f !== c.unflag);
-        if (c.counter) (st.counters ??= {})[c.counter.id] = c.counter.value;
-        if (c.objective) this.missions.mark(c.objective.mission, c.objective.index);
-        if (c.finish) this.missions.complete(c.finish);
-        if (c.fail) this.missions.fail(c.fail, 'failed from the story inspector');
-        if (c.expire) { st.countdowns = (st.countdowns ?? []).filter((x) => x.id !== c.expire); if (!(st.expired ??= []).includes(c.expire)) st.expired.push(c.expire); }
-        if (c.unlock && st.locked) st.locked = st.locked.filter((x) => x !== c.unlock);
-        if (c.route) this.story.effect({ kind: 'route', region: c.route });
-        if (c.unroute) this.story.effect({ kind: 'unroute', region: c.unroute });
-        if (c.skip && c.skip > 0) this.skip(c.skip);
-        return;
-      }
-      case 'debug': {
-        if (c.setup) this.playSetup(c.setup);
-        if (c.story) this.story.fire(c.story);
-        if (c.cinematic) this.story.playCine(c.cinematic);
-        if (c.mission) {
-          this.missions.jump(c.mission);
-          // a mission on another region (?mission=, the inspector): go there to play it
-          const r = content.missions[c.mission]?.region;
-          if (r && r !== REGION_ID && content.regions[r] && !this.everywhere && !s.players) { this.story.effect({ kind: 'route', region: r }); s.travel = r; }
-        }
-        if (c.regard) this.inhabitants.setRegard(c.regard.camp, c.regard.value);
-        if (c.alloys) s.alloys += c.alloys;
-        if (c.wave) s.waves.next = s.tick;
-        if (c.spawn && content.units[c.spawn.unit]) {
-          // tests: a pack of `n` right here
-          const sp = c.spawn, pack = { id: s.nextId++, size: sp.n ?? 1, alive: 0, announced: true, from: compass(sp.x, sp.z) };
-          for (let i = 0; i < pack.size; i++) {
-            const slot = this.freeSlot();
-            if (slot < 0) break;
-            s.hostiles.push({ id: s.nextId++, unit: sp.unit, slot, x: sp.x + (i % 4) * 1.6, z: sp.z - Math.floor(i / 4) * 1.6, heading: 0, hp: content.units[sp.unit].hp, target: -1, cd: 0, pack: pack.id, under: content.units[sp.unit].burrows || undefined });
-            pack.alive++;
-          }
-          s.packs.push(pack);
-        }
-        if (c.units && content.units[c.units.unit]?.faction === 'accord') {
-          // tests / playtesting: combat units right here, guarding where they land
-          const sp = c.units, ud = content.units[sp.unit];
-          for (let i = 0; i < (sp.n ?? 1); i++) {
-            const slot = this.freeSlot();
-            if (slot < 0) break;
-            const x = clamp(sp.x + (i % 4) * 3, -limit(), limit()), z = clamp(sp.z - Math.floor(i / 4) * 3, -limit(), limit());
-            this.units.push({ id: s.nextId++, unit: sp.unit, slot, x, z, heading: 0, hp: ud.hp, cd: 0, order: { kind: 'idle' }, gx: x, gz: z, target: -1 });
-          }
-        }
-        if (c.people) this.people.debug(c.people);
-        if (c.hurt) {
-          const b = s.buildings.find((x) => x.id === c.hurt!.id);
-          if (b) { b.hp -= c.hurt.hp; if (b.hp <= 0) this.destroyBuilding(b); }
-        }
-        return;
-      }
-      case 'produce': {
-        const b = s.buildings.find((x) => x.id === c.id);
-        const ud = content.units[c.unit];
-        if (!b || def(b).role !== 'factory' || b.progress < 1 || !ud || ud.faction !== 'accord' || ud.cost === undefined) return;
-        if (!factoryMakes(def(b), ud)) { this.emit(`The ${def(b).name} can't build a ${ud.name}`, 'warn', 'deny'); return; }
-        if (this.story.locked(c.unit)) { this.emit(`${ud.name} isn't available yet`, 'warn', 'deny'); return; }
-        const queued = s.buildings.reduce((m, x) => m + (x.queue?.length ?? 0), 0);
-        if (this.armySize() + queued >= this.unitCap()) { this.emit(`Combat unit limit reached (${this.unitCap()})`, 'warn', 'deny'); return; }
-        if (!this.researched(ud.research)) { this.emit(`${ud.name} needs research: ${content.research[ud.research!]?.name}`, 'warn', 'deny'); return; }
-        if (s.alloys < ud.cost) { this.emit(`Not enough alloys for a ${ud.name} (${ud.cost} needed)`, 'warn', 'deny'); return; }
-        if ((s.isotopes ?? 0) < (ud.isotopes ?? 0)) { this.emit(`Not enough isotopes for a ${ud.name} (${ud.isotopes} needed)`, 'warn', 'deny'); return; }
-        s.alloys -= ud.cost;
-        s.isotopes = (s.isotopes ?? 0) - (ud.isotopes ?? 0);
-        (b.queue ??= []).push(c.unit);
-        if (b.queue.length === 1) b.prod = 0;
-        return;
-      }
-      case 'unqueue': {
-        const b = s.buildings.find((x) => x.id === c.id);
-        if (!b?.queue?.length) return;
-        const k = b.queue.pop()!;
-        s.alloys += content.units[k]?.cost ?? 0;
-        s.isotopes = (s.isotopes ?? 0) + (content.units[k]?.isotopes ?? 0);
-        if (!b.queue.length) b.prod = 0;
-        return;
-      }
-      case 'order': {
-        let sel = this.units.filter((u) => c.ids.includes(u.id));
-        const x = clamp(c.x, -limit(), limit()), z = clamp(c.z, -limit(), limit());
-        for (const u of sel) { u.ride = undefined; u.drop = undefined; if (content.units[u.unit].ability === 'siege') u.abT = 0; }
-        // a loaded transport sent to a spot on land goes to land its cargo there
-        if (!offLimits('ground', regionHeightRaw(x, z))) sel = sel.filter((u) => !(u.cargo?.length && this.sendToLand(u, x, z)));
-        // spread out around the point (sunflower), nearest units take the inner spots
-        sel.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
-        // spots that land in a building (or the water, for a Rover) move to open ground beside it, a spot apart
-        this.setUnitBodies(sel);
-        // spots already held near the point (units standing there, or on their way to it) stay theirs: reinforcements
-        // sent after the first group take the next free spots instead of all piling onto the middle
-        const held: number[] = [];
-        const near = SPREAD * Math.sqrt(sel.length + 40) + 6;
-        for (const o of this.units) {
-          if (sel.includes(o) || (o.team ?? 0) !== this.team) continue;
-          const px = o.order.kind === 'move' ? o.order.x : o.order.kind === 'idle' ? o.x : NaN, pz = o.order.kind === 'move' ? o.order.z : o.z;
-          if (Number.isFinite(px) && Math.hypot(px - x, pz - z) < near) held.push(px, pz);
-        }
-        const isHeld = (px: number, pz: number) => { for (let k = 0; k < held.length; k += 2) if (Math.hypot(held[k] - px, held[k + 1] - pz) < SPREAD * 0.8) return true; return false; };
-        const taken: number[] = [];
-        let slot = 0;
-        sel.forEach((u) => {
-          let i = slot;
-          while (i < slot + 400 && isHeld(x + Math.cos(i * 2.39996) * SPREAD * Math.sqrt(i), z + Math.sin(i * 2.39996) * SPREAD * Math.sqrt(i))) i++;
-          slot = i + 1;
-          const r = SPREAD * Math.sqrt(i) * (i ? 1 : 0), a = i * 2.39996;
-          let ox = clamp(x + Math.cos(a) * r, -limit(), limit()), oz = clamp(z + Math.sin(a) * r, -limit(), limit());
-          const m = moveOf(content.units[u.unit]);
-          if (m !== 'air' && this.unitGrid(m).isBlocked(ox, oz)) {
-            const g = this.unitGrid(m), free = (px: number, pz: number) => !g.isBlocked(px, pz) && !taken.some((_, k) => k % 2 === 0 && Math.hypot(taken[k] - px, taken[k + 1] - pz) < SPREAD * 0.8);
-            search: for (let rr = 2; rr < 40; rr += 2) {
-              const steps = Math.ceil((rr * 6.3) / 2);
-              for (let q = 0; q < steps; q++) {
-                const t = a + (q / steps) * Math.PI * 2, px = ox + Math.cos(t) * rr, pz = oz + Math.sin(t) * rr;
-                if (Math.abs(px) < limit() && Math.abs(pz) < limit() && free(px, pz)) { ox = px; oz = pz; break search; }
-              }
-            }
-          }
-          taken.push(ox, oz);
-          u.order = { kind: 'move', x: ox, z: oz };
-          u.target = -1;
-        });
-        return;
-      }
-      case 'attack': {
-        // one target: a campaign faction's unit or building (a neutral one turns hostile), or a predator
-        const all = this.all ?? { buildings: s.buildings, units: this.units };
-        const tgt: Foe | undefined = all.units.find((u) => u.id === c.target) ?? all.buildings.find((b) => b.id === c.target) ?? s.hostiles.find((h) => h.id === c.target);
-        if (!tgt) return;
-        const t = (tgt as { team?: number }).team ?? 0;
-        if (t && !s.players) {
-          const f = s.factions?.find((x) => x.team === t);
-          if (this.attitude(t) === 'allied') { this.emit(`${f?.name ?? 'They'} are on our side`, 'warn', 'deny'); return; }
-          if (f && f.attitude === 'neutral') {
-            this.setAttitude(f.id, 'hostile');
-            if (!this.story.has(`${f.id}-attacked`)) this.story.s.flags.push(`${f.id}-attacked`);
-          }
-        }
-        this.run({ type: 'order', ids: c.ids, x: tgt.x, z: tgt.z });
-        for (const u of this.units) if (c.ids.includes(u.id)) u.target = tgt.id;
-        return;
-      }
-      case 'surrender': {
-        if (s.players && !s.players[this.team]?.out && !this.falling.includes(this.team)) this.falling.push(this.team);
-        return;
-      }
-      case 'ability': {
-        let n = 0, any = false;
-        for (const u of this.units) {
-          if (!c.ids.includes(u.id) || !content.units[u.unit]?.ability) continue;
-          any = true;
-          if (this.useAbility(u)) n++;
-        }
-        if (any && !n) this.emit('Not ready yet', 'warn', 'deny');
-        return;
-      }
-      case 'stop': {
-        for (const u of this.units) if (c.ids.includes(u.id)) { u.order = { kind: 'idle' }; u.gx = u.x; u.gz = u.z; u.ride = undefined; u.drop = undefined; }
-        return;
-      }
-      case 'board': {
-        const t = this.units.find((u) => u.id === c.transport), td = t && content.units[t.unit];
-        if (!t || !td?.carries) return;
-        // ground units only, as many as there's room for (nearest first)
-        const room = td.carries - (t.cargo?.length ?? 0) - this.units.filter((u) => u.ride === t.id && !c.ids.includes(u.id)).length;
-        const riders = this.units.filter((u) => c.ids.includes(u.id) && u !== t && !content.units[u.unit].carries && moveOf(content.units[u.unit]) === 'ground')
-          .sort((a, b) => Math.hypot(a.x - t.x, a.z - t.z) - Math.hypot(b.x - t.x, b.z - t.z)).slice(0, Math.max(0, room));
-        if (!riders.length) { this.emit(room <= 0 ? `${td.name} is full (${td.carries})` : `Only ground units can board the ${td.name}`, 'warn', 'deny'); return; }
-        for (const u of riders) { u.ride = t.id; u.drop = undefined; u.target = -1; u.order = { kind: 'idle' }; }
-        // it comes in to the water nearest them
-        const cx = riders.reduce((m, u) => m + u.x, 0) / riders.length, cz = riders.reduce((m, u) => m + u.z, 0) / riders.length;
-        const w = this.unitGrid('water').openNear(cx, cz, 80, t);
-        if (w && Math.hypot(w.x - t.x, w.z - t.z) > 4) { t.drop = undefined; t.order = { kind: 'move', x: w.x, z: w.z }; t.target = -1; }
-        return;
-      }
-      case 'unload': {
-        for (const t of this.units) {
-          if (!c.ids.includes(t.id) || !t.cargo?.length) continue;
-          const at = this.unitGrid('ground').openNear(t.x, t.z, 80);
-          if (at) this.sendToLand(t, at.x, at.z);
-        }
-        return;
-      }
-      case 'research': {
-        const r = content.research[c.id], R = (s.research ??= { done: [], active: null });
-        if (!r || R.done.includes(c.id)) return;
-        if (R.active) { this.emit(`The Tech Lab is busy with ${content.research[R.active.id]?.name ?? 'other research'}`, 'warn', 'deny'); return; }
-        if (!s.buildings.some((b) => b.progress >= 1 && def(b)?.role === 'lab')) { this.emit('Research needs a finished Tech Lab', 'warn', 'deny'); return; }
-        const why = researchBlocked(r, content.research, DEFS, this.researchWorld());
-        if (why) { this.emit(`${r.name} needs ${why}`, 'warn', 'deny'); return; }
-        if (s.alloys < r.cost) { this.emit(`Not enough alloys for ${r.name} (${r.cost} needed)`, 'warn', 'deny'); return; }
-        if ((s.isotopes ?? 0) < (r.isotopes ?? 0)) { this.emit(`Not enough isotopes for ${r.name} (${r.isotopes} needed)`, 'warn', 'deny'); return; }
-        s.alloys -= r.cost;
-        s.isotopes = (s.isotopes ?? 0) - (r.isotopes ?? 0);
-        R.active = { id: c.id, progress: 0 };
-        this.emit(`Research started: ${r.name}`, 'info', 'confirm');
-        return;
-      }
-      case 'unresearch': {
-        const R = s.research, a = R?.active, r = a && content.research[a.id];
-        if (!R || !a) return;
-        if (r) { s.alloys += r.cost; s.isotopes = (s.isotopes ?? 0) + (r.isotopes ?? 0); }
-        R.active = null;
-        this.emit(`Research cancelled${r ? `: ${r.name} (refunded)` : ''}`, 'info', 'recycle');
-        return;
-      }
-      case 'fab': {
-        if (s.drones.length + s.fab.queued >= this.maxDrones()) { this.emit(`Drone limit reached (${this.maxDrones()})`, 'warn', 'deny'); return; }
-        if (s.alloys < RULES.droneCost) { this.emit(`Not enough alloys for a drone (${RULES.droneCost} needed)`, 'warn', 'deny'); return; }
-        s.alloys -= RULES.droneCost;
-        s.fab.queued++;
-        this.emit('Drone fabrication started', 'info', 'confirm');
-        return;
-      }
-    }
-  }
+  /** A command, as this player (./commands.ts). */
+  run(c: Command) { runCommand(this, c); }
 
-  private landing(stage: 'burn' | 'touchdown' | 'deploy') {
+  landing(stage: 'burn' | 'touchdown' | 'deploy') {
     const s = this.s;
     if (this.deployed) return;
     if (stage === 'burn') {

@@ -23,6 +23,7 @@ import {
   type Bloc, type Colonist, type ColonistSnap, type PeopleCommand, type PeopleSnap, type PeopleState, type Pod, type PolicyKey,
 } from './people-types';
 import { TICK_HZ, type Building } from './types';
+import { clamp } from '../util/math';
 
 const P = content.people;
 const SOL = content.colony.solSeconds;
@@ -72,7 +73,6 @@ const MEMORIAL_GRIEF = 1.75;
 /** A Med Bay caring for someone's home multiplies their yearly chance of dying of old age by this. */
 const MEDBAY_AGEING = 0.5;
 
-const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const def = (b: Building): BuildingDef => DEFS[b.kind];
 const bodyR = (b: Building) => def(b).clearance / 2;
 const lineName = (l: number) => LINEAGES[l % LINEAGES.length];

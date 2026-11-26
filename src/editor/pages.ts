@@ -9,13 +9,8 @@
  */
 import { COLLECTIONS, pathOf, type Collection, type CollectionName } from '../content/defs';
 import type { Field, Shape } from '../content/schema';
+import { h } from './dom';
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null | false)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null && k !== false) el.append(k);
-  return el;
-};
 const link = (text: string, go: () => void, cls = 'fl-link') => {
   const a = h('a', cls, text);
   a.href = '#';

@@ -21,6 +21,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.101.1',
+    date: '2026-11-26',
+    title: 'Under the hood: tidier code',
+    notes: [
+      'Behind the scenes: the code is reorganised so new features are quicker and safer to add',
+      'The early skirmish prototype (the hundreds-of-units test from the first builds) is retired: the real Skirmish replaced it long ago',
+    ],
+    guide: [],
+  },
+  {
     version: '0.101.0',
     date: '2026-11-26',
     title: 'Safety nets',

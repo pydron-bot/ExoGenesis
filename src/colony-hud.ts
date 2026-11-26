@@ -18,6 +18,7 @@ import { FOG_N, REGION_HALF } from './sim/types';
 import { regionColor } from './world/planet';
 import type { RegionUi } from './world/region';
 import * as THREE from 'three';
+import { $, esc } from './util/html';
 
 interface HudDeps {
   defs: Record<string, BuildingDef>;
@@ -52,8 +53,6 @@ interface HudDeps {
   nextIdleDrone?(): void;
 }
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 

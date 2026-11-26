@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { DEFAULT_REGION_SIZE } from '../sim/types';
 import { bodyFlora, bodyHeight, bodyTerrain, siteDir, siteLift, terrainColorFor, type BodyTerrain } from '../world/planet';
+import { h } from './dom';
 
 export interface PlanetRegion { id: string; name: string; lat: number; lon: number; body: string; size: number; keepSea?: boolean }
 export interface PlanetBody { id: string; name: string; kind: string; def: Record<string, unknown> }
@@ -72,12 +73,6 @@ export function overlaps(regions: PlanetRegion[], radius = 3000): [string, strin
   return out;
 }
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 
 export function renderPlanet(main: HTMLElement, aside: HTMLElement, host: PlanetHost): { dispose(): void } {
   const all = host.regions.map((r) => ({ ...r }));

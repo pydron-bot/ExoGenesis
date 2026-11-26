@@ -15,8 +15,7 @@ import { content } from './content';
 import { GUIDE_SECTIONS, GUIDE_SECTION_NAMES, seeAlso, type GuideDef } from './content/defs';
 import { VERSION } from './version';
 import { hintElement, type HintAction } from './story-hud';
-
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+import { esc } from './util/html';
 
 export const SEEN_KEY = 'exo.guide.seen', TOURED_KEY = 'exo.guide.toured', TIPPED_KEY = 'exo.guide.tipped', TIPS_KEY = 'exo.guide.tips';
 const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };

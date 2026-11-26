@@ -6,6 +6,7 @@
 import type { MapOptions } from './mapgen';
 import { PLAYER_COLORS, PLAYER_NAMES, SKIRMISH_WORLDS } from './setup';
 import { bodyAreas, type Area } from '../sim/areas';
+import { esc } from '../util/html';
 
 export interface SetupChoice {
   players: number;
@@ -26,7 +27,6 @@ export interface SetupChoice {
 
 const KEY = 'exo-skirmish-setup';
 const DEFAULTS: SetupChoice = { players: 2, teams: 'ffa', ai: 'normal', world: 'home', area: '', size: 'medium', water: 'some', relief: 'rolling', alloys: 600, fog: true, wildlife: true, packs: false, seed: 1 };
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const newSeed = () => 1 + Math.floor(Math.random() * 99999);
 
 function load(): SetupChoice {

@@ -21,7 +21,6 @@ import { STAR_R, SolarSystem } from './world/system';
 import { SunFlare } from './world/flare';
 import { Dust, type Mover } from './world/dust';
 import { Weather } from './world/weather';
-import { startSkirmish } from './skirmish/mode';
 import { skirmishFromUrl } from './skirmish/setup';
 import { openSkirmishSetup } from './skirmish/setup-screen';
 import { Landing } from './landing';
@@ -43,10 +42,10 @@ import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle
 import { BATTLE_KEY, battleOutcome, type DomBattle } from './sim/dom-battle';
 import { backupCampaign, campaignRecords, listSaves, readSave, restoreCampaign, writeSave, type CameraPose, type SaveBody, type SaveKind, type SaveMeta } from './saves';
 import { openSaves } from './saves-panel';
-import { ArmyView } from './skirmish/view';
+import { ArmyView } from './world/army/view';
 import { ColonistView } from './world/colonists';
 import { InhabitantView } from './world/inhabitants';
-import { DEFS as UNIT_DEFS, type SkSnapshot } from './skirmish/types';
+import { DEFS as UNIT_DEFS, type SkSnapshot } from './world/army/types';
 import { gateSnap, linePoints, placeProblem } from './sim/rules';
 import { campSites } from './sim/inhabitants';
 import { START_HOUR, hourAt, sunAngle } from './sim/daylight';
@@ -56,6 +55,7 @@ import { voices } from './voice';
 import { TitleScreen, type TitleChoice } from './title';
 import { VERSION } from './version';
 import { showSimCrash, watchPageErrors } from './crash';
+import { planBoot } from './boot';
 import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';
@@ -67,9 +67,9 @@ import type { FactionState, LogStyle } from './sim/types';
 import { AutopilotView, loadPrefs } from './autopilot';
 import { POLICIES, type ChoicePolicy } from './sim/choices';
 import { surfaceUniforms, addSurfaceDetail, buildClouds, setSurfaceMaps, updateClouds, updateSurface, type SurfaceMaps } from './world/surface';
+import { $ } from './util/html';
 
 const params = new URLSearchParams(location.search);
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 // ---------- loading screen (markup + styles are inline in index.html) ----------
 const loaderEl = $('loader');
@@ -157,7 +157,6 @@ if (contentIssues.length) {
   loaderEl.remove();
   throw new Error(`content: ${contentIssues.length} issue(s)`);
 }
-const skirmishMode = params.get('mode') === 'skirmish';
 // ---------- which region ----------
 // ?region=<id> picks one (the title's REGION choice, the editor's Play test);
 // otherwise the autosave's region, so CONTINUE lands where you left off.
@@ -165,7 +164,7 @@ const skirmishMode = params.get('mode') === 'skirmish';
 // the editor's Play test button left in localStorage (unsaved edits included).
 const preview = params.get('preview') === '1' ? readPreview() : null;
 /** ?skirmish=<seed>: you against computer players on a generated map (src/skirmish/setup.ts lists the options). */
-const rts = !skirmishMode && params.has('skirmish') ? skirmishFromUrl(params, content.bodies) : null;
+const rts = params.has('skirmish') ? skirmishFromUrl(params, content.bodies) : null;
 /**
  * ?battle=1: a Domination battle (src/sim/dom-battle.ts): the strategy page left who's fighting, with what, in IndexedDB;
  * the skirmish on the area's map becomes that fight (no building, the holder's guns as turrets, no fog or wildlife).
@@ -195,11 +194,11 @@ if (landHere) { const u = new URL(location.href); u.searchParams.delete('land');
  * ?travel=1: arriving from campaign travel (src/sim/campaign.ts): straight into the region, no title, its own
  * save if it has one, otherwise a fresh expedition with the campaign's shared state. Taken out of the address too.
  */
-const travelIn = params.get('travel') === '1' && !scratch && !skirmishMode;
+const travelIn = params.get('travel') === '1' && !scratch;
 if (params.has('travel')) { const u = new URL(location.href); u.searchParams.delete('travel'); history.replaceState(history.state, '', u); }
 // ---------- the campaign: one save per region, one shared state (TECH.md "Campaign travel") ----------
 let campaign: CampaignSave | undefined;
-if (!skirmishMode && !scratch) {
+if (!scratch) {
   if (params.get('new') === '1' || landHere) await wipeCampaign().catch(() => {});
   else {
     await migrateAutosave().catch((e) => console.warn('autosave migration failed', e));
@@ -208,12 +207,14 @@ if (!skirmishMode && !scratch) {
   }
 }
 /** A region's own save, if it has one worth resuming (never in a scratch game). */
-const regionSave = async (id: string) => (skirmishMode || scratch ? undefined : await getSave<AutoSave>(regionKey(id)).then((a) => (playable(a) ? a : undefined)).catch(() => undefined));
-// the campaign's current region, unless its colony is gone (a lost expedition): then home
-let savedRegion = campaign?.current ?? HOME_REGION;
-if (campaign && savedRegion !== HOME_REGION && !travelIn && !(await regionSave(savedRegion)) && (await regionSave(HOME_REGION))) savedRegion = HOME_REGION;
-const askedRegion = params.get('region');
-const regionId = rts ? 'skirmish' : preview ? preview.id : askedRegion && content.regions[askedRegion] ? askedRegion : content.regions[savedRegion] ? savedRegion : HOME_REGION;
+const regionSave = async (id: string) => (scratch ? undefined : await getSave<AutoSave>(regionKey(id)).then((a) => (playable(a) ? a : undefined)).catch(() => undefined));
+// which region this page plays (src/boot.ts): the address, else where the campaign is (home if that colony is gone)
+const playableRegions = new Set<string>();
+if (campaign) for (const id of new Set([campaign.current, HOME_REGION])) if (await regionSave(id)) playableRegions.add(id);
+const { savedRegion, regionId } = planBoot({
+  skirmish: !!rts, previewId: preview?.id, asked: params.get('region'), travelIn, campaignAt: campaign?.current,
+  playable: playableRegions, regions: new Set(Object.keys(content.regions)), home: HOME_REGION,
+});
 /** This region's save, with the campaign's shared state laid over it when that is newer (you've been elsewhere since). */
 const hereSave = rts || preview ? undefined : await regionSave(regionId);
 if (hereSave && campaign?.shared && campaign.savedAt > hereSave.savedAt) applyShared(hereSave.sim, campaign.shared, regionId);
@@ -247,12 +248,12 @@ type At = { x: number; z: number } | undefined;
 const early: [string, 'info' | 'warn' | 'bad', At, (LogStyle | undefined)?][] = [];
 let logFn: ((text: string, level: 'info' | 'warn' | 'bad', at?: At, style?: LogStyle) => void) | null = null;
 // sound (colony only; ?sound=0 turns it off for good, the ⋯ menu for now)
-const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0', content.music);
+const audio = new GameAudio(content.sound, content.assets, params.get('sound') === '0', content.music);
 voices.attach(audio);
 const sim = new SimClient((t, l, cue, at, style) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l, at, style); else early.push([t, l, at, style]);
-}, !skirmishMode, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup, freshShared);
+}, true, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup, freshShared);
 // something broke in the sim: say so and offer a way back (src/crash.ts)
 sim.onCrash = (c) => showSimCrash({ where: 'sim', ...c }, { canResume: !scratch && !rts });
 // autosaves failing (storage full, private mode): the second failure in a row, then every 5 minutes
@@ -409,16 +410,16 @@ void syncWakeLock();
 
 await loadStep('Charting the solar system…');
 const system = new SolarSystem(scene, $('labels'), content.bodies, bodyId);
-await loadStep(skirmishMode ? 'Raising the battlefield…' : 'Growing alien flora…');
+await loadStep('Growing alien flora…');
 const floraParam = params.get('flora');
 const region = new RegionView(
   scene, look,
-  skirmishMode || floraParam === 'off' ? null : Number(floraParam ?? regionDef.floraSeed) || regionDef.floraSeed,
+  floraParam === 'off' ? null : Number(floraParam ?? regionDef.floraSeed) || regionDef.floraSeed,
   regionDef.floraDensity,
   { defs: content.buildings, buildRadius: content.colony.buildRadius },
   { biome: biomeOf(content, regionDef), wildlife: content.wildlife },
 );
-if (!skirmishMode) region.setVents(regionDef.vents ?? []);
+region.setVents(regionDef.vents ?? []);
 region.printing = setting(PRINT_KEY, 'print', true);
 // detailed water (src/world/water.ts) on desktop, the simple one on phones; ?water=0|1
 region.waterDetail = setting(WATER_KEY, 'water', !coarse);
@@ -472,7 +473,7 @@ const atmosphere = buildAtmosphere(R * 1.03, airGlow ?? '#000000', airStrength, 
 atmosphere.visible = !!airGlow;
 scene.add(atmosphere);
 // fog of war (colony only; ?fog=0 turns it off)
-const fogView = new FogView(!skirmishMode && params.get('fog') !== '0');
+const fogView = new FogView(params.get('fog') !== '0');
 if (fogView.enabled) { region.enableFog(); addFog(globe.material as THREE.Material); }
 await loadStep('Building the base…');
 
@@ -565,7 +566,7 @@ let travelling = false;
 /** Save this region, make `to` the campaign's current region, and go there (a fade with where you're leaving and going). */
 async function travelTo(to: string) {
   if (travelling || !content.regions[to] || to === regionId) return;
-  if (scratch || skirmishMode) {
+  if (scratch) {
     log(`Travel to ${regionLabel(to)}: not in a play test (it stays in one region)`, 'warn');
     sim.command({ type: 'travelled' });
     return;
@@ -653,9 +654,9 @@ function solTime(tick: number) {
  * across a travel reload, a landing elsewhere or a CONTINUE in another region it started. Never in a skirmish, a
  * play test or a scratch game.
  */
-const apAllowed = !skirmishMode && !rts && !scratch;
+const apAllowed = !rts && !scratch;
 const apOnAtStart = apAllowed && loadPrefs().on && (travelIn || landHere || params.get('title') === '0');
-const useTitle = !skirmishMode && !rts && !landHere && !travelIn && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
+const useTitle = !rts && !landHere && !travelIn && params.get('title') !== '0' && params.get('intro') !== '0' && params.get('new') !== '1' && !params.get('view');
 if (useTitle) document.body.classList.add('title');
 /** Save files, for the title's LOAD (src/saves.ts). */
 const savedFiles = useTitle ? await listSaves().catch(() => []) : [];
@@ -778,7 +779,7 @@ if (!builtinModels && content.assets['exo-cache']) regionModels.push(loadModel(c
 // worker drones (and the ore haulers) use the exo-drone asset when there is one
 if (!builtinModels && content.assets['exo-drone']) regionModels.push(loadModel(content.assets['exo-drone']).then((m) => region.setDroneModel(m), (e) => console.warn('drone model failed to load', e)));
 // wildlife and plants: the models this region's biome and herds use (recoloured per species, src/world/recolor.ts)
-if (!builtinModels && !skirmishMode) {
+if (!builtinModels) {
   const biome = biomeOf(content, regionDef);
   const ids = new Set<string>();
   for (const w of [...(biome?.wildlife ?? []).map((r) => r.species), ...regionDef.herds.map((h) => h.species)]) {
@@ -804,7 +805,7 @@ if (rts) {
     const names = battle.sides.map((x) => `${x.core ? '🛡 ' : ''}${x.player === 0 ? 'you' : x.name} ${Math.round(x.army)}${x.core ? ` + ${x.turrets} guns` : ''}`);
     log(`Domination battle · ${rts.map.region.name} · ${names.join(' vs ')} · menu → Back to the strategy map`);
   }
-} else if (!skirmishMode && !useTitle) {
+} else if (!useTitle) {
   if (resumed) startResume();
   else if (params.get('intro') === '0' || params.get('view') || travelIn || (expedition && expedition.landing !== 'probe')) sim.command({ type: 'landing', stage: 'deploy' });
   else {
@@ -902,7 +903,7 @@ const storyHud = new StoryHud({
   },
 });
 $('b-build').onclick = () => hud.toggleMenu();
-if (!skirmishMode) {
+{ // autosave, and save when the page goes away
   sim.autosave(!scratch);
   // phones throw hidden tabs away: save the moment the page goes to the background
   const flush = () => { sim.flush(); saveCamera(); };
@@ -922,7 +923,7 @@ if (!skirmishMode) {
 }
 
 // the story inspector: play tests (?preview=1) and ?inspect=1; in dev it also takes story edits live
-const inspector = !skirmishMode && (preview || params.get('inspect') === '1')
+const inspector = (preview || params.get('inspect') === '1')
   ? new Inspector({ content, cur: () => sim.cur, command: (c) => sim.command(c), log, travel: (id) => void travelTo(id) })
   : null;
 if (inspector) {
@@ -996,7 +997,7 @@ configureGuide({
     if (on && guideResume === null) { guideResume = speed; setSpeed(0); }
     else if (!on && guideResume !== null) { const s = guideResume; guideResume = null; if (speed === 0) setSpeed(s); }
   },
-  canTour: () => !skirmish && !rts && !title && !cine && !!sim.cur?.deployed && !sim.cur.over,
+  canTour: () => !rts && !title && !cine && !!sim.cur?.deployed && !sim.cur.over,
 });
 /**
  * Automated browsers (smoke tests) don't get the offer or tips unless a test asks for them in localStorage
@@ -1004,11 +1005,11 @@ configureGuide({
  */
 const guideAuto = (() => { if (!navigator.webdriver) return true; try { return localStorage.getItem('exo.guide.auto') === 'on'; } catch { return false; } })();
 /** The first-game look around: offered on a player's very first game (no saves, never toured), at home. */
-let tourOffer = guideAuto && !skirmishMode && !rts && !scratch && !autosaved && !campaign && !toured() && regionId === HOME_REGION;
+let tourOffer = guideAuto && !rts && !scratch && !autosaved && !campaign && !toured() && regionId === HOME_REGION;
 let offerAt = 0;
 /** Tips: on unless turned off in Options (off by default in the editor's play tests). */
 let guideTips = tipsWanted(!preview);
-const tips = skirmishMode || rts ? null : new GuideTips((page) => openGuide({ page, inGame: true, hold: true }), () => audio.play('tap'));
+const tips = rts ? null : new GuideTips((page) => openGuide({ page, inGame: true, hold: true }), () => audio.play('tap'));
 let watchKey = '';
 /** Every frame: the offer once the colony's HUD is up, and tips (the sim watches their triggers). */
 let guideLast = 0;
@@ -1017,7 +1018,7 @@ function updateGuide(now: number) {
   const dt = guideLast ? Math.min(1, (now - guideLast) / 1000) : 0;
   guideLast = now;
   const c = sim.cur;
-  const playing = !skirmish && !title && !cine && !travelling && !!c?.deployed && !c.over;
+  const playing = !title && !cine && !travelling && !!c?.deployed && !c.over;
   const card = !!document.querySelector('#contact.on') || !!c?.story?.inbox.some((id) => content.story[id]?.style !== 'radio' || !!content.story[id]?.pause);
   const free = playing && !card && !menuOpen && !panelOpen() && !tourActive() && !storyHud.pointing && !document.getElementById('whatsnew') && !document.getElementById('chronicle');
   if (tourOffer && free && !autopilot?.on && c!.secs >= 4) {
@@ -1044,7 +1045,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
 
 // ---------- save files (src/saves.ts, TECH.md "Save files") ----------
 /** Save files work in the campaign and a skirmish; not in a play test, a scratch game or the Daily Planet (one attempt). */
-const saveKind: SaveKind | null = skirmishMode || preview || params.get('scratch') === '1' || params.has('daily') || params.has('battle') ? null : rts ? 'skirmish' : 'campaign';
+const saveKind: SaveKind | null = preview || params.get('scratch') === '1' || params.has('daily') || params.has('battle') ? null : rts ? 'skirmish' : 'campaign';
 const FILE_KEY = 'exo.file';
 /** The file this game was last saved to or loaded from (Ctrl+S saves over it), for this tab. */
 let currentFile: { id: string; kind: SaveKind } | null = (() => { try { return JSON.parse(sessionStorage.getItem(FILE_KEY) ?? 'null'); } catch { return null; } })();
@@ -1155,7 +1156,6 @@ if (previewModels || builtinModels) for (const d of UNIT_DEFS) {
   if (builtinModels) d.model = undefined;
   else if (a) d.model = a;
 }
-const skirmish = skirmishMode ? startSkirmish({ scene, renderer, cam, region, log, params }) : null;
 $('brand-ver').textContent = `v${VERSION}`;
 /** The skirmish setup panel (title SKIRMISH, the game menu); START goes to the game it sets up. */
 function showSkirmishSetup(onClose?: () => void) {
@@ -1234,7 +1234,7 @@ function finishDaily(s: NonNullable<typeof sim.cur>) {
 
 const help = $('help');
 let helped = false;
-const army = skirmish ? null : new ArmyView(scene);
+const army = new ArmyView(scene);
 /** A campaign faction's unit or building under a tap (an attack order's target), or null. */
 function factionAt(x: number, z: number): number | null {
   const c = sim.cur;
@@ -1261,7 +1261,7 @@ function factionColors(F: FactionState[]) {
   return out;
 }
 /** Orbital strikes, the Clause's screen tears and the epilogue (campaign only). */
-const climax = skirmish || rts ? null : new ClimaxView(scene, (id) => audio.play(id));
+const climax = rts ? null : new ClimaxView(scene, (id) => audio.play(id));
 // dust behind movers on dry ground (src/world/dust.ts), tinted by the body's ground; Options → Dust and heat haze
 const dust = new Dust(new THREE.Color(bodyDef?.ground?.[1]?.color ?? bodyDef?.ground?.[0]?.color ?? '#b08f6c').lerp(new THREE.Color('#d9c8b0'), 0.35), regionHeightRaw);
 dust.enabled = setting(DUST_KEY, 'dust', true);
@@ -1273,9 +1273,9 @@ scene.add(weather.lines);
 /** Zoom blur on fast zooms (Glow on). */
 let zoomBlur = setting(ZOOMBLUR_KEY, 'zoomblur', true);
 if (army) army.roof = (x, z) => region.roofAt(x, z, 2);
-const colonists = skirmish ? null : new ColonistView(region.details);
-const natives = skirmish ? null : new InhabitantView(region.details, content.inhabitants, content.assets, fogView.enabled, region.flora);
-const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, {
+const colonists = new ColonistView(region.details);
+const natives = new InhabitantView(region.details, content.inhabitants, content.assets, fogView.enabled, region.flora);
+const input = new Input(renderer.domElement, cam, region, ui, {
   move: (drone, x, z) => { audio.play('order'); sim.command({ type: 'move', drone, x, z }); },
   build: (kind, x, z, yaw) => sim.command({ type: 'build', kind, x, z, yaw }),
   isLine,
@@ -1344,7 +1344,7 @@ const input = skirmish ? null : new Input(renderer.domElement, cam, region, ui, 
 }, army);
 $('pl-rotate').onclick = () => input?.rotate();
 $('pl-done').onclick = () => setBuild(null);
-if (!skirmish) addEventListener('keydown', (e) => {
+addEventListener('keydown', (e) => {
   // H: to the latest alert (under attack, something lost, contact)
   if ((e.key === 'h' || e.key === 'H') && lastAt && !(e.target instanceof HTMLInputElement)) goTo(lastAt);
   // X: selected combat units stop and guard where they stand
@@ -1478,8 +1478,8 @@ function fmtAlt(u: number) {
 let fpsAcc = 0, fpsN = 0, fpsShown = 0;
 function updateHud(dt: number, now: number) {
   const s = sim.cur;
-  if (s && !skirmish) { hud.update(s, speed, now); if (s.deployed) storyHud.update(s.story); inspector?.update(now); }
-  if (s && !skirmish) {
+  if (s) { hud.update(s, speed, now); if (s.deployed) storyHud.update(s.story); inspector?.update(now); }
+  if (s) {
     // an expedition without colonists: no cryo bank or people in the HUD
     document.body.classList.toggle('expedition', !!s.campaign?.expedition);
     // a travel effect: save and go (once the cards and cinematics in the way are done)
@@ -1685,7 +1685,7 @@ const perf = new PerfReport({
   bench: ['glow', 'ao', 'sunshadows', 'reflect', 'mist', 'shadows', 'clouds', 'marks', 'weather', 'dust', 'water', 'lights', 'print', 'grade', 'flare'],
   facts: () => ({
     Version: VERSION,
-    Mode: rts ? 'skirmish' : skirmish ? 'battle (?mode=skirmish)' : 'campaign',
+    Mode: rts ? 'skirmish' : 'campaign',
     Region: regionDef?.name ?? '?',
     'Camera distance': cam.dist.toFixed(0),
     'Render scale': `${res.scale.toFixed(2)} (most ${dprMax.toFixed(2)})`,
@@ -1712,7 +1712,7 @@ if (params.get('perf') === 'record') perf.record();
 // ---------- game menu (☰ Menu / Esc): pauses while open ----------
 let menuOpen = false;
 function openGameMenu() {
-  if (menuOpen || panelOpen() || skirmish || title) return;
+  if (menuOpen || panelOpen() || title) return;
   menuOpen = true;
   const was = speed;
   setSpeed(0);
@@ -1960,7 +1960,7 @@ let vignetteCss = false;
 let waterNear = 0, waterIn = 0;
 function placeSounds(dt: number) {
   const c = sim.cur;
-  const playing = !skirmish && !title && !cine && !!c?.deployed;
+  const playing = !title && !cine && !!c?.deployed;
   // in orbit (no world sounds) the surf goes at once, not at the next sample
   if (!spatial(cam.fx, cam.fz)) waterNear = 0;
   else if (playing && (waterIn -= dt) <= 0) {
@@ -2014,13 +2014,11 @@ function frame(now: number) {
   last = now;
   const t = (now - t0) / 1000;
 
-  const simSecs = sim.cur && !skirmish ? sim.cur.secs + sim.alpha(now) * (speed / TICK_HZ) : undefined;
-  // skirmish holds a fixed day or night (its ☀/☾ button): the sim clock at that hour
+  const simSecs = sim.cur ? sim.cur.secs + sim.alpha(now) * (speed / TICK_HZ) : undefined;
   const sol = content.colony.solSeconds;
   // a cinematic with an hour: the sky at that time of day on this sol while it plays (the game's own after)
   const cineHour = cine?.def.hour;
-  const sunSecs = skirmish ? ((skirmish.hour - START_HOUR) / 24) * sol
-    : cineHour !== undefined && simSecs !== undefined ? Math.floor(simSecs / sol) * sol + ((((cineHour - START_HOUR) % 24) + 24) % 24 / 24) * sol : simSecs;
+  const sunSecs = cineHour !== undefined && simSecs !== undefined ? Math.floor(simSecs / sol) * sol + ((((cineHour - START_HOUR) % 24) + 24) % 24 / 24) * sol : simSecs;
   {
     // how bright the sky is round the camera (hides the Milky Way and most stars by day)
     const up = system.sunPos.clone().normalize().dot(U);
@@ -2055,7 +2053,7 @@ function frame(now: number) {
   system.overcast = weather.amount * air;
   scene.background = bg.clone().lerp(space, 1 - air);
   system.skyBg.copy(bg);
-  updateWater(skirmish ? t : gameT, bg);
+  updateWater(gameT, bg);
   fog.color.copy(bg);
   // the sky for reflections: as seen from the ground (it fades out climbing to orbit, where there's no sky round you)
   if (skyEnv.enabled) {
@@ -2090,11 +2088,7 @@ function frame(now: number) {
   fog.near = air > 0.01 ? cam.dist * 2.2 * (1 - wl.haze * 0.7) : 1e9;
   fog.far = air > 0.01 ? lerp(cam.dist * 9, cam.dist * 60, 1 - air) * (1 - wl.haze * 0.6) : 1e9 + 1;
 
-  if (skirmish) {
-    region.updateOverlay(cam.dist, t);
-    skirmish.update(now, dt);
-    if (!ready && skirmish.ready) { ready = true; exo.ready = true; reveal(); }
-  } else if (sim.prev && sim.cur) {
+  if (sim.prev && sim.cur) {
     const day = smoothstep(-0.15, 0.25, sunUp);
     cine?.update(dt, day);
     // story cinematics the sim has queued: one at a time, once the landing and title are done
@@ -2152,7 +2146,7 @@ function frame(now: number) {
     system.fill.intensity = lerp(0.7, 0.32, night) * (1 - system.overcast * 0.3) * (skyEnv.enabled ? 1 - 0.45 * air : 1);
     system.ambient.intensity = lerp(0.12, 0.07, night);
     const c = sim.cur, p = sim.prev;
-    const live = !skirmish && c && p && c.deployed;
+    const live = c && p && c.deployed;
     const alpha = live ? sim.alpha(now) : 0;
     const core = live ? c.buildings.find((b) => b.kind === 'core') : undefined;
     lights.update(renderer, camera, dt, t, {
@@ -2177,7 +2171,7 @@ function frame(now: number) {
   // dust behind movers (frozen while paused), heat over working machines, blur on fast zooms
   const day = smoothstep(-0.15, 0.25, sunUp);
   {
-    const live = !skirmish && sim.cur?.deployed && !title;
+    const live = sim.cur?.deployed && !title;
     movers.length = 0;
     if (live && dust.enabled && cam.dist < 400) {
       for (const [id, d] of region.drones) movers.push({ id: 'd' + id, x: d.x, z: d.z, lift: d.lift ?? 0 });
@@ -2187,10 +2181,10 @@ function frame(now: number) {
   }
   // the ground weathers: cloud shadows, wet after rain, tracks; smoke from damaged buildings; ruins (src/world/ground.ts, ruins.ts)
   {
-    const gdt = skirmish ? dt : dt * speed;
+    const gdt = dt * speed;
     groundSky.update(gdt, airGlow ? air : 0, day, weather.kind === 'rain' ? weather.amount : 0, system.overcast, bg);
     const c = sim.cur;
-    const live = !skirmish && !title && !!c?.deployed;
+    const live = !title && !!c?.deployed;
     markMovers.length = 0;
     if (marks?.enabled && live && army) {
       for (let s = 0; s < army.slots; s++) {
@@ -2221,7 +2215,7 @@ function frame(now: number) {
     if (css !== vignetteCss) { vignetteCss = css; document.body.classList.toggle('vignette', css); }
   }
   heat.length = 0;
-  if (!skirmish && dust.enabled && post.enabled && sim.cur?.deployed && cam.dist < 260) {
+  if (dust.enabled && post.enabled && sim.cur?.deployed && cam.dist < 260) {
     const tanF = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
     const found: { d: number; v: THREE.Vector3 }[] = [];
     for (const b of sim.cur.buildings) {
@@ -2292,7 +2286,6 @@ const exo = {
   marks,
   cam,
   sim,
-  skirmish,
   region,
   /** The landing cinematic while it plays. */
   get landing() { return cine && !cine.world ? cine : null; },

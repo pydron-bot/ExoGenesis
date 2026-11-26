@@ -1,5 +1,8 @@
-/** Skirmish proof of concept: data contract between the worker sim and the renderer. */
-import { content, type AssetDef } from '../content';
+/**
+ * The army's data contract between the sim (src/sim/core.ts packs it into each snapshot) and the renderer
+ * (./view.ts): unit type numbers, the per-unit float layout and the battle-effects buffer.
+ */
+import { content, type AssetDef } from '../../content';
 
 /**
  * Unit roster, indexed by type number (UT). The skirmish's four come first so
@@ -12,8 +15,6 @@ const TYPE_OF: Record<string, number> = Object.fromEntries(ROSTER.map((id, i) =>
 /** Type number of a unit id (the roster index). */
 export const unitType = (id: string) => TYPE_OF[id] ?? -1;
 
-export const SK_TICK_HZ = 10;
-export const SK_TICK_MS = 1000 / SK_TICK_HZ;
 export const MAX_UNITS = 1500;
 
 /** Per-slot floats in the snapshot buffer. */
@@ -37,8 +38,6 @@ export const FX = {
   SHELL: 7, ARC: 8, SPIT: 9, EMERGE: 10, REPAIR: 11, PD_SHOT: 12, RAIL: 13, SHIELD: 14,
 } as const;
 
-export const UT = { Rover: 0, Tank: 1, Swarmer: 2, Brute: 3 } as const;
-export const TYPE_NAMES = ROSTER.map((id) => content.units[id].name);
 
 export interface SkUnitDef {
   id: string;
@@ -69,13 +68,7 @@ export const DEFS: SkUnitDef[] = ROSTER.map((id) => {
   };
 });
 
-export type SkToWorker =
-  | { type: 'move'; slots: number[]; x: number; z: number }
-  | { type: 'stop'; slots: number[] }
-  | { type: 'wave'; count: number }
-  | { type: 'speed'; speed: number }
-  | { type: 'reset'; units: number; waveSize: number };
-
+/** What ArmyView draws: the sim snapshot's army and effects, in this shape (main.ts `asArmy`). */
 export interface SkSnapshot {
   type: 'snap';
   tick: number;
@@ -91,5 +84,3 @@ export interface SkSnapshot {
   enemies: number;
   simMs: number;
 }
-
-export type SkFromWorker = SkSnapshot | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad' };

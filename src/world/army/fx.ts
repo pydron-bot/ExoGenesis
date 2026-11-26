@@ -9,9 +9,9 @@
  * a point is its normalised position (gravity pulls the other way).
  */
 import * as THREE from 'three';
-import { placeMatrix, regionPoint } from '../world/heightGrid';
-import { colonyLights } from '../world/lights';
-import { E, N, R, U } from '../world/planet';
+import { placeMatrix, regionPoint } from '../heightGrid';
+import { colonyLights } from '../lights';
+import { E, N, R, U } from '../planet';
 import { FX } from './types';
 
 /** Seconds a shell is in the air (synth.ts times the shell's boom to land with it). */

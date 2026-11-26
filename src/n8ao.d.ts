@@ -1,7 +1,7 @@
 /** The parts of n8ao (screen-space ambient occlusion, src/world/post.ts) this game uses: the package ships no types. */
 declare module 'n8ao' {
   import type { Camera, Color, Scene, WebGLRenderer, WebGLRenderTarget } from 'three';
-  import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
+  import { Pass } from 'three/addons/postprocessing/Pass.js';
 
   export interface N8AOConfiguration {
     aoRadius: number;

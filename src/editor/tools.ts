@@ -9,13 +9,8 @@
  */
 import { COLLECTIONS, type BuildingDef, type CollectionName, type UnitDef } from '../content/defs';
 import type { Field, Shape } from '../content/schema';
+import { h } from './dom';
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 
 export interface RecordRef { coll: CollectionName; id: string; field: string }
 

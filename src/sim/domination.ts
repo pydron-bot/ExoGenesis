@@ -8,6 +8,7 @@
  */
 import { systemAreas, type Area } from './areas';
 import { domAiThink } from './domination-ai';
+import { mulberry32 } from '../util/rng';
 
 export type DomLevel = 'easy' | 'normal' | 'hard';
 export type DomJobKind = 'army' | 'guns' | 'develop' | 'gantry';
@@ -133,15 +134,7 @@ export const DOM_NAMES = ['You', 'Crimson', 'Amber', 'Violet'];
 /** Where each player starts (player 0 at Touchdown). */
 export const DOM_STARTS = ['home-1', 'verdance-1', 'rime-1', 'dunmore-1'];
 
-const rng = (seed: number) => {
-  let a = seed >>> 0 || 1;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), a | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
+const rng = (seed: number) => mulberry32((seed >>> 0) || 1);
 
 /** The map a state is played on: the areas, and what's needed to work out travel. */
 export interface DomMap {

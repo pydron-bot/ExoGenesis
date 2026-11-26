@@ -17,18 +17,11 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { fbm3, smoothstep } from './noise';
 import { recolorModel } from './recolor';
 import { E, HALF, N, currentBody, floraPaintAt, regionDir, regionFlora, regionHeightRaw, regionToWorld } from './planet';
+import { mulberry32 } from '../util/rng';
 
 type Rng = () => number;
-
-export function mulberry(seed: number): Rng {
-  let a = seed | 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), a | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/** Seeded random (src/util/rng.ts); kept under this name for the world's callers. */
+export const mulberry = mulberry32;
 
 const range = (r: Rng, a: number, b: number) => a + (b - a) * r();
 const pick = <T>(r: Rng, xs: readonly T[]) => xs[Math.floor(r() * xs.length)];

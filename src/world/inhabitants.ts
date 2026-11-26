@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { flattenForInstancing, loadModel } from '../assets/models';
 import type { AssetDef, InhabitantDef } from '../content/defs';
 import { FOG_CELL, FOG_N, REGION_HALF, type Snapshot } from '../sim/types';
-import { LOD_FAR, LOD_NEAR } from '../skirmish/view';
+import { LOD_FAR, LOD_NEAR } from './army/view';
 import { addFog } from './fog';
 import type { Flora } from './flora';
 import { STANDINS } from './inhabitant-models';

@@ -37,6 +37,7 @@ import { newVersionReady } from '../pwa';
 import type { AssetDef, MusicDef, SoundRules } from '../content/defs';
 import { mediaUrl, setMediaOverride, type CharacterDef, type InterfaceDef, type CinematicDef, type RegionDef, type BodyDef, type ChapterDef, type BiomeDef, type WildlifeDef } from '../content/defs';
 import { BRANCH, REPO, checkToken, ghFetch, localMediaUrl, mode, token } from './github';
+import { $ } from '../util/html';
 
 // ---------- the editor's version, and a newer one when it's out ----------
 // The editor reads content live from GitHub but runs the code it was loaded with: an old tab can flag content a
@@ -80,7 +81,6 @@ interface Current {
   stale?: boolean;
 }
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> & { cls?: string } = {}, ...kids: (Node | string | null)[]) => {
   const el = document.createElement(tag);
   const { cls, ...rest } = props;

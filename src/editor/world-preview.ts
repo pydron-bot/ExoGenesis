@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import type { BodyDef } from '../content/defs';
 import { buildBodyObject } from '../world/system';
+import { h } from './dom';
 
 let renderer: THREE.WebGLRenderer | null = null;
 
@@ -23,12 +24,6 @@ export interface WorldSource {
   openMap(): void;
 }
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string)[]) => {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  e.append(...kids);
-  return e;
-};
 
 export class WorldPreview {
   readonly el: HTMLElement;

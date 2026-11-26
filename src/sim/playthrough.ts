@@ -27,6 +27,7 @@ const TICK_HZ = 10;
 
 export { POLICIES, HONEST_WORDS, pickChoice, type ChoicePolicy } from './choices';
 import { pickChoice, type ChoicePolicy } from './choices';
+import { mulberry32 } from '../util/rng';
 
 export interface PlaythroughOptions {
   strategy?: string;
@@ -71,15 +72,7 @@ export interface PlaythroughResult {
 }
 
 /** A little seeded random for the "random" policy (separate from the sim's). */
-function rng(seed: number) {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
+const rng = (seed: number) => mulberry32(seed);
 
 /**
  * The bot plays the campaign: every few seconds it looks at the objectives

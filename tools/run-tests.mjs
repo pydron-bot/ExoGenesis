@@ -16,7 +16,7 @@ import { readdirSync } from 'node:fs';
 import { createServer } from 'node:net';
 
 /** Smokes with no browser at all. */
-const HEADLESS = ['campaign', 'gameplay', 'inhabit', 'lead', 'medbay', 'roster', 'golden'];
+const HEADLESS = ['boot', 'campaign', 'gameplay', 'inhabit', 'lead', 'medbay', 'roster', 'golden'];
 /** Smokes whose first half is headless: run with --headless-only (guide-smoke calls it --headless). */
 const HEADLESS_HALF = ['ability', 'areas', 'autopilot', 'chronicle', 'cinematic', 'climax', 'daily', 'dilemma', 'frontier',
   'guide', 'mission', 'opening', 'relations', 'story-gaps', 'story', 'story-tools', 'travel', 'tree', 'voices'];

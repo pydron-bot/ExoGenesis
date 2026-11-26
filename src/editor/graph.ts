@@ -8,6 +8,7 @@
  * open. `buildGraph` is pure (the editor smoke test checks it).
  */
 import { conditionsIn, type CinematicDef, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef } from '../content/defs';
+import { h } from './dom';
 
 export type NodeKind = 'mission' | 'story' | 'cinematic' | 'flag' | 'counter' | 'timer';
 export interface GNode { key: string; kind: NodeKind; id: string; label: string; col: number; row: number }
@@ -93,12 +94,6 @@ const NS = 'http://www.w3.org/2000/svg';
 const s = <K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number> = {}) => {
   const el = document.createElementNS(NS, tag);
   for (const [a, v] of Object.entries(attrs)) el.setAttribute(a, String(v));
-  return el;
-};
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
   return el;
 };
 

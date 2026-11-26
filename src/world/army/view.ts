@@ -10,15 +10,15 @@
  * 350 units at phone size, the models alone doubled the frame's triangles.
  */
 import * as THREE from 'three';
-import { placeMatrix, regionPoint, sampleRaw } from '../world/heightGrid';
-import { addWear } from '../world/wear';
-import { addTeamAttr, addTeamTrim } from '../world/trim';
-import { WATER_LIFT } from '../world/water';
-import { flattenForInstancing, loadModel, splitPart } from '../assets/models';
+import { placeMatrix, regionPoint, sampleRaw } from '../heightGrid';
+import { addWear } from '../wear';
+import { addTeamAttr, addTeamTrim } from '../trim';
+import { WATER_LIFT } from '../water';
+import { flattenForInstancing, loadModel, splitPart } from '../../assets/models';
 import { builtinUnitLook } from './models';
-import { content } from '../content';
+import { content } from '../../content';
 import { DEFS, FX, FX_STRIDE, MAX_UNITS, STRIDE, F, type SkSnapshot } from './types';
-import { colonyLights } from '../world/lights';
+import { colonyLights } from '../lights';
 import { BattleFx } from './fx';
 
 /** Camera distance below which asset models draw (hysteresis: switch back beyond LOD_FAR). */

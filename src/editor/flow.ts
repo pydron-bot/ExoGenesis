@@ -15,6 +15,7 @@
  */
 import { REPORT_COUNTERS, REPORT_FLAGS } from '../sim/grade';
 import { CONDITION_HELP, EFFECT_HELP, conditionsIn, type Condition, type ConditionDef, type EffectDef, type MissionDef, type StoryDef, type StoryEffect } from '../content/defs';
+import { h } from './dom';
 
 export { conditionsIn };
 
@@ -166,12 +167,6 @@ export interface FlowHost {
   open(link: FlowLink): void;
 }
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 
 /** Short form of a condition: "built solar", "2 drones", "Sol 4". */
 export function condText(kind: Condition, c: ConditionDef): string {

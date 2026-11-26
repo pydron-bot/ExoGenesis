@@ -104,28 +104,8 @@ body.vignette #app::after { opacity: 1; }
   #help { display: none; }
 }
 
-/* ---------- skirmish ---------- */
+/* ---------- unit overlay (selection paint, aim lines: src/input.ts) ---------- */
 #sk-overlay { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-#sk-top, #sk-bar, #sk-sel, #sk-help, #sk-simms { display: none; }
-body.skirmish #bar, body.skirmish #res, body.skirmish #help { display: none; }
-body.skirmish #sk-top { display: flex; flex-wrap: wrap; gap: 6px; position: absolute; top: calc(30px + var(--safe-top)); left: 12px; right: 150px; }
-body.skirmish #sk-simms { display: block; opacity: 0.7; font-size: 11px; }
-body.skirmish #sk-bar {
-  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
-  position: absolute; left: 6px; right: 6px; bottom: calc(8px + env(safe-area-inset-bottom));
-}
-body.skirmish #sk-sel {
-  display: block; position: absolute; left: 50%; transform: translateX(-50%);
-  bottom: calc(108px + env(safe-area-inset-bottom)); color: #ffd27a; font-size: 12px; letter-spacing: 0.06em;
-  background: var(--panel); border: 1px solid rgba(255,210,122,.4); padding: 3px 10px; border-radius: 3px; white-space: nowrap;
-}
-body.skirmish #sk-sel.none { color: var(--text); opacity: 0.5; border-color: var(--line); }
-body.skirmish #sk-help {
-  display: block; position: absolute; left: 50%; transform: translateX(-50%); width: max-content; max-width: 94vw;
-  bottom: calc(136px + env(safe-area-inset-bottom)); font-size: 11px; opacity: 0.6; text-align: center; transition: opacity 2s;
-}
-body.skirmish #sk-help.gone { opacity: 0; }
-body.skirmish #log { bottom: calc(160px + env(safe-area-inset-bottom)); }
 .r.dim { opacity: 0.7; }
 .r.tap { cursor: pointer; pointer-events: auto; }
 .r.tap.on { border-color: var(--amber); }
@@ -137,13 +117,7 @@ body.skirmish #log { bottom: calc(160px + env(safe-area-inset-bottom)); }
   content: attr(data-count); position: absolute; right: 2px; top: 1px; font-size: 9px; color: #ffd27a; font-weight: 400;
 }
 #hud button.flash { background: rgba(255,210,122,.45); }
-#sk-paint.on { background: rgba(255,210,122,.25) !important; color: #ffd27a !important; }
 @media (max-width: 640px) {
-  body.skirmish #sk-top { right: 124px; top: calc(26px + var(--safe-top)); }
-  body.skirmish #sk-top .r { padding: 3px 6px; }
-  body.skirmish #sk-score { display: none; }
-  body.skirmish #sk-sel { bottom: calc(112px + env(safe-area-inset-bottom)); font-size: 11px; }
-  body.skirmish #sk-help { display: none; }
   #hud button.cg { min-width: 34px; }
 }
 
@@ -275,7 +249,7 @@ body.radio-on #log { bottom: calc(var(--above-bar) + var(--radio-h, 0px)); }
 #radio .who { display: flex; align-items: center; gap: 8px; color: var(--cyan); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
 #radio .t { color: var(--amber); letter-spacing: 0.14em; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-top: 4px; }
 #radio p { margin: 3px 0 2px; line-height: 1.4; font-size: 12px; }
-body.cine #contact, body.skirmish #contact, body.cine #radio, body.skirmish #radio { display: none !important; }
+body.cine #contact, body.cine #radio { display: none !important; }
 #over {
   position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; display: none;
   background: color-mix(in srgb, var(--panel-base) min(100%, calc(90% * var(--panel-k))), transparent); border: 1px solid color-mix(in srgb, var(--crimson) 60%, transparent); border-radius: 6px; padding: 20px 26px; pointer-events: auto; min-width: 280px;
@@ -285,9 +259,8 @@ body.cine #contact, body.skirmish #contact, body.cine #radio, body.skirmish #rad
 #over-sub { margin: 8px 0; opacity: 0.85; }
 #over-stats { font-size: 11px; opacity: 0.7; margin-bottom: 12px; white-space: pre-line; }
 #over .grp { display: inline-flex; }
-body.cine #place-bar, body.skirmish #place-bar { display: none !important; }
+body.cine #place-bar { display: none !important; }
 body.cine #goals, body.cine #minimap, body.cine #card, body.cine #build-menu { display: none !important; }
-body.skirmish #goals, body.skirmish #minimap, body.skirmish #card, body.skirmish #build-menu { display: none !important; }
 @media (max-width: 640px) {
   #goals { max-width: 200px; }
   #minimap { width: 112px; height: 112px; top: calc(70px + var(--safe-top)); }
@@ -654,7 +627,7 @@ body.research-open #goals, body.research-open #colony { display: none !important
 #waypoints .wp i { width: 14px; height: 14px; border: 2px solid var(--amber); transform: rotate(45deg); animation: hint-pulse 1.4s ease-in-out infinite; }
 #waypoints .wp span { margin-top: 5px; text-align: center; }
 #waypoints .wp.edge span { display: none; }
-body.cine #waypoints, body.cine #hint, body.skirmish #waypoints, body.skirmish #hint { display: none !important; }
+body.cine #waypoints, body.cine #hint { display: none !important; }
 #over.won #over-title { color: var(--cyan); }
 
 /* the story inspector (src/inspector.ts): play tests and ?inspect=1 */
@@ -1023,7 +996,7 @@ html.app #guide { height: var(--app-h, 100%); bottom: auto; }
 #hud .gd-note button, #hint .acts button { font: inherit; font-size: 12px; color: var(--text); background: none; border: 1px solid var(--line); border-radius: 4px; padding: 5px 11px; cursor: pointer; }
 #hud .gd-note button.primary, #hint .acts button.primary { color: #05080d; background: var(--cyan); border-color: var(--cyan); }
 #hint.act { pointer-events: auto; }
-body.cine .gd-note, body.skirmish .gd-note, body.title .gd-note { display: none !important; }
+body.cine .gd-note, body.title .gd-note { display: none !important; }
 #options .op-guide { display: block; width: 100%; margin: 4px 0 8px; padding: 9px 10px; text-align: left; font: inherit; color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, transparent); border: 1px solid var(--cyan-dim); border-radius: 4px; cursor: pointer; }
 #whatsnew .wn-guide { margin: 6px 0 0; font-size: 11px; color: var(--cyan-dim); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 #whatsnew .wn-guide button { font: inherit; font-size: 11px; color: var(--cyan); background: none; border: 1px solid var(--line); border-radius: 3px; padding: 1px 7px; cursor: pointer; }

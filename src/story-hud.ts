@@ -6,8 +6,7 @@
  */
 import type { ZoomCamera } from './camera';
 import type { Command, StorySnap } from './sim/types';
-
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+import { esc } from './util/html';
 
 /** Where each hint target lives in the HUD. */
 const TARGETS: Record<string, string> = {

@@ -138,10 +138,11 @@ try {
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   await game.waitForFunction(() => !!__exo.region.models.solar, null, { timeout: 30000 });
   check(true, 'game loaded the asset as the Solar Array model');
-  await game.goto(`${url}?mode=skirmish`);
+  await game.goto(`${url}?skirmish=4242&players=2&ai=easy&size=small&sw=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await game.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
-  await game.waitForFunction(() => Array.isArray(__exo.skirmish.army.models[1]?.material), null, { timeout: 30000 });
-  check(await game.evaluate(() => !!__exo.skirmish.army.models[1]), 'skirmish tanks use the asset up close (the built-in, with its glow strips, stays for the zoomed-out view)');
+  // the army's up-close model for tanks (type 1) is the asset (the built-in, with its glow strips, stays for the zoomed-out view)
+  await game.waitForFunction(() => Array.isArray(__exo.army.models[1]?.material), null, { timeout: 30000 }).catch(() => {});
+  check(await game.evaluate(() => Array.isArray(__exo.army.models[1]?.material)), 'skirmish tanks use the asset up close');
 
   // 7. used-by + delete
   await ed.goto(`${url}editor.html#assets/scout-tank.json`);

@@ -18,6 +18,7 @@
  * the one before by how long it takes to read).
  */
 import { CONDITIONS, HINT_TARGETS, ID_RE, STORY_EFFECTS, type Condition, type EffectDef, type StoryDef, type StoryEffect } from '../content/defs';
+import { h } from './dom';
 
 export interface ScriptRefs {
   /** id → name */
@@ -244,12 +245,6 @@ export function parseCineLines(text: string, refs: ScriptRefs, start = 0): { lin
 }
 
 // ---------- the page ----------
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 
 export const SAMPLE = `// A scene, written as a script. Lines starting // are notes.
 # Smoke on the Horizon

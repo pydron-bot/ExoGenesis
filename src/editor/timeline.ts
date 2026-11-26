@@ -23,6 +23,7 @@
 import { BEATS, cinematicShape, type CameraKeyDef, type CinematicDef } from '../content/defs';
 import { pchip } from '../world/curve';
 import type { CinePreview, Guides } from './cine-preview';
+import { h } from './dom';
 
 export interface TimelineHost {
   draft(): CinematicDef;
@@ -47,12 +48,6 @@ const svgEl = <K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<strin
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
   if (text !== undefined) e.textContent = text;
   return e;
-};
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
 };
 const button = (text: string, title: string, fn: () => void, cls = '') => {
   const b = h('button', cls, text);

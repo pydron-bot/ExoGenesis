@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import type { BodyDef } from '../content/defs';
 import { lookOf } from '../world/body-surface';
 import { bodyHeight, bodyTerrain, E, N, siteDir, U, type BodyTerrain } from '../world/planet';
+import { mulberry32 } from '../util/rng';
 
 export interface Area {
   /** `<body>-<n>`, n from 1. */
@@ -33,15 +34,7 @@ export interface Area {
 
 interface BodyLike { name?: string; kind?: string; areas?: number; radius?: number; seed?: number; ocean?: boolean; surface?: string; ground?: unknown; atmosphere?: string }
 
-const rng = (seed: number) => {
-  let a = seed >>> 0 || 1;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), a | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
+const rng = (seed: number) => mulberry32((seed >>> 0) || 1);
 const ang = (a: THREE.Vector3, b: THREE.Vector3) => Math.acos(Math.min(1, Math.max(-1, a.dot(b))));
 const r1 = (v: number) => Math.round(v * 10) / 10;
 

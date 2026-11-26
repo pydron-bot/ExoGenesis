@@ -6,6 +6,7 @@
  * (the editor smoke test checks it).
  */
 import { STATUSES, type CharacterDef, type CinematicDef, type StoryDef } from '../content/defs';
+import { h } from './dom';
 
 export interface TodoRec { coll: string; id: string; title: string; data: Record<string, unknown> }
 export interface VoiceLine { character: string; where: string; coll: string; id: string; text: string; words: number }
@@ -68,12 +69,6 @@ export function voiceScript(v: Todo['voice']): string {
 }
 
 // ---------- the page ----------
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 
 export function renderTodo(main: HTMLElement, aside: HTMLElement, host: { records: TodoRec[]; open(coll: string, id: string): void }) {
   const T = collectTodo(host.records);

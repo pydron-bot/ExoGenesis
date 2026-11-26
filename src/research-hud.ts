@@ -10,8 +10,7 @@
 import { BRANCH_NAMES, RESEARCH_BRANCHES, type BuildingDef, type PeopleRules, type ResearchBranch, type ResearchDef, type UnitDef } from './content/defs';
 import { modText, researchNeeds, type ResearchWorld } from './sim/mods';
 import type { Command, Snapshot } from './sim/types';
-
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+import { esc } from './util/html';
 
 interface Deps {
   research: Record<string, ResearchDef>;

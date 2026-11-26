@@ -14,8 +14,7 @@ import type { ContentDb } from './content/db';
 import type { Condition, ConditionDef } from './content/defs';
 import { condText } from './editor/flow';
 import type { Command, Snapshot } from './sim/types';
-
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+import { esc } from './util/html';
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** Collections a live edit can swap in without restarting (the rest reload the page). */

@@ -18,6 +18,7 @@ import { content } from '../content';
 import type { CampDef, InhabitantDef } from '../content/defs';
 import type { Sim } from './core';
 import { REGION_HALF, TICK_HZ, type Camp, type CampSnap, type ContactChoice, type Native, type Pack } from './types';
+import { clamp } from '../util/math';
 
 const SOL = content.colony.solSeconds;
 const DT = 1 / TICK_HZ;
@@ -30,7 +31,6 @@ const SEE_R = 8;
 /** Regard is re-assessed this often (ticks). */
 const EVERY = TICK_HZ;
 
-const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Where lived-in camps stand, for placement rules (nothing may be built on one). Sim and HUD both use it. */

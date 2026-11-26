@@ -11,9 +11,8 @@ import { AUTONOMIST_BELOW, CURRICULA, DEVOTED_ABOVE, POLICIES, type Bloc, type C
 import type { Command, Snapshot } from './sim/types';
 import { modText } from './sim/mods';
 import type { RegionUi } from './world/region';
+import { $, esc } from './util/html';
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 export const BLOC_INFO: Record<Bloc, { name: string; color: string; wants: string }> = {

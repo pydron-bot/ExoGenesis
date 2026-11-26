@@ -11,6 +11,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { BUILTINS, builtinById, type Builtin } from '../assets/builtin';
 import { applyImport, forgetModel, loadModel, modelStats } from '../assets/models';
 import { ASSET_EXT, ASSET_KINDS, ID_RE, mediaUrl, withVersion, type AssetDef, type AssetKind } from '../content/defs';
+import { h as el } from './dom';
 
 export interface MediaInfo { hash: string; bytes: number }
 export interface Usage { coll: 'units' | 'buildings' | 'sound'; id: string; name: string }
@@ -31,12 +32,6 @@ export interface AssetHost {
   refresh(): Promise<void>;
 }
 
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  for (const k of kids) if (k !== null) e.append(k);
-  return e;
-};
 const button = (label: string, onclick: () => void, cls = '') => { const b = el('button', cls, label); b.onclick = onclick; return b; };
 const fmtBytes = (n: number) => (n > 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const kindOfExt = (ext: string): AssetKind | null => (ASSET_KINDS.find((k) => ASSET_EXT[k].includes(ext)) ?? null);

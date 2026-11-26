@@ -15,8 +15,26 @@ export const DEV_URL = process.env.SMOKE_URL ?? `http://localhost:${process.env.
 /** Chromium flags: software WebGL by default, the GPU with `gpu`. */
 export const glArgs = (gpu = false) => ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])];
 
-export function launch({ gpu = false, args = [] } = {}) {
-  return chromium.launch({ args: [...glArgs(gpu), ...args] });
+/**
+ * Page timeouts: Playwright's 30 s defaults are too short for a cold dev server on a busy machine (SwiftShader
+ * renders on the CPU). Every page from launch() gets these instead (SMOKE_TIMEOUT, in seconds, overrides).
+ */
+const NAV_MS = Number(process.env.SMOKE_TIMEOUT ?? 120) * 1000;
+const ACT_MS = Math.max(30000, NAV_MS / 2);
+function patient(page) { page.setDefaultNavigationTimeout(NAV_MS); page.setDefaultTimeout(ACT_MS); return page; }
+
+export async function launch({ gpu = false, args = [] } = {}) {
+  const browser = await chromium.launch({ args: [...glArgs(gpu), ...args] });
+  const newPage = browser.newPage.bind(browser), newContext = browser.newContext.bind(browser);
+  browser.newPage = async (...a) => patient(await newPage(...a));
+  browser.newContext = async (...a) => {
+    const ctx = await newContext(...a);
+    const np = ctx.newPage.bind(ctx);
+    ctx.newPage = async () => patient(await np());
+    ctx.on('page', patient);
+    return ctx;
+  };
+  return browser;
 }
 
 export function checker() {

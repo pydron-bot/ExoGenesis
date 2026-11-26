@@ -4,6 +4,7 @@
  * button; the game applies it once as the colony deploys (Sim.playSetup).
  */
 import type { PlaySetup } from '../sim/types';
+import { h } from './dom';
 
 const KEY = 'exo.playtest.setup';
 const load = (): PlaySetup & { on?: boolean } => { try { return JSON.parse(localStorage.getItem(KEY) ?? '{}') ?? {}; } catch { return {}; } };
@@ -25,12 +26,6 @@ export function setupSummary(): string {
     p.alloys ? `+${p.alloys} alloys` : '', p.flags?.length ? `flags: ${p.flags.join(', ')}` : '', p.peaceful ? 'no predators' : ''].filter(Boolean).join(' · ');
 }
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 
 /** The setup form. `buildings` and `flags` offer what the content has. */
 export function setupPanel(buildings: { id: string; name: string }[], flags: string[]): HTMLElement {

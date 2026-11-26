@@ -7,6 +7,7 @@
  */
 import type { Snapshot } from './sim/types';
 import { PLAYER_NAMES, SKIRMISH_WORLDS } from './skirmish/setup';
+import { esc } from './util/html';
 
 const KEY = 'exo-daily';
 /** Seconds of play per square of the shared timeline. */
@@ -207,7 +208,6 @@ export async function shareResult(text: string): Promise<'shared' | 'copied' | '
 
 /** The score card (end screen and the title's look back): score, how it was made, the line, a Share button. */
 export function resultHtml(d: DailyRules, r: DailyResult, worldName: string, practice = false) {
-  const esc = (t: string) => t.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
   return `<div class="dl-head">DAILY PLANET #${d.day} · ${esc(worldName.toUpperCase())}${practice ? ' · PRACTICE' : ''}</div>
     <div class="dl-score">${r.score.toLocaleString('en')}<small>pts</small></div>
     <div class="dl-line" aria-label="timeline">${r.line}</div>

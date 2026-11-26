@@ -6,13 +6,8 @@
  */
 import type { BalanceResult } from '../sim/balance';
 import { STRATEGIES } from '../sim/strategies';
+import { h } from './dom';
 
-const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', ...kids: (Node | string | null)[]) => {
-  const el = document.createElement(tag);
-  if (cls) el.className = cls;
-  for (const k of kids) if (k !== null) el.append(k);
-  return el;
-};
 
 const state = {
   picked: new Set(['balanced', 'mixed', 'people']),

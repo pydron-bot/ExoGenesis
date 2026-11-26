@@ -20,6 +20,7 @@ import { HEIGHT_SCALE, REGION_STEP, regionCells } from '../content/defs';
 import { encodeGrid } from '../content/grid';
 import { PathGrid } from '../sim/path';
 import { regionHeightRaw, regionProcBase, regionTerrain, setRegionTerrain } from '../world/planet';
+import { mulberry32 } from '../util/rng';
 
 export type MapSize = 'small' | 'medium' | 'large';
 export type MapWater = 'none' | 'some' | 'lots';
@@ -55,15 +56,7 @@ export function mapSide(size: MapSize, players: number) {
 }
 
 /** Seeded random numbers (mulberry32). */
-function rng(seed: number) {
-  let a = seed >>> 0 || 1;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), a | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+const rng = (seed: number) => mulberry32((seed >>> 0) || 1);
 
 const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const round1 = (v: number) => Math.round(v * 2) / 2;

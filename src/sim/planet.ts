@@ -18,6 +18,7 @@ import { content } from '../content';
 import type { BuildingDef } from '../content/defs';
 import type { Sim } from './core';
 import { TICK_HZ, type PlanetState, type PlanetSnap } from './types';
+import { clamp } from '../util/math';
 
 const DT = 1 / TICK_HZ;
 /** Scars this close together are one scar. */
@@ -30,7 +31,6 @@ const RESERVE = 0.25;
 const REWILD = 0.5;
 
 const R = () => content.colony;
-const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const def = (kind: string): BuildingDef | undefined => content.buildings[kind];
 
 export class Planet {
