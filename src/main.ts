@@ -172,7 +172,7 @@ const battle: DomBattle | null = rts && params.get('battle') === '1'
   ? await getSave<DomBattle>(BATTLE_KEY).then((b) => (b?.version === 1 && b.area === params.get('area') && !b.result && b.sides.length === rts.setup.players.length ? b : null)).catch(() => null)
   : null;
 if (rts && battle) {
-  rts.setup.players = battle.sides.map((x, i) => ({ name: i ? x.name : 'You', color: x.color, side: i, ai: i ? x.ai ?? 'normal' : undefined }));
+  rts.setup.players = battle.sides.map((x, i) => ({ name: i ? x.name : 'You', color: x.color, side: x.side ?? i, ai: i ? x.ai ?? 'normal' : undefined }));
   rts.setup.battle = battle.sides.map((x) => ({ core: x.core, turrets: x.turrets, units: x.units }));
   Object.assign(rts.setup, { fog: false, wildlife: false, packs: false, alloys: 0 });
 }
@@ -1854,7 +1854,7 @@ function showTitle() {
     ...(!saved && !autosaved && !campaign ? [{ id: 'first', kind: 'link' as const, label: 'First time? Open the Field Guide ▸', run: () => openGuide() }] : []),
     { ...dailyChoice(), kind: 'tile' },
     { id: 'skirmish', kind: 'tile', label: 'SKIRMISH', sub: 'You against the computer', run: () => showSkirmishSetup() },
-    { id: 'domination', kind: 'plain', label: 'DOMINATION', sub: 'Preview: a long war for the whole system', run: () => { location.href = `${import.meta.env.BASE_URL}domination.html`; } },
+    { id: 'domination', kind: 'plain', label: 'DOMINATION', sub: 'A long war for the whole system', run: () => { location.href = `${import.meta.env.BASE_URL}domination.html`; } },
     { id: 'guide', kind: 'icon', icon: '📖', label: 'Guide', sub: 'Field Guide: how to play, page by page', run: () => openGuide() },
     { id: 'options', kind: 'icon', icon: '⚙', label: 'Options', sub: regions.length > 1 ? 'Region, sound, graphics and the autopilot' : 'Sound, graphics and the autopilot', run: () => showOptions(undefined, titleOptions) },
     { id: 'tour', kind: 'icon', icon: '🪐', label: 'Tour', sub: 'Fly round the system with the menu put away · tap to come back', run: () => title?.tour(true) },

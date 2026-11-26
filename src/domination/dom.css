@@ -79,3 +79,9 @@ body.dom { overflow: hidden; }
   .dm-world.small { flex: 1 1 130px; }
   .dm-speed { margin-left: 0; }
 }
+/* fog of war, allies, rules tags, the end chart (phase 6) */
+.dm-node.fog circle.body { opacity: 0.45; }
+.dm-node.fog text { fill: var(--text); }
+.dm-node.ally circle.body { stroke-dasharray: 2 1.5; stroke-width: 1.4; }
+.dm-tag { font-size: 10px; letter-spacing: 0.14em; padding: 1px 6px; border: 1px solid var(--line); border-radius: 3px; color: var(--amber); }
+#options .dm-chart { width: 100%; height: auto; display: block; margin: 8px 0 2px; color: var(--text); }

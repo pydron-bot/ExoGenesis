@@ -18,6 +18,7 @@ import {
   DOM, armyCap, armyOf, destinations, domBuild, domSend, holderWorth, jobCost, ownedBy, travelTime,
   type DomArea, type DomLevel, type DomMap, type DomState,
 } from './domination';
+import { allied, movesSeenBy, visibleTo } from './domination';
 
 interface Style {
   /** The edge it wants over what holds a place before it attacks. */
@@ -40,10 +41,37 @@ export const STYLES: Record<DomLevel, Style> = {
 };
 
 /** What it takes to win an area, as the attacker `p` sees it: its holder, and anyone else fighting there. */
-const defence = (a: DomArea, p: number) =>
-  holderWorth(a) + Object.entries(a.visitors).reduce((m, [k, v]) => m + (Number(k) === p ? -v : v), 0);
+const defence = (s: DomState, a: DomArea, p: number) =>
+  holderWorth(a) + Object.entries(a.visitors).reduce((m, [k, v]) => m + (allied(s, Number(k), p) ? -v : v), 0);
 
-export function domAiThink(map: DomMap, s: DomState, p: number) {
+/** What a computer guesses is in an area it has never seen (natives about average; a player's area well held). */
+const GUESS = { natives: 18, army: 30, guns: 20 };
+
+/**
+ * The war as `p` sees it under fog: areas out of sight carry what it last saw (or a guess), with no fights or queues
+ * it can know of; only the moves it can see. Areas in sight are the real ones (so its own orders show at once). It
+ * remembers what it sees now for later.
+ */
+export function fogView(map: DomMap, real: DomState, p: number): DomState {
+  const pl = real.players[p];
+  const seen = visibleTo(map, real, p);
+  const mem = (pl.seen ??= {});
+  const areas: Record<string, DomArea> = {};
+  for (const a of Object.values(real.areas)) {
+    if (seen.has(a.id)) {
+      areas[a.id] = a;
+      if (!allied(real, a.owner, p)) mem[a.id] = { army: a.army, guns: a.guns, natives: a.natives, t: real.t };
+      continue;
+    }
+    const m = mem[a.id];
+    areas[a.id] = { ...a, queue: [], visitors: {}, army: a.owner >= 0 ? m?.army ?? GUESS.army : 0, guns: a.owner >= 0 ? m?.guns ?? GUESS.guns : 0, natives: a.owner < 0 ? m?.natives ?? GUESS.natives : 0 };
+  }
+  return { ...real, areas, moves: movesSeenBy(map, real, p, seen) };
+}
+
+export function domAiThink(map: DomMap, real: DomState, p: number) {
+  // it plans on what it can see, and gives its orders in the real war
+  const s = real.rules?.fog ? fogView(map, real, p) : real;
   const pl = s.players[p];
   const st = STYLES[pl.ai ?? 'normal'];
   // at its army limit an idle army is wasted: it settles for less of an edge
@@ -52,24 +80,25 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
   const mine = ownedBy(s, p);
   if (!mine.length) return;
   const links = (a: DomArea) => map.byId[a.id].links.map((l) => s.areas[l]);
-  const enemyNext = (a: DomArea) => links(a).some((o) => o.owner >= 0 && o.owner !== p);
-  const openNext = (a: DomArea) => links(a).some((o) => o.owner !== p);
-  const worldOpen = (body: string) => map.list.some((x) => x.body === body && s.areas[x.id].owner !== p);
-  const fighting = (a: DomArea) => Object.entries(a.visitors).some(([k, v]) => Number(k) !== p && v > 0);
+  const foe = (o: number) => o >= 0 && !allied(s, o, p);
+  const enemyNext = (a: DomArea) => links(a).some((o) => foe(o.owner));
+  const openNext = (a: DomArea) => links(a).some((o) => !allied(s, o.owner, p));
+  const worldOpen = (body: string) => map.list.some((x) => x.body === body && !allied(s, s.areas[x.id].owner, p));
+  const fighting = (a: DomArea) => Object.entries(a.visitors).some(([k, v]) => !allied(s, Number(k), p) && v > 0);
   /** Enemy armies on their way to each of its areas (strength, earliest arrival). */
   const incoming = new Map<string, { n: number; eta: number }>();
   for (const m of s.moves) {
-    if (m.player === p || s.areas[m.to].owner !== p) continue;
+    if (allied(s, m.player, p) || s.areas[m.to].owner !== p) continue;
     const x = incoming.get(m.to) ?? { n: 0, eta: Infinity };
     x.n += m.strength; x.eta = Math.min(x.eta, m.t1 - s.t);
     incoming.set(m.to, x);
   }
   /** Enemy army next door to an area (what could come at it soon). */
-  const nearby = (a: DomArea) => links(a).reduce((n, o) => n + (o.owner >= 0 && o.owner !== p ? o.army : 0), 0);
-  const threat = (a: DomArea) => (incoming.get(a.id)?.n ?? 0) + Object.entries(a.visitors).reduce((n, [k, v]) => n + (Number(k) === p ? 0 : v), 0);
+  const nearby = (a: DomArea) => links(a).reduce((n, o) => n + (foe(o.owner) ? o.army : 0), 0);
+  const threat = (a: DomArea) => (incoming.get(a.id)?.n ?? 0) + Object.entries(a.visitors).reduce((n, [k, v]) => n + (allied(s, Number(k), p) ? 0 : v), 0);
   const used = new Set<string>();
   const busy = (a: DomArea) => a.queue.length >= 2 || fighting(a);
-  const spend = (a: DomArea | undefined, kind: Parameters<typeof domBuild>[3]) => !!a && !busy(a) && domBuild(s, p, a.id, kind) === null;
+  const spend = (a: DomArea | undefined, kind: Parameters<typeof domBuild>[3]) => !!a && !busy(a) && domBuild(real, p, a.id, kind) === null;
 
   // ---- 1. defend
   if (st.defends) {
@@ -79,7 +108,7 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
       if (need <= 0) continue;
       const eta = incoming.get(a.id)?.eta ?? 0;
       // guns, if they'd be ready in time
-      if (!fighting(a) && eta > DOM.jobs.guns.time && a.queue.length < 2) domBuild(s, p, a.id, 'guns');
+      if (!fighting(a) && eta > DOM.jobs.guns.time && a.queue.length < 2) domBuild(real, p, a.id, 'guns');
       // help from next door that gets there in time (or straight away into a fight going on)
       let want = need;
       const helpers = links(a).filter((o) => o.owner === p && !used.has(o.id) && !fighting(o) && o.army >= 5)
@@ -90,14 +119,14 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
       if (st.evacuates && can + holderWorth(a) < threat(a) * 0.8 && a.army >= 10 && !fighting(a)) {
         // can't be held: save the army (to the safest neighbour) rather than lose it
         const safe = links(a).filter((o) => o.owner === p && threat(o) === 0).sort((x, y) => nearby(x) - nearby(y))[0];
-        if (safe) { domSend(map, s, p, a.id, safe.id, Math.floor(a.army)); used.add(a.id); used.add(safe.id); }
+        if (safe) { domSend(map, real, p, a.id, safe.id, Math.floor(a.army)); used.add(a.id); used.add(safe.id); }
         continue;
       }
       for (const h of helpers) {
         if (want <= 0 || threat(h.o) > 0) continue;
         const n = Math.floor(Math.min(h.o.army * 0.8, want + 5));
         if (n < 1) continue;
-        domSend(map, s, p, h.o.id, a.id, n);
+        domSend(map, real, p, h.o.id, a.id, n);
         used.add(h.o.id);
         want -= n;
       }
@@ -136,14 +165,14 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
   // what stays home: enough for what's next door and on its way, at least 10 by an enemy
   const keep = (a: DomArea) => Math.max(enemyNext(a) ? 10 : 0, Math.min(a.army, threat(a) * 1.1 + nearby(a) * 0.35 - a.guns));
   const spare = (a: DomArea) => Math.max(0, a.army - keep(a));
-  const alive = s.players.map((x, i) => (x.out || i === p ? 0 : ownedBy(s, i).length));
+  const alive = s.players.map((x, i) => (x.out || allied(s, i, p) ? 0 : ownedBy(s, i).length));
   const weakest = st.focus ? alive.reduce((b, n, i) => (n > 0 && (b < 0 || n < alive[b]) ? i : b), -1) : -1;
   const reach = new Map<string, { from: DomArea; launch: boolean; t: number }[]>();
   for (const a of mine) {
     if (!ready(a) || spare(a) < 1) continue;
     for (const w of destinations(map, s, a.id)) {
       const to = s.areas[w.to];
-      if (to.owner === p) continue;
+      if (allied(s, to.owner, p)) continue;
       // launches: once its world has nothing left to take, or with a big army, or at its army limit
       if (w.launch && worldOpen(map.byId[a.id].body) && a.army < 40 && !full) continue;
       if (!reach.has(w.to)) reach.set(w.to, []);
@@ -154,7 +183,7 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
     const t = s.areas[to];
     // what holds it, and half of what its holder could bring from next door before an attack lands
     const help = t.owner >= 0 ? map.byId[to].links.reduce((n, l) => n + (s.areas[l].owner === t.owner ? s.areas[l].army : 0), 0) : 0;
-    const def = Math.max(0, defence(t, p)) + help * 0.5;
+    const def = Math.max(0, defence(s, t, p)) + help * 0.5;
     // the armies that arrive together: within 40 s of the first
     from.sort((x, y) => x.t - y.t || (x.from.id < y.from.id ? -1 : 1));
     const together = from.filter((f) => f.t <= from[0].t + 40);
@@ -180,7 +209,7 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
       const n = Math.floor(Math.min(spare(f.from), need));
       if (n < 1) continue;
       used.add(f.from.id);
-      domSend(map, s, p, f.from.id, plan.to, n);
+      domSend(map, real, p, f.from.id, plan.to, n);
       need -= n;
     }
   }
@@ -203,7 +232,7 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
     const n = Math.floor(spare(a));
     if (d !== undefined) {
       const next = map.byId[a.id].links.filter((l) => (dist.get(l) ?? 99) < d).sort()[0];
-      if (next) domSend(map, s, p, a.id, next, n);
-    } else if (a.gantry && map.byId[a.id].body !== map.byId[strike.id].body) domSend(map, s, p, a.id, strike.id, n);
+      if (next) domSend(map, real, p, a.id, next, n);
+    } else if (a.gantry && map.byId[a.id].body !== map.byId[strike.id].body) domSend(map, real, p, a.id, strike.id, n);
   }
 }

@@ -102,6 +102,32 @@ await page.evaluate(() => { const st = __dom.s; for (const a of Object.values(st
 await page.waitForSelector('#options .dm-stats', { timeout: 10000 });
 check(/Victory/i.test(await page.textContent('#options')), 'the end screen: Victory, with the stats');
 
+// ---- teams, fog of war, victory by holding 75% (a fresh war: the setup's NEW WAR)
+await page.click('#options [data-act="again"]');
+await page.waitForSelector('#options [data-act="start"]', { timeout: 10000 });
+await page.click('#options [data-key="players"] [data-v="3"]');
+check(await page.$eval('#options [data-key="teams"] [data-v="2v2"]', (b) => b.disabled), '2 v 2 needs four players');
+await page.click('#options [data-key="players"] [data-v="4"]');
+await page.click('#options [data-key="teams"] [data-v="2v2"]');
+await page.click('#options [data-key="fog"] [data-v="on"]');
+await page.click('#options [data-key="win"] [data-v="control"]');
+await page.click('#options [data-act="start"]');
+await page.waitForFunction(() => window.__dom?.s?.rules?.fog);
+await page.evaluate(() => { __dom.setSpeed(0); __dom.step(600); });
+await page.waitForTimeout(500);
+s = await S();
+check(s.rules.fog && s.rules.win === 'control' && s.rules.side.join('') === '0011', `the rules: ${JSON.stringify(s.rules)}`);
+const fogged = await page.$$eval('.dm-node.fog text', (t) => t.map((x) => x.textContent));
+check(fogged.length > 10 && fogged.every((x) => x === '?'), `areas out of sight show ? (${fogged.length})`);
+const strip = await page.textContent('.dm-players');
+check(/team A, ally/.test(strip) && /FOG/.test(strip) && /75% WINS/.test(strip), 'the players: teams, your ally, and the rules');
+check(/win at 30/.test(await page.textContent('[data-s="areas"]')), 'the top bar says what wins');
+// your side holds 30 areas, the other side the last 10: victory by control, with the chart
+await page.evaluate(() => { const st = __dom.s; st.moves = []; Object.values(st.areas).forEach((a, i) => Object.assign(a, { owner: i < 30 ? i % 2 : 2 + (i % 2), visitors: {}, natives: 0, army: 5 })); __dom.step(1); });
+await page.waitForSelector('#options .dm-chart', { timeout: 10000 });
+const end = await page.textContent('#options');
+check(/Victory/i.test(end) && /with your allies by holding 3\d of 40 areas/.test(end) && (await page.$$('#options .dm-chart polyline')).length === 4, 'Victory by holding 75%, with allies, and a line per player in the chart');
+
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' / ')}` : ''}`);
 await browser.close();
 console.log(failed ? `\n${failed} check(s) failed` : '\nall domination page checks passed');

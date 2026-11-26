@@ -46,6 +46,18 @@ export interface DomPlayer {
   /** Next think time (computer players). */
   think?: number;
   stats: { taken: number; lost: number; built: number; peak: number };
+  /** A computer's memory under fog: what it last saw of each area it can't see now (src/sim/domination-ai.ts). */
+  seen?: Record<string, { army: number; guns: number; natives: number; t: number }>;
+}
+
+/** How a war is played (the setup screen). Absent: free for all, no fog, wipe everyone out. */
+export interface DomRules {
+  /** Each player's side: players on one side are allies (they win together). */
+  side: number[];
+  /** You only see the numbers in your side's areas, the areas next to them and fights you're in. */
+  fog: boolean;
+  /** 'wipe': the last side holding areas wins; 'control': a side holding 75% of the areas wins (or the last one). */
+  win: 'wipe' | 'control';
 }
 
 export interface DomEvent { t: number; text: string; kind: 'info' | 'good' | 'bad'; area?: string }
@@ -60,7 +72,11 @@ export interface DomState {
   moves: DomMove[];
   nextMove: number;
   log: DomEvent[];
-  over?: { winner: number; t: number };
+  /** `winner`: a player on the winning side (you, if you're on it); `side`: that side; `how`: wiped out or 75%. */
+  over?: { winner: number; t: number; side?: number; how?: 'wipe' | 'control' };
+  rules?: DomRules;
+  /** Areas each player held, sampled every minute (the end screen's chart). */
+  history?: { t: number; held: number[] }[];
 }
 
 /** The numbers (all in one place for balancing). */
@@ -71,6 +87,10 @@ export const DOM = {
    * start wins about as often with Normal computers everywhere (tools/domination-ai-sim.mjs --only fairness).
    */
   startBonus: { 2: [0, 50], 3: [0, 200, 420], 4: [0, 200, 600, 900] } as Record<number, number[]>,
+  /** The same under fog of war. */
+  fogBonus: { 2: [0, 50], 3: [0, 400, 800], 4: [0, 400, 1000, 1500] } as Record<number, number[]>,
+  /** In team games, by the sides in order ('0011': you and Crimson against Amber and Violet). */
+  teamBonus: { '0011': [0, 0, 50, 100], '011': [0, 0, 0], '0111': [0, 0, 0, 0] } as Record<string, number[]>,
   /** Natives on a start world are this much tougher per area that world has over 5 (Home's 7 are worth more to win). */
   startWorldNatives: 0,
   start: { army: 30, guns: 30, level: 1 },
@@ -100,6 +120,10 @@ export const DOM = {
   travel: { overland: 25, perRadian: 35, launchNear: 50, launchFar: 90 },
   /** The game's event list keeps this many. */
   logMax: 80,
+  /** The share of all areas a side must hold to win by control. */
+  control: 0.75,
+  /** Under fog, a player down to this many areas (having held twice that) is revealed to everyone. */
+  reveal: 3,
 };
 
 export const DOM_COLORS = ['#4fd1e8', '#e8574f', '#e8b04f', '#a46be8'];
@@ -140,7 +164,7 @@ export function domMap(bodies: BodiesLike): DomMap {
   return { list, byId, system };
 }
 
-export interface DomSetup { seed: number; players: number; ai: DomLevel }
+export interface DomSetup { seed: number; players: number; ai: DomLevel; rules?: Partial<DomRules> }
 
 export function newDomination(map: DomMap, o: DomSetup): DomState {
   const rnd = rng(o.seed * 104729 + 7);
@@ -162,12 +186,47 @@ export function newDomination(map: DomMap, o: DomSetup): DomState {
     const a = areas[DOM_STARTS[i]] ?? Object.values(areas).find((x) => x.owner < 0)!;
     Object.assign(a, { owner: i, army: DOM.start.army, guns: DOM.start.guns, level: DOM.start.level, natives: 0, gantry: true });
   }
-  // a start on a smaller world gets alloys to make up for it
-  players.forEach((pl, i) => { pl.alloys += DOM.startBonus[n]?.[i] ?? 0; });
-  return { version: 1, seed: o.seed, t: 0, players, areas, moves: [], nextMove: 1, log: [{ t: 0, text: 'The war for the system begins', kind: 'info' }] };
+  // a start on a smaller world gets alloys to make up for it (tables by player count, teams and fog)
+  const teams = !!o.rules?.side && new Set(o.rules.side.slice(0, n)).size < n;
+  const table = teams ? DOM.teamBonus[o.rules!.side!.slice(0, n).join('')] : o.rules?.fog ? DOM.fogBonus[n] : DOM.startBonus[n];
+  players.forEach((pl, i) => { pl.alloys += table?.[i] ?? 0; });
+  const rules: DomRules = { side: o.rules?.side?.slice(0, n) ?? players.map((_, i) => i), fog: !!o.rules?.fog, win: o.rules?.win ?? 'wipe' };
+  while (rules.side.length < n) rules.side.push(rules.side.length);
+  return { version: 1, seed: o.seed, t: 0, players, areas, moves: [], nextMove: 1, log: [{ t: 0, text: 'The war for the system begins', kind: 'info' }], rules, history: [{ t: 0, held: players.map(() => 1) }] };
 }
 
 // ---------- reading the state ----------
+/** A player's side (free for all: its own). */
+export const sideOf = (s: DomState, p: number) => (p < 0 ? -1 : s.rules?.side[p] ?? p);
+/** Two players on the same side (a player is its own ally). Natives are nobody's. */
+export const allied = (s: DomState, a: number, b: number) => a >= 0 && b >= 0 && sideOf(s, a) === sideOf(s, b);
+/** Areas a side holds. */
+export const heldBySide = (s: DomState, side: number) => Object.values(s.areas).filter((a) => a.owner >= 0 && sideOf(s, a.owner) === side).length;
+/** Areas needed to win by control. */
+export const controlNeed = (s: DomState) => Math.ceil(Object.keys(s.areas).length * DOM.control);
+
+/**
+ * The areas whose numbers `p` can see: everything without fog; under fog its side's areas, the areas linked to them,
+ * fights its side is in, and every area of a player who has fallen to its last few (revealed so the war doesn't end in
+ * a hunt; not at the start, when everyone holds one).
+ * Who holds each area is never hidden.
+ */
+export function visibleTo(map: DomMap, s: DomState, p: number): Set<string> {
+  const all = Object.keys(s.areas);
+  if (!s.rules?.fog || s.over) return new Set(all);
+  const out = new Set<string>();
+  const counts = s.players.map((_, i) => ownedBy(s, i).length);
+  for (const a of Object.values(s.areas)) {
+    if (allied(s, a.owner, p)) { out.add(a.id); for (const l of map.byId[a.id].links) out.add(l); }
+    else if (Object.keys(a.visitors).some((k) => allied(s, Number(k), p))) out.add(a.id);
+    else if (a.owner >= 0 && counts[a.owner] <= DOM.reveal && s.players[a.owner].stats.peak >= DOM.reveal * 2) out.add(a.id);
+  }
+  return out;
+}
+/** Moves `p` can see: its side's, and any to or from an area it can see. */
+export const movesSeenBy = (map: DomMap, s: DomState, p: number, seen = visibleTo(map, s, p)) =>
+  s.moves.filter((m) => allied(s, m.player, p) || seen.has(m.to) || seen.has(m.from));
+
 export const ownedBy = (s: DomState, p: number) => Object.values(s.areas).filter((a) => a.owner === p);
 export const incomeOf = (s: DomState, p: number) => {
   const pl = s.players[p];
@@ -207,8 +266,10 @@ export function cannotBuild(s: DomState, p: number, a: DomArea, kind: DomJobKind
 export function destinations(map: DomMap, s: DomState, from: string): { to: string; launch: boolean }[] {
   const a = map.byId[from], here = s.areas[from];
   if (!a || !here) return [];
-  const out = a.links.map((to) => ({ to, launch: false }));
-  if (here.gantry) for (const b of map.list) if (b.body !== a.body) out.push({ to: b.id, launch: true });
+  // never into an ally's area (allies hold their own)
+  const ok = (to: string) => { const o = s.areas[to].owner; return !(o >= 0 && o !== here.owner && allied(s, o, here.owner)); };
+  const out = a.links.filter(ok).map((to) => ({ to, launch: false }));
+  if (here.gantry) for (const b of map.list) if (b.body !== a.body && ok(b.id)) out.push({ to: b.id, launch: true });
   return out;
 }
 
@@ -252,6 +313,10 @@ export function domSend(map: DomMap, s: DomState, p: number, from: string, to: s
   a.army -= n;
   const t = travelTime(map, from, to, way.launch);
   s.moves.push({ id: s.nextMove++, player: p, from, to, strength: n, t0: s.t, t1: s.t + t, launch: way.launch });
+  // you're told when an enemy army sets off for one of your areas
+  const target = s.areas[to].owner;
+  // (once per area every 20 s: a computer often sends several groups at once)
+  if (target === 0 && !allied(s, p, 0) && !s.log.some((e) => e.area === to && s.t - e.t < 20 && e.text.includes('on its way'))) say(s, `${s.players[p].name}'s army is on its way to ${map.byId[to].name}: ${t} s`, 'bad', to);
   return null;
 }
 
@@ -293,9 +358,13 @@ function tick(map: DomMap, s: DomState, h: number, brains?: Record<number, DomBr
     const a = s.areas[m.to];
     if (s.players[m.player].out) continue;
     if (a.owner === m.player) a.army += m.strength;
-    else {
+    else if (allied(s, a.owner, m.player)) {
+      // an ally took it meanwhile: home again if home is still ours, else it joins the ally
+      if (s.areas[m.from].owner === m.player) s.moves.push({ ...m, id: s.nextMove++, from: m.to, to: m.from, t0: s.t, t1: s.t + (m.t1 - m.t0) });
+      else a.army += m.strength;
+    } else {
       a.visitors[m.player] = (a.visitors[m.player] ?? 0) + m.strength;
-      if (a.owner === 0 && m.player !== 0) say(s, `${s.players[m.player].name} attacks ${map.byId[a.id].name}`, 'bad', a.id);
+      if (a.owner === 0 && !allied(s, m.player, 0)) say(s, `${s.players[m.player].name} attacks ${map.byId[a.id].name}`, 'bad', a.id);
     }
   }
   // fights
@@ -310,8 +379,23 @@ function tick(map: DomMap, s: DomState, h: number, brains?: Record<number, DomBr
     for (const a of Object.values(s.areas)) delete a.visitors[p];
     say(s, p === 0 ? 'Your last area has fallen' : `${pl.name} is wiped out`, p === 0 ? 'bad' : 'good');
   });
+  // a minute's sample for the end screen's chart
+  const hist = (s.history ??= []);
+  if (!hist.length || s.t - hist[hist.length - 1].t >= 60) hist.push({ t: Math.round(s.t), held: s.players.map((_, i) => ownedBy(s, i).length) });
+  // the war is won by the last side standing, or (rule 'control') by a side holding 75% of the areas
   const alive = s.players.map((pl, i) => (pl.out ? -1 : i)).filter((i) => i >= 0);
-  if (alive.length <= 1) { s.over = { winner: alive[0] ?? -1, t: s.t }; say(s, alive[0] === 0 ? 'Victory: the system is yours' : `${s.players[alive[0]]?.name ?? 'No one'} has taken the system`, alive[0] === 0 ? 'good' : 'bad'); return; }
+  const sides = [...new Set(alive.map((i) => sideOf(s, i)))];
+  const ruling = s.rules?.win === 'control' ? sides.find((sd) => heldBySide(s, sd) >= controlNeed(s)) : undefined;
+  if (sides.length <= 1 || ruling !== undefined) {
+    const side = ruling ?? sides[0] ?? -1;
+    const winner = side >= 0 && sideOf(s, 0) === side ? 0 : alive.find((i) => sideOf(s, i) === side) ?? -1;
+    s.over = { winner, t: s.t, side, how: ruling !== undefined && sides.length > 1 ? 'control' : 'wipe' };
+    hist.push({ t: Math.round(s.t), held: s.players.map((_, i) => ownedBy(s, i).length) });
+    const mates = alive.filter((i) => sideOf(s, i) === side);
+    const how = s.over.how === 'control' ? ` (${heldBySide(s, side)} of ${Object.keys(s.areas).length} areas)` : '';
+    say(s, winner === 0 ? `Victory${mates.length > 1 ? ' with your allies' : ''}: the system is yours${how}` : `${mates.map((i) => s.players[i].name).join(' and ') || 'No one'} ${mates.length > 1 ? 'have' : 'has'} taken the system${how}`, winner === 0 ? 'good' : 'bad');
+    return;
+  }
   // computer players
   s.players.forEach((pl, p) => {
     if (!pl.ai || pl.out || (pl.think ?? 0) > s.t) return;
@@ -338,34 +422,36 @@ function fight(map: DomMap, s: DomState, a: DomArea, h: number) {
   const hw = holderWorth(a);
   if (hw > 0) sides.push({ p: a.owner, worth: hw });
   for (const [k, v] of Object.entries(a.visitors)) if (v > 0) sides.push({ p: Number(k), worth: v });
-  if (sides.length >= 2) {
-    const total = sides.reduce((m, x) => m + x.worth, 0);
-    const lost = sides.map(() => 0);
-    for (let i = 0; i < sides.length; i++) for (let j = i + 1; j < sides.length; j++) {
-      const wi = sides[i].worth, wj = sides[j].worth;
-      const share = (wj / (total - wi) + wi / (total - wj)) / 2;
-      const e = DOM.rate * h * Math.max(wi, wj) * share;
-      // a holder bigger than what comes at it loses less (√ of the odds): small attacks are wasteful, as in full
-      const shelter = (k: number, o: number) => (sides[k].p === a.owner && a.owner >= 0 ? Math.min(1, Math.sqrt(sides[o].worth / sides[k].worth)) : 1);
-      lost[i] += e * shelter(i, j); lost[j] += e * shelter(j, i);
-    }
-    sides.forEach((x, j) => {
-      const left = Math.max(0, x.worth - lost[j]);
-      if (x.p === a.owner && a.owner >= 0) {
-        // the Core's share goes last: army and guns keep what's left above it
-        const k = Math.max(0, left - DOM.worth.core) / Math.max(1e-9, x.worth - DOM.worth.core);
-        a.army = a.army * k < 0.5 ? 0 : a.army * k;
-        a.guns = a.guns * k < 0.5 ? 0 : a.guns * k;
-      } else if (x.p === a.owner) a.natives = left < 0.5 ? 0 : left;
-      else a.visitors[x.p] = left < 0.5 ? 0 : left;
-    });
+  const foes = (i: number, j: number) => !allied(s, sides[i].p, sides[j].p);
+  const lost = sides.map(() => 0);
+  // what each side's fire is spread over: its enemies here
+  const against = sides.map((_, i) => sides.reduce((m, x, j) => m + (j !== i && foes(i, j) ? x.worth : 0), 0));
+  for (let i = 0; i < sides.length; i++) for (let j = i + 1; j < sides.length; j++) {
+    if (!foes(i, j)) continue;
+    const wi = sides[i].worth, wj = sides[j].worth;
+    const share = (wj / against[i] + wi / against[j]) / 2;
+    const e = DOM.rate * h * Math.max(wi, wj) * share;
+    // a holder bigger than what comes at it loses less (√ of the odds): small attacks are wasteful, as in full
+    const shelter = (k: number, o: number) => (sides[k].p === a.owner && a.owner >= 0 ? Math.min(1, Math.sqrt(sides[o].worth / sides[k].worth)) : 1);
+    lost[i] += e * shelter(i, j); lost[j] += e * shelter(j, i);
   }
+  sides.forEach((x, j) => {
+    const left = Math.max(0, x.worth - lost[j]);
+    if (x.p === a.owner && a.owner >= 0) {
+      // the Core's share goes last: army and guns keep what's left above it
+      const k = Math.max(0, left - DOM.worth.core) / Math.max(1e-9, x.worth - DOM.worth.core);
+      a.army = a.army * k < 0.5 ? 0 : a.army * k;
+      a.guns = a.guns * k < 0.5 ? 0 : a.guns * k;
+    } else if (x.p === a.owner) a.natives = left < 0.5 ? 0 : left;
+    else a.visitors[x.p] = left < 0.5 ? 0 : left;
+  });
   // the outcome
   for (const [k, v] of Object.entries(a.visitors)) if (!(v > 0)) delete a.visitors[Number(k) as number];
   const holding = a.owner >= 0 ? a.army + a.guns > 0 : a.natives > 0;
-  const left = Object.entries(a.visitors);
-  if (holding || left.length !== 1) return;
-  const [k, v] = left[0], p = Number(k), was = a.owner;
+  const left = Object.entries(a.visitors).map(([k, v]) => [Number(k), v] as const).sort((x, y) => y[1] - x[1] || x[0] - y[0]);
+  // taken when what's left is one side's: its biggest army holds it, its allies' join that army
+  if (holding || !left.length || left.some(([k]) => !allied(s, k, left[0][0]))) return;
+  const p = left[0][0], v = left.reduce((m, [, x]) => m + x, 0), was = a.owner;
   const name = map.byId[a.id].name;
   if (was >= 0) { s.players[was].stats.lost++; if (was === 0) say(s, `${s.players[p].name} took ${name}`, 'bad', a.id); }
   s.players[p].stats.taken++;

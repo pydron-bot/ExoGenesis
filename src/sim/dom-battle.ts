@@ -8,7 +8,7 @@
  * an equal share of the army; a damaged unit counts for its share of health. Guns: a turret per 10 (at most 12).
  */
 import { content } from '../content';
-import type { DomLevel, DomState } from './domination';
+import { allied, sideOf, type DomLevel, type DomState } from './domination';
 import type { SimState } from './types';
 
 /** The IndexedDB record that carries a battle between the two pages. */
@@ -28,6 +28,8 @@ export interface BattleSide {
   guns: number;
   /** Strength each of its units stands for. */
   per: number;
+  /** Its side in the war (allies fight together). */
+  side?: number;
   units: { unit: string; n: number }[];
   turrets: number;
 }
@@ -66,6 +68,7 @@ export function cannotCommand(s: DomState, areaId: string, me = 0): string | nul
   const visitors = Object.entries(a.visitors).filter(([, v]) => v > 0).map(([p]) => Number(p));
   if (!visitors.length) return 'No battle here';
   if (a.owner !== me && !visitors.includes(me)) return 'You\'re not in this fight';
+  if (allied(s, a.owner, me) && visitors.every((v) => allied(s, v, me))) return 'No battle here';
   if (a.owner < 0) return 'Fights with the natives play out on the map';
   return null;
 }
@@ -78,7 +81,7 @@ export function makeBattle(s: DomState, areaId: string, me = 0): DomBattle {
     const pl = s.players[p], core = a.owner === p;
     const army = core ? a.army : a.visitors[p] ?? 0, guns = core ? a.guns : 0;
     const { units, per } = battleUnits(army);
-    return { player: p, name: pl.name, color: pl.color, ai: pl.ai, core, army, guns, per, units, turrets: core ? Math.min(MAX_TURRETS, Math.round(guns / PER_TURRET)) : 0 };
+    return { player: p, name: pl.name, color: pl.color, ai: pl.ai, core, army, guns, per, units, side: sideOf(s, p), turrets: core ? Math.min(MAX_TURRETS, Math.round(guns / PER_TURRET)) : 0 };
   });
   return { version: 1, area: areaId, seed: s.seed, at: s.t, sides };
 }

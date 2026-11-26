@@ -21,6 +21,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.99.0',
+    date: '2026-11-26',
+    title: 'Domination: teams, fog and victory',
+    notes: [
+      "Domination's setup has teams (2 v 2, or you against all the computers), fog of war, and a choice of victory: wipe them out or hold 75% of the system",
+      "Fog of war: you only see what's in your side's areas, the areas next to them and your fights; who holds each area is always known. A player who's fallen to their last areas is revealed",
+      "Allies win together, never fight each other, and fight on your side in battles you fight yourself",
+      "The end of a war shows who won and how, a chart of the areas each player held, and everyone's stats",
+      "You're told once when an enemy army sets off for one of your areas, not for every group",
+    ],
+    guide: ['domination-rules'],
+  },
+  {
     version: '0.98.0',
     date: '2026-11-26',
     title: 'Domination: smarter opponents',

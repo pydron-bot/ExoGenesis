@@ -340,7 +340,7 @@ A standard RTS skirmish outside the campaign: pick a map and players, then build
   5. Polish: minimap pings, an "under attack" alert, a surrender option, a rematch button.
 - Online multiplayer is out of scope for now (the game is static hosting; it would need lockstep netcode and a relay).
 
-### 5.12 Domination *(planned 2026-11-25)*
+### 5.12 Domination *(planned 2026-11-25; built v0.94–v0.99)*
 
 A long skirmish across the whole solar system: take areas on planets and moons until the other players are wiped out.
 Meant to be played over many sittings, so it lives on named save files.
@@ -358,7 +358,7 @@ Meant to be played over many sittings, so it lives on named save files.
   are attacking and command it in full; on leaving, its full state is boiled back down to a summary.
 - **Win:** the last player (or team) holding an area. A player is out when they hold no area with a core. Near the
   end the last few enemy areas are revealed so the game doesn't end in a hunt. Optional setup rule: control 75% of
-  areas.
+  areas. *(Built: teams (2 v 2, you vs all), fog of war, and "Hold 75%", all in the setup.)*
 - **Computer players** get a strategy brain on top of the skirmish AI: where to expand, what to defend, when to
   launch. The skirmish AI keeps running battles in full areas.
 - **Saves:** named save files (several per browser, each with its name, place, game time and date), autosave,
@@ -373,7 +373,8 @@ Meant to be played over many sittings, so it lives on named save files.
      skirmish on the area's map; the war waits meanwhile.)*
   5. The computer's strategy brain, with difficulty levels; measured by AI-vs-AI runs. *(v0.98.0; with the map's fights fitted to
      full battles and fair starts.)*
-  6. Setup screen, win/lose screen with stats, polish.
+  6. Setup screen, win/lose screen with stats, polish. *(v0.99.0: teams, fog of war and the 75% victory in the setup;
+     an end screen with who won and how, a chart of areas held and each player's stats.)*
 
 ## 6. Technical architecture
 
@@ -478,6 +479,7 @@ What each milestone actually shipped, with its numbers and tests: `TECH.md` §3 
   last Command Core standing wins; no online multiplayer for now.
 - 2026-11-25: Domination (§5.12): a long skirmish across the solar system, about 40 generated areas to start; a live
   strategy map in real time (areas you aren't in run as summaries); named save files.
+- 2026-11-26: Domination's setup includes fog of war, teams and the 75% victory as options.
 - 2026-11-14: player is always the coop probe; all three land at the same time on different
   planets; growth pods accelerate maturation.
 - 2026-11-15: one solar system only; two acts (planet, system); C&C-style direct control;

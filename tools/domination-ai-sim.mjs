@@ -25,11 +25,11 @@ let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 
 /** One war: `seats` are levels; `brains` swaps a seat's brain. Returns the winner's seat and the minutes. */
-function war(seed, seats, brains) {
-  const s = D.newDomination(map, { seed, players: seats.length, ai: 'normal' });
+function war(seed, seats, brains, rules) {
+  const s = D.newDomination(map, { seed, players: seats.length, ai: 'normal', rules });
   seats.forEach((lv, i) => { s.players[i].ai = lv; });
   while (!s.over && s.t < LIMIT) D.stepDomination(map, s, 10, brains);
-  return { winner: s.over ? s.over.winner : -1, min: s.t / 60 };
+  return { winner: s.over ? s.over.winner : -1, side: s.over?.side ?? -1, how: s.over?.how, min: s.t / 60 };
 }
 
 /** A against B from both seats, `N` seeds each: A's win share. */
@@ -49,7 +49,7 @@ function matchup(name, a, b, brainA, brainB) {
   return wins / games;
 }
 
-/** --only matchups|fairness|pace: one part (tuning). */
+/** --only matchups|fairness|pace|rules: one part (tuning). */
 const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
 const part = (k) => !only || only === k;
 let hn = 1, ne = 1;
@@ -79,6 +79,34 @@ if (part('pace')) for (const n of [2, 3, 4]) {
   console.log(`  ${n} players: shortest ${q(0)} · median ${q(0.5)} · longest ${q(1)}`);
 }
 
+// the setup's rules: every combination ends
+const VARIANTS = process.argv.includes('--variant') ? [] : [
+  ['fog, 4 players', 4, { fog: true }],
+  ['2 v 2', 4, { side: [0, 0, 1, 1] }],
+  ['2 v 2 with fog', 4, { side: [0, 0, 1, 1], fog: true }],
+  ['you vs all, 3 players', 3, { side: [0, 1, 1] }],
+  ['control 75%, 4 players', 4, { win: 'control' }],
+  ['control 75%, fog, 3 players', 3, { win: 'control', fog: true }],
+];
+let variantsUnfinished = 0;
+if (part('rules')) {
+  console.log('rules (Normals everywhere): wars that end · median minutes · how they ended');
+  for (const [name, n, rules] of VARIANTS) {
+    const mins = [], how = {}, sides = {};
+    let open = 0;
+    for (let seed = 1; seed <= N; seed++) {
+      const r = war(seed, Array(n).fill('normal'), undefined, rules);
+      if (r.winner < 0) open++;
+      mins.push(r.min);
+      how[r.how ?? 'none'] = (how[r.how ?? 'none'] ?? 0) + 1;
+      sides[r.side] = (sides[r.side] ?? 0) + 1;
+    }
+    variantsUnfinished += open;
+    mins.sort((a, b) => a - b);
+    console.log(`  ${name.padEnd(28)} ${N - open}/${N} · ${Math.round(mins[Math.floor(N / 2)])} min · ${Object.entries(how).map(([k, v]) => `${k} ${v}`).join(', ')} · winning side ${Object.entries(sides).map(([k, v]) => `${k}:${v}`).join(' ')}`);
+  }
+}
+
 if (process.argv.includes('--check')) {
   check(hn >= 0.7, `Hard beats Normal (${Math.round(hn * 100)}%)`);
   check(ne >= 0.7, `Normal beats Easy (${Math.round(ne * 100)}%)`);
@@ -86,6 +114,7 @@ if (process.argv.includes('--check')) {
   check(share[3].every((x) => x >= 0.15 && x <= 0.5), `every start has a fair chance in 3-player wars (${share[3].map((x) => Math.round(x * 100)).join(' / ')}%)`);
   check(share[4].every((x) => x >= 0.1 && x <= 0.45), `every start has a fair chance in 4-player wars (${share[4].map((x) => Math.round(x * 100)).join(' / ')}%)`);
   check(!unfinished, `every war ends (${unfinished} didn't)`);
+  check(!variantsUnfinished, `every war ends with fog, teams and control too (${variantsUnfinished} didn't)`);
   console.log(failed ? `\n${failed} check(s) failed` : '\nall computer player checks passed');
   process.exit(failed ? 1 : 0);
 }
