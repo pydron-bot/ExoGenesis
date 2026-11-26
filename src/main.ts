@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import './style.css';
 import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input } from './input';
-import { CAMPAIGN, getSave, migrateAutosave, playable, putSave, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from './save';
+import { CAMPAIGN, getSave, keepSaves, migrateAutosave, playable, putSave, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from './save';
 import { applyShared, HOME_REGION, type SharedState } from './sim/campaign';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
@@ -41,7 +41,7 @@ import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
 import { GroundMarks, Sky, type MarkMover } from './world/ground';
 import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
 import { BATTLE_KEY, battleOutcome, type DomBattle } from './sim/dom-battle';
-import { campaignRecords, listSaves, readSave, restoreCampaign, writeSave, type CameraPose, type SaveBody, type SaveKind, type SaveMeta } from './saves';
+import { backupCampaign, campaignRecords, listSaves, readSave, restoreCampaign, writeSave, type CameraPose, type SaveBody, type SaveKind, type SaveMeta } from './saves';
 import { openSaves } from './saves-panel';
 import { ArmyView } from './skirmish/view';
 import { ColonistView } from './world/colonists';
@@ -55,6 +55,7 @@ import { GameAudio, type Spatial } from './audio';
 import { voices } from './voice';
 import { TitleScreen, type TitleChoice } from './title';
 import { VERSION } from './version';
+import { showSimCrash, watchPageErrors } from './crash';
 import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';
@@ -252,6 +253,15 @@ const sim = new SimClient((t, l, cue, at, style) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l, at, style); else early.push([t, l, at, style]);
 }, !skirmishMode, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup, freshShared);
+// something broke in the sim: say so and offer a way back (src/crash.ts)
+sim.onCrash = (c) => showSimCrash({ where: 'sim', ...c }, { canResume: !scratch && !rts });
+// autosaves failing (storage full, private mode): the second failure in a row, then every 5 minutes
+sim.onSaveFailed = (n) => {
+  if (n !== 2 && n % 30 !== 0) return;
+  const t = 'Autosave isn’t working on this device (storage full or blocked). Save to a file and Export it: Menu → Save & load';
+  if (logFn) logFn(t, 'bad'); else early.push([t, 'bad', undefined]);
+  audio.event('deny');
+};
 // the editor's story play test: its (maybe unsaved) event, fired once the colony deploys
 if (preview?.story) content.story[preview.story.id] = preview.story.def;
 if (preview?.mission) content.missions[preview.mission.id] = preview.mission.def;
@@ -606,6 +616,19 @@ function goTravel(id: string) {
   location.href = u.href;
 }
 /** Load another region, keeping the other URL options. */
+/**
+ * New Game is about to wipe the campaign: keep it as a save file first ("Before new game" in Save & load), so
+ * starting over by mistake can be undone. `live`: the colony being played, fresh from the sim (else the autosaves).
+ */
+async function keepBeforeNew(live?: SimState): Promise<void> {
+  if (scratch || rts) return;
+  const now = live && live.phase === 'deployed' && !live.over ? live : undefined;
+  const st = now ?? autosaved?.sim;
+  const where = now || autosaved === hereSave ? regionId : savedRegion;
+  try {
+    await backupCampaign({ place: `${regionLabel(where)} · ${bodyLabel(where)}`, when: st ? solTime(st.tick) : '' }, now ? { region: regionId, sim: now } : undefined);
+  } catch (e) { console.warn('keeping the campaign before New Game failed', e); }
+}
 function goRegion(id: string, extra: Record<string, string> = {}) {
   const u = new URL(location.href);
   // always named: with no region in the address the game opens the saved colony's region
@@ -829,8 +852,10 @@ function setBuild(kind: string | null) {
 function restartGame() {
   // the campaign starts over at home: every other region's save goes (an expedition goes home and lands)
   if (!rts && !scratch) {
-    if (regionId !== HOME_REGION) { goRegion(HOME_REGION, { land: '1' }); return; }
-    void wipeCampaign([regionKey(HOME_REGION), CAMPAIGN]);
+    // asked before newGame below, so the worker answers with the colony as it is now
+    const before = sim.save().then((st) => keepBeforeNew(st));
+    if (regionId !== HOME_REGION) { void before.then(() => goRegion(HOME_REGION, { land: '1' })); return; }
+    void before.then(() => wipeCampaign([regionKey(HOME_REGION), CAMPAIGN]));
   }
   sim.newGame(Date.now() % 100000);
   sim.command({ type: 'landing', stage: 'deploy' });
@@ -1484,6 +1509,8 @@ function reveal() {
   $('loader-step').textContent = 'Ready';
   barTo(1, 200);
   document.body.classList.add('loaded');
+  watchPageErrors();
+  void keepSaves();
   loaderEl.classList.add('done');
   setTimeout(() => loaderEl.remove(), 700);
   registerServiceWorker();
@@ -1813,8 +1840,8 @@ function showTitle() {
     if (resumed) go(startResume)();
     else if (elsewhere) goRegion(savedRegion, { title: '0' });
     else if (trip) go(() => sim.command({ type: 'landing', stage: 'deploy' }))();
-    else if (landIn !== regionId) goRegion(landIn, { land: '1' });
-    else { if (!scratch) void wipeCampaign(); if (freshShared) sim.newGame(Date.now() % 100000); go(startLanding)(); }
+    else if (landIn !== regionId) void keepBeforeNew().then(() => goRegion(landIn, { land: '1' }));
+    else { if (!scratch) void keepBeforeNew().then(() => wipeCampaign()); if (freshShared) sim.newGame(Date.now() % 100000); go(startLanding)(); }
   };
   const AP = 'Autopilot: the computer plays your campaign';
   const pick = (id: string, label: string, help: string, get: () => boolean, set: () => void): Toggle => ({ id, section: AP, label, help, get, set, state: (on) => (on ? '●' : '') });
@@ -1849,9 +1876,9 @@ function showTitle() {
       id: 'new', kind: saved ? 'plain' : 'hero', label: 'NEW GAME', sub: newSub(),
       ...((autosaved || campaign) && !scratch ? { confirm: autosaved ? `Your colony${elsewhere ? ` in ${regionLabel(savedRegion)}` : ''} at ${solTime(autosaved.sim.tick)} will be lost · tap again` : 'Your campaign will be lost · tap again' } : {}),
       run: () => {
-        if (landIn !== regionId) { goRegion(landIn, { land: '1' }); return; }
-        // a new campaign: every region's save goes, and the story starts again
-        if (!scratch) void wipeCampaign();
+        if (landIn !== regionId) { void keepBeforeNew().then(() => goRegion(landIn, { land: '1' })); return; }
+        // a new campaign: every region's save goes (kept as a save file first), and the story starts again
+        if (!scratch) void keepBeforeNew().then(() => wipeCampaign());
         if (freshShared) sim.newGame(Date.now() % 100000);
         go(startLanding)();
       },

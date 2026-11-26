@@ -29,6 +29,8 @@ export interface SaveMeta {
   when: string;
   /** Rough size in bytes (shown in the list). */
   size?: number;
+  /** Made by the game, not the player (the copy kept before New Game): only the newest few are kept. */
+  auto?: boolean;
 }
 
 export interface SaveBody {
@@ -69,7 +71,7 @@ export const readSave = (id: string) => getSave<SaveBody>(BODY + id);
 
 /** Write a save: a new file (no `id`) or over an existing one. Returns its meta. */
 export async function writeSave(meta: Omit<SaveMeta, 'version' | 'id' | 'savedAt' | 'size'> & { id?: string; savedAt?: number }, body: SaveBody): Promise<SaveMeta> {
-  const m: SaveMeta = { version: 1, id: meta.id ?? newId(), name: meta.name.trim() || 'Untitled', kind: meta.kind, savedAt: meta.savedAt ?? Date.now(), place: meta.place, when: meta.when, size: sizeOf(body) };
+  const m: SaveMeta = { version: 1, id: meta.id ?? newId(), name: meta.name.trim() || 'Untitled', kind: meta.kind, savedAt: meta.savedAt ?? Date.now(), place: meta.place, when: meta.when, size: sizeOf(body), ...(meta.auto ? { auto: true } : {}) };
   // the game first: a meta never points at nothing
   await putSave(BODY + m.id, body);
   await putSave(META + m.id, m);
@@ -117,6 +119,35 @@ export async function restoreCampaign(body: SaveBody): Promise<string> {
   const shared = camp?.shared ?? (here?.sim ? sharedOf(here.sim) : undefined);
   await putSave(CAMPAIGN, { version: 1, savedAt: now, current: body.region, shared } satisfies CampaignSave);
   return body.region;
+}
+
+/** Copies the game keeps before New Game (the newest ones; older go). */
+const AUTO_KEEP = 3;
+
+/**
+ * Before New Game wipes the campaign: keep it as a save file ("Before new game · <date>"), so starting over by
+ * mistake can be undone from Save & load. `here`: the region being played and its state fresh from the sim (else the
+ * autosaves on disk). Nothing to keep (no colony anywhere): null.
+ */
+export async function backupCampaign(info: { place: string; when: string }, here?: { region: string; sim: SimState }): Promise<SaveMeta | null> {
+  let records: Record<string, unknown>;
+  let region: string;
+  if (here) {
+    records = await campaignRecords(here.region, here.sim);
+    region = here.region;
+  } else {
+    records = {};
+    for (const k of await saveKeys()) if (k.startsWith('region:') || k === CAMPAIGN) records[k] = await getSave(k);
+    const camp = records[CAMPAIGN] as CampaignSave | undefined;
+    region = camp?.current ?? Object.keys(records).find((k) => k.startsWith('region:'))?.slice('region:'.length) ?? '';
+  }
+  if (!Object.keys(records).some((k) => k.startsWith('region:')) || !region) return null;
+  const date = new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const meta = await writeSave({ name: `Before new game · ${date}`, kind: 'campaign', place: info.place, when: info.when, auto: true }, { version: 1, region, records });
+  // only the newest few
+  const autos = (await listSaves()).filter((m) => m.auto);
+  for (const old of autos.slice(AUTO_KEEP)) await deleteSave(old.id);
+  return meta;
 }
 
 /** The old single Save (before save files): one region's sim, now a file of its own. */

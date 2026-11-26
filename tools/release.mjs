@@ -8,7 +8,8 @@
  *   npm run release -- minor "Title" --guide auto             # the guide pages changed since the last commit
  *   ... --dry-run                                             # print what it would do
  *
- * New guide pages (no "since" yet) get "since": the new version; existing ones get "updated".
+ * New guide pages (no "since" yet) get "since": the new version; existing ones get "updated" (and come off the guide
+ * list of the release that changed them before: a page is listed under the release that last changed it).
  */
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -60,7 +61,13 @@ execFileSync('npm', ['version', version, '--no-git-tag-version'], { stdio: 'igno
 const log = readFileSync('src/changelog.ts', 'utf8');
 const marker = 'export const CHANGELOG: Release[] = [\n';
 if (!log.includes(marker)) { console.error('src/changelog.ts: CHANGELOG array not found'); process.exit(1); }
-writeFileSync('src/changelog.ts', log.replace(marker, marker + entry + '\n'));
+// a page lists under the release that last changed it (guide:check): older releases drop it
+const older = log.slice(log.indexOf(marker) + marker.length).replace(/guide: \[([^\]]*)\]/g, (m, inner) => {
+  const ids = inner.split(',').map((x) => x.trim()).filter(Boolean);
+  const keep = ids.filter((x) => !guide.includes(x.replace(/^['"]|['"]$/g, '')));
+  return keep.length === ids.length ? m : `guide: [${keep.join(', ')}]`;
+});
+writeFileSync('src/changelog.ts', log.slice(0, log.indexOf(marker)) + marker + entry + '\n' + older);
 for (const id of guide) {
   const f = `content/guide/${id}.json`;
   const g = JSON.parse(readFileSync(f, 'utf8'));

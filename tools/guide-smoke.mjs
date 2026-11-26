@@ -34,6 +34,8 @@ const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if 
   log = base(); log[0].guide = [];
   p = guideProblems(log, pages());
   check(has(p, /feature release.*lists no Field Guide pages/), 'check: a minor release with guide: [] fails');
+  log = [rel('0.75.0', ['power']), rel('0.74.0', []), ...base().slice(1)];
+  { const pg2 = pages(); pg2.power.updated = '0.75.0'; check(guideProblems(log, pg2).length === 0, 'check: an older feature release may list none once its page changed again'); }
   log = [rel('0.73.1', []), ...base().slice(1)];
   const pg = pages(); delete pg.power.updated;
   check(guideProblems(log, pg).length === 0, 'check: a patch may say guide: []');

@@ -21,6 +21,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.101.0',
+    date: '2026-11-26',
+    title: 'Safety nets',
+    notes: [
+      'If something goes wrong and the game stops, it now says so, with a Reload button that picks up from your last autosave and a way to copy the details to send in',
+      'Starting a New Game keeps your old campaign as a save file first (Before new game), so starting over by mistake can be undone',
+      'If autosaving stops working (a full or locked-down device), the log tells you so you can save to a file',
+      'The game asks your browser to keep its saves instead of clearing them when space runs low',
+    ],
+    guide: ['saving'],
+  },
+  {
     version: '0.100.3',
     date: '2026-11-26',
     title: 'Under the hood: tests',
@@ -137,7 +149,7 @@ export const CHANGELOG: Release[] = [
       'Export a save as a file and import it on another device; LOAD on the title screen lists your files',
       'Your old single Save becomes a file in the list',
     ],
-    guide: ['saving'],
+    guide: [],
   },
   {
     version: '0.93.3',

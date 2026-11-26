@@ -1095,3 +1095,32 @@ body.cine .gd-note, body.skirmish .gd-note, body.title .gd-note { display: none 
 /* ---------- Domination areas on the globe (src/world/areas-view.ts) ---------- */
 .label.area { color: #ffe2a8; font-size: 10px; }
 .label.area.here { color: var(--cyan); font-size: 11px; }
+
+/* ---------- something broke (src/crash.ts) ---------- */
+#crash {
+  position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center;
+  padding: calc(16px + var(--safe-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background: rgba(1, 3, 6, 0.7); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  font-family: var(--mono); color: var(--text);
+}
+#crash .cr-panel {
+  width: min(480px, 100%); padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--crimson) 60%, transparent); border-radius: 6px;
+  background: color-mix(in srgb, var(--panel-base) 96%, transparent); box-shadow: 0 0 40px color-mix(in srgb, var(--crimson) 18%, transparent);
+}
+#crash h2 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0.2em; color: var(--crimson); }
+#crash p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; }
+#crash .cr-msg { font-size: 12px; color: color-mix(in srgb, var(--text) 60%, transparent); word-break: break-word; max-height: 6em; overflow: auto; }
+#crash .cr-hint { font-size: 11px; color: color-mix(in srgb, var(--text) 55%, transparent); margin: 8px 0 0; }
+#crash .cr-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+#crash button, #crash-note button {
+  font: inherit; font-size: 12px; color: var(--text); background: none; border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; cursor: pointer; min-height: 32px;
+}
+#crash .cr-reload { border-color: var(--cyan); color: var(--cyan); }
+#crash button:focus-visible, #crash-note button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.cr-text { display: block; width: 100%; height: 8em; margin-top: 8px; font: 11px var(--mono); background: #000; color: var(--text); border: 1px solid var(--line); }
+#crash-note {
+  position: fixed; left: 50%; top: calc(8px + var(--safe-top)); transform: translateX(-50%); z-index: 80; max-width: calc(100% - 24px);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; font: 12px var(--mono); color: var(--text);
+  background: color-mix(in srgb, var(--panel-base) 94%, transparent); border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent); border-radius: 4px;
+}
+#crash-note button { padding: 3px 8px; min-height: 0; }

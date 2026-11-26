@@ -3406,3 +3406,26 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
 - Smokes brought up to date: `lead` and `roster` watch only the hostiles they spawn (regions start with nests now, and
   packs only set out from a spawn whose nest stands), `autopilot`'s playthrough snapshot is 15:31, and `smoke.mjs`
   leaves save files to `saves-smoke`.
+
+### Safety nets: errors, failing saves, New Game (v0.101.0)
+
+- **The sim stops** (`src/sim/worker.ts`): message handling and `tick()` run inside try/catch, plus the worker's own
+  `error`/`unhandledrejection`. The first error sets `crashed` (no more ticks, no autosaves: the state may be
+  half-updated) and posts `{ type: 'crash', message, stack, tick }`. `SimClient.onCrash` (also on the worker's own
+  `onerror`, e.g. a failed script load) → `showSimCrash` (`src/crash.ts`): Reload (`reloadUrl()`: the same address with
+  `title=0` and without `new`/`intro`/`story`/… so it resumes the autosave), Copy details (`crashReport()`: version,
+  address, browser, message, stack; a textarea if the clipboard is unavailable), Keep watching.
+- **Page errors** after `body.loaded` (`watchPageErrors`): a one-time note at the top with Copy details. Resource load
+  failures (no error object) and failed fetch/decode/abort rejections are ignored.
+- **Autosave failing**: the worker counts failures in a row and posts `saveFailed`; main.ts logs a `bad` line on the
+  2nd and every 30th (≈ 5 min) telling the player to save a file and export it.
+- **Persistent storage** (`keepSaves()` in `src/save.ts`, at reveal): `navigator.storage.persist()` unless already
+  persisted; skipped on Firefox in a tab (it would prompt), asked there only by the installed app.
+- **Before new game** (`backupCampaign()` in `src/saves.ts`, `keepBeforeNew()` in main.ts): the title's NEW GAME,
+  the game menu's New game (`restartGame`, state asked of the worker before `newGame` so it's the old colony) and the
+  autopilot's fresh start write the campaign as a save file (`auto: true`, "Before new game · <date>") before
+  `wipeCampaign`; only the newest 3 such files are kept. Test URLs (`?new=1`) don't make one.
+- **guide:check**: only the newest release has to list a page when it's a feature release (an older one's pages can
+  have changed again since). `npm run release` takes a page it updates off the older release that listed it.
+- Test: `tools/recovery-smoke.mjs` (page-error note, Copy details, a malformed `load` throws in the worker → the card,
+  ticks stop, Keep watching, NEW GAME files from the title and the menu with the newest-3 limit, Reload resumes).

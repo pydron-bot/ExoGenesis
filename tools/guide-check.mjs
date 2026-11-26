@@ -5,8 +5,9 @@
  *   - every page a release lists exists;
  *   - every page's `since` and `updated` name a release in the changelog, no older than the launch, and
  *     `updated` is not older than `since`;
- *   - every release from the launch on has a `guide` field; a feature release (minor or major) lists at least one
- *     page; a patch may say `guide: []`;
+ *   - every release from the launch on has a `guide` field; the newest release, if it's a feature release (minor or
+ *     major), lists at least one page; a patch may say `guide: []` (an older feature release may list none: the pages
+ *     it changed have changed again since, and are listed under the later release);
  *   - a page listed in release V has `updated ?? since` === V, and every page whose `updated ?? since` is V is
  *     listed in V. The launch release only has to list what it names (it may list just `orientation`): every page
  *     with `since: "0.73.0"` and no `updated` counts as part of it.
@@ -60,7 +61,8 @@ export function guideProblems(log, pages) {
     }
     const prev = semver(log[i + 1]?.version);
     const feature = !prev || semver(V)[0] !== prev[0] || semver(V)[1] !== prev[1];
-    if (feature && !listed.length) out.push(`${V} is a feature release (minor or major) but lists no Field Guide pages: add or revise the page in content/guide/ that covers what it changes, set its "updated": "${V}" (or "since": "${V}" for a new page), and add its id to the release's guide field in src/changelog.ts`);
+    // only the newest release: an older one's pages may have moved on to later releases since
+    if (feature && !listed.length && i === 0) out.push(`${V} is a feature release (minor or major) but lists no Field Guide pages: add or revise the page in content/guide/ that covers what it changes, set its "updated": "${V}" (or "since": "${V}" for a new page), and add its id to the release's guide field in src/changelog.ts`);
     // both directions: what it lists says V; what says V is listed
     for (const id of listed) {
       const g = pages[id];

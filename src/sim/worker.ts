@@ -20,6 +20,19 @@ let autosave = false;
 let skirmish: import('./types').SkirmishSetup | null = null;
 let saving = false;
 let lastSavedTick = -1;
+/** Autosaves that failed in a row (the main thread warns at 2). */
+let saveFails = 0;
+/** The sim threw: no more ticks or autosaves (its state may be half-updated). */
+let crashed = false;
+function crash(e: unknown) {
+  if (crashed) return;
+  crashed = true;
+  autosave = false;
+  const err = e as { message?: string; stack?: string } | undefined;
+  post({ type: 'crash', message: String(err?.message ?? e), stack: err?.stack, tick: sim?.s?.tick });
+}
+self.addEventListener('error', (e) => crash((e as ErrorEvent).error ?? (e as ErrorEvent).message));
+self.addEventListener('unhandledrejection', (e) => crash((e as PromiseRejectionEvent).reason));
 /** The autopilot (spectator mode): plays the colony each tick while on (never in a skirmish). */
 let pilot: Autopilot | null = null;
 let pilotCfg: PilotConfig = { on: false };
@@ -34,7 +47,7 @@ const newPilot = () => {
  * every region's save and the campaign).
  */
 async function autoSave() {
-  if (!autosave || saving) return;
+  if (!autosave || saving || crashed) return;
   const s = sim.s;
   if (s.phase !== 'deployed') return;
   saving = true;
@@ -53,8 +66,11 @@ async function autoSave() {
       await putSave(CAMPAIGN, { version: 1, savedAt, current: region, shared: sharedOf(s) } satisfies CampaignSave);
       lastSavedTick = s.tick;
     }
+    saveFails = 0;
   } catch (e) {
     console.warn('autosave failed', e);
+    saveFails++;
+    post({ type: 'saveFailed', n: saveFails, message: String((e as Error)?.message ?? e) });
   } finally {
     saving = false;
   }
@@ -84,7 +100,10 @@ function snapshot() {
 }
 
 ctx.onmessage = (e: MessageEvent<ToWorker>) => {
-  const msg = e.data;
+  try { handle(e.data); } catch (err) { crash(err); }
+};
+
+function handle(msg: ToWorker) {
   if (msg.type === 'init') {
     region = useRegion(msg.region, msg.def);
     // the editor's play test: an unsaved story event joins the content
@@ -157,11 +176,15 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
       if (pilot?.on) post({ type: 'pilot', status: pilot.status() });
       return;
   }
-};
+}
 
 let last = performance.now();
 let acc = 0;
 function tick() {
+  if (crashed) return;
+  try { step(); } catch (e) { crash(e); }
+}
+function step() {
   const now = performance.now();
   acc += Math.min(1000, now - last);
   last = now;

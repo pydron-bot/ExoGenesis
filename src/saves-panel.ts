@@ -82,7 +82,7 @@ export function openSaves(o: SavesPanelOptions) {
       return `<div class="sv-row${m.id === hi ? ' hi' : ''}" data-id="${esc(m.id)}">
         <div class="sv-text"><b class="sv-title">${esc(m.name)}</b>
           <small><span class="sv-kind">${KIND[m.kind]}</span> · ${esc(m.place)}${m.when ? ` · ${esc(m.when)}` : ''}</small>
-          <small class="sv-dim">Saved ${ago(m.savedAt)}${m.size ? ` · ${mb(m.size)}` : ''}${no ? ` · ${esc(no)}` : ''}</small></div>
+          <small class="sv-dim">${m.auto ? 'Kept by the game before you started over' : 'Saved'} ${ago(m.savedAt)}${m.size ? ` · ${mb(m.size)}` : ''}${no ? ` · ${esc(no)}` : ''}</small></div>
         <div class="sv-acts">
           <button class="sv-btn sv-primary" data-act="load"${no ? ' disabled' : ''}>LOAD</button>
           ${o.save && o.save.kind === m.kind ? '<button class="sv-btn" data-act="over">SAVE HERE</button>' : ''}

@@ -817,4 +817,8 @@ export type FromWorker =
   /** `at`: where it happened (the minimap pings it; the log line jumps the camera there). */
   | { type: 'event'; text: string; level: 'info' | 'warn' | 'bad'; cue?: EventCue; at?: { x: number; z: number }; style?: LogStyle }
   /** The autopilot: what it is doing and where to look (src/sim/autopilot.ts). */
-  | { type: 'pilot'; status: import('./autopilot').PilotStatus };
+  | { type: 'pilot'; status: import('./autopilot').PilotStatus }
+  /** The sim threw: it has stopped ticking (src/crash.ts shows it). */
+  | { type: 'crash'; message: string; stack?: string; tick?: number }
+  /** Autosaving keeps failing (storage full or blocked): `n` failures in a row. */
+  | { type: 'saveFailed'; n: number; message: string };

@@ -28,9 +28,16 @@ export class SimClient {
       const t0 = SimClient.timing ? performance.now() : 0;
       try { this.receive(e); } finally { if (SimClient.timing) SimClient.timing(performance.now() - t0, e.data.type); }
     };
+    // the worker script itself failed (to load, or an error outside its handlers)
+    this.worker.onerror = (e) => { e.preventDefault?.(); this.onCrash?.({ message: e.message || 'the simulation worker failed to start' }); };
     // the region comes first: the sim starts its first game from it
     this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic, skirmish, shared });
   }
+
+  /** The sim stopped with an error (src/crash.ts). */
+  onCrash: ((c: { message: string; stack?: string; tick?: number }) => void) | null = null;
+  /** Autosaving failed `n` times in a row. */
+  onSaveFailed: ((n: number, message: string) => void) | null = null;
 
   /** The performance report's hook (src/perf-report.ts): main-thread time per message from the sim worker, and its type. */
   static timing: ((ms: number, type: string) => void) | null = null;
@@ -64,6 +71,10 @@ export class SimClient {
         this.onPilot?.(m.status);
       } else if (m.type === 'event') {
         this.onEvent(m.text, m.level, m.cue, m.at, m.style);
+      } else if (m.type === 'crash') {
+        this.onCrash?.(m);
+      } else if (m.type === 'saveFailed') {
+        this.onSaveFailed?.(m.n, m.message);
       }
     }
   }

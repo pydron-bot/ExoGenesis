@@ -88,3 +88,19 @@ export async function migrateAutosave(): Promise<void> {
 export async function wipeCampaign(keep: string[] = []): Promise<void> {
   for (const k of await saveKeys()) if ((k === AUTOSAVE || k === CAMPAIGN || k.startsWith('region:')) && !keep.includes(k)) await delSave(k);
 }
+
+/**
+ * Ask the browser to keep the game's saves (IndexedDB) instead of clearing them when space runs low or the site
+ * hasn't been visited for a while (Safari clears after 7 days of no use unless the app is installed). Chrome and
+ * Safari decide without asking; Firefox would show a prompt, so there only an installed app asks.
+ */
+export async function keepSaves(): Promise<boolean> {
+  try {
+    const st = navigator.storage;
+    if (!st?.persist || (await st.persisted())) return true;
+    const firefox = /firefox/i.test(navigator.userAgent);
+    const installed = matchMedia('(display-mode: standalone)').matches;
+    if (firefox && !installed) return false;
+    return await st.persist();
+  } catch { return false; }
+}
