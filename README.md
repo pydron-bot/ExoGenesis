@@ -23,6 +23,13 @@ Built with Three.js + TypeScript + Vite. Design: [docs/DESIGN.md](docs/DESIGN.md
   Halcyon gas giants, Nereid ice giant, Rime — frozen); 12 moons; main asteroid belt and an outer
   icy belt (instanced); two comets on eccentric orbits; orbit paths, markers and labels.
 
+## Domination (`domination.html`, title → DOMINATION)
+
+A long war for the whole solar system on a strategy map of its 40 areas (DESIGN §5.12). Its own page, like the
+editor; the war autosaves to IndexedDB (`domination`) and saves to the same named save files as the rest of the game.
+Rules and computer players: `src/sim/domination.ts`, `src/sim/domination-ai.ts` (`node tools/domination-sim.mjs`);
+the page: `src/domination/main.ts` (`node tools/domination-smoke.mjs`). `?load=<file id>` opens a save file.
+
 ## Skirmish proof of concept (`?mode=skirmish`, or the ⚔ Skirmish button)
 
 Hundreds of units vs escalating fauna waves, to test mobile RTS performance and touch selection.

@@ -367,7 +367,8 @@ Meant to be played over many sittings, so it lives on named save files.
   1. Named save files for the campaign and skirmish (the saves panel, export/import). *(v0.94.0)*
   2. Areas on every body: generated, listed in content, drawn on the globes and in the system view. *(v0.95.0;
      playable now as a skirmish site.)*
-  3. The strategy layer: who owns what, income, travel between areas and bodies, summary fights.
+  3. The strategy layer: who owns what, income, travel between areas and bodies, summary fights. *(v0.96.0: on its own
+     page, `domination.html`, with a basic computer player so it can be played now.)*
   4. Jumping into an area in full and back out (full state ⇄ summary).
   5. The computer's strategy brain, with difficulty levels; measured by AI-vs-AI runs.
   6. Setup screen, win/lose screen with stats, polish.

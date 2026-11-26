@@ -1050,6 +1050,7 @@ async function loadFile(meta: SaveMeta) {
   try {
     const body = await readSave(meta.id);
     if (!body) { log('That save couldn’t be read', 'bad'); return; }
+    if (meta.kind === 'domination') { location.href = `${import.meta.env.BASE_URL}domination.html?load=${encodeURIComponent(meta.id)}`; return; }
     if (meta.kind === 'skirmish') {
       if (!body.url) { log('That save is incomplete', 'bad'); return; }
       const u = new URL(location.href);
@@ -1801,6 +1802,7 @@ function showTitle() {
     ...(!saved && !autosaved && !campaign ? [{ id: 'first', kind: 'link' as const, label: 'First time? Open the Field Guide ▸', run: () => openGuide() }] : []),
     { ...dailyChoice(), kind: 'tile' },
     { id: 'skirmish', kind: 'tile', label: 'SKIRMISH', sub: 'You against the computer', run: () => showSkirmishSetup() },
+    { id: 'domination', kind: 'plain', label: 'DOMINATION', sub: 'Preview: a long war for the whole system', run: () => { location.href = `${import.meta.env.BASE_URL}domination.html`; } },
     { id: 'guide', kind: 'icon', icon: '📖', label: 'Guide', sub: 'Field Guide: how to play, page by page', run: () => openGuide() },
     { id: 'options', kind: 'icon', icon: '⚙', label: 'Options', sub: regions.length > 1 ? 'Region, sound, graphics and the autopilot' : 'Sound, graphics and the autopilot', run: () => showOptions(undefined, titleOptions) },
     { id: 'tour', kind: 'icon', icon: '🪐', label: 'Tour', sub: 'Fly round the system with the menu put away · tap to come back', run: () => title?.tour(true) },

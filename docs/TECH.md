@@ -3186,3 +3186,45 @@ DESIGN §5.12 phase 2. `src/sim/areas.ts` (generation, pure: no DOM), `src/world
   played body's too).
 - **Setup screen:** World lists the six skirmish worlds then every other body with areas; Site lists Anywhere and the
   world's areas (reset when the world changes); the preview generates the area's site.
+
+### Domination: the strategy layer (v0.96.0)
+
+DESIGN §5.12 phase 3. Rules `src/sim/domination.ts` (pure data + functions; the state is the save), computer players
+`src/sim/domination-ai.ts`, the page `domination.html` → `src/domination/main.ts` (+ `dom.css`; a third build input
+in `vite.config.ts`, precached by the service worker like the game). Title → DOMINATION goes there.
+
+- **State** (`DomState`, version 1): game seconds `t`; players (alloys, `ai` level, `out`, stats); every area
+  (`owner` −1 for natives, `army`, `guns`, `natives`, `level` 0–3, `gantry`, a build `queue`, `visitors`: other
+  players' armies fighting there); `moves` (armies on the way, `t0`→`t1`, `launch`); an event `log` (80 kept); `over`.
+- **Map** (`domMap`): `systemAreas` + each body's planet (`system`: itself or what it orbits).
+- **Numbers** (`DOM`): start 400 alloys; your start area level 1, army 30, guns 30, a gantry; natives 10–26 per area
+  (seeded). Income per area 1 + level alloys/s (computer: Easy ×0.8, Hard ×1.25). Jobs, one at a time, three queued,
+  paid when queued, paused while the area is under attack: army +10 (100, 20 s), guns +10 (80, 15 s, max 80), develop
+  (200 × next level, 45 s, max 3), gantry (250, 40 s). Army limit (garrisons, attacks, moves and queued): 80 + 30 per
+  area held.
+- **Moving** (`domSend`): to a linked area overland (25 s + 35 s per radian), or with a gantry to any area on another
+  body by launch (50 s inside one planet's system, 90 s across the system). Nothing stops a move; arriving at your
+  own area joins the garrison, anywhere else it becomes a visitor and fights.
+- **Fights** (`fight`, each second): every side (holder: army + guns, guns ×1.25 damage; or the natives; each visitor)
+  deals 0.08 × strength, split over its enemies by their strength; under 0.5 left is gone. When the holder has
+  nothing and one visitor is left, it takes the area: its army stays, guns 0, level −1, no gantry, queue cleared. An
+  empty area falls at once. A player with no areas is out (its moves and visitors vanish); the last one wins.
+- **Computer** (every 8 / 5 / 3 s for Easy / Normal / Hard): spends on developing safe areas while income is low,
+  guns on borders that face an enemy (to 20, later 40), a gantry when its world is taken (and one per six areas after
+  10 min), a gantry wherever an army is stranded on a world with nothing left to take, armies in front areas. Attacks:
+  for each place to take, every army that can reach it (launches once its world is taken, its army is 40+, or it's at
+  its army limit) joins in if together they beat its defence × a margin (Hard 1.25, Normal 1.4, Easy 1.7; × 0.8 at its
+  army limit), sending only what's needed (× 1.3 + 10), biggest first; next to an enemy a third stays home. Armies with
+  nothing next door step toward the nearest front (a BFS over its own areas).
+- **Balance** (`node tools/domination-sim.mjs`, Normal computers, seeds 1–5): every war ends; 2 players 15–55 min,
+  3 players 28–82 min, 4 players 38–66 min (game time at ×1). Hard beats Easy 5 / 5. The start worlds aren't equal
+  (Crimson on Verdance wins most three-way wars): phase 5's job, with the pace.
+- **Page:** a flat map per world (longitude across, latitude up; links over the date line go out to the edge), redrawn
+  4 times a second; the selected area's card (build buttons with the reason when they can't, its queue, ALL / HALF then
+  tap a ringed destination); armies on the move (dots along overland links; a list with launches); events (tap one
+  with a place to select it). Speeds ❚❚ / ×1 / ×3 / ×10 (Space pauses; the menu and the saves panel pause too).
+  Autosave (IndexedDB `domination`) every 15 s, on `pagehide` and when the page is hidden; CONTINUE on its start
+  panel. Save files: kind `domination` (body `dom`), from its menu or Ctrl+S (over the file it came from:
+  `exo.domfile` in sessionStorage); the game's saves panel opens one at `domination.html?load=<id>`.
+- **No fog of war yet**, and no teams: everyone sees every area's numbers, free for all.
+- Tests: `tools/domination-sim.mjs` (rules, then computer wars), `tools/domination-smoke.mjs` (the page).

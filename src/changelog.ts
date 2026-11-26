@@ -21,6 +21,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.96.0',
+    date: '2026-11-26',
+    title: 'Domination (preview)',
+    notes: [
+      'New on the title screen: DOMINATION, a long war for the whole solar system against 1 to 3 computer players',
+      'Take its 40 areas one by one from the natives and the other players; build armies, guns, gantries and levels; send armies overland or launch them to other worlds',
+      'Each area earns alloys for your whole empire; the last player holding an area wins',
+      'The war saves itself, and Save & load keeps save files by name (Ctrl+S too)',
+      'A preview: the war is fought on the strategy map; fighting battles yourself comes in a later update',
+    ],
+    guide: ['domination'],
+  },
+  {
     version: '0.95.0',
     date: '2026-11-26',
     title: 'Areas of the system',

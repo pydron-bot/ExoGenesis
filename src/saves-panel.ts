@@ -25,7 +25,7 @@ export interface SavesPanelOptions {
   onClose?(): void;
 }
 
-const KIND: Record<SaveKind, string> = { campaign: 'Campaign', skirmish: 'Skirmish' };
+const KIND: Record<SaveKind, string> = { campaign: 'Campaign', skirmish: 'Skirmish', domination: 'Domination' };
 
 function ago(t: number) {
   const d = new Date(t), now = new Date();

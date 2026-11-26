@@ -4,6 +4,7 @@
  * - **Campaign:** every region's colony (`region:<id>`) and the campaign record, so loading one puts the whole
  *   campaign back, wherever you were.
  * - **Skirmish:** the sim and the setup's address (the map is generated again from it).
+ * - **Domination:** the whole war's state (it's small: the strategy layer is summary numbers).
  *
  * Each file is two IndexedDB records: `filemeta:<id>` (small: what the list shows) and `file:<id>` (the game).
  * The old single Save slot (`slot1`) becomes a file the first time the list is read.
@@ -12,7 +13,7 @@ import { CAMPAIGN, delSave, getSave, putSave, regionKey, saveKeys, wipeCampaign,
 import { sharedOf } from './sim/campaign';
 import type { SimState } from './sim/types';
 
-export type SaveKind = 'campaign' | 'skirmish';
+export type SaveKind = 'campaign' | 'skirmish' | 'domination';
 export interface CameraPose { dist: number; yaw: number; pitch: number; fx: number; fz: number }
 
 /** What the list shows. */
@@ -42,6 +43,8 @@ export interface SaveBody {
   /** Skirmish: the game and the address that set it up (`?skirmish=…`). */
   sim?: SimState;
   url?: string;
+  /** Domination: the whole war (src/sim/domination.ts), played on domination.html. */
+  dom?: import('./sim/domination').DomState;
 }
 
 /** An exported save (one .json file). */
@@ -143,9 +146,10 @@ export async function importSave(text: string): Promise<SaveMeta> {
   let f: SaveExport;
   try { f = JSON.parse(text); } catch { throw new Error('That file isn’t a save (it couldn’t be read)'); }
   if (f?.exoSave !== 1 || !f.meta || !f.body) throw new Error('That file isn’t an Exo Genesis save');
-  if (f.meta.kind !== 'campaign' && f.meta.kind !== 'skirmish') throw new Error('That save is from a newer version of the game');
+  if (f.meta.kind !== 'campaign' && f.meta.kind !== 'skirmish' && f.meta.kind !== 'domination') throw new Error('That save is from a newer version of the game');
   if (f.meta.kind === 'skirmish' && (!f.body.sim || !f.body.url)) throw new Error('That save is incomplete');
   if (f.meta.kind === 'campaign' && !f.body.records) throw new Error('That save is incomplete');
+  if (f.meta.kind === 'domination' && f.body.dom?.version !== 1) throw new Error('That save is incomplete');
   const { id: _id, version: _v, size: _s, ...rest } = f.meta;
   return writeSave(rest, f.body);
 }
