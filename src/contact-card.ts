@@ -17,6 +17,7 @@ import type { ZoomCamera } from './camera';
 import { content } from './content';
 import { mediaUrl, shownChoices, type InhabitantDef, type StoryDef } from './content/defs';
 import type { Command, ContactChoice, Snapshot } from './sim/types';
+import { voices, type VoiceFx } from './voice';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -58,6 +59,9 @@ export class ContactCard {
   private radioId = '';
   private radioUntil = 0;
   private radioDone = '';
+  /** The card page being spoken (story id:page), and the line to say when it shows. */
+  private spoken = '';
+  private toSay: { key: string; who?: string; text: string; fx: VoiceFx } | null = null;
 
   constructor(private d: Deps) {
     this.el = document.getElementById('contact')!;
@@ -102,13 +106,15 @@ export class ContactCard {
   /** A story card: its current page and buttons. */
   private storyHtml(id: string): { html: string; color: string } {
     const ev = this.d.story[id];
-    const pages = [{ character: ev.character, speaker: ev.speaker, text: ev.text }, ...(ev.lines ?? []).map((l) => ({
-      character: l.character ?? (l.speaker ? undefined : ev.character), speaker: l.speaker ?? (l.character ? undefined : ev.speaker), text: l.text,
+    const fx: VoiceFx = ev.fx ?? (ev.style === 'radio' ? 'radio' : 'clean');
+    const pages = [{ character: ev.character, speaker: ev.speaker, text: ev.text, fx }, ...(ev.lines ?? []).map((l) => ({
+      character: l.character ?? (l.speaker ? undefined : ev.character), speaker: l.speaker ?? (l.character ? undefined : ev.speaker), text: l.text, fx: l.fx ?? fx,
     }))];
     if (this.page.id !== id) this.page = { id, n: 0 };
     // choices offered with (or without) a flag; each button keeps its place in the full list (effects go by it)
     const offered = shownChoices(ev, this.last?.story?.flags ?? []);
     const n = Math.min(this.page.n, pages.length - 1), pg = pages[n], who = this.speaker(pg.character, pg.speaker);
+    this.toSay = { key: `${id}:${n}`, who: pg.character ?? pg.speaker, text: pg.text, fx: pg.fx };
     const buttons = n < pages.length - 1
       ? `<button data-next>Next ›</button><span class="pg">${n + 1} / ${pages.length}</span>`
       : offered.length ? offered.map((k) => `<button data-s="${esc(id)}:${k}">${esc(this.fill(ev.choices![k].label, id))}</button>`).join('') : `<button data-s="${esc(id)}:0">Continue</button>`;
@@ -126,7 +132,9 @@ export class ContactCard {
       const ev = this.d.story[id], who = this.speaker(ev.character, ev.speaker || 'Transmission');
       this.radioId = id;
       const words = ev.text.split(/\s+/).length;
-      this.radioUntil = ev.hold ? Infinity : performance.now() + Math.min(20, Math.max(6, 4 + words * 0.35)) * 1000;
+      // spoken: up at least until the line has been said
+      const said = voices.say(ev.character ?? ev.speaker, ev.text, ev.fx ?? 'radio');
+      this.radioUntil = ev.hold ? Infinity : performance.now() + Math.max(said + 1.5, Math.min(20, Math.max(6, 4 + words * 0.35))) * 1000;
       this.radioEl.innerHTML = `<div class="rd-head"><i></i>${who.html}</div><div class="t">${esc(this.fill(ev.title))}</div><p>${esc(this.fill(ev.text))}</p>${ev.hold ? '<small class="tap">tap to close</small>' : ''}`;
       this.radioEl.style.borderColor = who.color;
       this.radioShown(true);
@@ -134,6 +142,7 @@ export class ContactCard {
   }
   private closeRadio() {
     if (!this.radioId) return;
+    voices.hush();
     this.d.command({ type: 'story', id: this.radioId, choice: 0 });
     this.radioDone = this.radioId;
     this.radioId = '';
@@ -169,6 +178,7 @@ export class ContactCard {
     const cl = document.body.classList, quiet = cl.contains('cine') || cl.contains('title');
     this.radio(all.filter(corner), quiet);
     let html = '', pause = false, color = '';
+    this.toSay = null;
     // a cinematic started by the choice plays the reply out on screen: drop the card's copy
     if (this.reply && quiet) this.reply = null;
     if (this.reply) {
@@ -189,7 +199,14 @@ export class ContactCard {
       else this.story.shift();
     }
     // nothing over the landing cinematic or the title screen: cards wait for play
-    if (quiet) { html = ''; pause = false; }
+    if (quiet) { html = ''; pause = false; this.toSay = null; }
+    // the card's page, spoken when it first shows; a card closing or moving on stops it
+    const line = this.toSay as ContactCard['toSay'], say = line?.key ?? ''; // (set by storyHtml above)
+    if (say !== this.spoken) {
+      if (line) voices.say(line.who, line.text, line.fx);
+      else if (this.spoken) voices.hush();
+      this.spoken = say;
+    }
     if (pause !== this.paused) { this.paused = pause; this.d.pause(pause); }
     if (html === this.key) return;
     if (html && !this.key) this.d.opened?.();

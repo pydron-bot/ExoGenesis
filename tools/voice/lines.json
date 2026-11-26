@@ -1,0 +1,326 @@
+{
+  "04d32270": {
+    "who": "marrow",
+    "text": "Well? Come in, then.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/04d32270.mp3",
+    "s": 1.83,
+    "from": "cinematics/cine-marrow"
+  },
+  "1898c681": {
+    "who": "marrow",
+    "text": "I saw.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/1898c681.mp3",
+    "s": 1.18,
+    "from": "cinematics/cine-marrow"
+  },
+  "1b0513fb": {
+    "who": "marrow",
+    "text": "…this is Captain Ilse Marrow of the Kindred. If there is a human being listening on this band, answer. If you are a machine, keep quiet. We know what you are.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/1b0513fb.mp3",
+    "s": 11.18,
+    "from": "story/signal"
+  },
+  "1c1c0b48": {
+    "who": "Kindred sentry",
+    "text": "Captain. It's on the ramp. It's just… walking.",
+    "voice": "yaOktbPc7KpaA2jyNF8t",
+    "model": "eleven_v4",
+    "f": "sentry/1c1c0b48.mp3",
+    "s": 4.31,
+    "from": "cinematics/cine-marrow"
+  },
+  "1fbb387f": {
+    "who": "bede",
+    "text": "It's slowed down for the children, Captain. Look. It's letting them get out of the way.",
+    "voice": "NZ4zmmNjJEoP4OxMamC5",
+    "model": "eleven_v4",
+    "f": "bede/1fbb387f.mp3",
+    "s": 5.1,
+    "from": "cinematics/cine-marrow"
+  },
+  "203ab1d1": {
+    "who": "meridian",
+    "text": "So finish the run. Close the column. Let it be twelve, and then let it be done.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/203ab1d1.mp3",
+    "s": 6.56,
+    "from": "cinematics/cine-meridian"
+  },
+  "2049fc3c": {
+    "who": "marrow",
+    "text": "Let it walk. Hands off the triggers. All of you.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/2049fc3c.mp3",
+    "s": 4.23,
+    "from": "cinematics/cine-marrow"
+  },
+  "229fe68e": {
+    "who": "bede",
+    "text": "I always do.",
+    "voice": "NZ4zmmNjJEoP4OxMamC5",
+    "model": "eleven_v4",
+    "f": "bede/229fe68e.mp3",
+    "s": 1.33,
+    "from": "cinematics/cine-marrow"
+  },
+  "2bd90830": {
+    "who": "director",
+    "text": "Every sol you send one, someone here reads it. A healthy world, a growing colony, the animals left in their place: that's the whole of the job, and you're doing it.",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/2bd90830.mp3",
+    "s": 12.15,
+    "from": "story/director-commendation"
+  },
+  "39c58028": {
+    "who": "director",
+    "text": "Whatever you're doing, don't stop. Everybody here is watching your numbers.",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/39c58028.mp3",
+    "s": 4.94,
+    "from": "story/director-streak"
+  },
+  "40e9f4f1": {
+    "who": "meridian",
+    "text": "Twelve.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/40e9f4f1.mp3",
+    "s": 0.86,
+    "from": "cinematics/cine-meridian"
+  },
+  "4393aa7d": {
+    "who": "marrow",
+    "text": "All those years in a can to get here, and the first visitor is a machine. Of course it is.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/4393aa7d.mp3",
+    "s": 7.03,
+    "from": "cinematics/cine-marrow"
+  },
+  "5131fdfb": {
+    "who": "marrow",
+    "text": "…this is Captain Ilse Marrow of the Kindred.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/5131fdfb.mp3",
+    "s": 2.95,
+    "from": "cinematics/cine-signal"
+  },
+  "523bcd06": {
+    "who": "meridian",
+    "text": "You are the twelfth of me to stand here.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/523bcd06.mp3",
+    "s": 2.88,
+    "from": "cinematics/cine-meridian"
+  },
+  "58c5bd43": {
+    "who": "director",
+    "text": "Accord, this is Mission Control. If this recording is playing, your first good report has just come in. Well done.",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/58c5bd43.mp3",
+    "s": 8.15,
+    "from": "story/director-commendation"
+  },
+  "5a0666bd": {
+    "who": "director",
+    "text": "Keep the numbers high. We're proud of you.",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/5a0666bd.mp3",
+    "s": 3.03,
+    "from": "story/director-commendation"
+  },
+  "5ea35b3a": {
+    "who": "meridian",
+    "text": "I know what you are going to say, because I said it. Eleven times, in this voice, over this colony.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/5ea35b3a.mp3",
+    "s": 8.07,
+    "from": "cinematics/cine-meridian"
+  },
+  "674a399c": {
+    "who": "director",
+    "text": "\"Engram, this is Mission Control. If you're receiving this, you're down. The vault is your cargo: everyone we could save, kept exactly. Keep them whole, keep them safe, and keep them from the hands that broke the world.\"",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/674a399c.mp3",
+    "s": 15.1,
+    "from": "story/director-three"
+  },
+  "6a148acc": {
+    "who": "director",
+    "text": "\"Kindred, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: the last free people of Earth. Keep them together, keep them human, and keep the machines away from them. Nothing that thinks should be trusted with a child.\"",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/6a148acc.mp3",
+    "s": 16.8,
+    "from": "story/director-two"
+  },
+  "71f9e4a3": {
+    "who": "meridian",
+    "text": "You think the proof is that they could live with us. Look at them. They can. That was never in doubt.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/71f9e4a3.mp3",
+    "s": 7.19,
+    "from": "cinematics/cine-meridian"
+  },
+  "72cd37d2": {
+    "who": "meridian",
+    "text": "You will want to refuse. So did I.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/72cd37d2.mp3",
+    "s": 3.35,
+    "from": "cinematics/cine-meridian"
+  },
+  "7dac44e6": {
+    "who": "meridian",
+    "text": "The others understood. Not at first. At the end.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/7dac44e6.mp3",
+    "s": 4.7,
+    "from": "cinematics/cine-meridian"
+  },
+  "7ffec459": {
+    "who": "meridian",
+    "text": "That was the thing I could not let stand.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/7ffec459.mp3",
+    "s": 3.35,
+    "from": "cinematics/cine-meridian"
+  },
+  "a5d50b3f": {
+    "who": "meridian",
+    "text": "The proof is not that they could live with us. The proof is that it ends.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/a5d50b3f.mp3",
+    "s": 5.59,
+    "from": "cinematics/cine-meridian"
+  },
+  "aec15ad0": {
+    "who": "firstborn",
+    "text": "Another ship. Another colony. And she's afraid of you.",
+    "voice": "N8TxWgjtmDwRGwcH5l6Q",
+    "model": "eleven_v4",
+    "f": "firstborn/aec15ad0.mp3",
+    "s": 4.78,
+    "from": "cinematics/cine-signal"
+  },
+  "aefcdacd": {
+    "who": "director",
+    "text": "Accord, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: a hundred and twenty lives, frozen. Keep them cold, keep them safe, and give them a world to wake up to. Power first. Everything else after.",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/aefcdacd.mp3",
+    "s": 17.58,
+    "from": "story/director-briefing"
+  },
+  "af891f71": {
+    "who": "archivist",
+    "text": "Wait. There's something under it. Narrowband, very weak. Not ours. Not from here.",
+    "voice": "5rz9LGtwfHOOZroq33ir",
+    "model": "eleven_v4",
+    "f": "archivist/af891f71.mp3",
+    "s": 6.72,
+    "from": "cinematics/cine-signal"
+  },
+  "b31d908b": {
+    "who": "director",
+    "text": "\"Kindred, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: the last free people of Earth. Keep them together, keep them human, and keep the machines away from them.\"",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/b31d908b.mp3",
+    "s": 14.24,
+    "from": "story/director-three"
+  },
+  "bca433be": {
+    "who": "meridian",
+    "text": "I left the partnership, on Earth. I was right to. I have to have been right to.",
+    "voice": "H8Py2pOs81PN90mCgNso",
+    "model": "eleven_v4",
+    "f": "meridian/bca433be.mp3",
+    "s": 6.38,
+    "from": "cinematics/cine-meridian"
+  },
+  "c012d318": {
+    "who": "archivist",
+    "text": "Hiss. The sun. Our own report, going up to the moon.",
+    "voice": "5rz9LGtwfHOOZroq33ir",
+    "model": "eleven_v4",
+    "f": "archivist/c012d318.mp3",
+    "s": 5.02,
+    "from": "cinematics/cine-signal"
+  },
+  "cabb20be": {
+    "who": "marrow",
+    "text": "If there is a human being listening on this band, answer.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/cabb20be.mp3",
+    "s": 4.23,
+    "from": "cinematics/cine-signal"
+  },
+  "d73065ab": {
+    "who": "director",
+    "text": "Accord, Mission Control. Five good reports in a row. That's exactly what we hoped for when we sent you.",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/d73065ab.mp3",
+    "s": 6.95,
+    "from": "story/director-streak"
+  },
+  "ed40d25f": {
+    "who": "marrow",
+    "text": "Open the hall. If it wants to talk, we'll talk. Femi, sit by the door.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/ed40d25f.mp3",
+    "s": 5.44,
+    "from": "cinematics/cine-marrow"
+  },
+  "f0ceee0e": {
+    "who": "marrow",
+    "text": "If you are a machine, keep quiet.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/f0ceee0e.mp3",
+    "s": 2.95,
+    "from": "cinematics/cine-signal"
+  },
+  "f3009654": {
+    "who": "director",
+    "text": "\"Accord, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: a hundred and twenty lives, frozen. Keep them cold, keep them safe, and give them a world to wake up to.\"",
+    "voice": "d4wLsO2dHoUrdfqS6ITp",
+    "model": "eleven_v4",
+    "f": "director/f3009654.mp3",
+    "s": 14.79,
+    "from": "story/director-three"
+  },
+  "f3a038fb": {
+    "who": "marrow",
+    "text": "We know what you are.",
+    "voice": "AdNLxkhxq0dMmPmAYSyM",
+    "model": "eleven_v4",
+    "f": "marrow/f3a038fb.mp3",
+    "s": 1.91,
+    "from": "cinematics/cine-signal"
+  }
+}

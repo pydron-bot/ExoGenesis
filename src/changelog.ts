@@ -21,6 +21,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.100.0',
+    date: '2026-11-26',
+    title: 'Voices',
+    notes: [
+      'The story starts to speak: the Director\'s briefings from Sol, the Signal at the end of Act 1, Marrow at the council hall, and Meridian at the end',
+      'Transmissions come in through the static; the recordings from Mission Control are perfectly clean',
+      'Radio messages in the corner stay up until they have been said; closing a card or skipping a cinematic stops the voice',
+      'Voices can be turned off in Options → Sound',
+    ],
+    guide: ['voices'],
+  },
+  {
     version: '0.99.0',
     date: '2026-11-26',
     title: 'Domination: teams, fog and victory',

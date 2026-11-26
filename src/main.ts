@@ -52,6 +52,7 @@ import { campSites } from './sim/inhabitants';
 import { START_HOUR, hourAt, sunAngle } from './sim/daylight';
 import type { RegionUi } from './world/region';
 import { GameAudio, type Spatial } from './audio';
+import { voices } from './voice';
 import { TitleScreen, type TitleChoice } from './title';
 import { VERSION } from './changelog';
 import { chronicleModel, openChronicle } from './chronicle';
@@ -246,6 +247,7 @@ const early: [string, 'info' | 'warn' | 'bad', At, (LogStyle | undefined)?][] = 
 let logFn: ((text: string, level: 'info' | 'warn' | 'bad', at?: At, style?: LogStyle) => void) | null = null;
 // sound (colony only; ?sound=0 turns it off for good, the ⋯ menu for now)
 const audio = new GameAudio(content.sound, content.assets, skirmishMode || params.get('sound') === '0', content.music);
+voices.attach(audio);
 const sim = new SimClient((t, l, cue, at, style) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l, at, style); else early.push([t, l, at, style]);
@@ -1520,6 +1522,10 @@ const soundToggles: OptionRow[] = [
     get: () => audio.musicVolume * 100,
     set: (v: number) => { audio.setMusicVolume(v / 100); if (audio.musicVolume > 0) musicWas = audio.musicVolume; if (!audio.on) audio.setOn(true); },
     locked: soundLock,
+  },
+  {
+    id: 'voices', section: 'Sound', label: 'Voices', help: 'Spoken lines in cinematics, story cards and radio messages.',
+    get: () => voices.on && !audio.disabled, set: (on: boolean) => voices.setOn(on), locked: soundLock,
   },
 ];
 // ---------- performance stats (top right: view, altitude, fps, draws) ----------

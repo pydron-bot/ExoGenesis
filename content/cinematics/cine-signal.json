@@ -81,40 +81,44 @@
       "at": 5,
       "character": "archivist",
       "text": "Hiss. The sun. Our own report, going up to the moon.",
-      "for": 4.5
+      "for": 5.3
     },
     {
       "at": 10.5,
       "character": "archivist",
       "text": "Wait. There's something under it. Narrowband, very weak. Not ours. Not from here.",
-      "for": 5
+      "for": 6.9
     },
     {
-      "at": 17,
+      "at": 17.6,
       "character": "marrow",
       "text": "…this is Captain Ilse Marrow of the Kindred.",
-      "for": 4.2
+      "for": 4.2,
+      "fx": "radio"
     },
     {
-      "at": 21.8,
+      "at": 22.4,
       "character": "marrow",
       "text": "If there is a human being listening on this band, answer.",
-      "for": 4.5
+      "for": 4.5,
+      "fx": "radio"
     },
     {
-      "at": 27,
+      "at": 27.6,
       "character": "marrow",
       "text": "If you are a machine, keep quiet.",
-      "for": 3.8
+      "for": 3.8,
+      "fx": "radio"
     },
     {
-      "at": 31.5,
+      "at": 32.1,
       "character": "marrow",
       "text": "We know what you are.",
-      "for": 4
+      "for": 4,
+      "fx": "radio"
     },
     {
-      "at": 36.5,
+      "at": 37.1,
       "character": "firstborn",
       "text": "Another ship. Another colony. And she's afraid of you.",
       "for": 4.5

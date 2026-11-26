@@ -86,7 +86,7 @@
       "at": 4,
       "speaker": "Kindred sentry",
       "text": "Captain. It's on the ramp. It's just… walking.",
-      "for": 4
+      "for": 4.6
     },
     {
       "at": 9,
@@ -98,7 +98,7 @@
       "at": 15,
       "character": "marrow",
       "text": "All those years in a can to get here, and the first visitor is a machine. Of course it is.",
-      "for": 6
+      "for": 7.3
     },
     {
       "at": 22.5,
@@ -116,7 +116,7 @@
       "at": 33,
       "character": "marrow",
       "text": "Open the hall. If it wants to talk, we'll talk. Femi, sit by the door.",
-      "for": 5
+      "for": 5.7
     },
     {
       "at": 39.5,

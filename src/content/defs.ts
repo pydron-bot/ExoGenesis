@@ -997,6 +997,7 @@ export const storyLineShape = {
   character: ref('characters', { label: 'Character', optional: true, help: 'Who says it. Empty = the card\'s speaker.' }),
   speaker: str({ label: 'Speaker', optional: true, help: 'Instead of a character: a name for this line only.' }),
   text: str({ label: 'Line', multiline: true }),
+  fx: choice(['radio', 'clean'], { label: 'Voice', optional: true, help: 'How the recorded voice plays (docs/VOICE.md). Empty = the card\'s.', helps: { radio: 'Through a radio: band-limited, with hiss.', clean: 'As recorded.' } }),
 } satisfies Shape;
 
 export const storyChoiceShape = {
@@ -1025,6 +1026,7 @@ export const storyShape = {
   character: ref('characters', { label: 'Character', optional: true, help: 'Who is talking (Story → Characters): their name, colour and portrait.' }),
   speaker: str({ label: 'Speaker', optional: true, help: 'Or just a name for who is talking, shown above the text.' }),
   text: str({ label: 'Text', multiline: true, help: '{first} = the first colonist\'s name.' }),
+  fx: choice(['radio', 'clean'], { label: 'Voice', optional: true, help: 'How the recorded voices play (docs/VOICE.md). Empty = through a radio for a radio message, else as recorded.', helps: { radio: 'Through a radio: band-limited, with hiss.', clean: 'As recorded (the Director\'s too-clean recordings).' } }),
   lines: list(storyLineShape, { label: 'More lines', max: 12, optional: true, help: 'A conversation: each line follows the text, one at a time (Next). The choices come with the last line.' }),
   ...conditionWithGroup('trigger', 'Trigger'),
   delay: num({ label: 'Delay', min: 0, max: 3600, unit: 's', optional: true, help: 'Wait this long after the trigger before firing.' }),
@@ -1427,6 +1429,7 @@ export const cineLineShape = {
   speaker: str({ label: 'Speaker', optional: true, help: 'Instead of a character: a name for this line only.' }),
   text: str({ label: 'Line', multiline: true, help: '{first} = the first colonist\'s name.' }),
   for: num({ label: 'Shows for', min: 0.5, max: 60, step: 0.1, unit: 's', optional: true, help: 'Empty = until the next line (or 5 s for the last).' }),
+  fx: choice(['radio', 'clean'], { label: 'Voice', optional: true, help: 'How the recorded voice plays (docs/VOICE.md). Empty = as recorded.', helps: { radio: 'Through a radio: band-limited, with hiss.', clean: 'As recorded.' } }),
 } satisfies Shape;
 /** A sound or music cue: an audio file from the asset library. */
 export const cineSoundShape = {

@@ -1,0 +1,9 @@
+{
+  "title": "Voices",
+  "section": "story",
+  "order": 4,
+  "summary": "Some of the story is spoken: cinematics, story cards and radio messages.",
+  "text": "Some of the story is **spoken**. The people you meet talk in cinematics, on story cards and over the radio: the Director's briefings from Sol Mission Control, the voices that reach you across space, and more as the story goes on.\n\nTransmissions come in through the static, the way a signal that has crossed light-years should.\n\nA radio message in the corner stays up until it has been said. Closing a card or skipping a cinematic stops the voice. Lines that aren't voiced yet are just text.\n\nTo turn voices off, go to **Options → Sound → Voices**.",
+  "see": "cinematics, story-cards, options",
+  "since": "0.100.0"
+}

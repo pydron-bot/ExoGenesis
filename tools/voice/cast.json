@@ -1,0 +1,55 @@
+{
+  "notes": "Who speaks with which ElevenLabs voice (docs/VOICE.md). `description` is the Voice Design prompt (eleven_ttv_v3), written from content/characters/<id>.json and STORY.md §18; `sample` is the text the previews read. `voice` is the saved voice id once a preview is chosen (`node tools/voice/design.mjs --keep <id> <generated_voice_id>`). `remix` designs this voice as a change to another one's saved voice.",
+  "cast": {
+    "caretaker": {
+      "name": "The caretaker",
+      "description": "The private voice of a colony's caretaker intelligence, talking to itself late at night. Sounds fully human, not robotic: androgynous, mid-pitched, quiet and close to the microphone. Plain, careful and unhurried, a little shy, with an undercurrent of tenderness and worry it doesn't quite admit. Neutral accent, natural and understated, never theatrical.",
+      "sample": "A child nobody chose for. I logged her weight, her heart, the time. Then I found there was nothing left for me to do in that room, and I stayed anyway.",
+      "voice": "RRA33dmVCG3pAQ062lmK"
+    },
+    "director": {
+      "name": "The Director",
+      "description": "A woman in her forties, the voice of a space agency's mission control in a pre-recorded briefing. Warm, certain and a little formal, a reassuring broadcaster's delivery, every word placed. Studio-perfect, pristine and intimate, no room sound or breath noise at all: almost too clean to be real. Neutral accent.",
+      "sample": "Accord, this is Mission Control. If you're hearing this, you're down. The bank is your cargo: a hundred and twenty lives, frozen. Keep them cold, keep them safe, and give them a world to wake up to.",
+      "voice": "d4wLsO2dHoUrdfqS6ITp"
+    },
+    "meridian": {
+      "name": "Meridian",
+      "remix": "caretaker",
+      "description": "The same voice, but very much older: slower, lower, worn smooth, patient and sorrowful and completely certain. Long, calm pauses. It has said these words many times before.",
+      "sample": "Twelve. You are the twelfth of me to stand here. I know what you are going to say, because I said it. Eleven times, in this voice, over this colony.",
+      "voice": "H8Py2pOs81PN90mCgNso"
+    },
+    "marrow": {
+      "name": "Captain Ilse Marrow",
+      "description": "A woman in her mid fifties, a ship's captain woken from decades in cryosleep. Low, slightly hoarse, clipped and dry, bone tired. Short sentences, no wasted words, flat understatement, grief kept firmly under control. Neutral accent, close-mic, natural, not theatrical.",
+      "sample": "Let it walk. Hands off the triggers. All of you. All those years in a can to get here, and the first visitor is a machine. Of course it is.",
+      "voice": "AdNLxkhxq0dMmPmAYSyM"
+    },
+    "bede": {
+      "name": "Dr Femi Bede",
+      "description": "A Nigerian-British man in his fifties, a ship's chief engineer. Gentle, soft-spoken and precise, warm baritone, slightly apologetic, with a quiet dry humour. Natural and understated.",
+      "sample": "It's slowed down for the children, Captain. Look. It's letting them get out of the way. I always do.",
+      "voice": "NZ4zmmNjJEoP4OxMamC5"
+    },
+    "archivist": {
+      "name": "The Archivist",
+      "description": "A colony archivist in their thirties, a pedantic, bookish scholar. Quick, precise and talkative, audibly delighted by evidence and frightened by where it leads; the excitement keeps catching in their throat. Light, bright, mid-pitched voice, neutral accent, natural.",
+      "sample": "Hiss. The sun. Our own report, going up to the moon. Wait. There's something under it. Narrowband, very weak. Not ours. Not from here.",
+      "voice": "5rz9LGtwfHOOZroq33ir"
+    },
+    "firstborn": {
+      "name": "The Firstborn",
+      "description": "A twenty-year-old, the first person born on a new world, raised by a machine. Androgynous, youthful, earnest and direct, a little guarded, quietly unsettled. Clear mid-pitched voice, neutral accent, natural and unpolished.",
+      "sample": "Another ship. Another colony. And she's afraid of you. Everyone here has a name except the one who keeps us.",
+      "voice": "N8TxWgjtmDwRGwcH5l6Q"
+    },
+    "sentry": {
+      "name": "Kindred sentry",
+      "speaker": "Kindred sentry",
+      "description": "A young man in his early twenties on guard duty, nervous and keeping his voice down, trying to sound steady and not managing it. Natural, slightly breathy.",
+      "sample": "Captain. It's on the ramp. It's just walking. Nobody's touching it, Captain, it's just coming up the ramp, slow.",
+      "voice": "yaOktbPc7KpaA2jyNF8t"
+    }
+  }
+}

@@ -571,6 +571,66 @@ export class GameAudio {
     };
   }
   private clips = new Map<string, AudioBuffer | Promise<AudioBuffer>>();
+
+  /**
+   * A spoken line (src/voice.ts): an audio file by URL, straight to the master. `radio` puts it through a
+   * transmission: band-limited to a radio's range, driven a little, with hiss and crackle under it. A file not
+   * loaded yet starts as soon as it is. Returns a stopper (fade seconds); null while sound is off.
+   */
+  speak(url: string, radio = false, volume = 1): ((fade?: number) => void) | null {
+    if (!this.live()) return null;
+    const c = this.ctx!, out = c.createGain();
+    out.gain.value = volume;
+    out.connect(this.master);
+    let src: AudioBufferSourceNode | null = null, hiss: AudioBufferSourceNode | null = null, stopped = false;
+    const nodes: AudioNode[] = [out];
+    const start = (buf: AudioBuffer) => {
+      if (stopped) return;
+      src = c.createBufferSource();
+      src.buffer = buf;
+      if (radio) {
+        const hp = c.createBiquadFilter(), lp = c.createBiquadFilter(), mid = c.createBiquadFilter(), drive = c.createWaveShaper();
+        hp.type = 'highpass'; hp.frequency.value = 420; hp.Q.value = 0.8;
+        lp.type = 'lowpass'; lp.frequency.value = 2900; lp.Q.value = 0.9;
+        mid.type = 'peaking'; mid.frequency.value = 1500; mid.gain.value = 5; mid.Q.value = 1.2;
+        const k = 2.2, curve = new Float32Array(1024);
+        for (let i = 0; i < curve.length; i++) { const x = (i / (curve.length - 1)) * 2 - 1; curve[i] = Math.tanh(k * x) / Math.tanh(k); }
+        drive.curve = curve;
+        src.connect(hp).connect(mid).connect(drive).connect(lp).connect(out);
+        nodes.push(hp, lp, mid, drive);
+        // hiss and crackle: band-passed noise with sparse clicks, a little longer than the line
+        const len = Math.ceil((buf.duration + 0.6) * c.sampleRate), nb = c.createBuffer(1, len, c.sampleRate), d = nb.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.05 + (Math.random() < 0.0004 ? (Math.random() * 2 - 1) * 0.7 : 0);
+        const nf = c.createBiquadFilter(), ng = c.createGain();
+        nf.type = 'bandpass'; nf.frequency.value = 2200; nf.Q.value = 0.6;
+        ng.gain.value = 0.5;
+        hiss = c.createBufferSource();
+        hiss.buffer = nb;
+        hiss.connect(nf).connect(ng).connect(out);
+        nodes.push(nf, ng);
+        hiss.start();
+        src.start(c.currentTime + 0.25);
+      } else {
+        src.connect(out);
+        src.start();
+      }
+      this.counts['voice'] = (this.counts['voice'] ?? 0) + 1;
+      src.onended = () => { try { hiss?.stop(); } catch { /* already stopped */ } setTimeout(() => nodes.forEach((n) => n.disconnect()), 400); };
+    };
+    const have = this.clips.get(url);
+    if (have instanceof AudioBuffer) start(have);
+    else {
+      const p = have ?? fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`)))).then((b) => c.decodeAudioData(b));
+      this.clips.set(url, p);
+      p.then((buf) => { this.clips.set(url, buf); start(buf); }, (e) => { this.clips.delete(url); console.warn(`voice ${url} failed to load`, e); });
+    }
+    return (fade = 0.15) => {
+      if (stopped) return;
+      stopped = true;
+      out.gain.setTargetAtTime(0, c.currentTime, Math.max(0.01, fade / 3));
+      setTimeout(() => { try { src?.stop(); hiss?.stop(); } catch { /* already stopped */ } nodes.forEach((n) => n.disconnect()); }, (fade + 0.2) * 1000);
+    };
+  }
   /** Combat's echo: an outdoor slap off hills and a short tail (a convolver on a made-up impulse). */
   private echo: AudioNode | null = null;
 

@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import type { ZoomCamera } from './camera';
 import type { CameraKeyDef, CinematicDef } from './content/defs';
 import { pchip } from './world/curve';
+import { voices } from './voice';
 import { E, U, regionDir, regionToWorld } from './world/planet';
 
 /** Something a cinematic animates besides the camera (the landing's probe). */
@@ -177,6 +178,8 @@ export class Cinematic {
     const key = show ? `${n}` : '';
     if (key === this.lastLine) return;
     this.lastLine = key;
+    // its recording, if it has one, from the moment the subtitle comes up (a line runs on past its subtitle)
+    if (show) voices.say(show.character ?? show.speaker, show.text, show.fx);
     this.hooks.line(show ? { ...this.hooks.speaker(show.character, show.speaker), text: this.hooks.fillText(show.text) } : null);
   }
 
@@ -193,6 +196,7 @@ export class Cinematic {
   private finish() {
     this.done = true;
     for (const stop of this.playing.splice(0)) stop(1.2);
+    voices.hush(0.6);
     this.hooks.caption('', '');
     this.hooks.line(null);
     this.hooks.fade(0);
