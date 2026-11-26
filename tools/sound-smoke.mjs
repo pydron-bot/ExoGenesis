@@ -6,10 +6,10 @@
  * (Counts what was started, through window.__exo.audio; it can't judge how it sounds.)
  *   node tools/sound-smoke.mjs [--url http://localhost:5176/]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1000, height: 700 } });
 // count AudioContexts the page creates
 await ctx.addInitScript(() => {

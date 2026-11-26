@@ -72,7 +72,14 @@ Hundreds of units vs escalating fauna waves, to test mobile RTS performance and 
 ```sh
 npm install
 npm run dev        # http://localhost:5176 (on hive1: systemd user unit exo-dev.service)
-npm run build
+npm run build      # = npm run check + vite build
+npm run check      # content, version and guide checks + typecheck (quick; before every push)
+npm test           # the headless smokes + the golden determinism test (~2 min, no browser; CI runs it before deploying)
+npm run test:browser   # ...and every browser smoke, against a dev server it starts on a free port (~1 h)
+node tools/run-tests.mjs qol saves --browser   # just these; --list shows the groups; --url uses a running server
+node tools/golden-smoke.mjs [--update]   # seeded sims hashed after N ticks: a refactor must keep the hashes
+npm run release -- minor "Title" --note "..." --guide page,page   # bump, changelog entry, guide pages, checks
+# browser smokes test the dev server at SMOKE_URL (default http://localhost:5176/); shared launch/check helpers: tools/lib/harness.mjs
 node tools/select-smoke.mjs  # selecting several units: paint (mouse and touch), Ctrl-drag box, Ctrl+Shift adds, a quick drag still pans
 node tools/qol-smoke.mjs   # controls: held-key pan, F, idle drones, right-click, groups, speed keys, PAUSED, Controls, Recycle, zoom to cursor
 node tools/smoke.mjs   # colony end-to-end: orders, build menu, placement, power switch, a fight, save/load, game over

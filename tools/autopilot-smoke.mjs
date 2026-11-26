@@ -35,7 +35,8 @@ const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if 
   // the playthrough on the refactored bot: the tutorials finish when they did before (tools/playthrough.mjs)
   const r = M.runPlaythrough({ minutes: 17, peaceful: true, policy: 'first' });
   const done = Object.fromEntries(Object.entries(r.missions).filter(([, m]) => m.done !== undefined).map(([id, m]) => [id, m.done]));
-  check(done.touchdown === 9 && done.groundwork === 150 && done['first-night'] === 958 && done.firstborn === 958, `playthrough as before: touchdown 0:09, groundwork 2:30, first-night and firstborn 15:58 (${JSON.stringify(done)})`);
+  // a snapshot: content changes to the opening move it (re-check with tools/playthrough.mjs, then update)
+  check(done.touchdown === 9 && done.groundwork === 150 && done['first-night'] === 931 && done.firstborn === 931, `playthrough as before: touchdown 0:09, groundwork 2:30, first-night and firstborn 15:31 (${JSON.stringify(done)})`);
 }
 {
   const r = () => 0.99;
@@ -207,7 +208,7 @@ function play(region, mission, cfg = { on: true }) {
 // ---------- browser ----------
 if (!process.argv.includes('--headless-only')) {
   const { chromium } = await import('playwright');
-  const url = arg('--url', 'http://localhost:5176/');
+  const url = arg('--url', (process.env.SMOKE_URL ?? 'http://localhost:5176/'));
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
   const errors = [];

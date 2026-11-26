@@ -6,10 +6,10 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const rover = path.join(root, 'content/units/rover.json');
 const readRover = async () => JSON.parse(await fs.readFile(rover, 'utf8'));
 // Snapshot content/ in memory and put it back exactly afterwards (works whether
@@ -29,7 +29,7 @@ async function restore() {
   for (const [rel, buf] of before) await fs.writeFile(path.join(contentDir, rel), buf);
 }
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 let failed = 0;

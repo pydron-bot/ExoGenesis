@@ -15,7 +15,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:4176/ExoGenesis/editor.html';
 const API = 'https://api.github.com/repos/pydron-bot/ExoGenesis';
@@ -92,7 +92,7 @@ async function github(route) {
 // ---------- checks ----------
 let failed = 0;
 const check = (ok, what) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${what}`); if (!ok) failed++; };
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
 await ctx.route(`${API}**`, github);
 await ctx.route(API, github);

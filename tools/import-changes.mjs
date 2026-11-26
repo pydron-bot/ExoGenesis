@@ -10,6 +10,10 @@
  *   node tools/import-changes.mjs <file> [--dry-run] [--force] [--commit] [--root <dir>]
  *
  * --commit commits just those paths as "Content: <message from the export>".
+ *
+ * A content file changed on both sides is merged field by field when it can be: the version the editor started
+ * from comes out of git by its sha (`git cat-file`), and only fields changed both here and in the export, to
+ * different values, are a conflict. Warns first if the checkout has uncommitted changes or is behind origin.
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -31,6 +35,35 @@ const data = JSON.parse(readFileSync(file, 'utf8'));
 if (data.format !== 'exo-changes/1' || !Array.isArray(data.changes)) { console.error(`${file}: not an Exo Genesis editor export`); process.exit(2); }
 console.log(`export from ${data.exported ?? '?'} based on ${String(data.base).slice(0, 7)}${data.message ? ` — "${data.message}"` : ''}: ${data.changes.length} change(s)`);
 
+// the checkout: CLAUDE.md says pull first, so say so when it looks stale
+const git = (...a) => { try { return execFileSync('git', a, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return null; } };
+if (git('rev-parse', '--git-dir') !== null) {
+  const dirty = git('status', '--porcelain', '--', 'content', 'public/media');
+  if (dirty) console.log(`warning: uncommitted changes under content/ or public/media/:\n  ${dirty.split('\n').slice(0, 8).join('\n  ')}`);
+  git('fetch', '--quiet', 'origin');
+  const behind = Number(git('rev-list', '--count', 'HEAD..@{u}') ?? 0);
+  if (behind) console.log(`warning: ${behind} commit(s) behind ${git('rev-parse', '--abbrev-ref', '@{u}')}: git pull --rebase first`);
+}
+
+/** Three-way merge of JSON values: null and a list of conflicting field paths, or the merged value. */
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+function merge3(base, ours, theirs, at = '') {
+  if (same(ours, theirs)) return { value: ours, clash: [] };
+  if (same(base, ours)) return { value: theirs, clash: [] };
+  if (same(base, theirs)) return { value: ours, clash: [] };
+  if (isObj(base) && isObj(ours) && isObj(theirs)) {
+    const value = {}, clash = [];
+    for (const k of new Set([...Object.keys(ours), ...Object.keys(theirs)])) {
+      const r = merge3(base[k], ours[k], theirs[k], at ? `${at}.${k}` : k);
+      clash.push(...r.clash);
+      if (r.value !== undefined) value[k] = r.value;
+    }
+    return { value, clash };
+  }
+  return { value: ours, clash: [at || '(whole file)'] };
+}
+
 const plan = [], conflicts = [];
 for (const c of data.changes) {
   if (typeof c.path !== 'string' || !(CONTENT_RE.test(c.path) || MEDIA_RE.test(c.path))) { console.error(`refusing path ${JSON.stringify(c.path)}`); process.exit(2); }
@@ -45,11 +78,22 @@ for (const c of data.changes) {
   const now = existsSync(abs) ? blobSha(readFileSync(abs)) : null;
   const want = c.op === 'delete' ? null : blobSha(buf);
   if (now === want) { plan.push({ ...c, abs, buf, skip: true }); continue; } // already applied
-  if (now !== (c.orig ?? null)) conflicts.push(`${c.path} (${now === null ? 'deleted here' : c.orig === null ? 'created here too' : 'changed here'} since it was edited)`);
+  if (now !== (c.orig ?? null)) {
+    // both sides changed a content file: merge field by field against the version the editor started from
+    const baseText = c.op === 'write' && now && c.orig && CONTENT_RE.test(c.path) ? git('cat-file', '-p', c.orig) : null;
+    if (baseText !== null) {
+      const r = merge3(JSON.parse(baseText), JSON.parse(readFileSync(abs, 'utf8')), JSON.parse(buf.toString('utf8')));
+      if (!r.clash.length) {
+        plan.push({ ...c, abs, buf: Buffer.from(JSON.stringify(r.value, null, 2) + '\n'), merged: true });
+        continue;
+      }
+      conflicts.push(`${c.path} (changed here too; both changed: ${r.clash.join(', ')})`);
+    } else conflicts.push(`${c.path} (${now === null ? 'deleted here' : c.orig === null ? 'created here too' : 'changed here'} since it was edited)`);
+  }
   plan.push({ ...c, abs, buf });
 }
 
-for (const p of plan) console.log(`  ${p.skip ? '=' : p.op === 'delete' ? 'D' : p.orig ? 'M' : 'A'}  ${p.path}${p.skip ? '  (already applied)' : ''}`);
+for (const p of plan) console.log(`  ${p.skip ? '=' : p.op === 'delete' ? 'D' : p.orig ? 'M' : 'A'}  ${p.path}${p.skip ? '  (already applied)' : p.merged ? '  (merged with changes made here)' : ''}`);
 if (conflicts.length) {
   console.log(`\nconflicts:\n  ${conflicts.join('\n  ')}`);
   if (!flag('--force')) { console.log('\nnothing written (--force applies the export over them)'); process.exit(1); }

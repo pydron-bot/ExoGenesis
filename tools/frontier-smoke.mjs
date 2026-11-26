@@ -160,7 +160,7 @@ const until = (sim, fn, secs) => { for (let i = 0; i < secs * 10 && !fn(); i++) 
 
 if (!process.argv.includes('--headless-only')) {
   const { chromium } = await import('playwright');
-  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+  const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1000, height: 760 } });
   const errors = [];

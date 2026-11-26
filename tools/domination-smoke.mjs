@@ -4,12 +4,12 @@
  *   node tools/domination-smoke.mjs [--url http://localhost:5176/]
  * The rules and the computer players are tested headless: tools/domination-sim.mjs.
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

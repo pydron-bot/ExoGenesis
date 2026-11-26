@@ -9,11 +9,11 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const { module: M } = await runnerImport(path.join(root, 'tools/sim-entry.ts'));
 const C = M.content;
 let failed = 0;
@@ -57,7 +57,7 @@ if (process.argv.includes('--headless-only')) {
 }
 
 // ---------- browser ----------
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 900, height: 640 } });
 const errors = [];
 const page = await ctx.newPage();

@@ -3,10 +3,10 @@
  *   node tools/load-times.mjs [--runs 3] [--url http://localhost:5176/] [--cpu 4]
  * --cpu N throttles the CPU N× via DevTools (rough phone stand-in).
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 const arg = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
-const runs = Number(arg('--runs', 3)), url = arg('--url', 'http://localhost:5176/'), cpu = Number(arg('--cpu', 1));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const runs = Number(arg('--runs', 3)), url = arg('--url', (process.env.SMOKE_URL ?? 'http://localhost:5176/')), cpu = Number(arg('--cpu', 1));
+const browser = await launch();
 const all = {};
 for (let r = 0; r < runs; r++) {
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 700 } });

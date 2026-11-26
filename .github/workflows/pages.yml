@@ -1,6 +1,7 @@
 # Builds the game and publishes it to GitHub Pages at deeek.org/ExoGenesis/
 # (the pydron-bot.github.io user site owns the deeek.org domain; this project
-# site appears under it at /<repo name>/). The editor is dev-only and not built.
+# site appears under it at /<repo name>/). The editor ships too (editor.html): on the site it saves by
+# committing to GitHub. `npm test` (the headless smokes and the golden determinism test) must pass first.
 name: Deploy to GitHub Pages
 
 on:
@@ -29,6 +30,7 @@ jobs:
       - run: npm ci
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - run: npm test
       - run: npm run build
         env:
           EXO_BASE: /ExoGenesis/

@@ -4,10 +4,10 @@
  * its section; Copy and Save work.
  *   node tools/perf-smoke.mjs [--url http://localhost:5176/]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 760 }, acceptDownloads: true });
 await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
 const page = await ctx.newPage();

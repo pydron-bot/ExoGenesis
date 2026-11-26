@@ -23,7 +23,7 @@ const seconds = Number(arg('--seconds', 90));
 const isFile = id.endsWith('.json');
 const name = isFile ? path.basename(id, '.json') : id;
 const out = path.resolve(root, arg('--out', `music-drafts/${name}.wav`));
-const url = arg('--url', 'http://localhost:5176/');
+const url = arg('--url', (process.env.SMOKE_URL ?? 'http://localhost:5176/'));
 const seed = arg('--seed', null);
 const mood = JSON.parse(fs.readFileSync(isFile ? path.resolve(id) : path.join(root, 'content/music', `${id}.json`), 'utf8'));
 

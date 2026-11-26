@@ -5,10 +5,10 @@
  *   - Ctrl + drag draws a box (desktop); Ctrl + Shift adds to the selection
  *   node tools/select-smoke.mjs [--url http://localhost:5176/] [--only mouse|touch]
  */
-import { chromium } from 'playwright';
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+import { launch } from './lib/harness.mjs';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 let failed = 0; const check = (ok, m) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${m}`); if (!ok) failed++; };
 for (const touch of [false, true].filter((t) => !only || only === (t ? 'touch' : 'mouse'))) {
   const ctx = await browser.newContext(touch ? { viewport: { width: 400, height: 800 }, hasTouch: true, isMobile: true } : { viewport: { width: 1280, height: 800 } });

@@ -7,10 +7,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 
@@ -60,7 +60,7 @@ const back = probe();
 check(back.every((h, i) => Math.abs(h - h0[i]) < 1e-6), 'back at Touchdown the ground is as before');
 
 // ---------- browser: the game ----------
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

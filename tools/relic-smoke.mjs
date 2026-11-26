@@ -4,10 +4,10 @@
  * Field Engineers after Relic Studies), opening its cache.
  *   node tools/relic-smoke.mjs [--url http://localhost:5176/]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
+const browser = await launch();
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 const errors = [];

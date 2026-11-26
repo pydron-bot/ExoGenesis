@@ -3,13 +3,13 @@
  * Vehicle Bay card, army selected, radar offline. For checking the phone layout.
  *   node tools/phone-shot.mjs <outDir> [width=390]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 const out = process.argv[2];
 const w = Number(process.argv[3] ?? 390);
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: w, height: 664 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 const errs = []; page.on('pageerror', (e) => errs.push(e.message));
-await page.goto('http://localhost:5176/?intro=0&new=1&look=smooth');
+await page.goto((process.env.SMOKE_URL ?? 'http://localhost:5176/') + '?intro=0&new=1&look=smooth');
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/p1-start-${w}.png` });
@@ -39,5 +39,5 @@ if (radar !== undefined) await page.evaluate((id) => __exo.sim.command({ type: '
 await page.waitForTimeout(5500);
 await page.screenshot({ path: `${out}/p5-radaroff-${w}.png` });
 console.log('bar height', await page.evaluate(() => document.getElementById('bar').offsetHeight), 'errors', errs);
-await page.goto('http://localhost:5176/?new=1&intro=0'); await page.waitForTimeout(1500);
+await page.goto((process.env.SMOKE_URL ?? 'http://localhost:5176/') + '?new=1&intro=0'); await page.waitForTimeout(1500);
 await browser.close();

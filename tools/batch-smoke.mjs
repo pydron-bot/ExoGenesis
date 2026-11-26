@@ -4,7 +4,7 @@
  * buildings stay batched, and reports draw calls. node tools/batch-smoke.mjs [--out shots/batch]
  */
 import { mkdirSync, readFileSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const out = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : 'shots/batch';
 mkdirSync(out, { recursive: true });
@@ -13,14 +13,14 @@ const kinds = ['turret', 'pointdefense', 'cannon', 'radar', 'wall', 'solar', 'ba
 const ring = [];
 kinds.forEach((kind, k) => { for (let i = 0; i < 3; i++) { const a = (k * 3 + i) / (kinds.length * 3) * Math.PI * 2; ring.push({ kind, x: +(32 * Math.sin(a)).toFixed(1), z: +(32 * Math.cos(a)).toFixed(1), hp: hp(kind) }); } });
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 
-await page.goto('http://localhost:5176/?intro=0&new=1&ui=0&fog=0&sw=0');
+await page.goto((process.env.SMOKE_URL ?? 'http://localhost:5176/') + '?intro=0&new=1&ui=0&fog=0&sw=0');
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
 await page.evaluate(async (ring) => {
   const s = await __exo.sim.save();

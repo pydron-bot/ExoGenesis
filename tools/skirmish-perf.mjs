@@ -4,14 +4,14 @@
  *   node tools/skirmish-perf.mjs [query ...]   e.g.  "" "models=builtin" "lights=0"
  * SwiftShader is a CPU renderer, so absolute numbers mean little; compare variants.
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 const queries = process.argv.length > 2 ? process.argv.slice(2) : [''];
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 for (const q of queries) {
   const page = await browser.newPage({ viewport: { width: 390, height: 664 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`http://localhost:5176/?mode=skirmish&units=200&wave=150&time=night&${q}`);
+  await page.goto(`${process.env.SMOKE_URL ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/')}?mode=skirmish&units=200&wave=150&time=night&${q}`);
   await page.waitForFunction(() => window.__exo?.ready && window.__exo.skirmish?.ready, null, { timeout: 120000 });
   await page.evaluate(() => __exo.skirmish.send({ type: 'wave', count: 150 }));
   await page.waitForTimeout(6000); // models load, night falls, the wave closes in

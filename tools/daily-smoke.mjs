@@ -5,7 +5,7 @@
  *   node tools/daily-smoke.mjs [--url http://localhost:5176/] [--headless-only]   (or PORT=5176)
  */
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -64,8 +64,8 @@ check(text.startsWith('Exo Genesis · Daily Planet #1') && text.includes('Victor
 
 // ---------- browser ----------
 if (!process.argv.includes('--headless-only')) {
-  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? `http://localhost:${process.env.PORT ?? 5176}/`;
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? `${process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? 5176}/`}`;
+  const browser = await launch();
   for (const vp of [{ width: 1400, height: 900, name: 'desktop' }, { width: 390, height: 844, name: 'phone', touch: true }]) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.touch, isMobile: !!vp.touch, permissions: ['clipboard-read', 'clipboard-write'] });
     const page = await ctx.newPage();

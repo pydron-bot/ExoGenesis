@@ -127,7 +127,7 @@ if (process.argv.includes('--headless')) { console.log(failed ? `${failed} FAILE
 
 // ---------- in the browser ----------
 const { chromium } = await import('playwright');
-const URL0 = `http://localhost:${process.env.PORT ?? 5176}/`;
+const URL0 = `${process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? 5176}/`}`;
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
 const ctxFor = async (opt = {}) => {

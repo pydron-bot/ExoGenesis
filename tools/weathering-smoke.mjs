@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 
 const arg = (k) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : undefined);
 const gpu = process.argv.includes('--gpu');
-const url = arg('--url') ?? 'http://localhost:5176/';
+const url = arg('--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const shots = arg('--shots');
 const browser = await chromium.launch({ args: ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });

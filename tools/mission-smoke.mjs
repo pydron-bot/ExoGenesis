@@ -6,7 +6,7 @@
  *   node tools/mission-smoke.mjs [--url http://localhost:5176/] [--headless-only]
  */
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -88,8 +88,8 @@ delete C.missions['t-m'];
 
 // ---------- browser ----------
 if (!process.argv.includes('--headless-only')) {
-  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? `http://localhost:${process.env.PORT ?? 5176}/`;
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? `${process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? 5176}/`}`;
+  const browser = await launch();
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
   const page = await ctx.newPage();
   const errs = [];

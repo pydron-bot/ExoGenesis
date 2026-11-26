@@ -21,6 +21,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.100.3',
+    date: '2026-11-26',
+    title: 'Under the hood: tests',
+    notes: [
+      'Behind the scenes: every update is now checked by a suite of automated tests before it goes live, so fewer bugs reach you',
+    ],
+    guide: [],
+  },
+  {
     version: '0.100.2',
     date: '2026-11-26',
     title: 'A lighter download',

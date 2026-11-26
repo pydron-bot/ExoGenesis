@@ -6,15 +6,15 @@
 import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const file = path.join(root, 'content/regions/touchdown.json');
 const original = await fs.readFile(file);
 const readRegion = async () => JSON.parse(await fs.readFile(file, 'utf8'));
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
 const errors = [];
 let failed = 0;

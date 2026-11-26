@@ -11,10 +11,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const headlessOnly = process.argv.includes('--headless-only');
 const root = path.resolve(import.meta.dirname, '..');
 const { module: M } = await runnerImport(path.join(root, 'tools/sim-entry.ts'));
@@ -171,7 +171,7 @@ if (headlessOnly) {
 
 // ---------- browser: the game ----------
 const tmp = [path.join(root, 'content/regions/zz-trek.json'), path.join(root, 'content/regions/zz-moon.json')];
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

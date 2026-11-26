@@ -7,7 +7,7 @@
  */
 import { chromium } from 'playwright';
 import fs from 'fs';
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1300, height: 850 } });
 await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: url });

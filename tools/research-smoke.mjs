@@ -3,10 +3,10 @@
  * seam → isotopes → Fusion Cell burning them. Also the Too Good story card.
  *   node tools/research-smoke.mjs [--url http://localhost:5176/]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));

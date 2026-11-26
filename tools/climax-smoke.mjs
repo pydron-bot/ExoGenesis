@@ -254,7 +254,7 @@ Object.assign(C.story, keep.story); Object.assign(C.missions, keep.missions);
 // ---------- browser: a strike and glitches render, no page errors ----------
 if (!process.argv.includes('--headless-only')) {
   const { chromium } = await import('playwright');
-  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? 'http://localhost:5176/';
+  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();

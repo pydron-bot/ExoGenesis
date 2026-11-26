@@ -9,8 +9,9 @@
  *   node tools/music-smoke.mjs [--url http://localhost:5176/]
  */
 import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: 1100, height: 750 } });
 const errors = [];
@@ -26,7 +27,7 @@ try {
   await page.evaluate(() => localStorage.removeItem('exo.sound'));
   // autoplay blocked (a first visit): nothing until a click, and the title says so; a click anywhere starts it
   {
-    const b2 = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+    const b2 = await launch();
     const p2 = await b2.newPage({ viewport: { width: 1100, height: 750 } });
     await p2.goto(`${url}?sw=0`);
     await p2.waitForFunction(() => window.__exo?.ready && document.querySelector('#title .t-item'), null, { timeout: 120000 });

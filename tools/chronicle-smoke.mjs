@@ -6,7 +6,7 @@
  *   node tools/chronicle-smoke.mjs [--url http://localhost:5176/] [--headless-only] [--minutes 55]   (or PORT=5176)
  */
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -56,8 +56,8 @@ check(model.memorial.some((m) => m.cause === 'killed in the smoke test') && !mod
 
 // ---------- browser ----------
 if (!process.argv.includes('--headless-only')) {
-  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? `http://localhost:${process.env.PORT ?? 5176}/`;
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? `${process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? 5176}/`}`;
+  const browser = await launch();
   for (const vp of [{ width: 1400, height: 900, name: 'desktop' }, { width: 390, height: 844, name: 'phone', touch: true }]) {
     const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, hasTouch: !!vp.touch, isMobile: !!vp.touch, acceptDownloads: true });
     const page = await ctx.newPage();

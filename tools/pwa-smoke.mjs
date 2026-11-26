@@ -8,10 +8,10 @@
  *   EXO_BASE=/ExoGenesis/ npm run build && EXO_BASE=/ExoGenesis/ npx vite preview --port 4176
  *   node tools/pwa-smoke.mjs [--url http://localhost:4176/ExoGenesis/]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:4176/ExoGenesis/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 900, height: 640 } });
 const page = await ctx.newPage();
 const errors = [];

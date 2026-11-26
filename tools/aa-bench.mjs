@@ -26,7 +26,7 @@ for (const [name, q] of VARIANTS) {
   const { dpr, ...opts } = vp;
   const page = await browser.newPage(opts);
   page.on('pageerror', (e) => console.log('pageerror', e.message));
-  await page.goto(`http://localhost:5176/?intro=0&new=1&dpr=${dpr}&${q}`);
+  await page.goto(`${process.env.SMOKE_URL ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/')}?intro=0&new=1&dpr=${dpr}&${q}`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 180000 });
   await page.waitForTimeout(5000);
   const r = await page.evaluate(async () => {

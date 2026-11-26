@@ -5,12 +5,12 @@
  *   node tools/skirmish-play-smoke.mjs [--url http://localhost:5176/] [--shots dir]
  */
 import { mkdirSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const arg = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
-const url = arg('--url', 'http://localhost:5176/'), shots = arg('--shots', null);
+const url = arg('--url', (process.env.SMOKE_URL ?? 'http://localhost:5176/')), shots = arg('--shots', null);
 if (shots) mkdirSync(shots, { recursive: true });
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 const errors = [];

@@ -6,7 +6,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const arg = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
-const url = arg('--url', 'http://localhost:5176/');
+const url = arg('--url', (process.env.SMOKE_URL ?? 'http://localhost:5176/'));
 const out = arg('--out', 'shots/tour');
 const kinds = arg('--kinds', 'sun,belt,comet,rings,overview').split(',');
 mkdirSync(out, { recursive: true });

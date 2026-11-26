@@ -5,7 +5,7 @@
  * Writes <outDir>/<set>-<kind>.png and <set>-overview.png.
  */
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => (args.includes(`--${k}`) ? args[args.indexOf(`--${k}`) + 1] : d);
@@ -21,12 +21,12 @@ const units = Object.entries(read('units')).filter(([k]) => !only || only.includ
 const lay = buildings.map(([kind, d], i) => ({ kind, hp: d.hp, x: -60 + (i % 5) * 30, z: 40 + Math.floor(i / 5) * 28 }));
 const row = units.map(([unit, d], i) => ({ unit, fauna: d.faction === 'fauna', x: -54 + i * 12, z: -40 }));
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const errors = [];
 for (const set of sets) {
   const page = await browser.newPage({ viewport: { width: 900, height: 640 } });
   page.on('pageerror', (e) => errors.push(`${set}: ${e.message}`));
-  await page.goto(`http://localhost:5176/?intro=0&new=1&look=smooth&fog=0&ui=0&sw=0&flora=off&models=${set}${extra}`);
+  await page.goto(`${process.env.SMOKE_URL ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/')}?intro=0&new=1&look=smooth&fog=0&ui=0&sw=0&flora=off&models=${set}${extra}`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
   await page.evaluate(async (lay) => {
     const s = await __exo.sim.save();

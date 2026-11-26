@@ -12,7 +12,7 @@ const a = Object.fromEntries(process.argv.slice(2).reduce((acc, v, i, arr) => {
   if (v.startsWith('--')) acc.push([v.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]);
   return acc;
 }, []));
-const url = a.url ?? 'http://localhost:5176/';
+const url = a.url ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const views = String(a.views ?? 'surface,planet,system').split(',');
 const out = a.out ?? 'shots';
 mkdirSync(out, { recursive: true });

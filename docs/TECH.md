@@ -3377,3 +3377,32 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
 - **Native config loading**: `vite.config.ts` → `devtools/content-server.ts` → `src/content/asset-kinds.ts` use
   explicit `.ts` extensions (`allowImportingTsExtensions`) and have no other `src/` imports, so Vite's native config
   loader no longer warns.
+
+### Tests, CI and the release helper (v0.100.3)
+
+- **`npm test`** (`tools/run-tests.mjs`): the headless smokes (campaign, gameplay, inhabit, lead, medbay, roster), the
+  headless halves of 19 more (`--headless-only`; guide-smoke's is `--headless`) and `golden-smoke`. About 2.5 min, no
+  browser. CI (`.github/workflows/pages.yml`) runs it before `npm run build`, so a failing check stops the deploy.
+- **`npm run test:browser`**: also every browser smoke, one at a time (some edit `content/` and restore it), against a
+  dev server started on a free port. Smokes read the address from `SMOKE_URL` (default `http://localhost:5176/`; a
+  smoke's own `--url` still wins). `pwa` and `editor-web` need a `/ExoGenesis/` preview build and run by name; `perf`
+  is manual. `node tools/run-tests.mjs --list` shows the groups.
+- **Golden determinism** (`tools/golden-smoke.mjs`, hashes in `tools/golden.json`): a 900-tick siege (85 buildings,
+  35 units, 160 predators), the balance bot's first 10 minutes, and a 6-minute 1v1 between computer players on a
+  generated map; each end state is hashed (floats to 12 significant digits). A refactor keeps the hashes; a change
+  meant to alter behaviour re-records them with `--update` and says why in the commit.
+- **`tools/lib/harness.mjs`**: `launch({ gpu })` (SwiftShader WebGL by default), `DEV_URL`, `checker()`. 40 smokes use
+  its `launch()`; the ones that load Playwright lazily (so their headless half runs without it) don't.
+- **`npm run check`**: content, version and guide checks plus `tsc` (which now covers `tools/*.ts` too:
+  `sim-entry.ts`, `flow-entry.ts`). `npm run build` = `check` + `vite build`.
+- **`npm run release -- <minor|patch> "Title" --note "..." --guide a,b`** (`tools/release.mjs`): bumps `package.json`
+  and the lockfile, adds the changelog entry (notes say TODO if none are given), sets `updated` (or `since` for a new
+  page) on the listed guide pages (`--guide auto`: the ones git shows changed), then runs version:check and
+  guide:check. `--dry-run` prints it.
+- **`tools/import-changes.mjs`**: warns about uncommitted changes under `content/`/`public/media/` and about being behind
+  the upstream branch. A content file changed both here and in the export is merged field by field against the version
+  the editor started from (`git cat-file -p <orig sha>`); only a field both sides changed to different values is a
+  conflict.
+- Smokes brought up to date: `lead` and `roster` watch only the hostiles they spawn (regions start with nests now, and
+  packs only set out from a spawn whose nest stands), `autopilot`'s playthrough snapshot is 15:31, and `smoke.mjs`
+  leaves save files to `saves-smoke`.

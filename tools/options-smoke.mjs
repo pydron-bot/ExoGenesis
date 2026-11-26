@@ -4,11 +4,11 @@
  *   node tools/options-smoke.mjs [--shots dir]
  */
 import { mkdirSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const shots = process.argv.includes('--shots') ? process.argv[process.argv.indexOf('--shots') + 1] : null;
 if (shots) mkdirSync(shots, { recursive: true });
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 const errors = [];
@@ -18,7 +18,7 @@ async function run(viewport, name, mobile = false) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   const open = async () => {
-    await page.goto(`http://localhost:${process.env.PORT ?? 5176}/?sw=0`);
+    await page.goto(`${process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? 5176}/`}?sw=0`);
     await page.waitForFunction(() => window.__exo?.ready && document.querySelector('#title [data-id="options"]'), null, { timeout: 300000 });
     await page.waitForTimeout(1500);
   };
@@ -75,7 +75,7 @@ async function menu(viewport, name, mobile = false) {
   const ctx = await browser.newContext({ viewport, ...(mobile ? { deviceScaleFactor: 2, isMobile: true, hasTouch: true } : {}) });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`http://localhost:${process.env.PORT ?? 5176}/?sw=0&intro=0&new=1`);
+  await page.goto(`${process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? 5176}/`}?sw=0&intro=0&new=1`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
   await page.waitForTimeout(1500);
   const bar = await page.$$eval('#bar button', (bs) => bs.filter((b) => b.offsetParent).length);

@@ -6,13 +6,13 @@
  *   node tools/hover-smoke.mjs [--url http://localhost:5176/] [--shots dir]
  */
 import { readFileSync, mkdirSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const arg = (k) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : undefined);
-const url = arg('--url') ?? 'http://localhost:5176/';
+const url = arg('--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const shots = arg('--shots');
 if (shots) mkdirSync(shots, { recursive: true });
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

@@ -227,8 +227,9 @@ const powerUp = (sim) => { addBuilding(sim, 'geothermal', VENTS[0].x, VENTS[0].z
   for (let n = 0; n < 12; n++) {
     sim.s.waves.next = sim.s.tick + 1;
     steps(sim, 1);
-    for (const h of sim.s.hostiles) seen[h.unit] = Math.max(seen[h.unit] ?? -1, n);
-    sim.s.hostiles.length = 0;
+    for (const h of sim.s.hostiles) if (h.pack >= 0) seen[h.unit] = Math.max(seen[h.unit] ?? -1, n);
+    // clear the pack, not the nests: packs only set out from a spawn whose nest stands
+    sim.s.hostiles = sim.s.hostiles.filter((h) => !(h.pack >= 0));
     sim.s.packs.length = 0;
   }
   check(seen.spitter >= 0 && seen.burrower >= 0, `packs bring spitters and burrowers later on (${Object.keys(seen).join(', ')})`);

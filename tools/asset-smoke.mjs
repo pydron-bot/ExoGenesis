@@ -10,10 +10,10 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 
 // ---- snapshot content/ + public/media/ ----
 async function snapshot(dir, sub = '', out = new Map()) {
@@ -54,7 +54,7 @@ function wav(seconds, hz) {
 await fs.writeFile(path.join(tmp, 'Test Panel.png'), png(64, 64));
 await fs.writeFile(path.join(tmp, 'beep.wav'), wav(0.5, 660));
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 }, acceptDownloads: true });
 const errors = [];
 let failed = 0;

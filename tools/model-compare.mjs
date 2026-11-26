@@ -4,10 +4,10 @@
  *   node tools/model-compare.mjs <outDir> [--url http://localhost:5176/]
  * Writes <outDir>/<builtin|new>-<name>.png.
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 const out = process.argv[2];
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
+const browser = await launch();
 const errors = [];
 for (const set of ['builtin', 'new']) {
   const page = await browser.newPage({ viewport: { width: 900, height: 640 } });

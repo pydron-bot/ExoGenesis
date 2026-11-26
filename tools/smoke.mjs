@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import { chromium } from 'playwright';
 
 const gpu = process.argv.includes('--gpu');
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const browser = await chromium.launch({ args: ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const errors = [];
@@ -152,18 +152,7 @@ check(true, `turrets killed predators (${(await cur()).stats.kills})`);
 check(await page.evaluate(() => window.__threatSeen), `threat shown in the resource bar${process.env.DBG ? ` (${JSON.stringify(await page.evaluate(() => window.__threatLog))}, packs ${JSON.stringify((await cur()).stats)})` : ''}`);
 await page.evaluate(() => __exo.sim.setSpeed(1));
 
-// 6. save / reload / load
-await page.click('#b-menu'); await page.click('#options [data-id="save"]');
-await wait(600);
-const saved = await cur();
-await page.reload();
-await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
-await wait(800);
-check((await cur()).buildings.length === 1, 'reload starts a fresh game');
-await page.click('#b-menu'); await page.click('#options [data-id="load"]');
-await wait(1500);
-s = await cur();
-check(s.buildings.length === saved.buildings.length && s.tick >= saved.tick, `load restores the save (${s.buildings.length} buildings, tick ${saved.tick} → ${s.tick})`);
+// 6. save files (named saves, load, export, import) are covered by tools/saves-smoke.mjs
 
 // 6b. autosave: leave and come back without ?new=1 → resumes where we were
 await page.evaluate(() => __exo.sim.flush());

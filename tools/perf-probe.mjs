@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 const q = process.argv[2] ?? '';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: 390, height: 664 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-await page.goto(`http://localhost:5176/?intro=0&new=1&${q}`);
+await page.goto(`${process.env.SMOKE_URL ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/')}?intro=0&new=1&${q}`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
 await page.waitForTimeout(4000);
 const r = await page.evaluate(async () => {

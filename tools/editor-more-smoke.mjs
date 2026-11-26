@@ -46,7 +46,7 @@ for (let t = 0; t <= 3; t += 0.05) { const v = Cv.pchip(X, Y, t); if (t >= 1 && 
 check(mono && Cv.pchip(X, Y, 0) === 0 && Cv.pchip(X, Y, 3) === 3, 'camera curve passes through keys and never overshoots');
 
 // ---------- the pages ----------
-const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? 'http://localhost:5176/';
+const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const tmp = { talk: path.join(root, 'content/story/zz-talk.json'), radio: path.join(root, 'content/story/zz-radio.json') };
 await fs.writeFile(tmp.talk, JSON.stringify({ title: 'Zed Talk', character: 'director', text: 'One.', lines: [{ character: 'firstborn', text: 'Two, from {first}.' }, { speaker: 'A voice', text: 'Three.' }], trigger: 'never', choices: [{ label: 'Okay' }] }, null, 2) + '\n');
 await fs.writeFile(tmp.radio, JSON.stringify({ title: 'Zed Radio', style: 'radio', character: 'director', text: 'A transmission long enough to stay on the screen for a good while, so the test can see it.', trigger: 'never' }, null, 2) + '\n');

@@ -54,7 +54,7 @@ check(used.length === 1 && /Inhabitant camps 1/.test(used[0].field), 'used by: a
 check(T.refsTo(recs, 'assets', 'exo-tank').length === 1, 'used by: a plain ref is found');
 
 // ---------- the pages ----------
-const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? 'http://localhost:5176/';
+const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
 const errs = [];

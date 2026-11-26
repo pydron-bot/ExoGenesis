@@ -39,7 +39,7 @@ check(ch.length === 2 && ch[0].fields[0].before === '100' && ch[0].fields[0].aft
 check(/hit points 100 → 150/.test(P.notesDraft(ch)), 'changes: release note draft');
 
 // ---------- the pages ----------
-const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? 'http://localhost:5176/';
+const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const tmp = ['zz-one', 'zz-two', 'zz-renamed'].map((id) => path.join(root, 'content/story', `${id}.json`));
 await fs.writeFile(tmp[0], JSON.stringify({ title: 'Zed One', text: 'Hello  there.', trigger: 'never' }, null, 2) + '\n');
 await fs.writeFile(tmp[1], JSON.stringify({ title: 'Zed Two', text: 'Follows.', trigger: 'after', event: 'zz-one' }, null, 2) + '\n');

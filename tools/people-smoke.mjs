@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 
 const arg = (k, d) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : d);
 const gpu = process.argv.includes('--gpu');
-const url = arg('--url', 'http://localhost:5176/');
+const url = arg('--url', (process.env.SMOKE_URL ?? 'http://localhost:5176/'));
 const shots = arg('--shots', null);
 if (shots) mkdirSync(shots, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });

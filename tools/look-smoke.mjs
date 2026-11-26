@@ -4,10 +4,10 @@
  * fog of war carries over; no shader fails to compile.
  *   node tools/look-smoke.mjs [--url http://localhost:5176/]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5176/';
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

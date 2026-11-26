@@ -45,8 +45,10 @@ function brawl(stance) {
   const civic = sim.s.buildings.find((b) => b.kind === 'civic');
   // everyone home (alert sends them indoors anyway)
   for (const c of sim.s.people.colonists) { c.at = civic.id; c.x = civic.x; c.z = civic.z; }
+  const before = new Set(sim.s.hostiles.map((x) => x.id));
   sim.command({ type: 'debug', spawn: { unit: 'swarmer', x: civic.x + 9, z: civic.z + 2, n: 1 } });
-  const h = sim.s.hostiles[0];
+  // the region can start with hostiles of its own (a nest): watch the one just spawned
+  const h = sim.s.hostiles.find((x) => !before.has(x.id));
   const hp0 = h.hp;
   for (let i = 0; i < 40; i++) sim.step();
   const now = sim.s.hostiles.find((x) => x.id === h.id);

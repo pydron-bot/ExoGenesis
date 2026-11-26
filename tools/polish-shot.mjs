@@ -6,7 +6,7 @@
  * --perf also reports the mean frame time over 3 s per mode (SwiftShader: compare modes, not absolutes).
  */
 import { mkdirSync, readFileSync } from 'node:fs';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const a = Object.fromEntries(process.argv.slice(2).reduce((acc, v, i, arr) => {
   if (v.startsWith('--')) acc.push([v.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]);
@@ -24,13 +24,13 @@ const ring = [
 ].map(([kind, r, deg]) => ({ kind, x: +(r * Math.sin(deg * Math.PI / 180)).toFixed(1), z: +(r * Math.cos(deg * Math.PI / 180)).toFixed(1), hp: hp(kind) }));
 // under construction, at different stages
 const building = [['civic', -30, -30, 0.35], ['bay', 0, -40, 0.65], ['radar', 28, -34, 0.15]];
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 for (const hour of hours) {
   for (const [name, q] of modes) {
     const page = await browser.newPage({ viewport: { width: Number(a.w ?? 1280), height: Number(a.h ?? 720) } });
     page.on('pageerror', (e) => console.log('[pageerror]', e.message));
     page.on('console', (m) => { if (m.type() === 'error') console.log('[err]', m.text().slice(0, 300)); });
-    await page.goto(`http://localhost:5176/?intro=0&new=1&ui=0&fog=0&sw=0&dpr=1${q}`);
+    await page.goto(`${process.env.SMOKE_URL ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/')}?intro=0&new=1&ui=0&fog=0&sw=0&dpr=1${q}`);
     await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
     await page.evaluate(async ([ring, building, hour]) => {
       const s = await __exo.sim.save();

@@ -16,7 +16,7 @@ const sel = () => page.evaluate(() => __exo.skirmish.ui.selected.size);
 const clearSel = () => page.click('#sk-clear');
 
 const extra = process.argv.includes('--smooth') ? '&look=smooth' : '';
-await page.goto(`http://localhost:5176/?mode=skirmish&units=200&wave=10${extra}`);
+await page.goto(`${process.env.SMOKE_URL ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/')}?mode=skirmish&units=200&wave=10${extra}`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 60000 });
 await page.click('#sk-pause'); // freeze the army so screen positions stay put
 await page.waitForTimeout(800);
