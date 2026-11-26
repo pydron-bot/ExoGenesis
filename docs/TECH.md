@@ -3228,3 +3228,41 @@ in `vite.config.ts`, precached by the service worker like the game). Title → D
   `exo.domfile` in sessionStorage); the game's saves panel opens one at `domination.html?load=<id>`.
 - **No fog of war yet**, and no teams: everyone sees every area's numbers, free for all.
 - Tests: `tools/domination-sim.mjs` (rules, then computer wars), `tools/domination-smoke.mjs` (the page).
+
+### Domination: battles in full (v0.97.0)
+
+DESIGN §5.12 phase 4. `src/sim/dom-battle.ts` (the record, strength ⇄ units, outcome), the battle mode of
+`Sim.newSkirmish` (`setup.battle`, `newBattle` in `src/sim/core.ts`), the computer's `battle` in `src/sim/ai.ts`, and
+the hand-over in `src/domination/main.ts` (`fight`, `takeBattle`) and `src/main.ts` (`battle`, `backToMap`).
+
+- **When:** an area with visitors where you're the holder or a visitor and the holder is a player (`cannotCommand`):
+  the card's ⚔ FIGHT IT YOURSELF. Natives' fights stay on the map.
+- **Hand-over:** the page pauses, writes a `DomBattle` (IndexedDB `dombattle`: area, the war's seed and time, the sides
+  with you first) and the autosave, and opens `?skirmish=<war seed>&area=<id>&players=<n>&battle=1`. The game reads the
+  record (it must match the area, have no result and the player count) before the sim starts: players from the war
+  (names, colours, levels; free for all), no fog, wildlife, packs or alloys. It isn't a save file and Ctrl+S says so.
+- **The field** (`newBattle`): the holder's Command Core at its home spot, its turrets in a ring (15 u out, first toward
+  the middle, 8 a ring); every side's units in rows of 8 in front of its Core (attackers on their spot), facing the
+  middle. No drones. In a battle every building is powered (`stepPower`: the area's own grid). Strength → units
+  (`battleUnits`): round(army / 5), 1–40, tank / rover / lancer / tank / rover in turn, each worth army ÷ n; guns → a
+  turret per 10, at most 12.
+- **Out:** a holder when its Core falls (as in skirmish); an attacker (`PlayerState.coreless`) when it has no units
+  left ("Your army is gone").
+- **Computer** (`battle`): an attacker orders anything without a target at the holder's Core (or the nearest enemy it
+  sees); a holder sends its army at the nearest enemies within 75 u of its Core, else back to a post 24 u in front.
+  Abilities as usual (not Easy).
+- **Back:** the end screen's **Back to the strategy map** (Rematch, New skirmish and the Chronicle hidden) or the
+  menu's (twice: leaving early) writes `battleOutcome` (units: hp share × per-unit worth; turrets: hp share × 10,
+  scaled when guns were over 120; Core standing) and opens `domination.html?battle=1`. `takeBattle` applies it when
+  the seed and war time match (`applyBattle`: holder's army and guns, or 0 when its Core fell; visitors' armies),
+  logs "Battle at …: you 120→85, Crimson 30→0 (Core lost)", deletes the record and opens the war paused on the area.
+  The map's own fight resolves what's left (an empty holder falls at once). The war doesn't move during a battle.
+- **Fixed on the way:** events from the sim that arrived before the page was ready were replayed through `log()`
+  before `cine` was declared (a ReferenceError that stopped loading); `cine` is now declared first. Battles start
+  fighting at once, which made it likely.
+- **Measured** (`node tools/domination-battle-sim.mjs`, computers both sides), against the map's own fight for the same
+  numbers: 150 attacking 30 + 20 guns: the Core falls with 85 left (the map: 138 left); 40 attacking 60 + 40 guns at
+  Touchdown: the attackers are wiped out, 42 and all 40 guns left (the map: 55 and 36). Full battles cost a big
+  attacker far more than the map's fight does; worth evening out with phase 5's balancing.
+- Tests: `tools/domination-battle-sim.mjs` (headless), `tools/domination-battle-smoke.mjs` (both pages: leaving half
+  way, and finishing).

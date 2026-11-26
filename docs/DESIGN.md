@@ -369,7 +369,8 @@ Meant to be played over many sittings, so it lives on named save files.
      playable now as a skirmish site.)*
   3. The strategy layer: who owns what, income, travel between areas and bodies, summary fights. *(v0.96.0: on its own
      page, `domination.html`, with a basic computer player so it can be played now.)*
-  4. Jumping into an area in full and back out (full state ⇄ summary).
+  4. Jumping into an area in full and back out (full state ⇄ summary). *(v0.97.0: battles between players, fought as a
+     skirmish on the area's map; the war waits meanwhile.)*
   5. The computer's strategy brain, with difficulty levels; measured by AI-vs-AI runs.
   6. Setup screen, win/lose screen with stats, polish.
 

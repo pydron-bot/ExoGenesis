@@ -531,7 +531,7 @@ export interface SimState {
    */
   players?: PlayerState[];
   /** Skirmish rules (absent in the campaign). */
-  skirmish?: { fog: boolean; packs: boolean; unitCap?: number };
+  skirmish?: { fog: boolean; packs: boolean; unitCap?: number; battle?: boolean };
   /** Campaign factions on this region, and the Clause's team once it turns units (absent: none). */
   factions?: FactionState[];
   /** Campaign travel: visited regions and routes (absent in a skirmish; older saves start one). */
@@ -555,6 +555,11 @@ export interface SkirmishSetup {
   /** Start spots (default: `skirmishHomes`), and the map's deposits (default: the region's). */
   homes?: { x: number; z: number }[];
   deposits?: { x: number; z: number; alloys: number; max: number }[];
+  /**
+   * A Domination battle (src/sim/dom-battle.ts): per player (in order), whether it holds the area (a Command Core and
+   * its guns as turrets) or attacks with an army only, and its units. Nobody builds: no drones, no alloys.
+   */
+  battle?: { core: boolean; turrets: number; units: { unit: string; n: number }[] }[];
 }
 
 export type SimStats = { kills: number; buildingsLost: number; dronesLost: number; packsBeaten: number; mined: number; unitsLost?: number; nestsDestroyed?: number; salvaged?: number; isotopesMined?: number; researched?: number; relicsDown?: number; unitsBuilt?: number; enemyKills?: number; printed?: number };
@@ -593,6 +598,8 @@ export interface PlayerState {
   ai?: 'easy' | 'normal' | 'hard';
   /** Lost its Command Core: out of the game. */
   out?: boolean;
+  /** A Domination battle's attacker: no Command Core, out when its army is gone. */
+  coreless?: boolean;
   /** Where it started (its Command Core). */
   home: { x: number; z: number };
   /** A computer player's memory (src/sim/ai.ts). */

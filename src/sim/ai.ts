@@ -82,6 +82,8 @@ export function freshBrain(): AiBrain {
 export function think(h: AiHost, level: Level) {
   const L = LEVELS[level], s = h.s, P = s.players!, me = P[h.team];
   const brain = (me.brain ??= freshBrain());
+  // a Domination battle: nothing to build, just fight
+  if (s.skirmish?.battle) { battle(h); if (level !== 'easy') abilities(h); return; }
   if (L.bonus) s.alloys += (L.bonus * L.period) / 10;
   const home = me.home;
   // toward the middle of the map, and away from it (the safe side)
@@ -511,4 +513,36 @@ const centroid = (a: { x: number; z: number }[]) => ({ x: a.reduce((m, p) => m +
 function orderedFar(u: Unit, p: { x: number; z: number }, r: number) {
   const o = u.order.kind === 'move' ? u.order : { x: u.x, z: u.z };
   return Math.hypot(o.x - p.x, o.z - p.z) > r;
+}
+
+/**
+ * A Domination battle (src/sim/dom-battle.ts): an attacker (no Core) sends everything at the Core of the area's holder
+ * (or, with no holder left, at whatever enemy it can see); the holder keeps its army by its Core and goes for anything
+ * that comes within reach of it.
+ */
+function battle(h: AiHost) {
+  const s = h.s, P = s.players!, me = P[h.team], home = me.home;
+  const mine = (s.units ?? []).filter(fighter);
+  if (!mine.length) return;
+  // other players' units and buildings (player 0's carry no team; fauna have neither a unit nor a kind)
+  const foes = h.foes().filter((f) => (f.unit || f.kind) && f.pack === undefined && P[f.team ?? 0] && (f.team ?? 0) !== h.team && P[f.team ?? 0].side !== me.side && !P[f.team ?? 0].out);
+  if (me.coreless) {
+    const holder = P.findIndex((p, i) => i !== h.team && !p.out && !p.coreless && p.side !== me.side);
+    const goal = holder >= 0 ? P[holder].home : foes.length ? centroid(foes) : null;
+    if (!goal) return;
+    const go = mine.filter((u) => u.target < 0 && orderedFar(u, goal, 10));
+    if (go.length) h.run({ type: 'order', ids: go.map((u) => u.id), x: goal.x, z: goal.z });
+    return;
+  }
+  const near = foes.filter((f) => dist(f, home) < 75);
+  if (near.length) {
+    const c = centroid(near.slice().sort((a, b) => dist(a, home) - dist(b, home)).slice(0, 6));
+    const go = mine.filter((u) => u.target < 0 && orderedFar(u, c, 8));
+    if (go.length) h.run({ type: 'order', ids: go.map((u) => u.id), x: c.x, z: c.z });
+    return;
+  }
+  const inA = Math.atan2(-home.z, -home.x);
+  const post = { x: home.x + Math.cos(inA) * 24, z: home.z + Math.sin(inA) * 24 };
+  const back = mine.filter((u) => u.target < 0 && dist(u, home) > 45);
+  if (back.length) h.run({ type: 'order', ids: back.map((u) => u.id), x: post.x, z: post.z });
 }

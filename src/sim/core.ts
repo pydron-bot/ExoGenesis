@@ -603,6 +603,7 @@ export class Sim {
     s.players = setup.players.map((p, i) => ({ name: p.name, side: p.side ?? i, color: p.color, ai: p.ai, home: homes[i] }));
     this.powers = []; this.fogs = [];
     s.alloys = setup.alloys;
+    if (setup.battle) { this.newBattle(setup); return; }
     s.players.forEach((p, i) => {
       if (i) p.econ = { alloys: setup.alloys, isotopes: 0, stored: 0, research: { done: [], active: null }, fab: { queued: 0, progress: 0 }, stats: { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 } };
       const team = i ? i : undefined, h = p.home;
@@ -610,6 +611,43 @@ export class Sim {
       // the drone parks on the side of the Core toward the middle of the map
       const a = Math.atan2(-h.x, -h.z);
       s.drones.push({ id: s.nextId++, team, x: h.x + Math.sin(a) * 14, z: h.z + Math.cos(a) * 14, heading: a, hp: RULES.droneHp, task: { kind: 'idle' } });
+    });
+    for (const t of this.liveTeams()) this.withTeam(t, () => { this.fogOf(t).exp.fill(0); this.stepFog(true); });
+  }
+
+  /**
+   * A Domination battle (setup.battle): the area's holder has its Command Core, its guns as turrets round it and its
+   * army in front; attackers land with their armies only. No drones or alloys: what's there is what fights.
+   */
+  private newBattle(setup: SkirmishSetup) {
+    const s = this.s, B = setup.battle!;
+    s.skirmish!.battle = true;
+    s.alloys = 0;
+    s.players!.forEach((p, i) => {
+      const side = B[i] ?? { core: false, turrets: 0, units: [] };
+      if (i) p.econ = { alloys: 0, isotopes: 0, stored: 0, research: { done: [], active: null }, fab: { queued: 0, progress: 0 }, stats: { kills: 0, buildingsLost: 0, dronesLost: 0, packsBeaten: 0, mined: 0, unitsLost: 0 } };
+      if (!side.core) p.coreless = true;
+      const team = i ? i : undefined, h = p.home;
+      const inA = Math.atan2(-h.z, -h.x);
+      if (side.core) {
+        s.buildings.push({ id: s.nextId++, team, kind: 'core', x: h.x, z: h.z, progress: 1, hp: DEFS.core.hp, on: true, powered: true });
+        for (let k = 0; k < side.turrets; k++) {
+          // a ring round the Core, the first ones toward the middle (where attacks come from)
+          const a = inA + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / Math.max(4, side.turrets)), r = 15 + Math.floor(k / 8) * 7;
+          s.buildings.push({ id: s.nextId++, team, kind: 'turret', x: Math.round((h.x + Math.cos(a) * r) * 2) / 2, z: Math.round((h.z + Math.sin(a) * r) * 2) / 2, progress: 1, hp: DEFS.turret.hp, on: true, powered: true });
+        }
+      }
+      // the army: in rows in front of the Core (or where it landed), facing the middle
+      const cx = h.x + Math.cos(inA) * (side.core ? 26 : 0), cz = h.z + Math.sin(inA) * (side.core ? 26 : 0);
+      const list = side.units.flatMap((u) => Array.from({ length: u.n }, () => u.unit)).filter((u) => content.units[u]);
+      list.forEach((unit, k) => {
+        const slot = this.freeSlot();
+        if (slot < 0) return;
+        const row = Math.floor(k / 8), col = (k % 8) - 3.5;
+        const x = clamp(cx - Math.cos(inA) * row * 4 - Math.sin(inA) * col * 3.5, -limit(), limit());
+        const z = clamp(cz - Math.sin(inA) * row * 4 + Math.cos(inA) * col * 3.5, -limit(), limit());
+        this.units.push({ id: s.nextId++, team, unit, slot, x, z, heading: inA, hp: content.units[unit].hp, cd: 0, order: { kind: 'idle' }, gx: x, gz: z, target: -1 });
+      });
     });
     for (const t of this.liveTeams()) this.withTeam(t, () => { this.fogOf(t).exp.fill(0); this.stepFog(true); });
   }
@@ -624,10 +662,10 @@ export class Sim {
     s.buildings = s.buildings.filter((o) => !mine(o));
     s.drones = s.drones.filter((o) => !mine(o));
     s.units = this.units.filter((o) => !mine(o));
-    this.emit(t === 0 ? 'Your Command Core has fallen. You are out of the game.' : `${P[t].name} has been defeated`, t === 0 ? 'bad' : 'info', t === 0 ? 'alarm' : 'packCleared');
+    this.emit(t === 0 ? (P[t].coreless ? 'Your army is gone.' : 'Your Command Core has fallen. You are out of the game.') : `${P[t].name} has been defeated`, t === 0 ? 'bad' : 'info', t === 0 ? 'alarm' : 'packCleared');
     const sides = new Set(P.filter((p) => !p.out).map((p) => p.side));
     // you're out (and nobody on your side is left): your game is over, whoever goes on fighting
-    if (t === 0 && !P[0].ai && !P.some((p) => !p.out && p.side === P[0].side) && sides.size > 1) { s.over = 'core'; s.overText = 'Defeat: your Command Core has fallen'; return; }
+    if (t === 0 && !P[0].ai && !P.some((p) => !p.out && p.side === P[0].side) && sides.size > 1) { s.over = 'core'; s.overText = P[0].coreless ? 'Defeat: your army is gone' : 'Defeat: your Command Core has fallen'; return; }
     if (sides.size > 1) return;
     if (P[0].out) { s.over = 'core'; s.overText = sides.size ? `Defeat: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won` : 'Defeat'; }
     else this.end('won', `Victory: ${P.filter((p) => !p.out).map((p) => p.name).join(' and ')} won`);
@@ -1021,6 +1059,8 @@ export class Sim {
       this.stepHostiles();
       this.stepNests();
       if (s.skirmish?.packs) this.stepWaves();
+      // a battle's attacker is out once its army is gone
+      if (s.skirmish?.battle) for (const t of this.liveTeams()) if (s.players[t].coreless && !this.units.some((u) => (u.team ?? 0) === t) && !this.falling.includes(t)) this.falling.push(t);
       for (const t of this.falling.splice(0)) this.eliminate(t);
       if (s.tick % 5 === 0) for (const t of this.liveTeams()) this.withTeam(t, () => this.stepFog());
       this.stepGrazers();
@@ -1118,6 +1158,8 @@ export class Sim {
       bank -= fromBank;
     }
     s.stored = Math.min(cap, bank * DT + live * DT);
+    // a Domination battle: the area's guns run on its own grid (there's nothing to build power with)
+    if (s.skirmish?.battle) for (const b of s.buildings) b.powered = true;
     this.power.gen = gen;
     this.power.draw = want;
     this.power.short = Math.max(0, short);

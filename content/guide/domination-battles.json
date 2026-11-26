@@ -1,0 +1,9 @@
+{
+  "title": "Fighting a Domination battle",
+  "section": "interface",
+  "order": 10,
+  "summary": "When your armies fight another player's for an area, you can fight that battle yourself, on the area's own ground.",
+  "text": "On the Domination map, an area with a red pulsing ring is being fought over. If you're in that fight against another player (you hold the area and they've come for it, or your army has come for theirs), its card has **⚔ FIGHT IT YOURSELF**. Fights with natives play out on the map.\n\n**The battle** opens in the game on that area's own map, the same ground every time you go there. The war's numbers become what's on the field:\n\n- each army as units, about one for every 5 strength (tanks, rovers and lancers), at most 40 a side\n- whoever holds the area has its **Command Core**, and its guns as turrets round it (one for every 10)\n- attackers land with their army only: no base\n\nNobody builds: what's there is what fights. You command your units as in a skirmish; the computer's attackers go for the Core, and a computer holding the area defends it. If the Core falls the attackers have won; if their army is gone, the area holds. **The war waits** for you meanwhile: nothing moves on the map.\n\n**Back to the map.** When it's over, the end screen's **Back to the strategy map** takes what's left of each side back into the war: survivors count for their share of health, turrets still standing for the guns. You can also leave half way (menu → *Back to the strategy map*, tap twice): what's left of each side fights on there. The events list says how it went.\n\nBattles themselves aren't saved: leave one and the war goes on from where it was when you went in.",
+  "see": "domination",
+  "since": "0.97.0"
+}

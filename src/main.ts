@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import './style.css';
 import { VIEWS, ZoomCamera, type ViewName } from './camera';
 import { Input } from './input';
-import { CAMPAIGN, getSave, migrateAutosave, playable, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from './save';
+import { CAMPAIGN, getSave, migrateAutosave, playable, putSave, regionKey, wipeCampaign, type AutoSave, type CampaignSave } from './save';
 import { applyShared, HOME_REGION, type SharedState } from './sim/campaign';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
@@ -40,6 +40,7 @@ import { enableColonyLights } from './world/lights';
 import { AA_MODES, HEAT_MAX, Post, gradeFor, type AAMode } from './world/post';
 import { GroundMarks, Sky, type MarkMover } from './world/ground';
 import { openInfo, openMenu, openOptions, panelOpen, type OptionRow, type Toggle } from './options';
+import { BATTLE_KEY, battleOutcome, type DomBattle } from './sim/dom-battle';
 import { campaignRecords, listSaves, readSave, restoreCampaign, writeSave, type CameraPose, type SaveBody, type SaveKind, type SaveMeta } from './saves';
 import { openSaves } from './saves-panel';
 import { ArmyView } from './skirmish/view';
@@ -163,6 +164,18 @@ const skirmishMode = params.get('mode') === 'skirmish';
 const preview = params.get('preview') === '1' ? readPreview() : null;
 /** ?skirmish=<seed>: you against computer players on a generated map (src/skirmish/setup.ts lists the options). */
 const rts = !skirmishMode && params.has('skirmish') ? skirmishFromUrl(params, content.bodies) : null;
+/**
+ * ?battle=1: a Domination battle (src/sim/dom-battle.ts): the strategy page left who's fighting, with what, in IndexedDB;
+ * the skirmish on the area's map becomes that fight (no building, the holder's guns as turrets, no fog or wildlife).
+ */
+const battle: DomBattle | null = rts && params.get('battle') === '1'
+  ? await getSave<DomBattle>(BATTLE_KEY).then((b) => (b?.version === 1 && b.area === params.get('area') && !b.result && b.sides.length === rts.setup.players.length ? b : null)).catch(() => null)
+  : null;
+if (rts && battle) {
+  rts.setup.players = battle.sides.map((x, i) => ({ name: i ? x.name : 'You', color: x.color, side: i, ai: i ? x.ai ?? 'normal' : undefined }));
+  rts.setup.battle = battle.sides.map((x) => ({ core: x.core, turrets: x.turrets, units: x.units }));
+  Object.assign(rts.setup, { fog: false, wildlife: false, packs: false, alloys: 0 });
+}
 const scratch = params.get('scratch') === '1' || !!preview || !!rts;
 function readPreview(): { id: string; def: RegionDef; story?: { id: string; def: StoryDef }; mission?: { id: string; def: MissionDef }; setup?: PlaySetup; cinematic?: { id: string; def: CinematicDef }; interface?: InterfaceDef } | null {
   try {
@@ -486,6 +499,9 @@ function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At, sty
   setTimeout(() => el.remove(), ui_.logSeconds * 1000);
 }
 
+/** The cinematic playing, if any (the landing, or a world cinematic: the game is paused for it). Declared before the
+ * early events are logged: `log` reads it (a battle can send events before the page is ready). */
+let cine: Cinematic | null = null;
 logFn = log;
 for (const [t, l, at, st] of early.splice(0)) log(t, l, at, st);
 const ui: RegionUi = { sel: null, drag: null, build: null, ghost: null };
@@ -494,8 +510,6 @@ let selectFirstDrone = true;
 
 // ---------- cinematics (the landing, and story ones) ----------
 const cineEl = $('cine');
-/** The cinematic playing, if any (the landing, or a world cinematic: the game is paused for it). */
-let cine: Cinematic | null = null;
 // ---------- resume where you left off ----------
 // The sim worker autosaves every few seconds and whenever the page is hidden
 // (phones discard background tabs); on the next visit we pick up from there.
@@ -761,6 +775,10 @@ if (rts) {
   const h = rts.setup.homes![0];
   cam.fx = h.x; cam.fz = h.z;
   cam.targetDist = cam.dist = 110;
+  if (battle) {
+    const names = battle.sides.map((x) => `${x.core ? '🛡 ' : ''}${x.player === 0 ? 'you' : x.name} ${Math.round(x.army)}${x.core ? ` + ${x.turrets} guns` : ''}`);
+    log(`Domination battle · ${rts.map.region.name} · ${names.join(' vs ')} · menu → Back to the strategy map`);
+  }
 } else if (!skirmishMode && !useTitle) {
   if (resumed) startResume();
   else if (params.get('intro') === '0' || params.get('view') || travelIn || (expedition && expedition.landing !== 'probe')) sim.command({ type: 'landing', stage: 'deploy' });
@@ -999,7 +1017,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
 
 // ---------- save files (src/saves.ts, TECH.md "Save files") ----------
 /** Save files work in the campaign and a skirmish; not in a play test, a scratch game or the Daily Planet (one attempt). */
-const saveKind: SaveKind | null = skirmishMode || preview || params.get('scratch') === '1' || params.has('daily') ? null : rts ? 'skirmish' : 'campaign';
+const saveKind: SaveKind | null = skirmishMode || preview || params.get('scratch') === '1' || params.has('daily') || params.has('battle') ? null : rts ? 'skirmish' : 'campaign';
 const FILE_KEY = 'exo.file';
 /** The file this game was last saved to or loaded from (Ctrl+S saves over it), for this tab. */
 let currentFile: { id: string; kind: SaveKind } | null = (() => { try { return JSON.parse(sessionStorage.getItem(FILE_KEY) ?? 'null'); } catch { return null; } })();
@@ -1015,7 +1033,7 @@ function saveLabels(st: SimState) {
 }
 /** Write this game to a save file: a new one, or over `id`. */
 async function saveToFile(name?: string, id?: string): Promise<SaveMeta | null> {
-  if (!saveKind) { log('Play tests aren’t saved', 'warn'); return null; }
+  if (!saveKind) { log(battle ? 'Battles aren’t saved: the war is, on the strategy map' : 'Play tests aren’t saved', 'warn'); return null; }
   if (!sim.cur?.deployed) { log('Nothing to save until the probe has landed', 'warn'); return null; }
   try {
     const state = await sim.save();
@@ -1140,6 +1158,33 @@ function wireShare(root: HTMLElement, d: DailyRules, r: DailyResult) {
     const how = await shareResult(shareText(d, r, worldName(d.world), dailyUrl()));
     if (said) said.textContent = how === 'copied' ? 'Copied: paste it anywhere.' : how === 'shared' ? 'Shared.' : 'Could not copy here.';
   };
+}
+// ---------- Domination battles (src/sim/dom-battle.ts) ----------
+let battleShown = false;
+/** Write what's left of each side and go back to the strategy page (`done`: fought to a finish). */
+async function backToMap(done: boolean) {
+  if (!battle) return;
+  try {
+    const st = await sim.save();
+    battle.result = battleOutcome(st, battle, done);
+    await putSave(BATTLE_KEY, battle);
+  } catch (e) { log(`Couldn’t keep the outcome: ${(e as Error).message}`, 'bad'); }
+  const u = new URL(`${import.meta.env.BASE_URL}domination.html`, location.href);
+  u.searchParams.set('battle', '1');
+  if (params.get('sw') === '0') u.searchParams.set('sw', '0');
+  location.href = u.href;
+}
+/** The battle's over: the end screen leads back to the map. */
+function finishBattle() {
+  battleShown = true;
+  const over = $('over');
+  for (const id of ['over-restart', 'over-load', 'over-chronicle']) document.getElementById(id)!.style.display = 'none';
+  const b = document.createElement('button');
+  b.id = 'over-battle';
+  b.className = 'go';
+  b.textContent = 'Back to the strategy map';
+  over.querySelector('.grp')!.prepend(b);
+  b.onclick = () => { audio.play('tap'); void backToMap(true); };
 }
 /** The game is over: score it (if it's the scored try), keep it, and show the card on the end screen. */
 function finishDaily(s: NonNullable<typeof sim.cur>) {
@@ -1414,6 +1459,7 @@ function updateHud(dt: number, now: number) {
     if (s.campaign?.travel && !travelling && !cine && !title && s.deployed) void travelTo(s.campaign.travel);
   }
   if (s && dailyTracker && !dailyDone) { if (s.over) finishDaily(s); else dailyTracker.sample(s); }
+  if (s?.over && battle && !battleShown) finishBattle();
   el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
   el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
     ? `${areaGlobe ? `${areaGlobe.count} AREAS` : `${provinces.landCount} REGIONS`} · ALT ${fmtAlt(cam.altitude())}`
@@ -1646,7 +1692,13 @@ function openGameMenu() {
   // the menu's buttons close it first; ones that come back to it (Options, What's new) keep the game paused
   const toTitle = () => { const u = new URL(location.href); for (const k of [...u.searchParams.keys()]) if (k !== 'look' && k !== 'sw') u.searchParams.delete(k); location.href = u.toString(); };
   const setup = keep(() => showSkirmishSetup(() => { menuOpen = false; reopen(); }));
-  const { el } = openMenu('Menu', rts ? [
+  const { el } = openMenu('Menu', battle ? [
+    { id: 'resume', label: 'Resume', sub: 'Back to the battle (Esc)', run: () => {} },
+    { id: 'map', label: 'Back to the strategy map', sub: sim.cur?.over ? 'With the outcome of this battle' : 'Leave now: what\'s left of each side fights on there', confirm: sim.cur?.over ? undefined : 'The battle goes on without you · tap again', run: () => void backToMap(!!sim.cur?.over) },
+    { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },
+    { id: 'controls', label: 'Controls', sub: 'Every key and gesture (?)', run: keep(() => showControls(() => { menuOpen = false; reopen(); })) },
+    { id: 'guide', label: 'Field Guide', sub: 'How the game works, page by page', run: keep(() => openGuide({ onClose: () => { menuOpen = false; reopen(); } })) },
+  ] : rts ? [
     { id: 'resume', label: 'Resume', sub: 'Back to the game (Esc)', run: () => {} },
     ...(saveKind ? [{ id: 'saves', label: 'Save & load', sub: 'Save this battle to finish later (Ctrl+S saves)', run: keep(() => showSaves(() => { menuOpen = false; reopen(); })) }] : []),
     { id: 'options', label: 'Options', sub: 'Sound, interface and graphics', run: keep(() => showOptions(() => { menuOpen = false; reopen(); })) },

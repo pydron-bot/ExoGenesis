@@ -21,6 +21,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.97.0',
+    date: '2026-11-26',
+    title: 'Domination: fight it yourself',
+    notes: [
+      "Domination: when your armies fight another player's for an area, ⚔ FIGHT IT YOURSELF plays that battle on the area's own ground, in full",
+      "The war's numbers become the field: armies as tanks, rovers and lancers, the holder's Command Core with its guns as turrets; the war waits while you fight",
+      "Back to the strategy map with what's left of each side: take the Core and the area is yours; leave half way and the fight goes on there",
+      "Fixed: the game could stop loading if something happened in the first moments of a battle",
+    ],
+    guide: ['domination-battles'],
+  },
+  {
     version: '0.96.0',
     date: '2026-11-26',
     title: 'Domination (preview)',

@@ -20,3 +20,5 @@ export { runBalance, STRATEGIES } from '../src/sim/balance';
 export { Autopilot } from '../src/sim/autopilot';
 export { pickChoice } from '../src/sim/choices';
 export { BalanceBot } from '../src/sim/balance';
+export * as domination from '../src/sim/domination';
+export * as domBattle from '../src/sim/dom-battle';

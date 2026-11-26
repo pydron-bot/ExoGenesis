@@ -9,11 +9,12 @@ import '../style.css';
 import './dom.css';
 import { content } from '../content';
 import { VERSION } from '../changelog';
-import { getSave, putSave } from '../save';
+import { delSave, getSave, putSave } from '../save';
 import { readSave, writeSave, type SaveMeta } from '../saves';
 import { openSaves } from '../saves-panel';
 import { esc, openMenu, panel } from '../options';
 import { bodyTitle, type Area } from '../sim/areas';
+import { applyBattle, BATTLE_KEY, cannotCommand, makeBattle, type DomBattle } from '../sim/dom-battle';
 import {
   armyCap, armyOf, cannotBuild, DOM, destinations, domBuild, domMap, domSend, incomeOf, jobCost, newDomination, ownedBy, stepDomination,
   type DomJobKind, type DomLevel, type DomState,
@@ -158,6 +159,11 @@ function drawSide() {
         <dt>Links</dt><dd>${ar.links.length ? ar.links.map((l) => esc(areaName(l))).join(', ') : 'none (launch only)'}</dd>
         ${fighting.length ? `<dt>Fighting</dt><dd style="color:var(--crimson)">${fighting.map(([p, v]) => `${esc(s!.players[Number(p)].name)} ${n0(v)}`).join(', ')}</dd>` : ''}
       </dl>`;
+    if (fighting.length) {
+      const no = cannotCommand(s!, sel, ME);
+      if (!no) html += `<div class="dm-send"><button class="dm-btn go" data-act="fight">⚔ FIGHT IT YOURSELF</button></div><div class="dm-empty" style="margin-top:4px">On this area's own ground, in full. The war waits for you.</div>`;
+      else if (a.owner < 0 && a.visitors[ME]) html += `<div class="dm-empty" style="margin-top:8px">${esc(no)}.</div>`;
+    }
     if (a.owner === ME) {
       html += `<div class="dm-acts">${JOBS.map((j) => {
         const no = cannotBuild(s!, ME, a, j.kind);
@@ -192,6 +198,7 @@ root.addEventListener('click', (e) => {
   const sp = t.closest<HTMLElement>('[data-speed]');
   if (sp) { speed = Number(sp.dataset.speed); draw(); return; }
   if (t.closest('[data-act="menu"]')) { showMenu(); return; }
+  if (t.closest('[data-act="fight"]') && sel) { void fight(sel); return; }
   const b = t.closest<HTMLButtonElement>('[data-build]');
   if (b && sel) { const no = domBuild(s, ME, sel, b.dataset.build as DomJobKind); if (no) flash(no); draw(); return; }
   const sd = t.closest<HTMLElement>('[data-send]');
@@ -337,6 +344,31 @@ function frame(now: number) {
 requestAnimationFrame(frame);
 (window as unknown as { __dom: unknown }).__dom = { get s() { return s; }, map, setSpeed: (v: number) => { speed = v; }, step: (dt: number) => s && stepDomination(map, s, dt) };
 
+// ---------- battles in full (src/sim/dom-battle.ts) ----------
+/** Fight `areaId`'s battle yourself: keep the war and the battle, then open it on the area's map in the game. */
+async function fight(areaId: string) {
+  if (!s || cannotCommand(s, areaId, ME)) return;
+  const b = makeBattle(s, areaId, ME);
+  speed = 0;
+  await putSave(BATTLE_KEY, b);
+  await autosave();
+  const u = new URL(BASE, location.href);
+  u.search = new URLSearchParams({ skirmish: String(b.seed), area: areaId, players: String(b.sides.length), battle: '1' }).toString();
+  if (params.get('sw') === '0') u.searchParams.set('sw', '0');
+  location.href = u.href;
+}
+/** Back from a battle: lay what's left over the war (if it's the same war, at the same moment). */
+async function takeBattle(state: DomState) {
+  const b = await getSave<DomBattle>(BATTLE_KEY).catch(() => undefined);
+  if (!b) return;
+  await delSave(BATTLE_KEY).catch(() => {});
+  if (b.version !== 1 || !b.result || b.seed !== state.seed || Math.abs(b.at - state.t) > 0.01) return;
+  applyBattle(state, b, b.result);
+  const line = b.result.sides.map((x, i) => `${x.player === ME ? 'you' : b.sides[i].name} ${Math.round(b.sides[i].army)}→${Math.round(x.army)}${b.sides[i].core ? (x.core ? ' (held)' : ' (Core lost)') : ''}`).join(', ');
+  const won = b.result.sides.some((x, i) => x.player === ME && (b.sides[i].core ? x.core : x.army >= 0.5 && !b.result!.sides.some((y, j) => b.sides[j].core && y.core)));
+  state.log.push({ t: state.t, text: `Battle at ${placeName(b.area)}${b.result.done ? '' : ' (left early)'}: ${line}`, kind: won ? 'good' : 'bad', area: b.area });
+}
+
 // ---------- start: a save file, the autosave, or the setup ----------
 const loadId = params.get('load');
 if (loadId) {
@@ -345,6 +377,16 @@ if (loadId) {
 } else {
   const auto = await getSave<{ version: 1; dom: DomState }>(AUTO).catch(() => undefined);
   const saved = auto?.dom?.version === 1 && !auto.dom.over ? auto.dom : undefined;
-  if (saved && params.get('continue') === '1') start(saved);
+  if (saved) await takeBattle(saved);
+  // back from a battle: straight into the war, paused on the area so the outcome can be seen
+  if (saved && params.get('battle') === '1') {
+    history.replaceState(history.state, '', location.pathname);
+    start(saved);
+    const last = saved.log[saved.log.length - 1];
+    if (last?.area) sel = last.area;
+    speed = 0;
+    void autosave();
+    draw();
+  } else if (saved && params.get('continue') === '1') start(saved);
   else showSetup(false, saved);
 }
