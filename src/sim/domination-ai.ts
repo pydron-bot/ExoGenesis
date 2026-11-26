@@ -48,7 +48,9 @@ export function domAiThink(map: DomMap, s: DomState, p: number) {
   const st = STYLES[pl.ai ?? 'normal'];
   // at its army limit an idle army is wasted: it settles for less of an edge
   const full = armyOf(s, p) + 10 > armyCap(s, p);
-  const margin = st.margin * (full ? 0.85 : 1);
+  // and the longer the war, the bolder (stand-offs don't last for ever): from 90 minutes on, down to 0.8× by 3 hours
+  const weary = 1 - 0.2 * Math.min(1, Math.max(0, (s.t - 5400) / 5400));
+  const margin = st.margin * (full ? 0.85 : 1) * weary;
   const mine = ownedBy(s, p);
   if (!mine.length) return;
   const links = (a: DomArea) => map.byId[a.id].links.map((l) => s.areas[l]);
