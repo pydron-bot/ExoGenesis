@@ -7,6 +7,7 @@
  *   node tools/units-smoke.mjs [--url http://localhost:5176/] [--gpu]
  */
 import { chromium } from 'playwright';
+import { answerBriefing } from './lib/harness.mjs';
 
 const gpu = process.argv.includes('--gpu');
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
@@ -34,6 +35,8 @@ const spotFor = (kind, cx, cz) => page.evaluate(([kind, cx, cz]) => {
   }
   return null;
 }, [kind, cx, cz]);
+
+await answerBriefing(page);
 
 await page.goto(`${url}?intro=0&new=1`);
 await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });

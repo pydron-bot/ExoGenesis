@@ -5,6 +5,7 @@
  *   node tools/fog-smoke.mjs [--url http://localhost:5176/] [--gpu]
  */
 import { chromium } from 'playwright';
+import { answerBriefing } from './lib/harness.mjs';
 
 const gpu = process.argv.includes('--gpu');
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
@@ -38,6 +39,8 @@ const brightness = (x, z) => page.evaluate(([x, z]) => {
   for (let i = 0; i < d.length; i += 4) t += d[i] + d[i + 1] + d[i + 2];
   return t / (d.length / 4) / 3;
 }, [x, z]);
+
+await answerBriefing(page);
 
 await page.goto(`${url}?intro=0&new=1`);
 await ready();
@@ -81,12 +84,20 @@ check(blips >= 1, `powered radar shows it as a blip (${blips})`);
 
 // 3. the drone explores
 const d = await page.evaluate(() => __exo.sim.cur.drones[0].id);
-await cmd({ type: 'move', drone: d, x: -90, z: 90 });
+// (clear of the wreck at (-72, 46): finding it opens a story card that pauses the game)
+await cmd({ type: 'move', drone: d, x: -40, z: 100 });
 await page.evaluate(() => __exo.sim.setSpeed(3));
-await page.waitForFunction(() => { const dr = __exo.sim.cur.drones[0]; return Math.hypot(dr.x + 90, dr.z - 90) < 4; }, null, { timeout: 120000, polling: 300 });
+// the colony can call the drone back to build or repair on the way: send it again whenever it isn't heading there
+await page.waitForFunction((d) => {
+  const dr = __exo.sim.cur.drones.find((x) => x.id === d);
+  if (!dr) return false;
+  if (Math.hypot(dr.x + 40, dr.z - 100) < 4) return true;
+  if (dr.task !== 'move') __exo.sim.command({ type: 'move', drone: d, x: -40, z: 100 });
+  return false;
+}, d, { timeout: 180000, polling: 500 });
 await page.evaluate(() => __exo.sim.setSpeed(1));
 await wait(600);
-check(await fogAt(-90, 90) === 2, 'the drone sees where it is');
+check(await fogAt(-40, 100) === 2, 'the drone sees where it is');
 const n1 = await explored();
 check(n1 > n0 + 50, `exploring grows the map (${n0} → ${n1} cells)`);
 
@@ -102,7 +113,7 @@ await wait(800);
 await page.goto(`${url}?title=0`);
 await ready();
 await wait(1500);
-check(await fogAt(-90, 90) >= 1, 'resume remembers explored ground');
+check(await fogAt(-40, 100) >= 1, 'resume remembers explored ground');
 
 // 6. ?fog=0
 await page.goto(`${url}?intro=0&new=1&fog=0`);
