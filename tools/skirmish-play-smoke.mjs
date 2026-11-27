@@ -57,9 +57,13 @@ async function run(viewport, name, mobile = false) {
   check(s.units.filter((u) => u.team === 1).length === 3 && !s.units.some((u) => u.team === 2), `${name}: Crimson's rovers in sight show, Amber's tanks out of sight don't`);
   // tapping one of them doesn't select it
   await page.evaluate(([x, z]) => { __exo.cam.fx = x; __exo.cam.fz = z; __exo.cam.targetDist = 45; }, [home.x * 0.8, home.z * 0.8]);
-  await page.waitForTimeout(2500);
-  const foe = (await cur()).units.find((u) => u.team === 1);
-  const p = await page.evaluate((id) => __exo.unitScreen(id), foe.id);
+  // (the camera eases there: under software rendering that can take a while, so wait until the rover is on screen)
+  let foe, p = null;
+  for (let t = 0; t < 30 && !p; t++) {
+    await page.waitForTimeout(500);
+    foe = (await cur()).units.find((u) => u.team === 1);
+    p = foe ? await page.evaluate((id) => __exo.unitScreen(id), foe.id) : null;
+  }
   if (p) await page.mouse.click(p.x, p.y);
   await page.waitForTimeout(500);
   check(!!p && !(await page.evaluate(() => __exo.ui.sel?.kind === 'units')), `${name}: an enemy unit can't be selected`);

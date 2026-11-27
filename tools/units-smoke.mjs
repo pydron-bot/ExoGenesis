@@ -6,12 +6,11 @@
  *   autosave.
  *   node tools/units-smoke.mjs [--url http://localhost:5176/] [--gpu]
  */
-import { chromium } from 'playwright';
-import { answerBriefing } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 
 const gpu = process.argv.includes('--gpu');
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-const browser = await chromium.launch({ args: ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
+const browser = await launch({ gpu });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

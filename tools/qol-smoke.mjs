@@ -6,11 +6,11 @@
  * radar drag, zoom toward the cursor, Ctrl+S.
  *   node tools/qol-smoke.mjs [--url http://localhost:5176/] [--gpu]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const gpu = process.argv.includes('--gpu');
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-const browser = await chromium.launch({ args: ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
+const browser = await launch({ gpu });
 const errors = [];
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };

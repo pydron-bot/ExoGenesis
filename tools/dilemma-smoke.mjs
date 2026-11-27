@@ -148,9 +148,9 @@ check(!(sim.s.story.mods ?? []).some((b) => b.text === boost?.text) && g.log.som
 
 if (!process.argv.includes('--headless-only')) {
   // ---------- the card in the browser ----------
-  const { chromium } = await import('playwright');
+  const { launch } = await import('./lib/harness.mjs');
   const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.stack ?? e.message));

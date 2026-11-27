@@ -77,9 +77,11 @@ try {
   await fs.writeFile(rover, JSON.stringify({ ...r, speed: 9.9 }, null, 2) + '\n');
   await ed.fill('.row[data-key=damage] input', '7');
   await ed.click('#save');
-  await wait(800);
+  // (the save goes to the dev server and back: slow on a busy machine)
+  for (let t = 0; t < 60 && !dialogs.some((m) => m.includes('changed elsewhere')); t++) await wait(250);
   check(dialogs.some((m) => m.includes('changed elsewhere')), 'save after an outside change asks first');
-  const after = await readRover();
+  let after = await readRover();
+  for (let t = 0; t < 60 && after.damage !== 7; t++) { await wait(250); after = await readRover(); }
   check(after.damage === 7 && after.speed === 7.5, 'accepted overwrite wrote the editor version');
 
   // 4. validation

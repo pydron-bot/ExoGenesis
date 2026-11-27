@@ -137,6 +137,9 @@ try {
   } else console.log('SKIP  surf: no water in this region');
   // a coastal region: surf along the shore, none inland, none in orbit
   {
+    // (two games rendering in software at once starve each other: the first is frozen while the second runs)
+    const cdp1 = await page.context().newCDPSession(page);
+    await cdp1.send('Page.setWebLifecycleState', { state: 'frozen' });
     const p2 = await browser.newPage({ viewport: { width: 1100, height: 750 } });
     await answerBriefing(p2);
     await p2.goto(`${url}?intro=0&new=1&region=port_of_hope`);
@@ -163,6 +166,7 @@ try {
       check(up < surf * 0.3, `and it fades in orbit (${up.toFixed(3)})`);
     }
     await p2.close();
+    await cdp1.send('Page.setWebLifecycleState', { state: 'active' });
   }
   // centre the camera on the turret so the fight is close and on screen
   await page.evaluate((t) => { __exo.cam.fx = t.x; __exo.cam.fz = t.z; }, t);

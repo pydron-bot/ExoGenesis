@@ -11,7 +11,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { launch } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
@@ -204,6 +204,7 @@ fs.writeFileSync(tmp[0], JSON.stringify({ ...C.regions.hearthsmoke, name: 'Smoke
 fs.writeFileSync(tmp[1], JSON.stringify({ ...C.regions.test_region, name: 'Smoke Moon Relay', body: 'sela', expedition: [{ alloys: 300 }] }, null, 1));
 let loads = 0;
 page.on('load', () => loads++);
+await answerBriefing(page); // (the opening's briefing pauses the game, and travel with it)
 try {
   await page.waitForTimeout(5000);
   // a fresh campaign at home with something built

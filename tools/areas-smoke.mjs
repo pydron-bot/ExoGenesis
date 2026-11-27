@@ -49,8 +49,8 @@ for (const a of areas) for (const players of [2, 4]) {
 check(!bad.length, `every area's map is fair for 2 and 4 players${bad.length ? `: ${bad.slice(0, 4).join(' / ')}` : ''}`);
 
 if (!process.argv.includes('--headless-only')) {
-  const { chromium } = await import('playwright');
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const { launch } = await import('./lib/harness.mjs');
+  const browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1000, height: 720 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));

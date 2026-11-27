@@ -130,9 +130,9 @@ check(measure(['refined-drills', 'low-scar'], (sim) => sim.snapshot().mods.minin
 if (process.argv.includes('--headless-only')) { console.log(failed ? `\n${failed} FAILED` : '\nall passed'); process.exit(failed ? 1 : 0); }
 
 // ---------- the tree in the browser (phone size) ----------
-const { chromium } = await import('playwright');
+const { launch } = await import('./lib/harness.mjs');
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 780 }, isMobile: true, hasTouch: true });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.stack ?? e.message));

@@ -5,10 +5,10 @@
  * Writes content/music/zz-import-test.json through the dev server and deletes it at the end.
  *   node tools/import-smoke.mjs [--url http://localhost:5176/]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import fs from 'fs';
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-const browser = await chromium.launch();
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1300, height: 850 } });
 await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: url });
 const page = await ctx.newPage();

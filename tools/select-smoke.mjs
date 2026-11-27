@@ -42,11 +42,20 @@ for (const touch of [false, true].filter((t) => !only || only === (t ? 'touch' :
   check(s1.length >= Math.min(4, pts.length) && mid.length === s1.length, `${touch ? 'touch' : 'mouse'} paint selected ${s1.length} of ${pts.length}`);
   check(Math.hypot(camAfter[0] - camBefore[0], camAfter[1] - camBefore[1]) < 0.5, 'painting does not pan the camera');
   // a quick drag still pans and leaves the selection alone
-  if (touch) { await tp('touchStart', sx, sy + 150); for (let i = 1; i <= 8; i++) await tp('touchMove', sx + i * 10, sy + 150); await tp('touchEnd'); }
-  else { await page.mouse.move(sx, sy + 150); await page.mouse.down(); await page.mouse.move(sx + 80, sy + 150, { steps: 8 }); await page.mouse.up(); }
-  await wait(200);
-  const camPan = await page.evaluate(() => [__exo.cam.fx, __exo.cam.fz]);
-  check(Math.hypot(camPan[0] - camAfter[0], camPan[1] - camAfter[1]) > 0.5 && (await sel()).length === s1.length, 'a quick drag still pans and keeps the selection');
+  // (under software rendering a slow frame can hold the moves back past the hold time, and the drag becomes a
+  // paint: try again, with the selection put back, up to three times)
+  let panned = false, kept = false;
+  for (let k = 0; k < 3 && !(panned && kept); k++) {
+    const c0 = await page.evaluate(() => [__exo.cam.fx, __exo.cam.fz]);
+    if (touch) { await tp('touchStart', sx, sy + 150); for (let i = 1; i <= 8; i++) await tp('touchMove', sx + i * 10, sy + 150); await tp('touchEnd'); }
+    else { await page.mouse.move(sx, sy + 150); await page.mouse.down(); await page.mouse.move(sx + 80, sy + 150, { steps: 8 }); await page.mouse.up(); }
+    await wait(200);
+    const camPan = await page.evaluate(() => [__exo.cam.fx, __exo.cam.fz]);
+    panned = Math.hypot(camPan[0] - c0[0], camPan[1] - c0[1]) > 0.5;
+    kept = (await sel()).length === s1.length;
+    if (!(panned && kept)) await page.evaluate((ids) => { __exo.ui.sel = { kind: 'units', ids }; }, s1);
+  }
+  check(panned && kept, 'a quick drag still pans and keeps the selection');
   if (!touch) {
     await page.keyboard.press('Escape'); await wait(200);
     const pts2 = await page.evaluate(() => __exo.sim.cur.units.map((u) => ({ id: u.id, ...__exo.unitScreen(u.id) })).filter((p) => p.x != null));

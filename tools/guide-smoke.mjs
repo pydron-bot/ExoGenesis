@@ -128,9 +128,9 @@ const { module: G } = await runnerImport(path.join(root, 'src/guide.ts'));
 if (process.argv.includes('--headless')) { console.log(failed ? `${failed} FAILED` : 'ALL PASS'); process.exit(failed ? 1 : 0); }
 
 // ---------- in the browser ----------
-const { chromium } = await import('playwright');
+const { launch } = await import('./lib/harness.mjs');
 const URL0 = `${process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? 5176}/`}`;
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const browser = await launch();
 const errors = [];
 const ctxFor = async (opt = {}) => {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...opt });

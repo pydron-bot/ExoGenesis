@@ -8,11 +8,10 @@
  * (Counts what was queued, through window.__exo.audio; it can't judge how it sounds.)
  *   node tools/music-smoke.mjs [--url http://localhost:5176/]
  */
-import { chromium } from 'playwright';
 import { answerBriefing, launch } from './lib/harness.mjs';
 
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const browser = await launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: 1100, height: 750 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

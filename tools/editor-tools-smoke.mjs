@@ -5,7 +5,7 @@
  *   node tools/editor-tools-smoke.mjs [--url http://localhost:5176/]
  */
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -55,7 +55,7 @@ check(T.refsTo(recs, 'assets', 'exo-tank').length === 1, 'used by: a plain ref i
 
 // ---------- the pages ----------
 const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-const browser = await chromium.launch();
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message));

@@ -4,13 +4,13 @@
  * with Glow and the page's vignette stands in without it, and no shader fails to compile.
  *   node tools/weathering-smoke.mjs [--url http://localhost:5176/] [--gpu] [--shots dir]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const arg = (k) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : undefined);
 const gpu = process.argv.includes('--gpu');
 const url = arg('--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const shots = arg('--shots');
-const browser = await chromium.launch({ args: ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
+const browser = await launch({ gpu });
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));

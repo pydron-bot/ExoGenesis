@@ -356,7 +356,7 @@ Object.assign(C.story, keep.story); Object.assign(C.missions, keep.missions); Ob
 
 // ---------- the browser: a cinematic's hour, music and a body key ----------
 if (!headlessOnly) {
-  const { chromium } = await import('playwright');
+  const { launch } = await import('./lib/harness.mjs');
   const file = path.join(root, 'content/cinematics/zz-gaps-test.json');
   const cine = {
     title: 'Gaps test', length: 6, trigger: 'never', hour: 22, music: 'night-lantern', letterbox: true,
@@ -368,7 +368,7 @@ if (!headlessOnly) {
     captions: [{ at: 0.5, title: 'Night watch' }],
   };
   fs.writeFileSync(file, JSON.stringify(cine, null, 2));
-  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const browser = await launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const errors = [];
   try {
     await new Promise((r) => setTimeout(r, 1500)); // the dev server picks the file up

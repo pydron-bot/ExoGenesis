@@ -7,7 +7,7 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -43,7 +43,7 @@ const url = process.argv.find((x, i, arr) => arr[i - 1] === '--url') ?? (process
 const tmp = ['zz-one', 'zz-two', 'zz-renamed'].map((id) => path.join(root, 'content/story', `${id}.json`));
 await fs.writeFile(tmp[0], JSON.stringify({ title: 'Zed One', text: 'Hello  there.', trigger: 'never' }, null, 2) + '\n');
 await fs.writeFile(tmp[1], JSON.stringify({ title: 'Zed Two', text: 'Follows.', trigger: 'after', event: 'zz-one' }, null, 2) + '\n');
-const browser = await chromium.launch();
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message));

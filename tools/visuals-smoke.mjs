@@ -4,11 +4,11 @@
  * the Milky Way and sky glow are in the scene, and no shader fails to compile.
  *   node tools/visuals-smoke.mjs [--url http://localhost:5176/] [--gpu]
  */
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 
 const gpu = process.argv.includes('--gpu');
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
-const browser = await chromium.launch({ args: ['--use-gl=angle', ...(gpu ? ['--use-angle=vulkan', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
+const browser = await launch({ gpu });
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
@@ -71,7 +71,8 @@ await wait(2500);
 const w = await page.evaluate(() => ({ kind: __exo.weather.kind, amount: __exo.weather.amount, drops: __exo.weather.lines.visible, over: __exo.system.overcast }));
 check(w.kind === 'rain' && w.amount > 0.9 && w.drops && w.over > 0.5, `?weather=rain: rain, drops shown, sky overcast (${JSON.stringify(w)})`);
 await page.evaluate(() => __exo.cam.setView('system', true));
-await wait(2500);
+// (the weather updates on frames: slow under software rendering)
+await page.waitForFunction(() => !__exo.weather.lines.visible, null, { timeout: 20000, polling: 500 }).catch(() => {});
 check(!(await page.evaluate(() => __exo.weather.lines.visible)), 'no drops from the system view');
 // the schedule: mostly clear, some showers and storms, the first spell always clear
 const sched = await page.evaluate(() => {

@@ -7,7 +7,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import { launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -98,7 +98,7 @@ const story = {
 
 // ---------- the pages, in the editor ----------
 if (!process.argv.includes('--headless-only')) {
-  const b = await chromium.launch();
+  const b = await launch();
   const p = await b.newPage({ viewport: { width: 1500, height: 950 } });
   const errs = [];
   p.on('pageerror', (e) => errs.push(String(e)));

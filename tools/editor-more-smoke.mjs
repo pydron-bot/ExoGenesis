@@ -8,8 +8,7 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { chromium } from 'playwright';
-import { answerBriefing } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -52,7 +51,7 @@ const tmp = { talk: path.join(root, 'content/story/zz-talk.json'), radio: path.j
 await fs.writeFile(tmp.talk, JSON.stringify({ title: 'Zed Talk', character: 'director', text: 'One.', lines: [{ character: 'firstborn', text: 'Two, from {first}.' }, { speaker: 'A voice', text: 'Three.' }], trigger: 'never', choices: [{ label: 'Okay' }] }, null, 2) + '\n');
 await fs.writeFile(tmp.radio, JSON.stringify({ title: 'Zed Radio', style: 'radio', character: 'director', text: 'A transmission long enough to stay on the screen for a good while, so the test can see it.', trigger: 'never' }, null, 2) + '\n');
 await new Promise((r) => setTimeout(r, 800));
-const browser = await chromium.launch();
+const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
 const page = await ctx.newPage();
 const errs = [];
