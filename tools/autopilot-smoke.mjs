@@ -250,20 +250,22 @@ if (!process.argv.includes('--headless-only')) {
     await page.waitForFunction((n) => __exo.sim.cur.buildings.length > n, k0, { timeout: 120000 }).catch(() => {});
     const k1 = (await kinds()).length;
     check(k1 > k0, `buildings go up without input (${k0} → ${k1})`);
+    // (the director cuts every so often: give it up to a minute of slow software frames)
+    await page.waitForFunction((c0) => Math.hypot(__exo.cam.fx - c0[0], __exo.cam.fz - c0[1]) > 2 || Math.abs(__exo.cam.targetDist - c0[2]) > 5, cam0, { timeout: 60000, polling: 500 }).catch(() => {});
     const cam1 = await page.evaluate(() => [__exo.cam.fx, __exo.cam.fz, __exo.cam.targetDist]);
     check(Math.hypot(cam1[0] - cam0[0], cam1[1] - cam0[1]) > 2 || Math.abs(cam1[2] - cam0[2]) > 5, `the camera moves on its own (${cam0.map((x) => x.toFixed(0))} → ${cam1.map((x) => x.toFixed(0))})`);
     a = await ap();
     check(a.cap.length > 0, `a caption says what it is doing ("${a.cap}")`);
     // Stop: control back at once
-    await page.click('#autopilot .ap-stop');
+    await page.click('#autopilot .ap-stop', { force: true }); // (the badge pulses: never "stable" under slow frames)
     a = await ap();
     check(!a.on && !a.badge && a.stored.on === false, 'Stop: the badge goes, off and remembered off');
     const k2 = (await kinds()).length;
     await page.waitForTimeout(12000);
     check((await kinds()).length === k2, 'nothing more is built after Stop');
     // the game menu turns it on again
-    await page.click('#b-menu');
-    await page.click('#options [data-id="autopilot"]');
+    await page.click('#b-menu', { force: true });
+    await page.click('#options [data-id="autopilot"]', { force: true });
     await page.waitForTimeout(500);
     a = await ap();
     check(a.on && a.badge, 'the game menu turns it on again');
