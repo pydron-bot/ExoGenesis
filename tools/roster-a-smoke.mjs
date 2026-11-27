@@ -60,7 +60,9 @@ if (made) {
 // Level of detail: zoomed out, the asset models give way to their procedural built-ins
 const lodAt = (d) => page.evaluate(async (d) => {
   const c = __exo.cam; c.dist = c.targetDist = d;
-  await new Promise((r) => setTimeout(r, 600));
+  // frames can be slow in software rendering: wait (up to 15 s) for the switch, then a frame more
+  for (let i = 0; i < 150 && __exo.region.lodNear !== d < 90; i++) await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, 300));
   const r = __exo.region, pairs = [...r.lods];
   return { near: r.lodNear, pairs: pairs.length, shown: pairs.filter((l) => l.near.visible && !l.far.visible).length, far: pairs.filter((l) => l.far.visible && !l.near.visible).length };
 }, d);
