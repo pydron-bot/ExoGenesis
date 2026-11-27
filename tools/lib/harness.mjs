@@ -53,8 +53,8 @@ export async function answerBriefing(page) {
   const install = () => {
     if (window.__briefingAnswerer) return;
     window.__briefingAnswerer = setInterval(() => {
-      const b = document.querySelector('#contact.on button[data-s^="director-briefing:"]');
-      if (b) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      // answered through the sim, not by a synthetic tap: a tap would count as a gesture and unlock the sound
+      if (window.__exo?.sim?.cur?.story?.inbox?.includes('director-briefing')) window.__exo.sim.command({ type: 'story', id: 'director-briefing', choice: 0 });
     }, 150);
   };
   await page.addInitScript(install);

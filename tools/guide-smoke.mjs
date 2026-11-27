@@ -211,6 +211,7 @@ try {
     await shot(page, 'guide-offer');
     await page.click('#gd-offer .gd-yes');
     await page.waitForSelector('#hint.on.act');
+        await page.waitForFunction(() => !!document.querySelector('.hinted'), null, { timeout: 15000 }).catch(() => {}); // (marked on a frame: slow in software rendering)
     check(await page.evaluate(() => __exo.speed === 0), 'tour: the game is paused');
     const steps = [];
     for (let i = 0; i < 20 && (await page.$('#hint.on.act')); i++) {
@@ -254,6 +255,7 @@ try {
     await page.click('#options [data-id="guide"]');
     await page.click('#guide .gd-tour');
     await page.waitForSelector('#hint.on.act');
+        await page.waitForFunction(() => !!document.querySelector('.hinted'), null, { timeout: 15000 }).catch(() => {}); // (marked on a frame: slow in software rendering)
     check(await page.evaluate(() => __exo.speed === 0 && !document.querySelector('#options')), 'Show me around: the tour again, paused, the menu gone');
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('#hint.act'), null, { timeout: 8000 }).catch(() => {});
@@ -295,12 +297,14 @@ try {
         await page.click('#guide [data-page="power"]');
         await page.click('#guide .gd-show:not(.gd-tour2)');
         await page.waitForSelector('#hint.on.act');
+        await page.waitForFunction(() => !!document.querySelector('.hinted'), null, { timeout: 15000 }).catch(() => {}); // (marked on a frame: slow in software rendering)
         const dbg = await page.evaluate(() => ({ guide: !!document.querySelector('#guide'), menu: !!document.querySelector('#options'), speed: __exo.speed, hinted: document.querySelector('.hinted')?.id ?? null }));
         check(!dbg.guide && !dbg.menu && dbg.speed === 1 && !!dbg.hinted, `Show me: the guide closes, the HUD element pulses, the game runs (power → energy: ${JSON.stringify(dbg)})`);
         await page.click('#hint .acts button');
       } else if (g.points) {
         await page.click('#guide .gd-show');
         await page.waitForSelector('#hint.on.act');
+        await page.waitForFunction(() => !!document.querySelector('.hinted'), null, { timeout: 15000 }).catch(() => {}); // (marked on a frame: slow in software rendering)
         const dbg = await page.evaluate(() => ({ guide: !!document.querySelector('#guide'), speed: __exo.speed, hinted: document.querySelector('.hinted')?.id ?? null }));
         check(!dbg.guide && dbg.speed === 1 && !!dbg.hinted, `Show me: the guide closes, the HUD element pulses, the game runs (${tipPage2} → ${g.points}: ${JSON.stringify(dbg)})`);
         await page.click('#hint .acts button');
