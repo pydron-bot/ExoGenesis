@@ -6,7 +6,7 @@
  * (Counts what was started, through window.__exo.audio; it can't judge how it sounds.)
  *   node tools/sound-smoke.mjs [--url http://localhost:5176/]
  */
-import { launch } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const browser = await launch();
@@ -38,6 +38,8 @@ const spot = (kind, cx, cz) => page.evaluate(([kind, cx, cz]) => {
 const gesture = () => page.click('#b-play');
 
 try {
+  // the opening's briefing card pauses the game, and its full-screen vignette slows software rendering to a crawl
+  await answerBriefing(page);
   await page.goto(`${url}?intro=0&new=1`);
   await ready();
   await page.evaluate(() => localStorage.removeItem('exo.sound'));
@@ -135,8 +137,10 @@ try {
   // a coastal region: surf along the shore, none inland, none in orbit
   {
     const p2 = await browser.newPage({ viewport: { width: 1100, height: 750 } });
+    await answerBriefing(p2);
     await p2.goto(`${url}?intro=0&new=1&region=port_of_hope`);
-    await p2.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
+    // (a second game while the first runs, in software rendering: give it time)
+    await p2.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
     await p2.click('#b-play');
     const wet = await p2.evaluate(() => {
       // a shore: water here, dry ground close by
