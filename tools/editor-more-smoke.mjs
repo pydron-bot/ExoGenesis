@@ -9,6 +9,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { answerBriefing } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -122,17 +123,22 @@ try {
   // in game: the conversation and a radio message
   const g2 = await ctx.newPage();
   g2.on('pageerror', (e) => errs.push(`game: ${e.message}`));
+  await answerBriefing(g2); // (the opening's briefing would come first and hold the radio back)
   await g2.goto(`${url}?intro=0&new=1&title=0&scratch=1&story=zz-talk`);
   await g2.waitForSelector('#contact.on .t', { timeout: 300000 });
   check((await g2.textContent('#contact .who')).includes('The Director'), 'game: a character speaks the card');
   await g2.click('#contact button:has-text("Next")');
   await g2.click('#contact button:has-text("Next")');
   check((await g2.textContent('#contact')).includes('Three.') && await g2.isVisible('#contact button:has-text("Okay")'), 'game: Next steps through the lines, the choices come last');
+  // answer it first: under software rendering an open card's full-screen vignette slows frames to a crawl, and the
+  // radio panel only updates on frames
+  await g2.click('#contact button:has-text("Okay")');
+  await g2.waitForFunction(() => !document.querySelector('#contact.on'), null, { timeout: 30000 }).catch(() => {});
   await g2.evaluate(() => window.__exo.sim.command({ type: 'debug', story: 'zz-radio' }));
-  await g2.waitForSelector('#radio.on', { timeout: 5000 });
+  await g2.waitForSelector('#radio.on', { timeout: 30000 });
   check((await g2.textContent('#radio')).includes('Zed Radio') && !(await g2.textContent('#contact')).includes('Zed Radio'), 'game: a radio message shows in its own panel');
-  await g2.click('#radio');
-  await g2.waitForTimeout(600);
+  await g2.dispatchEvent('#radio', 'pointerdown'); // (what tapping it sends; a click waits for its slide-in to settle)
+  await g2.waitForFunction(() => !window.__exo.sim.cur.story.inbox.includes('zz-radio'), null, { timeout: 15000 }).catch(() => {});
   check(!(await g2.evaluate(() => window.__exo.sim.cur.story.inbox.includes('zz-radio'))), 'game: tapping it closes it');
   await g2.close();
 
