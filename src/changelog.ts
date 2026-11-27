@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.103.1',
+    date: '2026-11-27',
+    title: 'Fixes',
+    notes: [
+      'Watch the computer play: the autopilot no longer gets stuck on a story card that answers back (it now presses Continue), so it carries on and comes home from expeditions',
+      'Field Guide: Show me on the cryo bank now keeps pulsing instead of flashing once',
+      'Editor: saving no longer reloads the editor tab (you keep your place and unsaved edits elsewhere)',
+    ],
+    guide: [],
+  },
+  {
     version: '0.103.0',
     date: '2026-11-27',
     title: 'Your way to play',

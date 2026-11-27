@@ -3524,3 +3524,36 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
   are colonies from those versions (the balance bot's first 8 minutes, captured by wrapping `Sim.prototype.step` in a
   worktree of that commit); today's `Sim.load` takes each, plays 2 minutes, and loads its own save of it again.
 - Test: `tools/access-smoke.mjs`.
+
+### The browser smokes, brought up to date (v0.103.1)
+
+Every smoke in `npm run test:browser` passes again on SwiftShader. What they had drifted on, and how they cope now:
+
+- **Real bugs found**:
+  - The autopilot didn't press a choice's reply (`data-reply`), so it stalled on it, holding every later card and
+    the trip home (`src/autopilot.ts`).
+  - The resource bar's `className` rewrites wiped the `hinted` pulse that Show me adds (the cryo bank); `StoryHud`
+    now re-applies it each render.
+  - The editor reached `src/content/index.ts` through `region.ts` → `army/types.ts`, so every content save reloaded
+    the editor tab. The army's float layout and FX codes are now in `src/world/army/layout.ts`, which has no content
+    import.
+- **The opening's Mission Briefing** pauses the game behind a card two seconds in. `answerBriefing(page)`
+  (`tools/lib/harness.mjs`) answers just that card, through the sim rather than a synthetic tap, which would unlock
+  sound.
+- **`__exo.modelsReady`**: every building model has loaded (some now load after the first frame) and the shader
+  warm-up copies are gone (`RegionView.isWarming`).
+- **Slow software frames**:
+  - An open card's full-screen vignette slows SwiftShader to about a frame a second, so waits are condition-based
+    rather than fixed: turret heads easing, the flare fading, the music director, the camp bed, the camera director,
+    the level-of-detail switch.
+  - Some waits poll from Node, and some clicks are forced or dispatched where a reflowing row is never "stable".
+- **Stale expectations**:
+  - army stride 9 (team, aim);
+  - `homePull` is optional;
+  - the menu's Save & load and Message log;
+  - the title's autopilot and perf rows;
+  - a wall line's angle to a pixel;
+  - a hurt turret is still drawn but the pack can take one down;
+  - fog's explore target is clear of the wreck;
+  - smoke.mjs gets a radar for the threat check;
+  - the radio check answers the conversation first.
