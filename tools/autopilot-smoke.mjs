@@ -276,7 +276,7 @@ if (!process.argv.includes('--headless-only')) {
     a = await ap();
     check(a.region === 'splinter-hollow' && a.on && a.badge, `travelled to Splinter Hollow with the autopilot still on (${a.region}, ${a.on})`);
     // it plays the region (cards, the mission), then comes home by itself
-    await page.waitForFunction(() => location.search.includes('region=touchdown') && window.__exo?.ready && window.__exo.sim.cur?.deployed && window.__exo.sim.cur.campaign?.here === 'touchdown', null, { timeout: 300000, polling: 1000 }).catch(() => {});
+    await page.waitForFunction(() => location.search.includes('region=touchdown') && window.__exo?.ready && window.__exo.sim.cur?.deployed && window.__exo.sim.cur.campaign?.here === 'touchdown', null, { timeout: 900000, polling: 1000 }).catch(() => {}); // (a whole mission, played at ×3 on slow software frames)
     await ready();
     a = await ap();
     check(a.region === 'touchdown' && a.on && a.badge, `home again on its own, still on (${a.region}, ${a.on})`);
