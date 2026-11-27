@@ -33,6 +33,7 @@ await page.evaluate(async () => {
   add('radar', 22, -22); add('battery', -22, -24); add('solar', 30, 10);
   s.stored = 1e6;
   s.alloys = 1e5;
+  s.waves.next = 1e9; // no predator packs: on a slow machine one arrives and wrecks the buildings the checks use
   __exo.sim.load(s);
   __exo.cam.fx = 0; __exo.cam.fz = -15; __exo.cam.targetDist = 70; __exo.cam.targetPitch = 0.85;
 });
