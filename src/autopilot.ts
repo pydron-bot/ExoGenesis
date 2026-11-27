@@ -164,7 +164,8 @@ export class AutopilotView {
           story.forEach((x, i) => { labels[idx[i]] = x.textContent ?? ''; });
           const k = pickChoice(this.prefs.policy, idx, labels, Math.random);
           b = story[idx.indexOf(k)] ?? story[0];
-        } else b = btn('[data-c$=":approach"]') ?? btn('[data-ok]');
+        // (a choice's reply comes back on the card with Continue: data-reply)
+        } else b = btn('[data-c$=":approach"]') ?? btn('[data-ok]') ?? btn('[data-reply]');
       }
       if (!b) return;
       this.card.picked = true;

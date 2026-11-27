@@ -275,10 +275,7 @@ if (!process.argv.includes('--headless-only')) {
     await ready();
     a = await ap();
     check(a.region === 'splinter-hollow' && a.on && a.badge, `travelled to Splinter Hollow with the autopilot still on (${a.region}, ${a.on})`);
-    // it plays the region (cards, the mission), then comes home by itself. The Hollow leads on to more here (Deep
-    // Layer): what's tested is going home once nothing is left, so the region's missions are finished for it
-    await page.waitForTimeout(5000);
-    await page.evaluate(() => { for (const m of [...__exo.sim.cur.missions.active]) __exo.sim.command({ type: 'inspect', finish: m.id }); });
+    // it plays the region (cards, their replies, the mission), then comes home by itself
     await page.waitForFunction(() => location.search.includes('region=touchdown') && window.__exo?.ready && window.__exo.sim.cur?.deployed && window.__exo.sim.cur.campaign?.here === 'touchdown', null, { timeout: 900000, polling: 1000 }).catch(() => {}); // (a whole mission, played at ×3 on slow software frames)
     await ready();
     a = await ap();
