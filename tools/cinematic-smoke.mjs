@@ -171,10 +171,10 @@ await g.close(); // (a game left running takes the CPU the editor's preview need
   const pi = dot.i;
   check((await ed.textContent('.tl-info')).includes(`selected: key ${pi + 1}`), `tools: clicking key ${pi + 1}'s dot on the map selects it`);
   await ed.mouse.move(cx, cy); await ed.mouse.down(); await ed.mouse.move(cx + 50, cy, { steps: 3 }); await ed.mouse.up();
-  await ed.click('.pv-tools button:has-text("Update selected key")');
+  await ed.click('.pv-tools button:has-text("Update selected key")', { force: true }); // (the tool row reflows while the preview moves: never "stable" under slow frames)
   const d2 = await draft();
   check(d2.camera[pi].target === 'probe' && d2.camera[pi].yaw !== d1.camera[pi].yaw && d2.camera.length === d1.camera.length, `tools: Update selected key keeps a probe key on the probe (yaw ${d1.camera[pi].yaw} → ${d2.camera[pi].yaw})`);
-  if (await ed.evaluate(() => window.__editor.preview.isFree)) await ed.click('.pv-tools button:has-text("Back to the cinematic")');
+  if (await ed.evaluate(() => window.__editor.preview.isFree)) await ed.click('.pv-tools button:has-text("Back to the cinematic")', { force: true });
   // duplicate at the playhead, nudge, delete, undo
   await ed.evaluate((t) => { window.__editor.preview.onPick(t); }, n);
   await ed.mouse.click(tx(9), box.y + 8);
