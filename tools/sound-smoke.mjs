@@ -112,7 +112,8 @@ try {
 
   // a camp's voices: none is met this early, so hand the bed one at the camera focus
   await page.evaluate(() => { __exo.audio.campTest = setInterval(() => __exo.audio.beds({ water: 0, sites: [], camps: [{ x: 0, z: 0 }], dt: 0.05, spatial: () => ({ gain: 1, pan: 0 }) }), 50); });
-  await wait(1500);
+  // (it fades in tick by tick: on a slow page the interval runs less often, so wait for it rather than a fixed time)
+  await page.waitForFunction(() => __exo.audio.stats().beds.camp > 0.05, null, { timeout: 15000, polling: 250 }).catch(() => {});
   const campLvl = (await stats()).beds.camp;
   await page.evaluate(() => clearInterval(__exo.audio.campTest));
   check(campLvl > 0.05, `a camp's voices play near it (${campLvl.toFixed(3)})`);
