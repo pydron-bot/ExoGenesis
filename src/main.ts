@@ -804,15 +804,17 @@ for (const [kind, d] of Object.entries(content.buildings)) {
   if (EARLY_KINDS.has(kind) || previewModels || rts) regionModels.push(load()); else laterModels.push(load);
 }
 /** After the first frame: the deferred building models, two at a time in idle moments, then their shaders. */
+/** Every building model is in (or failed): the test hook `__exo.modelsReady`. */
+let modelsSettled = false;
 function loadLaterModels() {
-  if (!laterModels.length) return;
+  if (!laterModels.length) { void Promise.allSettled(regionModels).then(() => { modelsSettled = true; }); return; }
   const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(() => f(), { timeout: 2000 }) : setTimeout(f, 200));
   const next = (): Promise<void> => {
     const batch = laterModels.splice(0, 2);
     if (!batch.length) return Promise.resolve();
     return Promise.allSettled(batch.map((f) => f())).then(() => new Promise<void>((r) => idle(() => r()))).then(next);
   };
-  idle(() => void next().then(() => region.warmBuildings(Object.keys(content.buildings))));
+  idle(() => void next().then(() => Promise.allSettled(regionModels)).then(() => { modelsSettled = true; region.warmBuildings(Object.keys(content.buildings)); }));
 }
 // wrecks and relic caches (region map objects) use the exo-wreck / exo-cache assets when there are ones
 if (!builtinModels && content.assets['exo-cache']) regionModels.push(loadModel(content.assets['exo-cache']).then((m) => region.setCacheModel(m), (e) => console.warn('cache model failed to load', e)));
@@ -2413,6 +2415,8 @@ requestAnimationFrame(frame);
 // ---------- debug / screenshot hooks ----------
 const exo = {
   ready: false,
+  /** Every building model has loaded (some load after the first frame: main.ts loadLaterModels). */
+  get modelsReady() { return modelsSettled && !region.isWarming; },
   /** The body and region size being played (test hook). */
   world: () => ({ body: bodyId, radius: R, half: HALF }),
   renderer,

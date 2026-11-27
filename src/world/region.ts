@@ -18,7 +18,7 @@ import { hash01 } from '../content/nature';
 import { addFog } from './fog';
 import { Printed } from './print';
 import { Ruins } from './ruins';
-import { FX, FX_STRIDE } from './army/types';
+import { FX, FX_STRIDE } from './army/layout';
 import { buildWater, seabedColor, setWaterDetail } from './water';
 
 import { buildCache, buildWreck } from './roster-models';
@@ -506,6 +506,9 @@ export class RegionView {
     this.forceDetails = Math.max(this.forceDetails, frames + 1);
     this.warming = { g, objs, prints, batched, unculled, left: frames };
   }
+
+  /** Shader warm-up copies are on screen (test hooks wait for them to go). */
+  get isWarming() { return !!this.warming; }
 
   private endWarm() {
     const w = this.warming;

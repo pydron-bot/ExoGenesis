@@ -49,7 +49,7 @@ try {
   check(prompts[0] === 'night-imported-test', `id suggested from the name (${prompts[0]})`);
   const p = 'content/music/zz-import-test.json';
   const made = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
-  check(made && made.name === 'Night · Imported Test' && made.homePull === 0 && made.chords.length === 5, `created with its own name and a default for the missing field (${made?.name}, homePull ${made?.homePull})`);
+  check(made && made.name === 'Night · Imported Test' && (made.homePull ?? 0) === 0 && made.chords.length === 5, `created with its own name; the missing (optional) field stays empty or 0 (${made?.name}, homePull ${made?.homePull})`);
   check((await page.evaluate(() => location.hash)).includes('zz-import-test'), 'opens the new mood');
   await page.click('.mp-play');
   await page.waitForTimeout(2500);

@@ -10,7 +10,7 @@
  *   node tools/batch-c-smoke.mjs [--url http://localhost:5176/] [--shots dir]
  */
 import { mkdirSync } from 'node:fs';
-import { launch } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 
 const arg = (k) => (process.argv.includes(k) ? process.argv[process.argv.indexOf(k) + 1] : undefined);
 const url = arg('--url') ?? (process.env.SMOKE_URL ?? 'http://localhost:5176/');
@@ -27,6 +27,8 @@ const cmd = (c) => page.evaluate((c) => __exo.sim.command(c), c);
 const wait = (ms) => page.waitForTimeout(ms);
 const events = [];
 await page.exposeFunction('__note', (t) => events.push(t));
+
+await answerBriefing(page);
 
 await page.goto(`${url}?intro=0&new=1&fog=0&sw=0`);
 await page.waitForFunction(() => window.__exo?.ready && __exo.sim.cur?.deployed, null, { timeout: 300000 });

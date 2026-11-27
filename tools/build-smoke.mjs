@@ -6,6 +6,7 @@
  *   node tools/build-smoke.mjs [--url http://localhost:5176/] [--gpu]
  */
 import { chromium } from 'playwright';
+import { answerBriefing } from './lib/harness.mjs';
 
 const gpu = process.argv.includes('--gpu');
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
@@ -19,6 +20,7 @@ async function open(opts) {
   const page = await browser.newPage(opts);
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await answerBriefing(page);
   await page.goto(`${url}?intro=0&new=1`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   await page.waitForTimeout(1200);
@@ -85,7 +87,8 @@ const helpers = (page) => ({
   let walls = (await cur()).buildings.filter((x) => x.kind === 'wall');
   check(walls.length - n0 >= 6, `clicking the end builds the line (${walls.length - n0} segments)`);
   const wantYaw = Math.atan2(b.x - a.x, b.z - a.z);
-  check(walls.every((w) => angle(w.yaw, wantYaw) < 1e-3), 'segments run along the line');
+  // (the ends come from clicked pixels, so the line's angle is good to a pixel's worth, not exactly)
+  check(walls.every((w) => angle(w.yaw, wantYaw) < 0.02), 'segments run along the line');
   check(!!(await page.evaluate(() => __exo.ui.line)), 'next line chains on from the end');
   await page.click('#pl-done');
   check(await page.evaluate(() => __exo.ui.build === null && !document.body.classList.contains('placing')), 'Done stops placing');
@@ -118,7 +121,12 @@ const helpers = (page) => ({
   const tur = (await cur()).buildings.find((b) => b.kind === 'turret');
   await page.evaluate(() => __exo.sim.setSpeed(1));
   await cmd({ type: 'debug', spawn: { unit: 'brute', x: tur.x + 22, z: tur.z } });
-  await wait(3000);
+  await wait(1500);
+  // the head eases toward its aim, a little each frame: wait (up to 20 s of slow software frames) for it to get there
+  await page.waitForFunction((id) => {
+    const b = __exo.sim.cur.buildings.find((x) => x.id === id), got = __exo.region.facing(id, 'head');
+    return b?.aim !== undefined && got !== null && Math.abs(Math.atan2(Math.sin(got - b.aim), Math.cos(got - b.aim))) < 0.5;
+  }, tur.id, { timeout: 20000, polling: 200 }).catch(() => {});
   const aim = await page.evaluate((id) => {
     const b = __exo.sim.cur.buildings.find((x) => x.id === id);
     return { want: b.aim, got: __exo.region.facing(id, 'head') };
@@ -172,8 +180,9 @@ const helpers = (page) => ({
       const c = __exo.sim.cur;
       const walls = c.buildings.filter((b) => b.kind === 'wall').length;
       if (walls < 15) return { leaked, broke: true };
+      const stride = c.army.length / Math.max(1, c.armySlots); // (floats per unit: src/world/army/types.ts STRIDE)
       for (let s = 0; s < c.armySlots; s++) {
-        const o = s * 7;
+        const o = s * stride;
         if (c.army[o + 6] && c.army[o + 3] >= 2 && c.army[o + 1] > -24) leaked++;
       }
     }

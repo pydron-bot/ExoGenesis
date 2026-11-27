@@ -43,3 +43,20 @@ export function checker() {
   const done = () => { console.log(failed ? `\n${failed} FAILED` : '\nall checks passed'); process.exit(failed ? 1 : 0); };
   return { check, done, get failed() { return failed; } };
 }
+
+/**
+ * The opening's Mission Briefing (content/story/director-briefing.json) comes up a couple of seconds after deploying and
+ * pauses the game behind a card. Smokes that aren't about it call this once after page load: it answers that one card
+ * whenever it shows (no other card is touched). Survives reloads of the same page.
+ */
+export async function answerBriefing(page) {
+  const install = () => {
+    if (window.__briefingAnswerer) return;
+    window.__briefingAnswerer = setInterval(() => {
+      const b = document.querySelector('#contact.on button[data-s^="director-briefing:"]');
+      if (b) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    }, 150);
+  };
+  await page.addInitScript(install);
+  await page.evaluate(install).catch(() => {});
+}

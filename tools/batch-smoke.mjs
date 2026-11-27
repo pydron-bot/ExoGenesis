@@ -4,7 +4,7 @@
  * buildings stay batched, and reports draw calls. node tools/batch-smoke.mjs [--out shots/batch]
  */
 import { mkdirSync, readFileSync } from 'node:fs';
-import { launch } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 
 const out = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : 'shots/batch';
 mkdirSync(out, { recursive: true });
@@ -20,8 +20,10 @@ page.on('pageerror', (e) => errors.push(e.message));
 let failed = 0;
 const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failed++; };
 
+await answerBriefing(page);
+
 await page.goto((process.env.SMOKE_URL ?? 'http://localhost:5176/') + '?intro=0&new=1&ui=0&fog=0&sw=0');
-await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
+await page.waitForFunction(() => window.__exo?.ready && window.__exo.modelsReady, null, { timeout: 300000 });
 await page.evaluate(async (ring) => {
   const s = await __exo.sim.save();
   s.tick = 300 * 10; // mid-afternoon
@@ -41,7 +43,14 @@ console.log('draw calls (whole frame):', calls);
 
 // a pack walks in: every defence that has a target should point its head at it
 await page.evaluate(() => __exo.sim.command({ type: 'debug', spawn: { unit: 'brute', x: 0, z: 50, n: 6 } }));
-await page.waitForTimeout(3000);
+await page.waitForTimeout(1500);
+// heads ease toward their aim a little each frame (slow frames in software rendering): wait for them to arrive
+await page.waitForFunction((ids) => ids.every((id) => {
+  const b = __exo.sim.cur.buildings.find((x) => x.id === id);
+  if (!b || b.aim === undefined || b.aim === null) return true;
+  const f = __exo.region.facing(id, 'head');
+  return f !== null && Math.abs(Math.atan2(Math.sin(f - b.aim), Math.cos(f - b.aim))) < 0.35;
+}), ids, { timeout: 20000, polling: 200 }).catch(() => {});
 const aims = await page.evaluate((ids) => ids.map((id) => {
   const b = __exo.sim.cur.buildings.find((x) => x.id === id);
   return b ? { aim: b.aim, face: __exo.region.facing(id, 'head') } : null;
@@ -52,15 +61,18 @@ check(aiming.length >= 3 && onTarget >= aiming.length - 1, `defence heads point 
 await page.screenshot({ path: `${out}/fight.png` });
 
 // the batch draws the head where the stand-in points: compare a head instance's forward with facing()
-const match = await page.evaluate((id) => {
+const match = await page.evaluate((ids) => {
   const r = __exo.region, b = r.batches.get('turret');
+  // a turret still in the batch (one the pack has hurt is drawn on its own)
+  const id = ids.find((x) => b.sub?.slot.has(x));
+  if (id === undefined) return false;
   const sub = b.sub, i = sub.slot.get(id);
   const m = sub.mats[i].clone();
   const e = r.buildings.get(id), head = e.obj.getObjectByName('head');
   head.updateMatrix();
   const want = e.obj.matrix.clone().multiply(head.matrix);
   return want.elements.every((v, k) => Math.abs(v - m.elements[k]) < 1e-3);
-}, ids[0]);
+}, ids);
 check(match, 'turret head instance follows its aim');
 
 // power off: still batched (dimmed pool)
@@ -68,11 +80,16 @@ await page.evaluate(async () => {
   const s = await __exo.sim.save();
   s.stored = 0;
   for (const b of s.buildings) if (b.kind === 'solar') b.on = false;
+  // the pack gone and the turrets mended (a hurt building is drawn on its own, out of the batch)
+  s.hostiles = []; s.packs = [];
+  for (const b of s.buildings) if (b.kind === 'turret') b.hp = 700;
   __exo.sim.load(s);
 });
 await page.waitForTimeout(1500);
 const stats2 = await page.evaluate(() => __exo.region.batchStats());
-check(stats2.turret?.count === 3, 'turrets stay batched through a power change');
+// (the pack can bring a turret down before it's cleared: every one still standing stays batched)
+const standing = await page.evaluate(() => __exo.sim.cur.buildings.filter((b) => b.kind === 'turret').length);
+check(standing >= 1 && stats2.turret?.count === standing, `turrets stay batched through a power change (${stats2.turret?.count} of ${standing})`);
 check(!errors.length, `no page errors ${errors.slice(0, 2).join(' | ')}`);
 await browser.close();
 console.log(failed ? `${failed} FAILED` : 'all passed');
