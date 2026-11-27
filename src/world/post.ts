@@ -32,7 +32,11 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAPass } from 'three/addons/postprocessing/FXAAPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
-import { N8AOPass } from 'n8ao';
+import type { N8AOPass } from 'n8ao';
+/** n8ao (ambient occlusion, off by default): loaded the first time it's switched on, not with the game. */
+let N8AO: typeof N8AOPass | null = null;
+let n8aoLoading: Promise<void> | null = null;
+const loadN8ao = () => (n8aoLoading ??= import('n8ao').then((m) => { N8AO = m.N8AOPass; }));
 
 export type AAMode = 'auto' | 'off' | 'fxaa' | 'smaa' | 'msaa';
 export const AA_MODES: AAMode[] = ['auto', 'off', 'fxaa', 'smaa', 'msaa'];
@@ -260,6 +264,8 @@ export class Post {
     this.aoOn = v;
     this.dispose();
     if (this.needsComposer()) this.build();
+    // first time on: build again once n8ao has loaded (until then the plain render pass stands in)
+    if (v && !N8AO) void loadN8ao().then(() => { if (this.aoOn && !this.aoPass) { this.dispose(); if (this.needsComposer()) this.build(); } }).catch(() => {});
   }
 
   /** The AA pass the composer gets: what was asked for, except that AO turns auto and MSAA into SMAA. */
@@ -315,8 +321,8 @@ export class Post {
     const pr = r.getPixelRatio();
     const target = new THREE.WebGLRenderTarget(size.x * pr, size.y * pr, { type: THREE.HalfFloatType, samples: this.samples() });
     const c = new EffectComposer(r, target);
-    if (this.aoOn) {
-      const ao = new N8AOPass(this.scene, this.camera, size.x * pr, size.y * pr);
+    if (this.aoOn && N8AO) {
+      const ao = new N8AO(this.scene, this.camera, size.x * pr, size.y * pr);
       ao.setQualityMode(PHONE ? 'Performance' : 'Low');
       const cf = ao.configuration;
       cf.halfRes = true;

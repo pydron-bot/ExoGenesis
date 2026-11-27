@@ -45,6 +45,35 @@ function contentManifest(): Plugin {
  * The cache is named after a hash of those files, so each release gets its own
  * and the old one is dropped. Logic: src/sw-template.js.
  */
+/**
+ * Region terrain grids (height, ground, flora: run-length strings, ~2 MB for every region together) leave the bundle in
+ * production: each region's go to `assets/grids-<id>-<hash>.json` and the bundled record keeps only their address
+ * (`grids`), fetched for the region being played (src/content/index.ts `loadRegionGrids`). Dev and the tools keep
+ * them inline. The editor works from its own copy of the files, so it doesn't need them.
+ */
+function regionGrids(): Plugin {
+  let base = '/';
+  return {
+    name: 'exo-region-grids',
+    apply: 'build',
+    enforce: 'pre',
+    configResolved(c) { base = c.base; },
+    transform(code, id) {
+      const m = /[\\/]content[\\/]regions[\\/]([a-z0-9_-]+)\.json$/.exec(id.split('?')[0]);
+      if (!m) return null;
+      const rec = JSON.parse(code) as Record<string, unknown>;
+      const grids: Record<string, unknown> = {};
+      for (const k of ['height', 'ground', 'flora']) if (rec[k] !== undefined) { grids[k] = rec[k]; delete rec[k]; }
+      if (!Object.keys(grids).length) return null;
+      const text = JSON.stringify(grids);
+      const fileName = `assets/grids-${m[1]}-${createHash('sha1').update(text).digest('hex').slice(0, 10)}.json`;
+      this.emitFile({ type: 'asset', fileName, source: text });
+      rec.grids = base + fileName;
+      return { code: JSON.stringify(rec), map: null };
+    },
+  };
+}
+
 /** Files only the editor uses: not precached for players (the editor is online-only). */
 const EDITOR_ONLY = /^editor\.html$|^assets\/(editor|balance-worker|playthrough-worker)-|^content-manifest\.json$|(^|\/)\.gitkeep$/;
 
@@ -87,7 +116,9 @@ export default defineConfig({
   base: process.env.EXO_BASE ?? '/',
   // the version without bundling package.json (src/changelog.ts)
   define: { __VERSION__: JSON.stringify(JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version) },
-  plugins: [contentServer(), contentManifest(), serviceWorker()],
+  plugins: [contentServer(), regionGrids(), contentManifest(), serviceWorker()],
+  // workers are bundled on their own: the sim worker's copy of the content leaves the grids out too
+  worker: { plugins: () => [regionGrids()] },
   server: { host: true, port: 5176, strictPort: true, allowedHosts: ['hive1', '.ts.net'] },
   preview: { host: true, port: 4176 },
   build: {

@@ -18,7 +18,7 @@ export class SimClient {
   private reqId = 0;
   private pending = new Map<number, (s: SimState) => void>();
 
-  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue, at?: { x: number; z: number }, style?: LogStyle) => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup, shared?: SharedState) {
+  constructor(private onEvent: (text: string, level: 'info' | 'warn' | 'bad', cue?: EventCue, at?: { x: number; z: number }, style?: LogStyle) => void, enabled = true, region = 'touchdown', draft?: RegionDef, story?: { id: string; def: StoryDef }, mission?: { id: string; def: MissionDef }, cinematic?: { id: string; def: CinematicDef }, skirmish?: SkirmishSetup, shared?: SharedState, grids?: import('../content').RegionGrids) {
     // disabled (skirmish mode): a stub that never produces snapshots
     this.worker = enabled
       ? new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
@@ -31,7 +31,7 @@ export class SimClient {
     // the worker script itself failed (to load, or an error outside its handlers)
     this.worker.onerror = (e) => { e.preventDefault?.(); this.onCrash?.({ message: e.message || 'the simulation worker failed to start' }); };
     // the region comes first: the sim starts its first game from it
-    this.worker.postMessage({ type: 'init', region, def: draft, story, mission, cinematic, skirmish, shared });
+    this.worker.postMessage({ type: 'init', region, grids, def: draft, story, mission, cinematic, skirmish, shared });
   }
 
   /** The sim stopped with an error (src/crash.ts). */

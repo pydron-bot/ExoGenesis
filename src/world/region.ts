@@ -358,6 +358,8 @@ export class RegionView {
   private reachRing = new GroundRing(AMBER, 0.6);
   private areaRings: GroundRing[] = [];
   private ghosts = new Map<string, THREE.Group>();
+  private droneSeen = new Set<number>();
+  private dronePrev = new Map<number, Snapshot['drones'][number]>();
   private printOn = true;
   /** Printed construction (src/world/print.ts) or the plain scaffold box (Options; `?print=0`). */
   get printing() { return this.printOn; }
@@ -711,10 +713,15 @@ export class RegionView {
     this.updateLod(dist);
 
     // drones (interpolated)
-    const seen = new Set<number>();
+    const seen = this.droneSeen;
+    seen.clear();
+    // last snapshot's drones by id (a find per drone was n² in a big colony)
+    const was = this.dronePrev;
+    was.clear();
+    for (const d of prev.drones) was.set(d.id, d);
     for (const b of cur.drones) {
       seen.add(b.id);
-      const a = prev.drones.find((d) => d.id === b.id) ?? b;
+      const a = was.get(b.id) ?? b;
       let e = this.drones.get(b.id);
       if (!e) {
         if (this.firstDrone < 0) this.firstDrone = b.id;
@@ -791,7 +798,8 @@ export class RegionView {
       g.visible = true;
       orient(g, ui.ghost.x, ui.ghost.z, ui.yaw ?? 0, 0);
       const mat = ui.ghost.ok ? this.ghostOk : this.ghostBad;
-      g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = mat; });
+      // repaint only when it turns red or green (or another kind's ghost shows)
+      if (g.userData.mat !== mat) { g.userData.mat = mat; g.traverse((o) => { if (o instanceof THREE.Mesh) o.material = mat; }); }
       const d = this.rules.defs[ui.build];
       if (d?.fireRange) this.rangeRing.set(ui.ghost.x, ui.ghost.z, d.fireRange);
       if ((d?.role === 'depot' || d?.role === 'relay') && d.range) this.reachRing.set(ui.ghost.x, ui.ghost.z, d.range);

@@ -105,6 +105,10 @@ ctx.onmessage = (e: MessageEvent<ToWorker>) => {
 
 function handle(msg: ToWorker) {
   if (msg.type === 'init') {
+    // production: the region's terrain grids come from the page (they aren't bundled: src/content/index.ts)
+    if (msg.grids && content.regions[msg.region]) Object.assign(content.regions[msg.region], msg.grids);
+    const rec = content.regions[msg.region] as { grids?: string; height?: unknown } | undefined;
+    if (!msg.def && rec?.grids && !rec.height) console.error(`sim: no terrain for ${msg.region} (its grids weren't sent): playing it flat`);
     region = useRegion(msg.region, msg.def);
     // the editor's play test: an unsaved story event joins the content
     if (msg.story) content.story[msg.story.id] = msg.story.def;

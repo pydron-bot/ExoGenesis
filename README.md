@@ -99,6 +99,40 @@ node tools/make-icons.mjs    # re-render the app icons from public/icons/icon.sv
 node tools/compress-models.mjs  # meshopt-compress new models in public/media/model (skips compressed ones)
 ```
 
+## URL flags
+
+Add to the game's address (`?a=1&b=2`). Test and debug only unless noted; CLAUDE.md has the everyday ones.
+
+| Flag | Does |
+|---|---|
+| `title=0` | Skip the title: resume the autosave, or land |
+| `intro=0` | Start deployed (no landing cinematic) |
+| `new=1` | A fresh campaign (wipes the autosaves) |
+| `scratch=1` | Play without reading or writing autosaves |
+| `region=<id>` | Play this region |
+| `land=1`, `travel=1` | (Set by the game) land a new colony here / arrive by campaign travel |
+| `view=surface\|planet\|system` | Start deployed at that zoom |
+| `story=<id>`, `mission=<id>`, `cinematic=<id>` (`cine=<s>`: from that second) | Fire a story event / start a mission / play a cinematic once deployed |
+| `skirmish=<seed>` (+ `players`, `ai`, `size`, …: src/skirmish/setup.ts) | A skirmish on a generated map; `area=<id>&battle=1`: a Domination battle |
+| `daily=<date>` (`practice=1`: not scored) | The Daily Planet |
+| `load=<file id>` | Open a save file (skirmish, Domination) |
+| `preview=1` | The editor's play test (what it left in localStorage) |
+| `biome=<id>` | Try another biome's plants and wildlife here |
+| `look=flat\|smooth` | Terrain look |
+| `models=new\|builtin` | Force the Blender models / the procedural built-ins |
+| `flora=off`, `fog=0`, `ui=0`, `surface=0`, `areas=1` | No plants / no fog of war / no HUD / no globe surface bake / Domination areas on the globe |
+| `aa=auto\|off\|fxaa\|smaa\|msaa`, `dpr=<n>`, `glowaa=<samples>` | Anti-aliasing, pixel ratio, the glow target's MSAA |
+| `bloom`, `ao`, `reflect`, `shadows`, `sunshadows`, `cloudshadows`, `mist`, `grade`, `flare`, `dust`, `zoomblur`, `weatheron`, `marks`, `print`, `water` `=0\|1` | Graphics options, locked for this visit (Options says "Set in URL") |
+| `lights=0\|1`, `lreal=<n>` | Colony lights off/on; how many real lights (desktop 2, phones 0) |
+| `weather=<kind>`, `batch=0` | Force weather; draw buildings one by one (no batching) |
+| `sound=0` | No sound at all |
+| `sw=0` | Don't register the service worker |
+| `stats` | Performance stats on |
+| `perf=record`, `perfframes=w,m,l,s` | Record a performance report from the start; its frame counts |
+| `debug=1`, `inspect=1` | Debug hooks; the story inspector |
+| `tour=1` | Start the title tour |
+| `continue=1` (domination.html) | Continue the saved war |
+
 ## Installable app (PWA)
 
 On a phone, **Add to Home Screen** (iOS Safari: Share → Add to Home Screen; Android Chrome: ⋮ →

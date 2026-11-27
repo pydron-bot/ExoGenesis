@@ -17,6 +17,26 @@ const built = buildDb(files, { check: !import.meta.env.PROD });
 export const content = built.db;
 export const contentIssues: FileIssue[] = [...built.issues, ...requiredIssues(built.db)];
 
+/** A region's terrain grids (the run-length strings `regionTerrain` reads). */
+export type RegionGrids = Pick<import('./defs').RegionDef, 'height' | 'ground' | 'flora'>;
+
+/**
+ * Production builds keep each region's terrain grids out of the bundle (vite.config.ts `regionGrids`): the record has
+ * their address (`grids`) instead. Fetch them for the region about to be played (once; a no-op in dev, where they're
+ * inline). The sim worker gets them in its init message (`regionGridsOf`).
+ */
+export async function loadRegionGrids(id: string): Promise<void> {
+  const r = content.regions[id] as (import('./defs').RegionDef & { grids?: string }) | undefined;
+  if (!r?.grids || r.height) return;
+  const g = await fetch(r.grids).then((res) => { if (!res.ok) throw new Error(`terrain for ${id}: ${res.status}`); return res.json() as Promise<RegionGrids>; });
+  Object.assign(r, g);
+}
+/** The grids `loadRegionGrids` put in (for the sim worker's init). Undefined when they're bundled anyway. */
+export function regionGridsOf(id: string): RegionGrids | undefined {
+  const r = content.regions[id] as (import('./defs').RegionDef & { grids?: string }) | undefined;
+  return r?.grids && r.height ? { height: r.height, ground: r.ground, flora: r.flora } : undefined;
+}
+
 export type { UnitDef, BuildingDef, ColonyRules, RegionDef, HerdDef, AssetDef } from './defs';
 
 /**

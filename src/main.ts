@@ -8,7 +8,7 @@ import { applyShared, HOME_REGION, type SharedState } from './sim/campaign';
 import { SimClient } from './sim/client';
 import { TICK_HZ, type Building, type PlaySetup, type SimState, type Snapshot } from './sim/types';
 import { biomeOf } from './content/nature';
-import { content, contentIssues, onContentHot, type RegionDef } from './content';
+import { content, contentIssues, loadRegionGrids, onContentHot, regionGridsOf, type RegionDef } from './content';
 import { ENDINGS, PREVIEW_KEY, expeditionOf, type CameraKeyDef, type CinematicDef, type InterfaceDef, type MissionDef, type StoryDef } from './content/defs';
 import { applyInterface } from './ui-theme';
 import { lerp, smoothstep } from './world/noise';
@@ -228,6 +228,8 @@ const expedition = !rts && !preview ? expeditionOf(content.regions[regionId]) : 
 /** ?biome=<id> tries another biome's plants and wildlife on this region (the sim plays the region with it). */
 const biomeParam = params.get('biome');
 const biomeTest = !!biomeParam && !!content.biomes[biomeParam];
+// production: this region's terrain grids aren't in the bundle (src/content/index.ts): fetch them first
+if (!rts && !preview) await loadRegionGrids(regionId);
 const regionDef: RegionDef = rts ? rts.map.region : biomeTest ? { ...(preview?.def ?? content.regions[regionId]), biome: biomeParam! } : preview?.def ?? content.regions[regionId];
 /** Terrain look: ?look=flat|smooth, else what the player chose last (Options → Terrain look), else flat. */
 const LOOK_KEY = 'exo.look';
@@ -253,7 +255,7 @@ voices.attach(audio);
 const sim = new SimClient((t, l, cue, at, style) => {
   if (cue) audio.event(cue);
   if (logFn) logFn(t, l, at, style); else early.push([t, l, at, style]);
-}, true, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup, freshShared);
+}, true, regionId, biomeTest || rts ? regionDef : preview?.def, preview?.story, preview?.mission, preview?.cinematic?.def.scene === 'landing' ? undefined : preview?.cinematic, rts?.setup, freshShared, rts || preview ? undefined : regionGridsOf(regionId));
 // something broke in the sim: say so and offer a way back (src/crash.ts)
 sim.onCrash = (c) => showSimCrash({ where: 'sim', ...c }, { canResume: !scratch && !rts });
 // autosaves failing (storage full, private mode): the second failure in a row, then every 5 minutes
@@ -766,13 +768,31 @@ const previewModels = params.get('models') === 'new';
 const builtinModels = params.get('models') === 'builtin';
 const modelFor = (kind: string, assigned?: string) =>
   (builtinModels ? undefined : previewModels && content.assets[`exo-${kind}`] ? `exo-${kind}` : assigned);
+/**
+ * Building models: the ones a colony starts with (and any in the save) load now; the rest after the first frame,
+ * a couple at a time while the game is idle (built-ins stand in until each arrives, as they do far away).
+ */
+const EARLY_KINDS = new Set(['solar', 'depot', 'battery', 'turret', 'radar', 'wall', 'gate', 'bay', ...(autosaved?.sim.buildings.map((b) => b.kind) ?? [])]);
+const laterModels: (() => Promise<unknown>)[] = [];
 for (const [kind, d] of Object.entries(content.buildings)) {
   const id = modelFor(kind, d.model);
   if (!id || !content.assets[id] || d.role === 'core') continue;
-  regionModels.push(loadModel(content.assets[id]).then(
+  const load = () => loadModel(content.assets[id]).then(
     (m) => region.setBuildingModel(kind, m),
     (e) => console.warn(`${kind} model failed to load; keeping the built-in`, e),
-  ));
+  );
+  if (EARLY_KINDS.has(kind) || previewModels || rts) regionModels.push(load()); else laterModels.push(load);
+}
+/** After the first frame: the deferred building models, two at a time in idle moments, then their shaders. */
+function loadLaterModels() {
+  if (!laterModels.length) return;
+  const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(() => f(), { timeout: 2000 }) : setTimeout(f, 200));
+  const next = (): Promise<void> => {
+    const batch = laterModels.splice(0, 2);
+    if (!batch.length) return Promise.resolve();
+    return Promise.allSettled(batch.map((f) => f())).then(() => new Promise<void>((r) => idle(() => r()))).then(next);
+  };
+  idle(() => void next().then(() => region.warmBuildings(Object.keys(content.buildings))));
 }
 // wrecks and relic caches (region map objects) use the exo-wreck / exo-cache assets when there are ones
 if (!builtinModels && content.assets['exo-cache']) regionModels.push(loadModel(content.assets['exo-cache']).then((m) => region.setCacheModel(m), (e) => console.warn('cache model failed to load', e)));
@@ -1469,6 +1489,10 @@ addEventListener('resize', () => {
 
 // ---------- HUD refresh ----------
 const el = { layer: $('layer'), alt: $('alt'), fps: $('fps') };
+/** Write text only when it changed (a DOM write a frame forces style work even for the same text). */
+const setText = (e: HTMLElement, t: string) => { if (e.textContent !== t) e.textContent = t; };
+let viewBtns: HTMLButtonElement[] | null = null;
+let viewOn = '';
 function fmtAlt(u: number) {
   const km = u * 0.01; // 1 unit ≈ 10 m
   if (km < 10) return `${km.toFixed(2)} km`;
@@ -1487,18 +1511,21 @@ function updateHud(dt: number, now: number) {
   }
   if (s && dailyTracker && !dailyDone) { if (s.over) finishDaily(s); else dailyTracker.sample(s); }
   if (s?.over && battle && !battleShown) finishBattle();
-  el.layer.textContent = cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE';
-  el.alt.textContent = cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
+  setText(el.layer, cam.b > 0.5 ? 'SYSTEM' : cam.a > 0.5 ? 'ORBIT' : 'SURFACE');
+  setText(el.alt, cam.a > 0.5 && cam.b < 0.5 && innerWidth >= 640
     ? `${areaGlobe ? `${areaGlobe.count} AREAS` : `${provinces.landCount} REGIONS`} · ALT ${fmtAlt(cam.altitude())}`
-    : `ALT ${fmtAlt(cam.altitude())}`;
+    : `ALT ${fmtAlt(cam.altitude())}`);
   fpsAcc += dt; fpsN++;
   if (fpsAcc > 0.5) { fpsShown = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   const scaled = res.scale < dprMax ? ` · ${res.scale}x` : '';
-  el.fps.textContent = innerWidth < 640 ? `${fpsShown.toFixed(0)} fps${scaled}` : `${fpsShown.toFixed(0)} fps${scaled} · ${renderer.info.render.calls} draws`;
-  document.querySelectorAll<HTMLButtonElement>('[data-view]').forEach((b) => {
-    const v = b.dataset.view;
-    b.classList.toggle('on', (v === 'system' && cam.b > 0.5) || (v === 'planet' && cam.a > 0.5 && cam.b <= 0.5) || (v === 'surface' && cam.a <= 0.5));
-  });
+  setText(el.fps, innerWidth < 640 ? `${fpsShown.toFixed(0)} fps${scaled}` : `${fpsShown.toFixed(0)} fps${scaled} · ${renderer.info.render.calls} draws`);
+  // the view buttons: only when the view changes (they're found once)
+  const view = cam.b > 0.5 ? 'system' : cam.a > 0.5 ? 'planet' : 'surface';
+  if (view !== viewOn || !viewBtns) {
+    viewOn = view;
+    viewBtns ??= [...document.querySelectorAll<HTMLButtonElement>('[data-view]')];
+    for (const b of viewBtns) b.classList.toggle('on', b.dataset.view === view);
+  }
 }
 
 // ---------- reveal + layout ----------
@@ -1510,6 +1537,7 @@ function reveal() {
   barTo(1, 200);
   document.body.classList.add('loaded');
   watchPageErrors();
+  loadLaterModels();
   void keepSaves();
   loaderEl.classList.add('done');
   setTimeout(() => loaderEl.remove(), 700);
@@ -1985,6 +2013,20 @@ function placeSounds(dt: number) {
 }
 
 // ---------- frame loop ----------
+/** The drones between the last two snapshots (matched by id, not a find per drone), into a reused array. */
+function dronePoses(prev: readonly { id: number; x: number; z: number; heading: number }[], cur: readonly { id: number; x: number; z: number; heading: number }[], alpha: number) {
+  prevDrones.clear();
+  for (const d of prev) prevDrones.set(d.id, d);
+  droneLights.length = cur.length;
+  for (let i = 0; i < cur.length; i++) {
+    const b = cur[i], a = prevDrones.get(b.id) ?? b;
+    let dh = b.heading - a.heading;
+    dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+    const o = (droneLights[i] ??= { x: 0, z: 0, heading: 0 });
+    o.x = lerp(a.x, b.x, alpha); o.z = lerp(a.z, b.z, alpha); o.heading = a.heading + dh * alpha;
+  }
+  return droneLights;
+}
 // the body's sky: Home's by default; airless bodies have a black one, day and night
 const skyDay = new THREE.Color(bodyDef?.sky ?? (airGlow ? '#8fb0ad' : '#05070b'));
 const skyNight = new THREE.Color(airGlow ? '#0b1622' : '#020306');
@@ -1992,6 +2034,12 @@ const skySunset = new THREE.Color('#c9825e');
 const tintTmp = new THREE.Color();
 const space = new THREE.Color('#020306');
 const bg = new THREE.Color();
+const sceneBg = new THREE.Color();
+const sunDirTmp = new THREE.Vector3();
+const sunToCam = new THREE.Vector3();
+/** The drones' interpolated poses for the lights, reused a frame (and last snapshot's drones by id). */
+const droneLights: { x: number; z: number; heading: number }[] = [];
+const prevDrones = new Map<number, { x: number; z: number; heading: number }>();
 const shadowDir = new THREE.Vector3();
 /** The sky the reflections are baked from, and the ground under it (sunlit dust). */
 const envLook: SkyLook = { zenith: new THREE.Color(), horizon: new THREE.Color(), ground: new THREE.Color(), sun: new THREE.Vector3(), sunColor: new THREE.Color(), up: new THREE.Vector3() };
@@ -2021,7 +2069,7 @@ function frame(now: number) {
   const sunSecs = cineHour !== undefined && simSecs !== undefined ? Math.floor(simSecs / sol) * sol + ((((cineHour - START_HOUR) % 24) + 24) % 24 / 24) * sol : simSecs;
   {
     // how bright the sky is round the camera (hides the Milky Way and most stars by day)
-    const up = system.sunPos.clone().normalize().dot(U);
+    const up = sunDirTmp.copy(system.sunPos).normalize().dot(U);
     const inAir = airGlow ? 1 - smoothstep(90, 420, Math.max(cam.dist, cam.altitude() * 0.8)) : 0;
     system.skyDay = smoothstep(-0.15, 0.25, up) * inAir;
     system.skyAir = inAir;
@@ -2040,7 +2088,7 @@ function frame(now: number) {
   if (areaGlobe) { if (title) areaGlobe.hide(); else areaGlobe.update(camera, cam.dist, innerWidth, viewH()); }
 
   // sky: day/night at the landing site, fading to space as we climb
-  const sunUp = system.sunPos.clone().normalize().dot(U);
+  const sunUp = sunDirTmp.copy(system.sunPos).normalize().dot(U);
   bg.copy(skyNight).lerp(skyDay, smoothstep(-0.15, 0.25, sunUp));
   // a warmer sky (and fog) round sunrise and sunset
   if (airGlow) bg.lerp(skySunset, system.golden * 0.4);
@@ -2051,7 +2099,9 @@ function frame(now: number) {
   const wl = weather.look;
   if (airGlow && wl.tintK > 0) bg.lerp(tintTmp.copy(wl.tint).multiplyScalar(0.35 + 0.65 * smoothstep(-0.15, 0.25, sunUp)), wl.tintK).multiplyScalar(1 - wl.dark * 0.4);
   system.overcast = weather.amount * air;
-  scene.background = bg.clone().lerp(space, 1 - air);
+  // one Color kept as the background (no new one a frame)
+  sceneBg.copy(bg).lerp(space, 1 - air);
+  scene.background = sceneBg;
   system.skyBg.copy(bg);
   updateWater(gameT, bg);
   fog.color.copy(bg);
@@ -2155,12 +2205,7 @@ function frame(now: number) {
       sun: shadowSun.copy(system.sunPos).normalize(),
       sizes: shadowSizes,
       scars: live ? c.planet?.scars : undefined,
-      drones: live ? c.drones.map((b) => {
-        const a = p.drones.find((d) => d.id === b.id) ?? b;
-        let dh = b.heading - a.heading;
-        dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-        return { x: lerp(a.x, b.x, alpha), z: lerp(a.z, b.z, alpha), heading: a.heading + dh * alpha };
-      }) : undefined,
+      drones: live ? dronePoses(p.drones, c.drones, alpha) : undefined,
     });
   }
   updateHud(dt, now);
@@ -2238,7 +2283,7 @@ function frame(now: number) {
   {
     // sun shafts: strongest in the air with the sun low; fade as the sun leaves the screen or goes behind the camera
     const sp = shaftSun.copy(system.sunPos).project(camera);
-    const ahead = sp.z < 1 && system.sunPos.clone().sub(camera.position).dot(camera.getWorldDirection(shaftDir)) > 0;
+    const ahead = sp.z < 1 && sunToCam.copy(system.sunPos).sub(camera.position).dot(camera.getWorldDirection(shaftDir)) > 0;
     const onScreen = ahead ? 1 - smoothstep(1.0, 1.6, Math.max(Math.abs(sp.x), Math.abs(sp.y))) : 0;
     // only while the sun is really in view: above the horizon down here, not behind a planet up there (at night the sun
     // under the ground still projected "ahead" of a downward camera, and every glowing building threw a shaft at it)

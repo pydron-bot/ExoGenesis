@@ -3470,3 +3470,31 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
 - Still to split: `editor/main.ts` (its sections share module state: needs a store module first), core.ts's fauna and
   players, and main.ts's options and frame loop.
 
+
+### Lighter start and a faster sim (v0.102.0)
+
+- **Region grids out of the bundle** (`vite.config.ts` `regionGrids`, build only; also registered for workers): each
+  region's `height`/`ground`/`flora` go to `assets/grids-<id>-<hash>.json` and the bundled record keeps `grids` (their
+  address). main.ts `loadRegionGrids(regionId)` fetches the region being played before `regionTerrain`; the sim worker
+  gets them in its init message (`regionGridsOf`) and says so on the console if a region arrives without them. Dev and
+  the tools keep them inline; the editor works from its own files. Sizes (production build): content chunk
+  2.49 MB → 606 kB, sim worker 2.99 → 1.11 MB, map worker 2.76 → 0.87 MB, editor balance/playthrough workers
+  3.07 → 1.18 MB. Terrain checked identical to dev (patch heights summed, touchdown and burrow-reach).
+- **Deferred building models** (main.ts `EARLY_KINDS`, `loadLaterModels`): the starting kinds and any in the save
+  load before the first frame; the rest after it, two at a time in idle callbacks, then `warmBuildings`. `?models=new`
+  and skirmishes load all at once as before.
+- **n8ao on demand** (`src/world/post.ts`): imported the first time Ambient occlusion is switched on (the plain render
+  pass stands in for that moment).
+- **Sim** (`stepUnits`; golden hashes unchanged): unit separation checks only pairs in nearby cells of a grid
+  (`SEP_CELL` 12, in the same i < j order); the target scan uses a per-tick list of each player's targetable foes
+  (`scanOf`: no fog/visibility test per pair) and, when the foes are only predators, a grid of them; the current
+  target is found through a per-tick id map (`foeById`); `setUnitBodies` compares the bodies with last tick's in
+  place instead of building a string key a tick. Profile at 280 units: `visible` 205 ms → off the list, stepUnits
+  self time 851 → 599 ms per 300 ticks (measured on a loaded machine: treat as indicative).
+- **Frame loop**: no per-frame `clone()`s of the sun direction or background colour; the drones' light poses are
+  matched by id into a reused array; HUD text and the view buttons are written only when they change
+  (`setText`); `colony-hud` writes the resource bar's HTML only when it changes (`setHtml`); the region view matches
+  drones by id and repaints the placement ghost only when it turns red/green.
+- Not done: reversed-Z depth instead of `logarithmicDepthBuffer`. The precision win needs 32-bit float depth, but
+  the canvas has 24-bit integer depth, so every render target and pass needs a depth texture of its own. Worth its
+  own change, tested on phones.

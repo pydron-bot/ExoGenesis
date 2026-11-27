@@ -235,6 +235,11 @@ const PACK_EXTRAS = Object.entries(content.units)
 
 /** Flies (moves on air): only anti-air shooters can hit it, and nothing on the ground blocks it. */
 const flies = (u: UnitDef) => u.move === 'air';
+/**
+ * Unit separation grid cell: bigger than any two units' bodies apart (largest radius 4.2: 2 × 4.2 + 0.3), with room
+ * for the small pushes a pass makes before a pair is checked.
+ */
+const SEP_CELL = 12;
 /** A collapsed shield comes back up once it has recharged to this share of its full charge. */
 const SHIELD_BACK = 0.3;
 /** A shield up this tick: centre, radius, and what holds its charge (a projector or an Aegis). */
@@ -250,6 +255,12 @@ export class Sim {
   private bldKey = '';
   found: number[] = [];
   seen = new Set<number>();
+  /** Unit separation (stepUnits): reused each tick. */
+  private sepGrid = new Buckets<number>(SEP_CELL);
+  private sepNear: number[] = [];
+  private sepR: number[] = [];
+  private sepAir: boolean[] = [];
+  private sepBefore = new Float64Array(0);
   /** Colonists' paths: every building blocks (they walk round gates too). */
   private grid = new PathGrid(limit());
   /** Combat units' paths, per movement type (built on first use): buildings but not gates block. */
@@ -1770,10 +1781,37 @@ export class Sim {
 
   /** Building bodies onto the path grids these units use (gates are open to units: not obstacles). */
   setUnitBodies(us: Unit[]) {
-    const bodies = this.s.buildings.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) }));
-    const moves = new Set(us.map((u) => moveOf(content.units[u.unit])));
-    for (const m of moves) if (m !== 'air') this.unitGrid(m).setBodies(bodies, PATH_PAD);
+    // the same bodies as last tick (the usual case): nothing to hand the grids, so no garbage a tick
+    const B = this.s.buildings, sig = this.bodySig;
+    let n = 0, same = true;
+    for (const b of B) {
+      if (def(b).role === 'gate') continue;
+      const r = bodyR(b), k = n * 3;
+      if (k + 2 >= sig.length) { same = false; break; }
+      if (sig[k] !== b.x || sig[k + 1] !== b.z || sig[k + 2] !== r) { same = false; sig[k] = b.x; sig[k + 1] = b.z; sig[k + 2] = r; }
+      n++;
+    }
+    if (same && n !== this.bodyN) same = false;
+    if (!same) {
+      const bodies = B.filter((b) => def(b).role !== 'gate').map((b) => ({ x: b.x, z: b.z, r: bodyR(b) }));
+      if (bodies.length * 3 > sig.length) this.bodySig = new Float64Array(bodies.length * 6);
+      bodies.forEach((b, i) => { this.bodySig[i * 3] = b.x; this.bodySig[i * 3 + 1] = b.z; this.bodySig[i * 3 + 2] = b.r; });
+      this.bodyN = bodies.length;
+      this.bodiesFor.clear();
+      this.bodyList = bodies;
+    }
+    for (const u of us) {
+      const m = moveOf(content.units[u.unit]);
+      if (m === 'air' || this.bodiesFor.has(m)) continue;
+      this.bodiesFor.add(m);
+      this.unitGrid(m).setBodies(this.bodyList, PATH_PAD);
+    }
   }
+  /** setUnitBodies: the bodies last handed to the unit grids (x, z, r each), and which grids have them. */
+  private bodySig = new Float64Array(0);
+  private bodyN = -1;
+  private bodyList: { x: number; z: number; r: number }[] = [];
+  private bodiesFor = new Set<Move>();
   unitGrid(m: Move) { return (this.unitGrids[m] ??= new PathGrid(limit(), m)); }
   private faunaGrid(m: Move) { return (this.faunaGrids[m] ??= new PathGrid(limit(), m)); }
 
@@ -1873,6 +1911,39 @@ export class Sim {
    * units chase hostiles that come within aggro of them, on a leash from their
    * guard post, then walk back.
    */
+  /**
+   * stepUnits' target scan: player `team`'s foes that are targetable this tick (not underground, dormant or in fog;
+   * those don't change while units step, hp does and is checked as they're read), in `foes` order. When the foes are
+   * only predators (they don't move while units step), a grid of them too, so each unit looks only nearby.
+   */
+  private scanOf(team: number, foes: Foe[]) {
+    if (this.scanTick !== this.s.tick) { this.scans.clear(); this.scanTick = this.s.tick; }
+    let sc = this.scans.get(team);
+    if (sc) return sc;
+    const list: Foe[] = [];
+    for (const h of foes) if (this.targetable(h, team)) list.push(h);
+    let grid: Buckets<number> | null = null, maxR = 0;
+    if (foes === this.s.hostiles && list.length > 24) {
+      grid = new Buckets<number>(16);
+      list.forEach((h, i) => { grid!.add(i, h.x, h.z); maxR = Math.max(maxR, this.foeR(h)); });
+    }
+    sc = { list, grid, maxR };
+    this.scans.set(team, sc);
+    return sc;
+  }
+  /** A foe of `team` by id (a map built once a tick per player; `find` for one that appeared since). */
+  private foeById(team: number, foes: Foe[], id: number): Foe | undefined {
+    if (this.byIdTick !== this.s.tick) { this.byId.clear(); this.byIdTick = this.s.tick; }
+    let m = this.byId.get(team);
+    if (!m) { m = new Map(); for (const h of foes) if (!m.has(h.id)) m.set(h.id, h); this.byId.set(team, m); }
+    return m.get(id) ?? foes.find((h) => h.id === id);
+  }
+  private byId = new Map<number, Map<number, Foe>>();
+  private byIdTick = -1;
+  private scans = new Map<number, { list: Foe[]; grid: Buckets<number> | null; maxR: number }>();
+  private scanTick = -1;
+  private scanIdx: number[] = [];
+
   private stepUnits() {
     const s = this.s, us = this.units;
     // gates are open to units: they aren't obstacles on the path grid
@@ -1901,7 +1972,7 @@ export class Sim {
       const team = u.team ?? 0, foes = this.foes(team);
       const pw = d.abilityPower ?? 1, sieged = abilityOn(u, d, 'siege');
       const range = d.range * (sieged ? pw : 1), speed = d.speed * (abilityOn(u, d, 'boost') ? pw : 1);
-      let tgt = u.target >= 0 ? foes.find((h) => h.id === u.target) : undefined;
+      let tgt = u.target >= 0 ? this.foeById(team, foes, u.target) : undefined;
       if (tgt && !this.canHit(tgt, d.antiAir, false, team)) tgt = undefined;
       const leash = Math.max(d.aggro * LEASH, RULES.unitResponse + 10);
       const min = d.minRange ?? 0;
@@ -1909,12 +1980,20 @@ export class Sim {
         const seek = moving ? range : Math.max(d.aggro, range);
         let bd = Infinity;
         tgt = undefined;
-        for (const h of foes) {
-          if (!this.canHit(h, d.antiAir, false, team)) continue;
+        // the foes this player can target this tick, in `foes` order (and near this unit, when a grid helps)
+        const sc = this.scanOf(team, foes);
+        const look = (h: Foe) => {
+          if (h.hp <= 0) return;
+          if (this.foeAir(h) && !d.antiAir) return; // (canHit: targetable is settled in scanOf, hp just above)
           const dist = Math.hypot(h.x - u.x, h.z - u.z) - this.foeR(h);
           const score = dist + (isBuilding(h) ? BUILDING_LAST : 0);
           if (dist <= seek && dist >= min && score < bd) { bd = score; tgt = h; }
-        }
+        };
+        if (sc.grid) {
+          const idx = sc.grid.near(u.x, u.z, seek + sc.maxR, this.scanIdx);
+          idx.sort((p, q) => p - q);
+          for (const k of idx) look(sc.list[k]);
+        } else for (const h of sc.list) look(h);
         // idle: answer attacks on buildings near the guard post
         if (!tgt && !moving) {
           let rs = raiders.get(team);
@@ -1970,13 +2049,29 @@ export class Sim {
     }
     for (const u of boarded) us.splice(us.indexOf(u), 1);
     // separation, and out of building bodies (but never pushed somewhere it can't go: a Rover into the sea, a boat ashore)
-    const before = us.map((u) => [u.x, u.z]);
+    const before = this.sepBefore.length >= us.length * 2 ? this.sepBefore : (this.sepBefore = new Float64Array(us.length * 4));
+    for (let i = 0; i < us.length; i++) { before[i * 2] = us[i].x; before[i * 2 + 1] = us[i].z; }
     const blds = this.buildingBuckets();
-    for (let i = 0; i < us.length; i++) {
-      const a = us[i], ra = content.units[a.unit].radius, af = flies(content.units[a.unit]);
-      for (let j = i + 1; j < us.length; j++) {
-        const b = us[j], rb = content.units[b.unit].radius;
-        if (flies(content.units[b.unit]) !== af) continue; // flyers pass over the ground units (and they under them)
+    // unit against unit: only pairs that start the pass near each other (a grid of SEP_CELL cells), taken in the
+    // same order as the full i < j sweep, so the result is the same as checking every pair
+    const n = us.length, rad = this.sepR, air = this.sepAir;
+    rad.length = air.length = n;
+    const grid = this.sepGrid;
+    grid.clear();
+    for (let i = 0; i < n; i++) {
+      const ud = content.units[us[i].unit];
+      rad[i] = ud.radius; air[i] = flies(ud);
+      grid.add(i, us[i].x, us[i].z);
+    }
+    const near = this.sepNear;
+    for (let i = 0; i < n; i++) {
+      const a = us[i], ra = rad[i], af = air[i];
+      grid.near(a.x, a.z, SEP_CELL, near);
+      near.sort((p, q) => p - q);
+      for (const j of near) {
+        if (j <= i) continue;
+        const b = us[j], rb = rad[j];
+        if (air[j] !== af) continue; // flyers pass over the ground units (and they under them)
         const dx = b.x - a.x, dz = b.z - a.z, dd = Math.hypot(dx, dz), min = ra + rb + 0.3;
         if (dd > 1e-3 && dd < min) {
           const push = (min - dd) / 2;
@@ -1997,7 +2092,7 @@ export class Sim {
       a.x = clamp(a.x, -limit(), limit()); a.z = clamp(a.z, -limit(), limit());
     }
     us.forEach((u, i) => {
-      const [px, pz] = before[i];
+      const px = before[i * 2], pz = before[i * 2 + 1];
       if (u.x === px && u.z === pz) return;
       const m = moveOf(content.units[u.unit]);
       if (m !== 'hover' && offLimits(m, regionHeightRaw(u.x, u.z)) && !offLimits(m, regionHeightRaw(px, pz))) { u.x = px; u.z = pz; }

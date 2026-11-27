@@ -21,6 +21,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.102.0',
+    date: '2026-11-26',
+    title: 'Quicker to start',
+    notes: [
+      'The game starts faster and downloads less before you can play: a region’s terrain now loads on its own, and buildings you don’t have yet load in the background',
+      'Big armies run more smoothly: units find targets and keep out of each other’s way with much less work',
+      'Ambient occlusion (Options) loads only when you turn it on',
+    ],
+    guide: ['graphics'],
+  },
+  {
     version: '0.101.1',
     date: '2026-11-26',
     title: 'Under the hood: tidier code',
@@ -346,7 +357,7 @@ export const CHANGELOG: Release[] = [
     notes: [
       'Options on the title screen: Performance report → Record from the start. It records from that moment, so the landing is in the report; tap Stop on the badge when you are done',
     ],
-    guide: ['graphics'],
+    guide: [],
   },
   {
     version: '0.80.1',

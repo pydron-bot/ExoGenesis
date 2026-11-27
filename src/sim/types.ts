@@ -666,7 +666,7 @@ export interface PlaySetup { sol?: number; alloys?: number; isotopes?: number; c
 
 export type ToWorker =
   /** First message: the region to play (`def` = an unsaved editor draft for a play test). */
-  | { type: 'init'; region: string; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef }; skirmish?: SkirmishSetup; shared?: import('./campaign').SharedState }
+  | { type: 'init'; region: string; grids?: import('../content').RegionGrids; def?: import('../content/defs').RegionDef; story?: { id: string; def: import('../content/defs').StoryDef }; mission?: { id: string; def: import('../content/defs').MissionDef }; cinematic?: { id: string; def: import('../content/defs').CinematicDef }; skirmish?: SkirmishSetup; shared?: import('./campaign').SharedState }
   | { type: 'cmd'; cmd: Command; team?: number }
   | { type: 'speed'; speed: number }
   | { type: 'save'; reqId: number }

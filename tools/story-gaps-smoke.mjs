@@ -5,13 +5,13 @@
  * offered by flag, the mission and outpost effects, the walkout flag, night, and the playthrough's routes;
  * the content checks for all of it. Then a short browser check of a cinematic's hour, music and a `body`
  * camera key (a temporary cinematic in content/cinematics, removed after) against a dev server.
- *   node tools/story-gaps-smoke.mjs [--url http://localhost:5183/] [--headless-only]
+ *   node tools/story-gaps-smoke.mjs [--url http://localhost:5176/] [--headless-only]
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { runnerImport } from 'vite';
 
-const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : 'http://localhost:5183/';
+const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const headlessOnly = process.argv.includes('--headless-only');
 const root = path.resolve(import.meta.dirname, '..');
 const { module: M } = await runnerImport(path.join(root, 'tools/sim-entry.ts'));

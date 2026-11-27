@@ -19,6 +19,9 @@ import { regionColor } from './world/planet';
 import type { RegionUi } from './world/region';
 import * as THREE from 'three';
 import { $, esc } from './util/html';
+/** innerHTML only when it changed: the bar refreshes several times a second, mostly with the same numbers. */
+const shown = new WeakMap<HTMLElement, string>();
+const setHtml = (el: HTMLElement, html: string) => { if (shown.get(el) !== html || el.innerHTML === '') { shown.set(el, html); el.innerHTML = html; } };
 
 interface HudDeps {
   defs: Record<string, BuildingDef>;
@@ -179,18 +182,18 @@ export class ColonyHud {
   private renderBar(s: Snapshot, speed: number) {
     const e = this.el;
     const short = s.short > 0.01, draining = s.gen < s.draw && s.stored > 0;
-    e.energy.innerHTML = `⚡ <b>${s.gen.toFixed(1)}</b>/${s.draw.toFixed(1)}<span class="u"> MW</span>`;
+    setHtml(e.energy, `⚡ <b>${s.gen.toFixed(1)}</b>/${s.draw.toFixed(1)}<span class="u"> MW</span>`);
     e.energy.className = `r ${short ? 'bad' : draining || s.gen < s.draw ? 'warn' : ''}`;
     e.energy.title = short ? `Cryo bank short ${s.short.toFixed(1)} MW` : 'Power generated / wanted';
     // every slot stays put (dimmed when empty) so nothing jumps around on a phone
     const pct = s.storageMax > 0 ? (s.stored / s.storageMax) * 100 : 0;
-    e.battery.innerHTML = s.storageMax > 0 ? `🔋 <b>${pct.toFixed(0)}%</b>` : '🔋 <b>—</b>';
+    setHtml(e.battery, s.storageMax > 0 ? `🔋 <b>${pct.toFixed(0)}%</b>` : '🔋 <b>—</b>');
     e.battery.className = `r ${s.storageMax <= 0 ? 'dim' : draining && pct < 25 ? 'warn' : ''}`;
     e.battery.title = s.storageMax > 0 ? 'Battery charge' : 'No Battery Bank yet';
-    e.alloys.innerHTML = `◆ <b>${Math.floor(s.alloys)}</b>`;
+    setHtml(e.alloys, `◆ <b>${Math.floor(s.alloys)}</b>`);
     // isotopes: dim until there are some (or something to make or burn them)
     const isoOn = (s.isotopes ?? 0) >= 1 || s.buildings.some((b) => { const r = this.d.defs[b.kind]?.role; return r === 'deepmine' || r === 'reactor'; });
-    e.iso.innerHTML = isoOn ? `◇ <b>${Math.floor(s.isotopes ?? 0)}</b>` : '◇ <b>—</b>';
+    setHtml(e.iso, isoOn ? `◇ <b>${Math.floor(s.isotopes ?? 0)}</b>` : '◇ <b>—</b>');
     e.iso.className = `r ${isoOn ? '' : 'dim'}`;
     e.iso.title = isoOn ? 'Exotic isotopes' : 'Exotic isotopes: a Deep-Core Mine on an isotope seam (research Deep Survey at a Tech Lab)';
     // planet health: what the Biosphere Report sends home each sol
@@ -198,7 +201,7 @@ export class ColonyHud {
     if (pl) {
       const h = Math.round(pl.health), last = pl.reports.length ? pl.reports[pl.reports.length - 1] : null;
       const g = last !== null ? reportGrade(last) : '';
-      e.planet.innerHTML = `🌍 <b>${h}</b>${g ? ` <span class="grade g-${g}">${g}</span>` : ''}`;
+      setHtml(e.planet, `🌍 <b>${h}</b>${g ? ` <span class="grade g-${g}">${g}</span>` : ''}`);
       e.planet.className = `r ${h < 25 ? 'bad' : h < 45 ? 'warn' : ''}`;
       e.planet.title = `Planet health ${h} / 100 (the Biosphere Report sends it home each sol)${last !== null ? ` · last report ${last}, grade ${g} (B or better, 60 up, is a good report)` : ''}${pl.scars.length ? ` · ${pl.scars.length} scarred place${pl.scars.length > 1 ? 's' : ''}: a Seed Bank heals them` : ''}`;
     }
@@ -210,16 +213,16 @@ export class ColonyHud {
     e.clock.textContent = `${when}${speed === 0 ? ' · PAUSED' : speed > 1 ? ` · ×${speed}` : ''}`;
     const seen = s.packs.filter((p) => p.seen);
     const rv = this.radarView(s);
-    if (seen.length) { e.threat.className = 'r bad'; e.threat.innerHTML = `⚠ <b>${seen.reduce((m, p) => m + p.alive, 0)}</b><span class="w"> predators</span>`; e.threat.title = 'Predators on the map'; }
-    else if (rv.next !== null) { e.threat.className = `r ${rv.next < 30 ? 'warn' : ''}`; e.threat.innerHTML = `⚠<span class="w"> next pack</span> <b>${mmss(rv.next)}</b>`; e.threat.title = 'Next predator pack (radar)'; }
-    else if (rv.offline) { e.threat.className = 'r warn'; e.threat.innerHTML = '⚠ <b>off</b><span class="w"> (radar)</span>'; e.threat.title = 'The radar has no power'; }
-    else { e.threat.className = 'r dim'; e.threat.innerHTML = '⚠ <b>—</b>'; e.threat.title = 'Build a Radar to see packs coming'; }
+    if (seen.length) { e.threat.className = 'r bad'; setHtml(e.threat, `⚠ <b>${seen.reduce((m, p) => m + p.alive, 0)}</b><span class="w"> predators</span>`); e.threat.title = 'Predators on the map'; }
+    else if (rv.next !== null) { e.threat.className = `r ${rv.next < 30 ? 'warn' : ''}`; setHtml(e.threat, `⚠<span class="w"> next pack</span> <b>${mmss(rv.next)}</b>`); e.threat.title = 'Next predator pack (radar)'; }
+    else if (rv.offline) { e.threat.className = 'r warn'; setHtml(e.threat, '⚠ <b>off</b><span class="w"> (radar)</span>'); e.threat.title = 'The radar has no power'; }
+    else { e.threat.className = 'r dim'; setHtml(e.threat, '⚠ <b>—</b>'); e.threat.title = 'Build a Radar to see packs coming'; }
     const n = s.units.filter((u) => !u.team).length; // (not a skirmish rival's, a campaign faction's or a unit the Clause has turned)
-    e.army.innerHTML = `⚔ <b>${n}</b>`;
+    setHtml(e.army, `⚔ <b>${n}</b>`);
     e.army.className = `r tap ${n ? '' : 'dim'} ${this.d.ui.sel?.kind === 'units' ? 'on' : ''}`;
     e.army.title = n ? 'Combat units: tap to select them all' : 'No combat units yet (Vehicle Bay)';
     const mine = s.drones.filter((d) => !d.team), idle = mine.filter((d) => d.task === 'idle').length;
-    e.drones.innerHTML = `⛭ <b>${mine.length}</b>${idle ? `<span class="w"> · ${idle} idle</span>` : ''}`;
+    setHtml(e.drones, `⛭ <b>${mine.length}</b>${idle ? `<span class="w"> · ${idle} idle</span>` : ''}`);
     e.drones.className = `r tap ${mine.length ? '' : 'dim'} ${this.d.ui.sel?.kind === 'drone' ? 'on' : ''}`;
     e.drones.title = idle ? `Worker drones: ${idle} idle · click for the next one (.)` : 'Worker drones: all busy · click to cycle through them (.)';
   }
@@ -252,7 +255,7 @@ export class ColonyHud {
     if (key === this.goalsKey) return;
     this.goalsKey = key;
     this.el.goalsHead.textContent = head;
-    this.el.goalsList.innerHTML = html;
+    setHtml(this.el.goalsList, html);
   }
 
 
