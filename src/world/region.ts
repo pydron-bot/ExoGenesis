@@ -27,6 +27,7 @@ import {
   E, HALF, N, PAD_FALL, R, U, regionFlora, regionDir, regionHeight, regionHeightRaw, regionToWorld, setGroundPads, terrainColor, applyGroundPaint, worldToRegion, seabed, padded,
   type GroundPad,
 } from './planet';
+import { ghostColours, onA11yChange } from '../a11y';
 
 /** The colour things of team `t` are drawn in: a skirmish player's, or a campaign faction's (none for ours). */
 export function teamColor(cur: Snapshot, t?: number): string | undefined {
@@ -369,8 +370,9 @@ export class RegionView {
     // buildings under construction rebuild in the new style on the next update
     for (const [id, e] of this.buildings) if (!e.done) { this.dropBuilding(id, e); this.buildings.delete(id); }
   }
-  private ghostOk = new THREE.MeshBasicMaterial({ color: '#5bff9a', transparent: true, opacity: 0.4, depthWrite: false });
-  private ghostBad = new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.4, depthWrite: false });
+  // the placement preview: green or red (Options → Colour-blind palette: blue or orange)
+  private ghostOk = new THREE.MeshBasicMaterial({ color: ghostColours().ok, transparent: true, opacity: 0.4, depthWrite: false });
+  private ghostBad = new THREE.MeshBasicMaterial({ color: ghostColours().bad, transparent: true, opacity: 0.4, depthWrite: false });
   private border: THREE.LineLoop;
   private scorch: THREE.Mesh;
   private pebbles: Pebbles;
@@ -399,6 +401,7 @@ export class RegionView {
     nature: { biome?: FloraBiome; wildlife?: Record<string, WildlifeDef> } = {}) {
     this.patch = buildPatch(look);
     scene.add(this.patch);
+    onA11yChange(() => { const c = ghostColours(); this.ghostOk.color.set(c.ok); this.ghostBad.color.set(c.bad); });
     scene.add(this.details);
     this.water = buildWater(this.waterOn);
     if (this.water) this.details.add(this.water);

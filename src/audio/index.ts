@@ -64,6 +64,10 @@ export class GameAudio {
   throughSilent = true;
   /** The player's own music volume (0 = no music), on top of the rest. */
   musicVolume = 1;
+  /** The player's effects volume: everything but music and voices (combat, events, alerts, the interface, ambience). */
+  effectsVolume = 1;
+  /** The player's volume for spoken lines (src/voice.ts). */
+  voiceVolume = 1;
   /** No world or event sounds (landing cinematic); the ambient bed keeps going. */
   quiet = false;
   /** Test hook: sounds actually started, by id; and ones dropped by caps or distance. */
@@ -79,6 +83,8 @@ export class GameAudio {
   private wind: { src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode; gust: number; gustTo: number } | null = null;
   private lastTick = -1;
   private musicOut!: GainNode;
+  private fxOut!: GainNode;
+  private voiceOut!: GainNode;
   /** The music playing now: which use and mood, and how to stop it. */
   private music: { use: MusicUse; mood: string; stop: (fade: number) => void; played?: AmbientMusic['played'] } | null = null;
   /** A cinematic's music, held until it ends (`holdMusic`). */
@@ -102,6 +108,8 @@ export class GameAudio {
       if (p && typeof p.on === 'boolean') this.on = p.on;
       if (p && typeof p.vol === 'number') this.volume = Math.min(1, Math.max(0, p.vol));
       if (p && typeof p.music === 'number') this.musicVolume = Math.min(1, Math.max(0, p.music));
+      if (p && typeof p.fx === 'number') this.effectsVolume = Math.min(1, Math.max(0, p.fx));
+      if (p && typeof p.voice === 'number') this.voiceVolume = Math.min(1, Math.max(0, p.voice));
       if (p && typeof p.silent === 'boolean') this.throughSilent = p.silent;
     } catch { /* private mode / bad JSON */ }
     this.applySession();
@@ -366,6 +374,19 @@ export class GameAudio {
     return { gain, pan };
   }
 
+  /** Effects (everything but music and voices), 0..1, remembered. */
+  setEffectsVolume(v: number) {
+    this.effectsVolume = Math.min(1, Math.max(0, v));
+    this.save();
+    if (this.ctx) this.fxOut.gain.setTargetAtTime(this.effectsVolume, this.ctx.currentTime, 0.05);
+  }
+  /** Spoken lines, 0..1, remembered. */
+  setVoiceVolume(v: number) {
+    this.voiceVolume = Math.min(1, Math.max(0, v));
+    this.save();
+    if (this.ctx) this.voiceOut.gain.setTargetAtTime(this.voiceVolume, this.ctx.currentTime, 0.05);
+  }
+
   setMusicVolume(v: number) {
     this.musicVolume = Math.min(1, Math.max(0, v));
     this.save();
@@ -581,7 +602,7 @@ export class GameAudio {
     if (!this.live()) return null;
     const c = this.ctx!, out = c.createGain();
     out.gain.value = volume;
-    out.connect(this.master);
+    out.connect(this.voiceOut);
     let src: AudioBufferSourceNode | null = null, hiss: AudioBufferSourceNode | null = null, stopped = false;
     const nodes: AudioNode[] = [out];
     const start = (buf: AudioBuffer) => {
@@ -643,7 +664,7 @@ export class GameAudio {
   }
 
   private save() {
-    try { localStorage.setItem(PREF_KEY, JSON.stringify({ on: this.on, vol: this.volume, music: this.musicVolume, silent: this.throughSilent })); } catch { /* private mode */ }
+    try { localStorage.setItem(PREF_KEY, JSON.stringify({ on: this.on, vol: this.volume, music: this.musicVolume, fx: this.effectsVolume, voice: this.voiceVolume, silent: this.throughSilent })); } catch { /* private mode */ }
   }
 
   private applyVolume() {
@@ -668,10 +689,17 @@ export class GameAudio {
     this.musicOut = c.createGain();
     this.musicOut.gain.value = this.musicVolume;
     this.musicOut.connect(this.master);
+    // and the effects and voice volumes, the same way
+    this.fxOut = c.createGain();
+    this.fxOut.gain.value = this.effectsVolume;
+    this.fxOut.connect(this.master);
+    this.voiceOut = c.createGain();
+    this.voiceOut.gain.value = this.voiceVolume;
+    this.voiceOut.connect(this.master);
     for (const k of SOUND_CATS) {
       const g = c.createGain();
       g.gain.value = this.rules[k];
-      g.connect(k === 'music' ? this.musicOut : this.master);
+      g.connect(k === 'music' ? this.musicOut : this.fxOut);
       this.cats[k] = g;
     }
     this.applyVolume();

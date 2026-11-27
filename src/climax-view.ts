@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { ENDINGS, ENDING_NAMES, type Ending } from './content/defs';
 import type { Epilogue, Snapshot } from './sim/types';
 import { regionToWorld } from './world/planet';
+import { reduceMotion } from './a11y';
 
 const ENDINGS_KEY = 'exo.endings';
 /** Endings this browser has reached (the title screen counts them). */
@@ -247,6 +248,7 @@ export class ClimaxView {
  * settle into the words.
  */
 export function scrambleIn(el: HTMLElement, text: string) {
+  if (reduceMotion()) { el.textContent = text; return; } // (Options → Reduce motion)
   const glyphs = '01#%/\\<>_=+*:;.[]{}';
   const t0 = performance.now(), len = 650;
   const tick = () => {

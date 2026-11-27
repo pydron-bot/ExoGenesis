@@ -21,6 +21,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.103.0',
+    date: '2026-11-27',
+    title: 'Your way to play',
+    notes: [
+      'New in Options: separate Effects and Voices volume sliders',
+      'Accessibility options: Interface size, Reduce motion (follows your device until you choose) and a colour-blind palette',
+      'Change any of the main keys in Controls: tap a key, press the new one',
+      'The Message log (L, or the menu) keeps everything the log said, with warnings and alerts on their own; screen readers announce warnings as they come in',
+      'Build menu: the number keys pick buildings, and V places another of the last one',
+    ],
+    guide: ['options', 'alerts-and-the-log', 'building'],
+  },
+  {
     version: '0.102.0',
     date: '2026-11-26',
     title: 'Quicker to start',
@@ -298,7 +311,7 @@ export const CHANGELOG: Release[] = [
       'Radio messages that carry the story no longer vanish while you are busy: the important ones (ENGRAM\'s first words, Kindred\'s answer, the bearing to Signal Heights and more) come in as a full card marked Radio and pause the game',
       'Briefings on landing and the Archivist\'s survey notes stay in the corner until you tap them',
     ],
-    guide: ['alerts-and-the-log'],
+    guide: [],
   },
   {
     version: '0.84.0',
@@ -490,7 +503,7 @@ export const CHANGELOG: Release[] = [
       'Options → Graphics has a new Anti-aliasing setting to smooth jagged edges: Auto (as before, picked for your device), Off, FXAA (cheapest, a little soft), SMAA (sharp, a little more work) or MSAA (smoothest, the most work). Tap it to step through them',
       'Phones with Glow on had no edge smoothing at all; pick SMAA or FXAA there to get it back',
     ],
-    guide: ['options'],
+    guide: [],
   },
   {
     version: '0.75.1',

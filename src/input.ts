@@ -20,6 +20,7 @@ import type { ZoomCamera, ViewName } from './camera';
 import type { RegionUi, RegionView } from './world/region';
 import type { Building, UnitSnap } from './sim/types';
 import type { ArmyView } from './world/army/view';
+import { actionOf } from './keys';
 
 export type UiState = RegionUi;
 
@@ -61,6 +62,10 @@ interface Handlers {
   quickSave?(): void;
   /** Esc: close the build menu if it's open (true = it was). */
   closeBuildMenu?(): boolean;
+  /** Build menu open: number key `n` (1–9, 0 = the 10th) picks its n-th item. True if the menu took the key. */
+  buildKey?(n: number): boolean;
+  /** V: place another of the last building placed. */
+  repeatBuild?(): void;
   /** Centre the camera on a point (control group double-press). */
   lookAt?(x: number, z: number): void;
   /** Mouse wheel zooms toward the cursor (Options). */
@@ -623,6 +628,8 @@ export class Input {
     this.shiftHeld = e.shiftKey;
     const mod = e.ctrlKey || e.metaKey;
     const digit = /^Digit([0-9])$/.exec(e.code)?.[1];
+    // the build menu open: the number keys pick from it (shown on its buttons)
+    if (digit && !mod && !e.altKey && this.h.buildKey?.(Number(digit))) { e.preventDefault(); this.h.interacted(); return; }
     if (digit && Number(digit) >= 4 && !e.altKey) {
       // 1–3 are the views; 4–9 control groups
       e.preventDefault();
@@ -644,23 +651,28 @@ export class Input {
         this.h.interacted();
         return;
     }
+    // the keys the player can rebind (src/keys.ts); stop, ability, alert and the log are main.ts's
+    switch (actionOf(e)) {
+      case 'build': this.h.toggleBuildMenu(); this.h.interacted(); return;
+      case 'repeat': this.h.repeatBuild?.(); this.h.interacted(); return;
+      case 'rotate': this.rotate(); this.h.interacted(); return;
+      case 'centre': this.h.centre?.(); this.h.interacted(); return;
+      case 'idle': this.h.nextIdleDrone?.(); this.h.interacted(); return;
+      case 'faster': this.h.speedStep?.(1); this.h.interacted(); return;
+      case 'slower': this.h.speedStep?.(-1); this.h.interacted(); return;
+      case 'controls': this.h.showControls?.(); this.h.interacted(); return;
+      case 'pause': e.preventDefault(); this.h.togglePause(); this.h.interacted(); return;
+    }
     switch (e.key) {
       case '+': case '=': this.cam.zoomBy(0.7); break;
       case '-': case '_': this.cam.zoomBy(1.4); break;
       case '1': this.h.view('surface'); break;
       case '2': this.h.view('planet'); break;
       case '3': this.h.view('system'); break;
-      case 'b': case 'B': this.h.toggleBuildMenu(); break;
-      case 'r': case 'R': this.rotate(); break;
-      case 'f': case 'F': case 'Home': this.h.centre?.(); break;
-      case '.': this.h.nextIdleDrone?.(); break;
-      case ']': this.h.speedStep?.(1); break;
-      case '[': this.h.speedStep?.(-1); break;
-      case '?': this.h.showControls?.(); break;
+      case 'Home': this.h.centre?.(); break;
       case 'Escape':
         if (this.h.closeBuildMenu?.()) break;
         this.h.setBuild(null); this.h.placeHint?.(null, 0, 0); this.ui.sel = null; this.h.select(); break;
-      case ' ': e.preventDefault(); this.h.togglePause(); break;
       default: return;
     }
     this.h.interacted();

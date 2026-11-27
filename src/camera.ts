@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { smoothstep, lerp } from './world/noise';
 import { E, HALF, HOME_RADIUS, R, U, regionHeight, regionToWorld, worldToRegion } from './world/planet';
+import { reduceMotion } from './a11y';
 
 export const MIN_DIST = 14;
 export const MAX_DIST = 1.6e6;
@@ -153,6 +154,7 @@ export class ZoomCamera {
     }
     cam.up.copy(up);
     cam.lookAt(this.focus);
+    if (this.shake > 0.01 && reduceMotion()) this.shake = 0; // (Options → Reduce motion)
     if (this.shake > 0.01) {
       const s = this.shake;
       cam.position.addScaledVector(this.right, (Math.random() - 0.5) * s).addScaledVector(up, (Math.random() - 0.5) * s);

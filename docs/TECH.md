@@ -3498,3 +3498,29 @@ all, no fog, wipe out), the computer in `src/sim/domination-ai.ts`, the page in 
 - Not done: reversed-Z depth instead of `logarithmicDepthBuffer`. The precision win needs 32-bit float depth, but
   the canvas has 24-bit integer depth, so every render target and pass needs a depth texture of its own. Worth its
   own change, tested on phones.
+
+### Your way to play: volumes, keys, the message log, accessibility (v0.103.0)
+
+- **Volumes** (`src/audio/index.ts`): `fxOut` (every category but music) and `voiceOut` (spoken lines, `speak()`)
+  sit between their sources and the master, like `musicOut`; `setEffectsVolume`/`setVoiceVolume`, saved with the
+  rest (`exo.sound`: `fx`, `voice`). Options → Sound has the two sliders.
+- **Key bindings** (`src/keys.ts`): `ACTIONS` (build, repeat, rotate, stop, ability, centre, idle, alert, history,
+  pause, slower, faster, controls) with default keys; `actionOf(e)` is what `Input.key` and main.ts's handler switch
+  on. `rebind()` refuses the fixed keys (camera W A S D Q E and arrows, digits, + −, Esc, Home, Tab, Enter) and swaps
+  with an action already on the key; custom keys in `exo.keys`. Controls lists them under **Change keys** (tap, then
+  press; Esc cancels) with **Reset keys**, and its other rows show the bound keys.
+- **Build menu keys** (`ColonyHud.pickByKey`, `repeatLast`): with the menu open the number keys pick the n-th item
+  (0 = 10th; `<kbd>` badges on keyboards only); V (`repeat`) starts placing the last kind picked.
+- **Message log** (main.ts `logHistory`, `showLogHistory`): every log line this visit (300 kept) with its game time;
+  All / Warnings and alerts; ◎ lines go there. Menu → Message log, or L. A visually hidden `role="log"
+  aria-live="polite"` region gets the warn/bad lines (5 kept).
+- **Accessibility** (`src/a11y.ts`, Options → Accessibility, title Options too): Interface size 0.8–1.5
+  (`--ui-player`, multiplied into the HUD's `zoom` and the panels'), Reduce motion (`html.reduce-motion`: CSS
+  animations and transitions cut short; camera shake, zoom blur and the Clause's scrambled text skipped; follows
+  `prefers-reduced-motion` until chosen), Colour-blind palette (Okabe–Ito: accent #56b4e9, warning #f0e442, danger
+  #e69f00; the placement ghost blue/orange via `ghostColours`/`onA11yChange`; off re-applies the content's colours).
+  Team colours are not changed.
+- **Old saves** (`tools/saves-compat-smoke.mjs`, in `npm test`): `tools/fixtures/saves/v0.60.0|v0.81.0|v0.94.0.json`
+  are colonies from those versions (the balance bot's first 8 minutes, captured by wrapping `Sim.prototype.step` in a
+  worktree of that commit); today's `Sim.load` takes each, plays 2 minutes, and loads its own save of it again.
+- Test: `tools/access-smoke.mjs`.

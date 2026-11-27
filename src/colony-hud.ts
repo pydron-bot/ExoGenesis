@@ -21,6 +21,7 @@ import * as THREE from 'three';
 import { $, esc } from './util/html';
 /** innerHTML only when it changed: the bar refreshes several times a second, mostly with the same numbers. */
 const shown = new WeakMap<HTMLElement, string>();
+const COARSE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 const setHtml = (el: HTMLElement, html: string) => { if (shown.get(el) !== html || el.innerHTML === '') { shown.set(el, html); el.innerHTML = html; } };
 
 interface HudDeps {
@@ -101,10 +102,7 @@ export class ColonyHud {
       const kind = (e.target as HTMLElement).closest<HTMLElement>('[data-kind]')?.dataset.kind;
       if (!kind) return;
       e.preventDefault();
-      const need = this.d.defs[kind]?.research;
-      if (need && this.d.research[need] && !this.cur?.research?.done.includes(need)) { this.d.log(`${this.d.defs[kind].name} needs research: ${this.d.research[need].name} (Tech Lab)`, 'warn'); return; }
-      this.d.setBuild(kind);
-      this.toggleMenu(false);
+      this.choose(kind);
     });
     // the radar: tap to look there, or drag across it to sweep the camera
     const look = (e: PointerEvent) => {
@@ -131,6 +129,33 @@ export class ColonyHud {
     });
     $('over-restart').onclick = () => this.d.restart();
     $('over-load').onclick = () => this.d.load();
+  }
+
+  /** The last building kind picked from the menu (V places another). */
+  lastBuild: string | null = null;
+
+  /** Pick `kind` from the build menu: placing starts (or it says what research it needs). */
+  choose(kind: string) {
+    const need = this.d.defs[kind]?.research;
+    if (need && this.d.research[need] && !this.cur?.research?.done.includes(need)) { this.d.log(`${this.d.defs[kind].name} needs research: ${this.d.research[need].name} (Tech Lab)`, 'warn'); return; }
+    this.lastBuild = kind;
+    this.d.setBuild(kind);
+    this.toggleMenu(false);
+  }
+
+  /** The build menu is open: number key `n` (1–9, 0 = the 10th) picks that item. True if the menu was open. */
+  pickByKey(n: number): boolean {
+    if (!this.el.menu.classList.contains('open')) return false;
+    const b = this.el.menu.querySelectorAll<HTMLElement>('[data-kind]')[(n + 9) % 10];
+    if (b?.dataset.kind) this.choose(b.dataset.kind);
+    return true;
+  }
+
+  /** Another of the last kind placed (V). False if there's none yet. */
+  repeatLast(): boolean {
+    if (!this.lastBuild || !this.d.defs[this.lastBuild]) return false;
+    this.choose(this.lastBuild);
+    return true;
   }
 
   toggleMenu(open?: boolean) {
@@ -268,10 +293,12 @@ export class ColonyHud {
     const key = items.map(([k, d]) => `${k}:${alloys >= d.cost && iso >= (d.isotopes ?? 0)}:${done(d.research)}`).join() + this.d.ui.build;
     if (key === this.menuKey) return;
     this.menuKey = key;
-    this.el.menu.innerHTML = items.map(([k, d]) => {
+    // the first ten carry their number key (keyboards only)
+    const kbd = (i: number) => (i < 10 && !COARSE ? `<kbd>${(i + 1) % 10}</kbd>` : '');
+    this.el.menu.innerHTML = items.map(([k, d], i) => {
       const pw = d.powerMW > 0 ? `+${d.powerMW} MW${d.role === 'solar' ? ' by day' : ''}` : d.powerMW < 0 ? `${d.powerMW} MW` : d.role === 'battery' ? `${d.storage} MJ` : d.role === 'wall' ? `per ${d.clearance} u` : d.role === 'gate' ? 'on a wall' : d.role === 'sensor' ? `sees ${d.sight} u` : d.role === 'civic' && d.housing ? `homes ${d.housing}` : '';
-      if (!done(d.research)) return `<button data-kind="${k}" class="locked" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">🔒 ${esc(this.d.research[d.research!].name)}</small></span></button>`;
-      return `<button data-kind="${k}" class="${alloys < d.cost || iso < (d.isotopes ?? 0) ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}"><b>${esc(d.name)}</b><span class="meta"><small class="cost">${d.cost}◆${d.isotopes ? ` ${d.isotopes}◇` : ''}</small> <small>${pw}</small></span></button>`;
+      if (!done(d.research)) return `<button data-kind="${k}" class="locked" title="${esc(d.description ?? '')}">${kbd(i)}<b>${esc(d.name)}</b><span class="meta"><small class="cost">🔒 ${esc(this.d.research[d.research!].name)}</small></span></button>`;
+      return `<button data-kind="${k}" class="${alloys < d.cost || iso < (d.isotopes ?? 0) ? 'poor' : ''} ${this.d.ui.build === k ? 'on' : ''}" title="${esc(d.description ?? '')}">${kbd(i)}<b>${esc(d.name)}</b><span class="meta"><small class="cost">${d.cost}◆${d.isotopes ? ` ${d.isotopes}◇` : ''}</small> <small>${pw}</small></span></button>`;
     }).join('');
   }
 

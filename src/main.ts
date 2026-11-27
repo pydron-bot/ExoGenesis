@@ -56,6 +56,8 @@ import { TitleScreen, type TitleChoice } from './title';
 import { VERSION } from './version';
 import { showSimCrash, watchPageErrors } from './crash';
 import { planBoot } from './boot';
+import { applyA11y, colourBlind, motionChosen, reduceMotion, setColourBlind, setReduceMotion, setUiSize, uiSize } from './a11y';
+import { ACTIONS, actionOf, keyFor, keyLabel, rebind, resetKeys, type Action } from './keys';
 import { chronicleModel, openChronicle } from './chronicle';
 import { claimDaily, dailyDate, dailyLink, dailyRecord, dailyRivals, dailyRules, dailyScore, dailyStreak, DailyTracker, resultHtml, saveDaily, shareResult, shareText, type DailyResult, type DailyRules } from './daily';
 import { hasUnseen, openWhatsNew } from './whatsnew';
@@ -67,7 +69,7 @@ import type { FactionState, LogStyle } from './sim/types';
 import { AutopilotView, loadPrefs } from './autopilot';
 import { POLICIES, type ChoicePolicy } from './sim/choices';
 import { surfaceUniforms, addSurfaceDetail, buildClouds, setSurfaceMaps, updateClouds, updateSurface, type SurfaceMaps } from './world/surface';
-import { $ } from './util/html';
+import { $, esc } from './util/html';
 
 const params = new URLSearchParams(location.search);
 
@@ -486,15 +488,33 @@ const logEl = $('log');
 // the HUD's look (Rules → Interface; the editor's preview hands over an unsaved one)
 const ui_ = preview?.interface ?? content.interface;
 applyInterface(ui_);
+// the player's own: interface size, reduce motion, colour-blind palette (src/a11y.ts)
+applyA11y();
 const heldLog: [string, 'info' | 'warn' | 'bad', At, (LogStyle | undefined)?][] = [];
 /** Pings the minimap (set once the HUD exists: early events come before it). */
 let pingFn: ((x: number, z: number, color: string) => void) | null = null;
 /** Where the latest event with a place happened (H takes the camera there). */
 let lastAt: At;
 const goTo = (at: { x: number; z: number }) => { cam.lookAtGround(at.x, at.z); if (cam.a > 0.5) cam.setView('surface'); };
+/** Every log line this visit, newest last (the Message log, L): what it said, how urgent, where, and when. */
+const logHistory: { text: string; level: 'info' | 'warn' | 'bad'; at?: At; when: string }[] = [];
+/** A screen reader's copy of the warnings and alerts (polite: it waits for a pause). */
+const liveLog = document.createElement('div');
+liveLog.className = 'sr-only';
+liveLog.setAttribute('role', 'log');
+liveLog.setAttribute('aria-live', 'polite');
+document.body.appendChild(liveLog);
 function log(text: string, level: 'info' | 'warn' | 'bad' = 'info', at?: At, style?: LogStyle) {
   // a cinematic hides the log; keep events for when it ends
   if (cine) { heldLog.push([text, level, at, style]); return; }
+  logHistory.push({ text, level, at, when: sim.cur && !rts ? solTime(sim.cur.tick) : sim.cur ? `${Math.floor(sim.cur.secs / 60)}:${String(Math.floor(sim.cur.secs % 60)).padStart(2, '0')}` : '' });
+  if (logHistory.length > 300) logHistory.shift();
+  if (level !== 'info') {
+    const p = document.createElement('p');
+    p.textContent = text;
+    liveLog.appendChild(p);
+    while (liveLog.children.length > 5) liveLog.firstElementChild!.remove();
+  }
   const el = document.createElement('div');
   el.className = `ev ${level === 'info' ? '' : level}${style ? ` ${style}` : ''}`;
   // the Clause writes in our log format, wrongly: cold, monospaced, scrambled for a moment
@@ -1339,6 +1359,8 @@ const input = new Input(renderer.domElement, cam, region, ui, {
   view: (v) => cam.setView(v),
   togglePause: () => setSpeed(speed === 0 ? 1 : 0, true),
   toggleBuildMenu: () => hud.toggleMenu(),
+  buildKey: (n) => hud.pickByKey(n),
+  repeatBuild: () => { if (!hud.repeatLast()) log('Nothing placed yet: B opens the build menu'); },
   interacted: () => { if (!helped) { helped = true; setTimeout(() => help.classList.add('gone'), 4000); } },
   say: (t, ok) => { log(t, ok ? 'info' : 'warn'); audio.play(ok ? 'tap' : 'deny'); },
   centre: () => centreOnSelection(),
@@ -1366,11 +1388,13 @@ $('pl-rotate').onclick = () => input?.rotate();
 $('pl-done').onclick = () => setBuild(null);
 addEventListener('keydown', (e) => {
   // H: to the latest alert (under attack, something lost, contact)
-  if ((e.key === 'h' || e.key === 'H') && lastAt && !(e.target instanceof HTMLInputElement)) goTo(lastAt);
+  const act = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement ? null : actionOf(e);
+  if (act === 'alert' && lastAt) goTo(lastAt);
+  if (act === 'history' && !panelOpen() && !menuOpen && !title && !cine) { audio.play('tap'); showLogHistory(); }
   // X: selected combat units stop and guard where they stand
-  if (e.key === 'x' && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement)) { audio.play('order'); sim.command({ type: 'stop', ids: ui.sel.ids }); }
+  if (act === 'stop' && ui.sel?.kind === 'units') { audio.play('order'); sim.command({ type: 'stop', ids: ui.sel.ids }); }
   // G: selected units use their ability (those that have one ready)
-  if ((e.key === 'g' || e.key === 'G') && ui.sel?.kind === 'units' && !(e.target instanceof HTMLInputElement) && !e.ctrlKey && !e.metaKey) { audio.play('order'); sim.command({ type: 'ability', ids: ui.sel.ids }); }
+  if (act === 'ability' && ui.sel?.kind === 'units') { audio.play('order'); sim.command({ type: 'ability', ids: ui.sel.ids }); }
 });
 /** Where the selection is (or the Command Core, with nothing selected): F / Home glides the camera there. */
 function centreOnSelection() {
@@ -1416,8 +1440,31 @@ function placeHint(text: string | null, x: number, y: number) {
   hintEl.style.transform = `translate(${Math.round(x + 16)}px, ${Math.round(y + 18)}px)`;
 }
 /** Every key and gesture, in one panel (?, and the menu's Controls). */
+/** The Message log (L, menu → Message log): every line this visit, newest first, filterable; ◎ lines jump there. */
+function showLogHistory(onClose?: () => void) {
+  let only: 'all' | 'warn' = 'all';
+  const draw = () => {
+    const rows = logHistory.filter((r) => only === 'all' || r.level !== 'info').slice().reverse();
+    return rows.length ? rows.map((r) => `<button class="lh-row ${r.level}${r.at ? ' go' : ''}" data-i="${logHistory.indexOf(r)}"${r.at ? '' : ' disabled'}><small>${esc(r.when)}</small><span>${esc(r.text)}</span></button>`).join('')
+      : '<p class="lh-empty">Nothing yet.</p>';
+  };
+  const { el, close } = openInfo('Message log', `<div class="lh-filter"><button data-f="all" class="on">All</button><button data-f="warn">Warnings and alerts</button></div><div class="lh-list">${draw()}</div>`, onClose);
+  el.classList.add('loghistory');
+  el.addEventListener('click', (e) => {
+    const f = (e.target as Element).closest<HTMLElement>('[data-f]');
+    if (f) {
+      only = f.dataset.f as typeof only;
+      el.querySelectorAll('[data-f]').forEach((b) => b.classList.toggle('on', b === f));
+      el.querySelector('.lh-list')!.innerHTML = draw();
+      return;
+    }
+    const r = (e.target as Element).closest<HTMLElement>('.lh-row.go');
+    if (r) { const at = logHistory[Number(r.dataset.i)]?.at; if (at) { close(); goTo(at); } }
+  });
+}
 function showControls(onClose?: () => void) {
-  const row = (k: string, v: string) => `<div class="kb"><span>${k}</span><span>${v}</span></div>`;
+  const row = (key: string, v: string) => `<div class="kb"><span>${key}</span><span>${v}</span></div>`;
+  const k = (a: Action) => `<kbd>${esc(keyLabel(keyFor(a)))}</kbd>`;
   const sec = (t: string) => `<div class="op-sec">${t}</div>`;
   const touch = [
     row('Tap', 'select a drone, unit, colonist or building'),
@@ -1435,8 +1482,8 @@ function showControls(onClose?: () => void) {
     row('Wheel / <kbd>+</kbd> <kbd>−</kbd>', 'zoom (toward the cursor)'),
     row('Right-drag', 'turn and tilt'),
     row('<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>', 'surface · planet · system'),
-    row('<kbd>F</kbd> / <kbd>Home</kbd>', 'look at the selection (nothing selected: the Command Core)'),
-    row('<kbd>.</kbd>', 'next idle worker drone'),
+    row(`${k('centre')} / <kbd>Home</kbd>`, 'look at the selection (nothing selected: the Command Core)'),
+    row(k('idle'), 'next idle worker drone'),
   ].join('');
   const orders = [
     row('Click', 'select · click ground: send the selection'),
@@ -1448,23 +1495,48 @@ function showControls(onClose?: () => void) {
     row('<kbd>Ctrl</kbd> <kbd>A</kbd>', 'select every combat unit'),
     row('<kbd>Ctrl</kbd>/<kbd>Shift</kbd> + <kbd>4</kbd>–<kbd>9</kbd>', 'make the selected units a group'),
     row('<kbd>4</kbd>–<kbd>9</kbd>', 'select a group (twice: look at it)'),
-    row('<kbd>X</kbd>', 'selected units stop and guard'),
-    row('<kbd>G</kbd>', 'selected units use their ability (also the ⚡ button on the unit card)'),
-    row('<kbd>B</kbd>', 'build menu · <kbd>R</kbd> rotates while placing'),
+    row(k('stop'), 'selected units stop and guard'),
+    row(k('ability'), 'selected units use their ability (also the ⚡ button on the unit card)'),
+    row(k('build'), `build menu (then <kbd>1</kbd>–<kbd>0</kbd> pick from it) · ${k('rotate')} rotates while placing`),
+    row(k('repeat'), 'place another of the last building'),
     row('<kbd>Esc</kbd>', 'close the build menu, stop placing, deselect · then the menu'),
   ].join('');
   const game = [
-    row('<kbd>Space</kbd>', 'pause'),
-    row('<kbd>[</kbd> <kbd>]</kbd>', 'slower · faster'),
+    row(k('pause'), 'pause'),
+    row(`${k('slower')} ${k('faster')}`, 'slower · faster'),
     row('<kbd>Ctrl</kbd> <kbd>S</kbd>', 'save'),
-    row('<kbd>H</kbd>', 'look at the latest alert (or tap a log line with ◎)'),
-    row('<kbd>?</kbd>', 'this list'),
+    row(k('alert'), 'look at the latest alert (or tap a log line with ◎)'),
+    row(k('history'), 'the message log: everything the log said'),
+    row(k('controls'), 'this list'),
   ].join('');
+  // every rebindable key: tap one, then press the new key
+  const rebinds = (Object.keys(ACTIONS) as Action[]).map((a) => `<div class="kb"><span>${esc(ACTIONS[a].label)}</span><button class="kb-set" data-act="${a}">${esc(keyLabel(keyFor(a)))}</button></div>`).join('')
+    + '<div class="kb"><span></span><button class="kb-reset">Reset keys</button></div>';
   const guide = '<button class="op-guide">▸ Field Guide: how the game works, page by page</button>';
   const { el: ctl } = openInfo('Controls', coarse
     ? `${guide}${sec('Touch')}${touch}${sec('Keyboard')}${keys}${orders}${game}`
-    : `${guide}${sec('Camera')}${keys}${sec('Orders')}${orders}${sec('Game')}${game}${sec('Touch')}${touch}`, onClose);
+    : `${guide}${sec('Camera')}${keys}${sec('Orders')}${orders}${sec('Game')}${game}${sec('Change keys')}${rebinds}${sec('Touch')}${touch}`, onClose);
   ctl.querySelector<HTMLButtonElement>('.op-guide')!.onclick = () => { audio.play('tap'); openGuide(); };
+  // rebinding: the next key pressed (Esc cancels); the list redraws with the new keys
+  // (the lists above show the new keys next time they open)
+  const reopen = () => ctl.querySelectorAll<HTMLButtonElement>('.kb-set').forEach((x) => { x.textContent = keyLabel(keyFor(x.dataset.act as Action)); x.classList.remove('wait'); });
+  ctl.querySelector('.kb-reset')?.addEventListener('click', () => { resetKeys(); audio.play('tap'); reopen(); });
+  ctl.querySelectorAll<HTMLButtonElement>('.kb-set').forEach((b) => {
+    b.onclick = () => {
+      audio.play('tap');
+      b.textContent = 'press a key…';
+      b.classList.add('wait');
+      const take = (e: KeyboardEvent) => {
+        e.preventDefault(); e.stopPropagation();
+        removeEventListener('keydown', take, true);
+        if (e.key === 'Escape') { b.textContent = keyLabel(keyFor(b.dataset.act as Action)); b.classList.remove('wait'); return; }
+        const why = rebind(b.dataset.act as Action, e.key);
+        if (why) { log(why, 'warn'); b.textContent = keyLabel(keyFor(b.dataset.act as Action)); b.classList.remove('wait'); return; }
+        reopen();
+      };
+      addEventListener('keydown', take, true);
+    };
+  });
 }
 /** Selected combat units as the army renderer wants them: slot → generation. */
 const armySel = new Map<number, number>();
@@ -1579,8 +1651,16 @@ const soundToggles: OptionRow[] = [
     locked: soundLock,
   },
   {
+    kind: 'slider', id: 'effects-volume', section: 'Sound', label: 'Effects volume', help: 'Gunfire, alarms, the interface and the sounds of the place',
+    get: () => audio.effectsVolume * 100, set: (v: number) => { audio.setEffectsVolume(v / 100); if (!audio.on) audio.setOn(true); }, locked: soundLock,
+  },
+  {
     id: 'voices', section: 'Sound', label: 'Voices', help: 'Spoken lines in cinematics, story cards and radio messages.',
     get: () => voices.on && !audio.disabled, set: (on: boolean) => voices.setOn(on), locked: soundLock,
+  },
+  {
+    kind: 'slider', id: 'voice-volume', section: 'Sound', label: 'Voices volume', help: '',
+    get: () => audio.voiceVolume * 100, set: (v: number) => { audio.setVoiceVolume(v / 100); if (!audio.on) audio.setOn(true); }, locked: soundLock,
   },
 ];
 // ---------- performance stats (top right: view, altitude, fps, draws) ----------
@@ -1704,7 +1784,21 @@ const interfaceToggles: Toggle[] = [
     locked: () => (canWake ? null : 'Not in this browser'),
   },
 ];
-const showOptions = (onClose?: () => void, extra: OptionRow[] = [...soundToggles, ...interfaceToggles]) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
+const accessRows: OptionRow[] = [
+  {
+    kind: 'slider', id: 'uisize', section: 'Accessibility', label: 'Interface size', help: 'Text, buttons and panels: smaller to bigger (the middle is as designed)',
+    get: () => ((uiSize - 0.8) / 0.7) * 100, set: (v: number) => setUiSize(Math.round((0.8 + (v / 100) * 0.7) * 20) / 20),
+  },
+  {
+    id: 'motion', section: 'Accessibility', label: 'Reduce motion', help: `No camera shake, zoom blur or flickering text, and panels appear without animating${motionChosen() ? '' : ' (now following your device\'s setting)'}`,
+    get: () => reduceMotion(), set: (v: boolean) => setReduceMotion(v),
+  },
+  {
+    id: 'colourblind', section: 'Accessibility', label: 'Colour-blind palette', help: 'Highlights, warnings, alerts and the placement preview in colours that stay distinct with any common colour vision',
+    get: () => colourBlind, set: (v: boolean) => setColourBlind(v, () => applyInterface(ui_)),
+  },
+];
+const showOptions = (onClose?: () => void, extra: OptionRow[] = [...soundToggles, ...interfaceToggles, ...accessRows]) => openOptions([...extra, ...graphicsToggles], () => audio.play('tap'), onClose);
 
 // ---------- performance report (src/perf-report.ts): menu → Performance report ----------
 const perf = new PerfReport({
@@ -1788,6 +1882,7 @@ function openGameMenu() {
       run: () => autopilot.set(!autopilot.on),
     }] : []),
     { id: 'chronicle', label: 'Chronicle', sub: 'The colony\'s story so far: moments, blocs, the family tree, the memorial', run: keep(() => void showChronicle(() => { menuOpen = false; reopen(); })) },
+    { id: 'log', label: 'Message log', sub: `Everything the log has said this visit (${keyLabel(keyFor('history'))})`, run: keep(() => showLogHistory(() => { menuOpen = false; reopen(); })) },
     { id: 'news', label: "What's new", sub: `Version ${VERSION}`, run: keep(() => openWhatsNew(() => { menuOpen = false; reopen(); })) },
     { id: 'skirmish', label: 'Skirmish', sub: 'Set up a battle against the computer (your colony is autosaved)', run: keep(() => { sim.flush(); showSkirmishSetup(() => { menuOpen = false; reopen(); }); }) },
     { id: 'title', label: 'Title screen', sub: 'Your colony is autosaved', run: keep(() => { sim.flush(); saveCamera(); toTitle(); }) },
@@ -1917,7 +2012,7 @@ function showTitle() {
     { id: 'skirmish', kind: 'tile', label: 'SKIRMISH', sub: 'You against the computer', run: () => showSkirmishSetup() },
     { id: 'domination', kind: 'plain', label: 'DOMINATION', sub: 'A long war for the whole system', run: () => { location.href = `${import.meta.env.BASE_URL}domination.html`; } },
     { id: 'guide', kind: 'icon', icon: '📖', label: 'Guide', sub: 'Field Guide: how to play, page by page', run: () => openGuide() },
-    { id: 'options', kind: 'icon', icon: '⚙', label: 'Options', sub: regions.length > 1 ? 'Region, sound, graphics and the autopilot' : 'Sound, graphics and the autopilot', run: () => showOptions(undefined, titleOptions) },
+    { id: 'options', kind: 'icon', icon: '⚙', label: 'Options', sub: regions.length > 1 ? 'Region, sound, graphics and the autopilot' : 'Sound, graphics and the autopilot', run: () => showOptions(undefined, [...titleOptions, ...accessRows]) },
     { id: 'tour', kind: 'icon', icon: '🪐', label: 'Tour', sub: 'Fly round the system with the menu put away · tap to come back', run: () => title?.tour(true) },
     ...(autopilot ? [{ id: 'watch', kind: 'icon' as const, icon: '👁', label: 'Watch', sub: `Watch the computer play${saved ? ' your campaign' : ''} (settings in Options)`, run: watch }] : []),
     { id: 'news', kind: 'icon', icon: '✦', label: "What's new", sub: `Version ${VERSION}`, badge: hasUnseen(), run: () => openWhatsNew(() => title?.root.querySelectorAll('.badge').forEach((b) => b.remove())) },
@@ -2291,7 +2386,7 @@ function frame(now: number) {
     const shafts = sunShows * onScreen * (0.25 + 0.75 * air) * (0.7 + 0.6 * system.golden) * (1 - system.overcast * 0.85);
     post?.update({
       night: 1 - smoothstep(-0.2, 0.15, sunUp), orbit: 1 - air, sun: shaftUv.set((sp.x + 1) / 2, (sp.y + 1) / 2), shafts,
-      zoom: zoomBlur && !cine && !title ? smoothstep(1.2, 5, zoomRate) * 0.035 : 0,
+      zoom: zoomBlur && !reduceMotion() && !cine && !title ? smoothstep(1.2, 5, zoomRate) * 0.035 : 0,
       heat, heatK: 0.5 + 0.5 * day, time: t,
       grade: worldGrade, golden: system.golden, camDist: cam.dist,
     });

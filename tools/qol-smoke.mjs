@@ -31,6 +31,12 @@ const camNear = (x, z, r) => page.waitForFunction(([x, z, r]) => Math.hypot(__ex
 const logHas = (t) => ev((t) => [...document.querySelectorAll('#log .ev')].some((e) => e.textContent.includes(t)), t);
 
 await cmd({ type: 'debug', alloys: 3000 });
+// the opening's Mission Briefing card comes up a couple of seconds in and pauses the game: answer it first,
+// or it covers the Command Core the placement checks hover over
+const dismissCards = async () => { for (let i = 0; i < 4; i++) { const b = await page.$('#contact button[data-s], #contact button[data-ok], #contact button[data-reply]'); if (!b || !(await b.isVisible())) break; await b.click(); await wait(250); } };
+await page.waitForSelector('#contact button[data-s]', { timeout: 8000 }).catch(() => {});
+await dismissCards();
+await wait(300);
 await page.keyboard.press('Escape'); // drop the first-drone selection
 await wait(200);
 
@@ -82,6 +88,7 @@ await wait(200);
 
 // 5. the build menu: Esc closes it; placing: the hint says why not; right-click stops placing
 {
+  await dismissCards();
   await page.keyboard.press('b');
   await wait(200);
   check(await ev(() => document.getElementById('build-menu').classList.contains('open')), 'B opens the build menu');
@@ -98,7 +105,8 @@ await wait(200);
   await page.mouse.move(p.x, p.y);
   await wait(200);
   const hint = await ev(() => { const h = document.getElementById('place-hint'); return { on: getComputedStyle(h).display !== 'none', text: h.textContent }; });
-  check(hint.on && hint.text.length > 3, `placement hint by the cursor ("${hint.text}")`);
+  const over = await ev(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? `${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}` : '?'; }, [p.x, p.y]);
+  check(hint.on && hint.text.length > 3, `placement hint by the cursor ("${hint.text}"; pointer over ${over}, placing ${await ev(() => __exo.ui.build)})`);
   await page.mouse.click(p.x, p.y, { button: 'right' });
   await wait(200);
   check(!(await ev(() => __exo.ui.build)), 'right-click stops placing');

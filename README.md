@@ -51,7 +51,9 @@ wars under every rule and checks they end and are fair.
 | Save | menu → Save | Ctrl+S |
 | Latest alert | tap a ◎ log line | H |
 | Unit ability | ⚡ button on the unit card | G |
-| Every key | menu → Controls | ? |
+| Build menu items | | 1–0 with the menu open · V: another of the last |
+| Message log | menu → Message log | L |
+| Every key (and change them) | menu → Controls | ? |
 
 ## Run
 
@@ -93,6 +95,8 @@ node tools/autopilot-campaign.mjs  # how far the autopilot gets through the camp
 node tools/map-smoke.mjs     # map editor → game end-to-end (restores the region afterwards)
 node tools/asset-smoke.mjs   # asset browser → game end-to-end (restores content/ + public/media/)
 node tools/editor-web-smoke.mjs  # deployed editor's GitHub backend vs a mock API (needs a /ExoGenesis/ build on vite preview :4176)
+node tools/access-smoke.mjs    # volumes, build-menu keys, V, the message log, rebinding, interface size, reduce motion, colour-blind palette
+node tools/saves-compat-smoke.mjs  # saves from v0.60 / v0.81 / v0.94 still load and play (headless, in npm test)
 node tools/recovery-smoke.mjs  # the sim stopping (card, Reload), page-error note, the save file kept before NEW GAME
 node tools/pwa-smoke.mjs     # installable app: manifest, icons, service worker, offline boot (same /ExoGenesis/ preview)
 node tools/make-icons.mjs    # re-render the app icons from public/icons/icon.svg
