@@ -79,7 +79,7 @@ try {
 
   // drones at work, at normal speed and in view
   await cmd({ type: 'build', kind: 'solar', ...(await spot('solar', 0, -20)) });
-  await page.waitForFunction(() => (__exo.audio.stats().counts.build ?? 0) >= 1, null, { timeout: 30000, polling: 200 }).catch(() => {});
+  await page.waitForFunction(() => (__exo.audio.stats().counts.build ?? 0) >= 1, null, { timeout: 90000, polling: 500 }).catch(() => {});
   check(((await stats()).counts.build ?? 0) >= 1, `drones at work are heard building (${(await stats()).counts.build ?? 0})`);
 
   // selecting and ordering: tap a drone (the first starts selected: let it go first), then open ground
@@ -144,7 +144,11 @@ try {
     await answerBriefing(p2);
     await p2.goto(`${url}?intro=0&new=1&region=port_of_hope`);
     // (a second game while the first runs, in software rendering: give it time)
-    await p2.waitForFunction(() => window.__exo?.ready, null, { timeout: 300000 });
+    // (polled from here: with the first page frozen, the page-side waitForFunction never comes back)
+    for (let t = Date.now(); !(await p2.evaluate(() => !!window.__exo?.ready)); ) {
+      if (Date.now() - t > 300000) throw new Error('the second game never got ready');
+      await new Promise((r) => setTimeout(r, 1000));
+    }
     await p2.click('#b-play');
     const wet = await p2.evaluate(() => {
       // a shore: water here, dry ground close by
@@ -258,7 +262,7 @@ try {
 
   check(errors.length === 0, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' | ')}` : ''}`);
 } catch (e) {
-  console.log(`FAIL  ${e.message}`);
+  console.log(`FAIL  ${e.message}\n${(e.stack ?? "").split("\n").filter((l) => l.includes("-smoke.mjs")).join("\n")}`);
   failed++;
 } finally {
   await browser.close();

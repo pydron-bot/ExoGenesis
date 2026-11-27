@@ -26,12 +26,15 @@ try {
   await page.evaluate(() => localStorage.removeItem('exo.sound'));
   // autoplay blocked (a first visit): nothing until a click, and the title says so; a click anywhere starts it
   {
+    // (two pages rendering in software at once starve each other: the first is frozen meanwhile)
+    const cdp1 = await page.context().newCDPSession(page);
+    await cdp1.send('Page.setWebLifecycleState', { state: 'frozen' });
     const b2 = await launch();
     const p2 = await b2.newPage({ viewport: { width: 1100, height: 750 } });
     await p2.goto(`${url}?sw=0`);
     await p2.waitForFunction(() => window.__exo?.ready && document.querySelector('#title .t-item'), null, { timeout: 120000 });
     // (the title's status line fills in once the page has settled: slow under software rendering)
-    await p2.waitForFunction(() => /ANYWHERE FOR SOUND/.test(document.querySelector('#title .t-status')?.textContent ?? ''), null, { timeout: 20000 }).catch(() => {});
+    await p2.waitForFunction(() => /ANYWHERE FOR SOUND/.test(document.querySelector('#title .t-status')?.textContent ?? ''), null, { timeout: 90000, polling: 500 }).catch(() => {});
     const hint = await p2.textContent('#title .t-status');
     check((await p2.evaluate(() => __exo.audio.stats().music)) === null && /ANYWHERE FOR SOUND/.test(hint), `autoplay blocked: no music, and the title says to click (${hint})`);
     await p2.mouse.click(900, 650);
@@ -39,6 +42,7 @@ try {
     const m = await p2.evaluate(() => __exo.audio.stats().music);
     check(m?.use === 'title' && (await p2.textContent('#title .t-status')) === '', `a click anywhere starts the title music and clears the hint (${m?.mood})`);
     await b2.close();
+    await cdp1.send('Page.setWebLifecycleState', { state: 'active' });
   }
   // autoplay allowed (this browser): the title music starts by itself
   await page.waitForFunction(() => __exo.audio.stats().music, null, { timeout: 5000 }).catch(() => {});

@@ -5,7 +5,7 @@
  *   - Ctrl + drag draws a box (desktop); Ctrl + Shift adds to the selection
  *   node tools/select-smoke.mjs [--url http://localhost:5176/] [--only mouse|touch]
  */
-import { launch } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
 const browser = await launch();
@@ -15,6 +15,7 @@ for (const touch of [false, true].filter((t) => !only || only === (t ? 'touch' :
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
   const wait = (ms) => page.waitForTimeout(ms);
+  await answerBriefing(page); // (the opening's briefing would cover the ground with its card)
   await page.goto(`${url}?intro=0&new=1&sw=0`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   await wait(1500);
@@ -47,8 +48,9 @@ for (const touch of [false, true].filter((t) => !only || only === (t ? 'touch' :
   let panned = false, kept = false;
   for (let k = 0; k < 3 && !(panned && kept); k++) {
     const c0 = await page.evaluate(() => [__exo.cam.fx, __exo.cam.fz]);
-    if (touch) { await tp('touchStart', sx, sy + 150); for (let i = 1; i <= 8; i++) await tp('touchMove', sx + i * 10, sy + 150); await tp('touchEnd'); }
-    else { await page.mouse.move(sx, sy + 150); await page.mouse.down(); await page.mouse.move(sx + 80, sy + 150, { steps: 8 }); await page.mouse.up(); }
+    // a flick: two long moves (each event is a round trip to the browser, so many small ones could add up past the hold time)
+    if (touch) { await tp('touchStart', sx, sy + 150); await tp('touchMove', sx + 40, sy + 150); await tp('touchMove', sx + 80, sy + 150); await tp('touchEnd'); }
+    else { await page.mouse.move(sx, sy + 150); await page.mouse.down(); await page.mouse.move(sx + 80, sy + 150, { steps: 2 }); await page.mouse.up(); }
     await wait(200);
     const camPan = await page.evaluate(() => [__exo.cam.fx, __exo.cam.fz]);
     panned = Math.hypot(camPan[0] - c0[0], camPan[1] - c0[1]) > 0.5;

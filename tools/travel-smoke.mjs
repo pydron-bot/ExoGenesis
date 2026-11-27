@@ -205,6 +205,8 @@ fs.writeFileSync(tmp[1], JSON.stringify({ ...C.regions.test_region, name: 'Smoke
 let loads = 0;
 page.on('load', () => loads++);
 await answerBriefing(page); // (the opening's briefing pauses the game, and travel with it)
+// the arrival caption shows for a few seconds from page start (on a slow machine, gone before the game is ready): keep the first one seen
+await page.addInitScript(() => { const iv = setInterval(() => { const t = document.getElementById('travel')?.innerText; if (t) { window.__arrive = t; clearInterval(iv); } }, 50); });
 try {
   await page.waitForTimeout(5000);
   // a fresh campaign at home with something built
@@ -237,14 +239,17 @@ try {
   // every caption the transition shows, as it shows them
   await page.evaluate(() => { window.__caps = []; setInterval(() => { const t = document.getElementById('travel')?.innerText; if (t && !window.__caps.includes(t)) window.__caps.push(t); }, 50); });
   await inspect('travel:zz-trek');
-  await page.waitForFunction(() => window.__caps.length >= 2, null, { timeout: 20000 });
+  await page.waitForFunction(() => window.__caps.length >= 2, null, { timeout: 60000 }).catch(async (e) => {
+    console.log('travel state:', JSON.stringify(await page.evaluate(() => ({ caps: window.__caps, campaign: __exo.sim.cur.campaign, inbox: __exo.sim.cur.story.inbox, speed: __exo.sim.speed, title: !!__exo.title?.active, url: location.href }))));
+    throw e;
+  });
   const caption = await page.evaluate(() => window.__caps.join(' | '));
   check(/Leaving Touchdown/i.test(caption) && /Home/i.test(caption), `the transition says where you're leaving (${caption.replace(/\n/g, ' / ')})`);
   await page.waitForURL((u) => u.searchParams.get('region') === 'zz-trek', { timeout: 120000, waitUntil: 'commit' });
   await ready();
   check(!new URL(page.url()).searchParams.has('travel'), 'travel=1 is taken out of the address');
   check(await page.evaluate(() => !document.body.classList.contains('title')), 'no title screen on arrival');
-  const arrive = await page.evaluate(() => document.getElementById('travel')?.innerText ?? '');
+  const arrive = await page.evaluate(() => window.__arrive ?? document.getElementById('travel')?.innerText ?? '');
   check(/Home · Smoke Trek Vale/i.test(arrive), `arrival caption (${arrive.replace(/\n/g, ' / ')})`);
   let t = await cur();
   check(t.region === 'zz-trek' && t.campaign.expedition, 'now playing the expedition');
