@@ -9,7 +9,7 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { launch } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 import { runnerImport } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -79,11 +79,13 @@ const def = { ...test, sounds: [] };
 await page.evaluate(([r, d]) => localStorage.setItem('exo.preview', JSON.stringify({ id: 'touchdown', def: JSON.parse(r), cinematic: { id: 'zz-test', def: d } })), [region, def]);
 const g = await ctx.newPage();
 g.on('pageerror', (e) => errors.push(e.message));
+await answerBriefing(g); // (a story cinematic waits while a card is up)
 await g.goto(`${url}?preview=1&intro=0&sw=0`);
-await g.waitForFunction(() => window.__exo?.cinematic?.id === 'zz-test', null, { timeout: 300000 });
+// polled from here: the page can reload once (a content edit landing) and slow frames stall in-page polling
+for (let i = 0; i < 600 && !(await g.evaluate(() => window.__exo?.cinematic?.id === 'zz-test').catch(() => false)); i++) await new Promise((r) => setTimeout(r, 500));
 check(await g.evaluate(() => document.body.classList.contains('cine-world') && document.body.classList.contains('cine-bars')), 'a world cinematic plays, letterboxed');
 const tick0 = await g.evaluate(() => window.__exo.sim.cur.tick);
-await g.waitForFunction(() => window.__exo.cinematic?.t > 1.5, null, { timeout: 60000 });
+await g.waitForFunction(() => window.__exo.cinematic?.t > 1.5, null, { polling: 500, timeout: 60000 });
 check(await g.evaluate(() => window.__exo.sim.cur.tick) - tick0 <= 2, 'the game is paused while it plays');
 check((await g.textContent('#cine-title')) === 'SOMEWHERE', 'its caption shows');
 check(await g.evaluate(() => document.querySelector('#cine-line').classList.contains('on') && document.querySelector('#cine-line .said').textContent.startsWith('Hello, ') && document.querySelector('#cine-line .who').textContent === 'Someone'), 'its line shows, with the speaker ({first} filled in)');
@@ -91,17 +93,18 @@ check(await g.evaluate(() => Number(document.querySelector('#cine-fade').style.o
 const mid = await g.evaluate(() => window.__exo.cam.targetDist);
 check(Math.abs(mid - 40) > 0.5 && mid < 60, `the camera moves through its keys (${mid.toFixed(1)} u)`);
 await g.keyboard.press('Escape');
-await g.waitForFunction(() => !window.__exo.cinematic, null, { timeout: 10000 });
+await g.waitForFunction(() => !window.__exo.cinematic, null, { polling: 500, timeout: 10000 });
 await g.waitForTimeout(800);
 const after = await g.evaluate(() => ({ dist: window.__exo.cam.targetDist, yaw: window.__exo.cam.yaw, tick: window.__exo.sim.cur.tick, q: window.__exo.sim.cur.story.cine }));
 check(Math.abs(after.dist - 75) < 0.5 && Math.abs(after.yaw - 0.4) < 1e-3, `skipping hands the camera back where it was (the surface view: ${after.dist.toFixed(1)} u, yaw ${after.yaw.toFixed(2)})`);
 check(after.tick > tick0 + 2 && !after.q, 'the game runs again and the sim\'s queue is empty');
+await g.close(); // (a game left running takes the CPU the editor's preview needs in software rendering)
 // the editor: the preview follows the playhead and plays in place; the side panels fold away
 {
   const ed = await ctx.newPage();
   ed.on('pageerror', (e) => errors.push(e.message));
   await ed.goto(`${url}editor.html#cinematics/landing.json`);
-  await ed.waitForSelector('.cine-pv canvas', { timeout: 60000 });
+  await ed.waitForSelector('.cine-pv canvas', { timeout: 180000 });
   await ed.locator('svg.tl').scrollIntoViewIfNeeded();
   const box = await ed.locator('svg.tl').boundingBox();
   await ed.mouse.click(box.x + 74 + (20 / 28) * (box.width - 88), box.y + 8);
@@ -117,7 +120,7 @@ check(after.tick > tick0 + 2 && !after.q, 'the game runs again and the sim\'s qu
   await ed.keyboard.press(']');
   check(await ed.evaluate(() => document.body.classList.contains('side-closed') && document.body.classList.contains('aside-closed') && document.querySelector('#side').getBoundingClientRect().width < 30), 'panels: [ and ] fold the sidebar and details panel to a strip');
   await ed.reload();
-  await ed.waitForSelector('.cine-pv canvas', { timeout: 60000 });
+  await ed.waitForSelector('.cine-pv canvas', { timeout: 180000 });
   check(await ed.evaluate(() => document.body.classList.contains('side-closed') && document.body.classList.contains('aside-closed')), 'panels: remembered after a reload');
   await ed.click('#side', { position: { x: 8, y: 120 } });
   await ed.click('#aside-toggle');
@@ -131,7 +134,7 @@ check(after.tick > tick0 + 2 && !after.q, 'the game runs again and the sim\'s qu
   ed.on('pageerror', (e) => errors.push(e.message));
   await ed.setViewportSize({ width: 1500, height: 1100 });
   await ed.goto(`${url}editor.html#cinematics/landing.json`);
-  await ed.waitForSelector('.cine-pv canvas', { timeout: 60000 });
+  await ed.waitForSelector('.cine-pv canvas', { timeout: 180000 });
   const draft = () => ed.evaluate(() => JSON.parse(JSON.stringify(window.__editor.cur.draft)));
   const d0 = await draft();
   const box = await ed.locator('svg.tl').boundingBox();
