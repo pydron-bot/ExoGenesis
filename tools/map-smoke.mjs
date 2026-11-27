@@ -59,7 +59,7 @@ try {
   check((await draft()).height, 'raise stroke wrote a height layer into the draft');
   check(await ed.isEnabled('#save'), 'region marked unsaved');
   const ro = await ed.textContent('.map-readout');
-  check(/sculpt \+[1-9]/.test(ro), `readout shows the sculpt (${ro.trim()})`);
+  check(Number(/sculpt \+([\d.]+)/.exec(ro)?.[1] ?? 0) > 0.3, `readout shows the sculpt (${ro.trim()})`);
 
   // 2. undo / redo
   await ed.keyboard.press('Control+z');
