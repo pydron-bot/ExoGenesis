@@ -30,8 +30,9 @@ async function run(viewport, name, mobile = false) {
   const all = await state();
   const ids = Object.keys(all), regionIds = ids.filter((k) => k.startsWith('region:'));
   check(ids.slice(-17).join() === 'glow,aa,reflect,ao,sunshadows,mist,grade,flare,dust,zoomblur,weather,shadows,clouds,marks,print,water,lights', `${name}: seventeen graphics rows (${ids.slice(-17).join()})`);
-  const first = ids.filter((k) => !k.startsWith('ap:'));
-  check(first[0] === 'sound' && ids.slice(0, ids.indexOf('sound')).every((k) => k.startsWith('ap:')) && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, the autopilot rows, then sound and the regions (${regionIds.length} regions, Touchdown picked)`);
+  // (the autopilot rows and the performance report's Record row come first)
+  const first = ids.filter((k) => !k.startsWith('ap:') && !k.startsWith('perf:'));
+  check(first[0] === 'sound' && ids.slice(0, ids.indexOf('sound')).every((k) => k.startsWith('ap:') || k.startsWith('perf:')) && regionIds.length > 1 && all['region:touchdown'] === true, `${name}: from the title, the autopilot rows, then sound and the regions (${regionIds.length} regions, Touchdown picked)`);
   // the graphics toggles flip and are remembered (sound and the region list have their own checks)
   const G = ['glow', 'reflect', 'ao', 'sunshadows', 'mist', 'grade', 'flare', 'dust', 'zoomblur', 'weather', 'shadows', 'clouds', 'marks', 'print', 'water', 'lights'];
   const pick = (o) => Object.fromEntries(G.map((k) => [k, o[k]]));
@@ -84,7 +85,7 @@ async function menu(viewport, name, mobile = false) {
   await page.click('#b-menu');
   await page.waitForSelector('#options.menu');
   const items = await page.$$eval('#options .op-act', (bs) => bs.map((b) => b.dataset.id));
-  check(['resume', 'save', 'load', 'options', 'new'].every((k) => items.includes(k)), `${name}: menu has ${items.join(', ')}`);
+  check(['resume', 'saves', 'options', 'controls', 'log', 'new'].every((k) => items.includes(k)), `${name}: menu has ${items.join(', ')}`);
   check(await page.evaluate(() => __exo.sim.speed === 0 || document.querySelector('#b-pause').classList.contains('on')), `${name}: the menu pauses the game`);
   if (shots) await page.screenshot({ path: `${shots}/${name}-menu.png` });
   await page.click('#options [data-id="options"]');
