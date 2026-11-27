@@ -121,8 +121,10 @@ await page.dispatchEvent('#card [data-act="power"]', 'pointerdown');
 check(await isOn(true), 'Switch on turns it back on');
 
 // 5. turrets fight a pack (spawned on demand)
-await cmd({ type: 'debug', alloys: 400 });
-for (const kind of ['turret', 'turret', 'solar']) {
+// (and a radar: without one the bar shows a pack only once it's sighted near a building, and the turrets can kill a
+// small pack before that)
+await cmd({ type: 'debug', alloys: 700 });
+for (const kind of ['turret', 'turret', 'solar', 'solar', 'radar']) {
   const p = await page.evaluate((kind) => {
     for (let r = 14; r < 40; r += 3) for (let a = 0; a < 6.28; a += 0.4) {
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
@@ -135,6 +137,7 @@ for (const kind of ['turret', 'turret', 'solar']) {
 }
 await page.evaluate(() => __exo.sim.setSpeed(3));
 await until(() => __exo.sim.cur.buildings.filter((b) => b.kind === 'turret' && b.progress >= 1).length === 2, null, 180000);
+await until(() => __exo.sim.cur.buildings.some((b) => b.kind === 'radar' && b.progress >= 1), null, 180000);
 // watch the resource bar from now on: two turrets can kill a small pack before a check after the kills would see it
 await page.evaluate(() => {
   window.__threatSeen = false; window.__threatLog = [];

@@ -122,9 +122,10 @@ export class StoryHud {
     if (el && getComputedStyle(el).display === 'none') el = null;
     if (el !== this.hinted) {
       this.hinted?.classList.remove('hinted');
-      el?.classList.add('hinted');
       this.hinted = el;
     }
+    // every time: the resource bar rewrites some of its items' classes on each refresh (the cryo bank's warn/bad)
+    el?.classList.add('hinted');
     if (h.n !== this.hintN) {
       this.hintN = h.n;
       this.bubble.innerHTML = esc(h.text || 'Here');
