@@ -9,7 +9,7 @@
  *   node tools/music-smoke.mjs [--url http://localhost:5176/]
  */
 import { chromium } from 'playwright';
-import { launch } from './lib/harness.mjs';
+import { answerBriefing, launch } from './lib/harness.mjs';
 
 const url = process.argv.includes('--url') ? process.argv[process.argv.indexOf('--url') + 1] : (process.env.SMOKE_URL ?? 'http://localhost:5176/');
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
@@ -31,7 +31,8 @@ try {
     const p2 = await b2.newPage({ viewport: { width: 1100, height: 750 } });
     await p2.goto(`${url}?sw=0`);
     await p2.waitForFunction(() => window.__exo?.ready && document.querySelector('#title .t-item'), null, { timeout: 120000 });
-    await p2.waitForTimeout(3000);
+    // (the title's status line fills in once the page has settled: slow under software rendering)
+    await p2.waitForFunction(() => /ANYWHERE FOR SOUND/.test(document.querySelector('#title .t-status')?.textContent ?? ''), null, { timeout: 20000 }).catch(() => {});
     const hint = await p2.textContent('#title .t-status');
     check((await p2.evaluate(() => __exo.audio.stats().music)) === null && /ANYWHERE FOR SOUND/.test(hint), `autoplay blocked: no music, and the title says to click (${hint})`);
     await p2.mouse.click(900, 650);
@@ -64,6 +65,7 @@ try {
   check((await stats()).music === null, 'music stops (fades) when the title closes');
 
   // ---- in play ----
+  await answerBriefing(page); // (the opening's briefing pauses the game, and the music with it)
   await page.goto(`${url}?sw=0&intro=0&new=1`);
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });
   await page.click('#b-play');
@@ -73,7 +75,7 @@ try {
   check(s.music === null && s.stretch && !s.stretch.play, `quiet at first after landing (${JSON.stringify(s.stretch)})`);
   // skip the wait: the stretch clock runs out now
   await page.evaluate(() => { __exo.audio.stretch.left = 0; });
-  await page.waitForTimeout(800);
+  await page.waitForFunction(() => !!__exo.audio.stats().music, null, { timeout: 15000, polling: 250 }).catch(() => {});
   s = await stats();
   const calm = s.music?.use;
   check(calm === 'day' || calm === 'night', `a calm stretch starts: ${calm} (${s.music?.mood})`);
@@ -102,8 +104,9 @@ try {
   // what's tested is the volume bringing the music back, not whether the fight lasted
   await page.evaluate(() => __exo.sim.command({ type: 'debug', spawn: { unit: 'swarmer', x: 10, z: 10, n: 6 } }));
   await musicVol('50');
-  await page.waitForFunction(() => __exo.audio.stats().music?.use === 'tension', null, { timeout: 15000, polling: 250 }).catch(() => {});
-  check((await stats()).music?.use === 'tension', `and it comes back when turned up (${(await stats()).music?.use})`);
+  await page.waitForFunction(() => !!__exo.audio.stats().music, null, { timeout: 15000, polling: 250 }).catch(() => {});
+  // (tension if the new fight is still on, else the calm music: either way the volume brought it back)
+  check(!!(await stats()).music?.use, `and it comes back when turned up (${(await stats()).music?.use})`);
   await musicVol('0');
   await page.reload();
   await page.waitForFunction(() => window.__exo?.ready, null, { timeout: 120000 });

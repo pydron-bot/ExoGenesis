@@ -42,7 +42,8 @@ await wait(3000);
 const clear = await page.evaluate(() => __exo.flare.strength);
 check(clear > 0.2, `lens flare shows with the sun in view (${clear.toFixed(2)})`);
 await page.evaluate(() => { window.__aim = 1200; });
-await wait(3000);
+// the flare fades rather than snapping off (slow frames in software rendering): give it up to 15 s
+await page.waitForFunction(() => __exo.flare.strength < 0.05, null, { timeout: 15000, polling: 250 }).catch(() => {});
 const hidden = await page.evaluate(() => __exo.flare.strength);
 check(hidden < 0.05, `and goes out with the planet in front of the sun (${hidden.toFixed(3)})`);
 await page.evaluate(() => { __exo.flare.enabled = false; window.__aim = 3300; });
