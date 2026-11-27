@@ -3557,3 +3557,16 @@ Every smoke in `npm run test:browser` passes again on SwiftShader. What they had
   - fog's explore target is clear of the wreck;
   - smoke.mjs gets a radar for the threat check;
   - the radio check answers the conversation first.
+
+Afterwards (tools only, no release):
+
+- **Every browser smoke launches through `launch()`** (`tools/lib/harness.mjs`), so all of them get its patient
+  page timeouts (`SMOKE_TIMEOUT`). Most of the remaining failures were Playwright's 30-second default.
+- **Two pages at once** (music's autoplay-blocked browser, sound's coastal game): the first page is frozen while
+  the second runs (`Page.setWebLifecycleState`), and the second's readiness is polled from Node.
+- **Late input**: the select smoke's quick drag is a two-move flick. Each event is a round trip, so eight small moves
+  could add up past the 420 ms hold time and turn the pan into a paint.
+- **Never run two smokes against one dev server**: the travel and editor smokes write content files, and every
+  open game page reloads.
+- The whole `--browser` run takes over two hours on SwiftShader (cinematic alone is about 24 minutes): run it in
+  groups if a session limits background jobs.
